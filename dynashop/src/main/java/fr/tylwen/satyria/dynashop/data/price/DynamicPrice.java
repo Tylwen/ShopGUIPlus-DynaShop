@@ -6,7 +6,7 @@ public class DynamicPrice {
     private double buyPrice, sellPrice;
     private final double minBuy, maxBuy, minSell, maxSell;
     private final double growthBuy, decayBuy, growthSell, decaySell;
-    static final double MIN_MARGIN = 0.01; // Marge minimale entre buyPrice et sellPrice
+    public static final double MIN_MARGIN = 0.01; // Marge minimale entre buyPrice et sellPrice
     private boolean isFromRecipe;
     
     // Variables pour le système de stock
@@ -351,7 +351,7 @@ public class DynamicPrice {
         return buyPrice >= minBuy && buyPrice <= maxBuy && sellPrice >= minSell && sellPrice <= maxSell;
     }
 
-    
+
 
     public boolean isFromRecipe() {
         return isFromRecipe;

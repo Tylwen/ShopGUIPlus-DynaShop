@@ -114,5 +114,16 @@ public class PriceDynamic implements PriceItem {
     public DynaShopType getType() {
         return DynaShopType.DYNAMIC;
     }
+
+    // Autres méthodes spécifiques à la stratégie dynamique
+    // incrementBuy, decrementSell, etc.
+    public void incrementBuy(String shopID, String itemID) {
+        Optional<DynamicPrice> priceOpt = itemDataManager.getPrices(shopID, itemID);
+        if (priceOpt.isPresent()) {
+            DynamicPrice price = priceOpt.get();
+            price.incrementBuy();
+            itemDataManager.saveDynamicPrice(shopID, itemID, price);
+        }
+    }
     
 }
