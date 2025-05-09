@@ -1,4 +1,4 @@
-package fr.tylwen.satyria.dynashop.data;
+package fr.tylwen.satyria.dynashop.config;
 
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -6,8 +6,11 @@ import org.bukkit.configuration.file.YamlConfiguration;
 // import org.bukkit.inventory.ItemStack;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import fr.tylwen.satyria.dynashop.data.ItemPriceData;
+import fr.tylwen.satyria.dynashop.data.ShopFile;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.data.param.RecipeType;
+import fr.tylwen.satyria.dynashop.data.price.DynamicPrice;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 // import net.brcdev.shopgui.exception.shop.ShopsNotLoadedException;
 import net.brcdev.shopgui.shop.Shop;

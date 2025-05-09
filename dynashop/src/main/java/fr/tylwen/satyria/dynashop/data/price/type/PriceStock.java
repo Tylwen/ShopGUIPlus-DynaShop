@@ -1,14 +1,18 @@
-package fr.tylwen.satyria.dynashop.data;
+package fr.tylwen.satyria.dynashop.data.price.type;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import fr.tylwen.satyria.dynashop.PriceItem;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
+import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
+import fr.tylwen.satyria.dynashop.data.price.DynamicPrice;
+
 import org.bukkit.inventory.ItemStack;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-public class PriceStock {
+public class PriceStock implements PriceItem {
     private final DynaShopPlugin plugin;
     private final DataConfig dataConfig;
     private final Map<String, DynamicPrice> priceCache = new HashMap<>();
@@ -76,6 +80,22 @@ public class PriceStock {
         
         return price;
     }
+
+    /**
+     * Calcule le prix d'achat.
+     */
+    @Override
+    public double calculateBuyPrice(String shopID, String itemID, ItemStack item) {
+        return calculatePrice(shopID, itemID, "buyPrice");
+    }
+
+    /**
+     * Calcule le prix de vente.
+     */
+    @Override
+    public double calculateSellPrice(String shopID, String itemID, ItemStack item) {
+        return calculatePrice(shopID, itemID, "sellPrice");
+    }
     
     /**
      * Récupère le prix de base depuis la BD ou la configuration.
@@ -99,6 +119,7 @@ public class PriceStock {
     /**
      * Gère une transaction d'achat.
      */
+    @Override
     public void processBuyTransaction(String shopID, String itemID, int amount) {
         // Diminuer le stock
         decreaseStock(shopID, itemID, amount);
@@ -110,6 +131,7 @@ public class PriceStock {
     /**
      * Gère une transaction de vente.
      */
+    @Override
     public void processSellTransaction(String shopID, String itemID, int amount) {
         // Augmenter le stock
         increaseStock(shopID, itemID, amount);
@@ -168,6 +190,7 @@ public class PriceStock {
     /**
      * Vérifie si un achat est possible (stock suffisant).
      */
+    @Override
     public boolean canBuy(String shopID, String itemID, int amount) {
         Optional<Integer> stockOptional = plugin.getItemDataManager().getStock(shopID, itemID);
         return stockOptional.map(stock -> stock >= amount).orElse(true);
@@ -176,6 +199,7 @@ public class PriceStock {
     /**
      * Vérifie si une vente est possible (stock pas plein).
      */
+    @Override
     public boolean canSell(String shopID, String itemID, int amount) {
         Optional<Integer> stockOptional = plugin.getItemDataManager().getStock(shopID, itemID);
         int maxStock = plugin.getShopConfigManager()
@@ -272,5 +296,10 @@ public class PriceStock {
         priceCache.remove(sellKey);
         cacheTimestamps.remove(buyKey);
         cacheTimestamps.remove(sellKey);
+    }
+
+    @Override
+    public DynaShopType getType() {
+        return DynaShopType.STOCK;
     }
 }

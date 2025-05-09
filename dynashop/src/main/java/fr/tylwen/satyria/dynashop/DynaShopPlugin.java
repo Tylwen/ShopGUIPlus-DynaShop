@@ -21,13 +21,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 import fr.tylwen.satyria.dynashop.command.DynaShopCommand;
 import fr.tylwen.satyria.dynashop.command.ReloadCommand;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
+import fr.tylwen.satyria.dynashop.config.ShopConfigManager;
 import fr.tylwen.satyria.dynashop.data.CustomRecipeManager;
-import fr.tylwen.satyria.dynashop.data.PriceRecipe;
-import fr.tylwen.satyria.dynashop.data.PriceStock;
-// import fr.tylwen.satyria.dynashop.config.Config;
-// import fr.tylwen.satyria.dynashop.config.Lang;
-// import fr.tylwen.satyria.dynashop.config.Settings;
-import fr.tylwen.satyria.dynashop.data.ShopConfigManager;
+import fr.tylwen.satyria.dynashop.data.price.type.PriceRecipe;
+import fr.tylwen.satyria.dynashop.data.price.type.PriceStock;
 import fr.tylwen.satyria.dynashop.database.BatchDatabaseUpdater;
 import fr.tylwen.satyria.dynashop.database.DataManager;
 import fr.tylwen.satyria.dynashop.database.ItemDataManager;
@@ -39,6 +36,7 @@ import fr.tylwen.satyria.dynashop.task.ReloadDatabaseTask;
 import fr.tylwen.satyria.dynashop.task.SavePricesTask;
 import fr.tylwen.satyria.dynashop.task.WaitForShopsTask;
 import net.brcdev.shopgui.ShopGuiPlusApi;
+// import net.brcdev.shopgui.gui.gui.ShopGui;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -67,6 +65,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private DataConfig dataConfig;
     private CustomRecipeManager customRecipeManager;
     private Logger logger;
+    private DynaShopListener dynaShopListener;
     // private CommentedConfiguration config;
 
     private final Map<String, Double> recipePriceCache = new ConcurrentHashMap<>();
@@ -128,6 +127,17 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         return this.priceStock;
     }
 
+    public DynaShopListener getDynaShopListener() {
+        return this.dynaShopListener;
+    }
+
+    public ShopGUIPlusHook getShopGUIPlusHook() {
+        return this.shopGUIPlusHook;
+    }
+
+    // public ShopGuiPlusApi getShopGuiPlusApi() {
+    //     return ShopGuiPlusApi.getPlugin();
+    // }
     @Override
     public void onEnable() {
         // // Vérifier si ShopGUIPlus est installé
@@ -190,7 +200,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private void init() {
         generateFiles();
         this.shopConfigManager = new ShopConfigManager(new File(Bukkit.getPluginManager().getPlugin("ShopGUIPlus").getDataFolder(), "shops/"));
-        this.priceRecipe = new PriceRecipe(this.configMain);
+        this.priceRecipe = new PriceRecipe(this);
         this.dataConfig = new DataConfig(this.configMain);
         this.priceStock = new PriceStock(this);
         this.dataManager = new DataManager(this);

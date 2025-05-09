@@ -10,7 +10,7 @@ import net.brcdev.shopgui.shop.item.ShopItem;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
-import fr.tylwen.satyria.dynashop.data.DynamicPrice;
+import fr.tylwen.satyria.dynashop.data.price.DynamicPrice;
 
 import java.io.File;
 import java.io.IOException;

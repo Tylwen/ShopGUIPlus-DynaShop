@@ -1,7 +1,7 @@
 package fr.tylwen.satyria.dynashop.task;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
-import fr.tylwen.satyria.dynashop.data.DynamicPrice;
+import fr.tylwen.satyria.dynashop.data.price.DynamicPrice;
 import net.brcdev.shopgui.shop.item.ShopItem;
 
 import java.util.Map;

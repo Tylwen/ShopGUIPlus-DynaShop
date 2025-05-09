@@ -1,4 +1,4 @@
-package fr.tylwen.satyria.dynashop.data;
+package fr.tylwen.satyria.dynashop.data.price;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 
@@ -351,6 +351,8 @@ public class DynamicPrice {
         return buyPrice >= minBuy && buyPrice <= maxBuy && sellPrice >= minSell && sellPrice <= maxSell;
     }
 
+    
+
     public boolean isFromRecipe() {
         return isFromRecipe;
     }
@@ -358,6 +360,8 @@ public class DynamicPrice {
     public void setFromRecipe(boolean fromRecipe) {
         this.isFromRecipe = fromRecipe;
     }
+
+
 
     public int getStock() {
         return stock;

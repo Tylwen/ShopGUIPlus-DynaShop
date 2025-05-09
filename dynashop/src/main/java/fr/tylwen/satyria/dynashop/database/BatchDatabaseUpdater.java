@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 // import org.bukkit.Bukkit;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
-import fr.tylwen.satyria.dynashop.data.DynamicPrice;
+import fr.tylwen.satyria.dynashop.data.price.DynamicPrice;
 
 // public class BatchDatabaseUpdater {
 //     private final Map<String, DynamicPrice> pendingUpdates = new HashMap<>();
