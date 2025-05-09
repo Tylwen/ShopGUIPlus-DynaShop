@@ -1,0 +1,40 @@
+# Configuration de la base de données
+database:
+  type: SQLITE # Type de base de données : MYSQL ou SQLITE
+  mysql:
+    host: "localhost"
+    port: 3306
+    name: "dynashop"
+    table-prefix: "dynashop"
+    username: "root"
+    password: ""
+  sqlite:
+    file: "dynashop.db"
+
+# Configuration de la boutique dynamique
+actions:
+  craft: 1.25
+  furnace: 1.5
+  shapeless: 1.1
+  shaped: 1.2
+  brewing: 2.0
+
+time-period: 360 # Durée de la période de calcul des prix dynamique (en secondes)
+
+default:
+  price-min-multiply: 0.5 # Multiplicateur minimum pour le prix dynamique
+  price-max-multiply: 2.0 # Multiplicateur maximum pour le prix dynamique
+  price-min: 0.01 # Prix minimum pour le prix dynamique
+  price-max: 1000.0 # Prix maximum pour le prix dynamique
+  price-margin: 0.1 # Marge de prix pour le prix dynamique
+  buy-growth-rate: 1.00005 # Taux de croissance pour le prix dynamique
+  buy-decay-rate: 0.99998 # Taux de déclin pour le prix dynamique
+  sell-growth-rate: 1.00005 # Taux de croissance pour le prix dynamique
+  sell-decay-rate: 0.99998 # Taux de déclin pour le prix dynamique
+  price-increase: 0.1 # Augmentation de prix pour le prix dynamique
+  price-decrease: 0.1 # Diminution de prix pour le prix dynamique
+
+  stock-min: 0 # Stock minimum pour le prix dynamique
+  stock-max: 1000000 # Stock maximum pour le prix dynamique
+  stock-buy-modifier: 0.5 # Modificateur de stock pour le prix dynamique
+  stock-sell-modifier: 2.0 # Modificateur de stock pour le prix dynamique

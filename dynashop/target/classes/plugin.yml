@@ -1,0 +1,51 @@
+name: ShopGUIPlus-DynaShop
+prefix: DynaShop
+author: Tylwen
+main: fr.tylwen.satyria.dynashop.DynaShopPlugin
+version: 1.0.0
+description: Plugin de gestion de boutique dynamique pour Minecraft
+api-version: '1.20'
+depend: [ ShopGUIPlus ]
+loadbefore: [ ShopGUIPlus ]
+
+commands:
+#   shop:
+#   sell:
+#   buy:
+  dynashop:
+    description: Commande principale de DynaShop
+    usage: /<command> <action> [args]
+    aliases: [ ds, dshop ]
+    permission: dynashop.command
+    permission-message: '&cVous n''avez pas la permission d''utiliser cette commande.'
+    children:
+      reload:
+        description: Recharger la configuration de DynaShop
+        usage: /<command> reload
+        permission: dynashop.reload
+        permission-message: '&cVous n''avez pas la permission d''utiliser cette commande.'
+
+# permission:
+#   dynashop.*:
+#     children:
+#       dynashop.reload: true
+#       dynashop.buymore: true
+#       dynashop.sellmore: true
+#       dynashop.sell.hand: true
+#       dynashop.sell.hand.all: true
+#       dynashop.sell.all: true
+#       dynashop.shop: true
+#       dynashop.shop.*: true
+#   dynashop.reload:
+#   dynashop.buymore:
+#     default: true
+#   dynashop.sellmore:
+#     default: true
+#   dynashop.sell.hand:
+#   dynashop.sell.hand.all:
+#   dynashop.sell.all:
+#   dynashop.shop:
+#     default: true
+#   dynashop.shop.*:
+#     default: true
+#   dynashop.set:
