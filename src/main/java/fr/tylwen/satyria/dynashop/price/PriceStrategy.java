@@ -150,51 +150,40 @@ public class PriceStrategy {
         double minSell = priceData.minSell.orElse(sellPrice);
         double maxSell = priceData.maxSell.orElse(sellPrice);
     
-        double growthBuy = priceData.growthBuy.orElseGet(() -> {
-            boolean hasBuyDynamic = shopConfigManager.hasSection(shopID, itemID, "buyDynamic");
-            return hasBuyDynamic ? dataConfig.getBuyGrowthRate() : 1.0; // Valeur par défaut pour growthBuy
-        });
-    
-        double decayBuy = priceData.decayBuy.orElseGet(() -> {
-            boolean hasBuyDynamic = shopConfigManager.hasSection(shopID, itemID, "buyDynamic");
-            return hasBuyDynamic ? dataConfig.getBuyDecayRate() : 1.0; // Valeur par défaut pour decayBuy
-        });
-    
-        double growthSell = priceData.growthSell.orElseGet(() -> {
-            boolean hasSellDynamic = shopConfigManager.hasSection(shopID, itemID, "sellDynamic");
-            return hasSellDynamic ? dataConfig.getSellGrowthRate() : 1.0; // Valeur par défaut pour growthSell
-        });
-    
-        double decaySell = priceData.decaySell.orElseGet(() -> {
-            boolean hasSellDynamic = shopConfigManager.hasSection(shopID, itemID, "sellDynamic");
-            return hasSellDynamic ? dataConfig.getSellDecayRate() : 1.0; // Valeur par défaut pour decaySell
-        });
-    
+        double growthBuy = getConfigValueWithDefault(shopID, itemID, "buyDynamic", priceData.growthBuy, dataConfig.getBuyGrowthRate(), 1.0);
+        double decayBuy = getConfigValueWithDefault(shopID, itemID, "buyDynamic", priceData.decayBuy, dataConfig.getBuyDecayRate(), 1.0);
+        double growthSell = getConfigValueWithDefault(shopID, itemID, "sellDynamic", priceData.growthSell, dataConfig.getSellGrowthRate(), 1.0);
+        double decaySell = getConfigValueWithDefault(shopID, itemID, "sellDynamic", priceData.decaySell, dataConfig.getSellDecayRate(), 1.0);
+
         int stock = priceFromDatabase.map(DynamicPrice::getStock).orElse(priceData.stock.orElse(0));
 
-        int minStock = priceData.minStock.orElseGet(() -> {
-            boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-            return hasStock ? dataConfig.getStockMin() : 0; // Valeur par défaut pour minStock
-        });
-    
-        int maxStock = priceData.maxStock.orElseGet(() -> {
-            boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-            return hasStock ? dataConfig.getStockMax() : Integer.MAX_VALUE; // Valeur par défaut pour maxStock
-        });
-    
-        double stockBuyModifier = priceData.stockBuyModifier.orElseGet(() -> {
-            boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-            return hasStock ? dataConfig.getStockBuyModifier() : 1.0; // Valeur par défaut pour stockBuyModifier
-        });
-    
-        double stockSellModifier = priceData.stockSellModifier.orElseGet(() -> {
-            boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-            return hasStock ? dataConfig.getStockSellModifier() : 1.0; // Valeur par défaut pour stockSellModifier
-        });
+        int minStock = getConfigValueWithDefault(shopID, itemID, "stock", priceData.minStock, dataConfig.getStockMin(), 0);
+        int maxStock = getConfigValueWithDefault(shopID, itemID, "stock", priceData.maxStock, dataConfig.getStockMax(), Integer.MAX_VALUE);
+        double stockBuyModifier = getConfigValueWithDefault(shopID, itemID, "stock", priceData.stockBuyModifier, dataConfig.getStockBuyModifier(), 1.0);
+        double stockSellModifier = getConfigValueWithDefault(shopID, itemID, "stock", priceData.stockSellModifier, dataConfig.getStockSellModifier(), 1.0);
     
         return new DynamicPrice(buyPrice, sellPrice, minBuy, maxBuy, minSell, maxSell, growthBuy, decayBuy, growthSell, decaySell, stock, minStock, maxStock, stockBuyModifier, stockSellModifier);
         // DynamicPrice price = new DynamicPrice(buyPrice, sellPrice, minBuy, maxBuy, minSell, maxSell, growthBuy, decayBuy, growthSell, decaySell, stock, minStock, maxStock, stockBuyModifier, stockSellModifier);
         
         // return price;
+    }
+
+    /**
+     * Récupère une valeur de configuration avec une valeur par défaut conditionnelle.
+     * 
+     * @param <T> Le type de la valeur
+     * @param shopID L'ID du shop
+     * @param itemID L'ID de l'item
+     * @param sectionName Le nom de la section à vérifier
+     * @param optional La valeur optionnelle déjà récupérée
+     * @param defaultConfigValue La valeur par défaut depuis la configuration
+     * @param fallbackValue La valeur de repli si aucune section n'existe
+     * @return La valeur appropriée en fonction des conditions
+     */
+    private <T> T getConfigValueWithDefault(String shopID, String itemID, String sectionName, Optional<T> optional, T defaultConfigValue, T fallbackValue) {
+        return optional.orElseGet(() -> {
+            boolean hasSection = shopConfigManager.hasSection(shopID, itemID, sectionName);
+            return hasSection ? defaultConfigValue : fallbackValue;
+        });
     }
 }
