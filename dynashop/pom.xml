@@ -7,7 +7,7 @@
 
 	<groupId>fr.tylwen.satyria.dynashop</groupId>
 	<artifactId>ShopGUIPlus-DynaShop</artifactId>
-	<version>1.0.0</version>
+	<version>1.0.1</version>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -68,13 +68,6 @@
 			<artifactId>placeholderapi</artifactId>
 			<version>2.11.6</version>
 			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>shopgui</groupId>
-			<artifactId>ShopGUIPlus-1.104.0</artifactId>
-			<version>1.0</version>
-			<scope>system</scope>
-            <systemPath>${pom.basedir}/libs/ShopGUIPlus-1.104.0.jar</systemPath>
 		</dependency>
     </dependencies>
 </project>

@@ -1,12 +1,8 @@
-package fr.tylwen.satyria.dynashop.data;
-
-import java.util.ArrayList;
-import java.util.Optional;
+package fr.tylwen.satyria.dynashop.price;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
-import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 
-public class DynamicPrice {
+public class Price {
 
     private double buyPrice, sellPrice;
     private final double minBuy, maxBuy, minSell, maxSell;
@@ -60,7 +56,7 @@ public class DynamicPrice {
     //                     double minBuy, double maxBuy, double minSell, double maxSell,
     //                     double growthBuy, double decayBuy,
     //                     double growthSell, double decaySell) {
-    public DynamicPrice(double buyPrice, double sellPrice,
+    public Price(double buyPrice, double sellPrice,
         double minBuy, double maxBuy, double minSell, double maxSell,
         double growthBuy, double decayBuy,
         double growthSell, double decaySell,
@@ -114,13 +110,13 @@ public class DynamicPrice {
         // this.isFromRecipeStock = false; // Par défaut, pas d'origine de recette de stock
     }
 
-    public DynamicPrice(double buyPrice, double sellPrice) {
+    public Price(double buyPrice, double sellPrice) {
         // this(buyPrice, sellPrice, 0.0, Double.MAX_VALUE, 0.0, Double.MAX_VALUE, 1.0, 1.0, 1.0, 1.0);
         this(buyPrice, sellPrice, 0.0, Double.MAX_VALUE, 0.0, Double.MAX_VALUE, 1.0, 1.0, 1.0, 1.0,
             0, 0, Integer.MAX_VALUE, 1.0, 1.0);
     }
 
-    public DynamicPrice(double buyPrice, double sellPrice, int stock) {
+    public Price(double buyPrice, double sellPrice, int stock) {
         this(buyPrice, sellPrice, 0.0, Double.MAX_VALUE, 0.0, Double.MAX_VALUE, 1.0, 1.0, 1.0, 1.0,
             stock, 0, Integer.MAX_VALUE, 1.0, 1.0);
     }

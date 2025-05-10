@@ -34,6 +34,7 @@ import fr.tylwen.satyria.dynashop.database.ItemDataManager;
 import fr.tylwen.satyria.dynashop.hook.DynaShopExpansion;
 import fr.tylwen.satyria.dynashop.hook.ShopGUIPlusHook;
 import fr.tylwen.satyria.dynashop.listener.DynaShopListener;
+import fr.tylwen.satyria.dynashop.price.PriceStrategy;
 // import fr.tylwen.satyria.dynashop.utils.CommentedConfiguration;
 import fr.tylwen.satyria.dynashop.task.ReloadDatabaseTask;
 import fr.tylwen.satyria.dynashop.task.SavePricesTask;
@@ -68,6 +69,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private CustomRecipeManager customRecipeManager;
     private Logger logger;
     // private CommentedConfiguration config;
+    private PriceStrategy priceStrategy;
 
     private final Map<String, Double> recipePriceCache = new ConcurrentHashMap<>();
     // private final long RECIPE_CACHE_DURATION = 600000; // 10 minutes
@@ -126,6 +128,10 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
 
     public PriceStock getPriceStock() {
         return this.priceStock;
+    }
+
+    public PriceStrategy getPriceStrategy() {
+        return this.priceStrategy;
     }
 
     @Override
