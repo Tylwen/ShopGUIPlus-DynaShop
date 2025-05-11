@@ -21,11 +21,11 @@ import fr.tylwen.satyria.dynashop.data.PriceRecipe;
 import fr.tylwen.satyria.dynashop.data.ShopConfigManager;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
+
 import net.brcdev.shopgui.ShopGuiPlusApi;
 import net.brcdev.shopgui.event.ShopPostTransactionEvent;
 import net.brcdev.shopgui.event.ShopPreTransactionEvent;
 import net.brcdev.shopgui.shop.item.ShopItem;
-// import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.ShopManager.ShopAction;
 import net.brcdev.shopgui.shop.ShopTransactionResult.ShopTransactionResultType;
 
