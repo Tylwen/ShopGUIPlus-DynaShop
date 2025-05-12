@@ -67,9 +67,9 @@ public class DataManager {
             isInitialized = true;
             
             createTables();
-            plugin.getLogger().info("Connexion à la base de données établie avec succès (type: " + type + ")");
+            plugin.getLogger().info("Database connection established successfully (type: " + type + ")");
         } catch (Exception e) {
-            plugin.getLogger().severe("Échec de l'initialisation de la base de données: " + e.getMessage());
+            plugin.getLogger().severe("Failed to initialize database: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -156,7 +156,7 @@ public class DataManager {
     public synchronized void reloadDatabaseConnection() {
         closeDataSource();
         initDatabase();
-        plugin.getLogger().info("Connexion à la base de données rechargée avec succès.");
+        plugin.getLogger().info("Database connection successfully reloaded.");
     }
 
     /**
@@ -188,7 +188,7 @@ public class DataManager {
                 handleSQLException(e, attempt);
                 
                 if (attempt == RETRY_LIMIT - 1) {
-                    plugin.getLogger().severe("Échec de l'exécution de la requête après " + RETRY_LIMIT + " tentatives: " + sql);
+                    plugin.getLogger().severe("Failed to execute query after " + RETRY_LIMIT + " attempts: " + sql);
                     return Optional.empty();
                 }
                 
@@ -219,7 +219,7 @@ public class DataManager {
                 handleSQLException(e, attempt);
                 
                 if (attempt == RETRY_LIMIT - 1) {
-                    plugin.getLogger().severe("Échec de l'exécution de la mise à jour après " + RETRY_LIMIT + " tentatives: " + sql);
+                    plugin.getLogger().severe("Failed to execute update after " + RETRY_LIMIT + " attempts: " + sql);
                     return 0;
                 }
                 
@@ -238,15 +238,15 @@ public class DataManager {
      */
     private void handleSQLException(SQLException e, int attempt) {
         if (attempt < RETRY_LIMIT - 1) {
-            plugin.getLogger().warning("Erreur SQL (tentative " + (attempt + 1) + "/" + RETRY_LIMIT + "): " + e.getMessage());
+            plugin.getLogger().warning("SQL error (attempt " + (attempt + 1) + "/" + RETRY_LIMIT + "): " + e.getMessage());
         } else {
-            plugin.getLogger().severe("Erreur SQL critique: " + e.getMessage());
+            plugin.getLogger().severe("Critical SQL error: " + e.getMessage());
             e.printStackTrace();
         }
         
         // Si connexion perdue, tenter de la rétablir
         if (isConnectionError(e)) {
-            plugin.getLogger().info("Tentative de reconnexion à la base de données...");
+            plugin.getLogger().info("Attempting to reconnect to the database...");
             reloadDatabaseConnection();
         }
     }
@@ -335,9 +335,8 @@ public class DataManager {
      * Récupère le stock d'un item.
      */
     public Optional<Integer> getStock(String shopId, String itemId) {
-        String sql = "SELECT stock FROM " + dataConfig.getDatabaseTablePrefix() + 
-                     "_prices WHERE shopID = ? AND itemID = ?";
-        
+        String sql = "SELECT stock FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ?";
+
         return executeQuery(sql, rs -> {
             if (rs.next()) {
                 return rs.getInt("stock");
@@ -408,7 +407,7 @@ public class DataManager {
                 T result = operation.execute();
                 future.complete(result);
             } catch (Exception e) {
-                plugin.getLogger().log(Level.SEVERE, "Erreur lors de l'exécution asynchrone", e);
+                plugin.getLogger().log(Level.SEVERE, "Error during asynchronous execution", e);
                 future.completeExceptionally(e);
             }
         });
@@ -421,7 +420,7 @@ public class DataManager {
      */
     public void closeDatabase() {
         closeDataSource();
-        plugin.getLogger().info("Connexion à la base de données fermée.");
+        plugin.getLogger().info("Database connection closed.");
     }
 
     /**

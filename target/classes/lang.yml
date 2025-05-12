@@ -1,0 +1,3 @@
+stock:
+  out-of-stock: "This item is out of stock!"
+  full-stock: "This item is in full stock, we cannot sell more!"

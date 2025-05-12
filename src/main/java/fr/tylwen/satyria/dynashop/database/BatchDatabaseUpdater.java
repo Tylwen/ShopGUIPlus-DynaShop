@@ -60,7 +60,7 @@ public class BatchDatabaseUpdater {
                     Thread.currentThread().interrupt();
                     break;
                 } catch (Exception e) {
-                    plugin.getLogger().severe("Erreur lors de la mise à jour des prix : " + e.getMessage());
+                    plugin.getLogger().severe("Error updating prices: " + e.getMessage());
                 }
             }
         });
@@ -131,7 +131,7 @@ public class BatchDatabaseUpdater {
             stmt.executeBatch();
             // plugin.getLogger().info("Mise à jour de " + updates.size() + " prix en base de données");
         } catch (Exception e) {
-            plugin.getLogger().severe("Erreur lors de la mise à jour des prix : " + e.getMessage());
+            plugin.getLogger().severe("Error updating prices: " + e.getMessage());
             e.printStackTrace();
         }
     }

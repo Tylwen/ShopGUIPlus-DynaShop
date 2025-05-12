@@ -2,13 +2,19 @@ package fr.tylwen.satyria.dynashop.data;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.block.BlastFurnace;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.inventory.BlastingRecipe;
 import org.bukkit.inventory.FurnaceRecipe;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.ShapelessRecipe;
+import org.bukkit.inventory.SmokingRecipe;
+import org.bukkit.inventory.StonecuttingRecipe;
+import org.bukkit.inventory.CampfireRecipe;
+import org.bukkit.inventory.BrewerInventory;
 import org.bukkit.util.Consumer;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
@@ -217,6 +223,30 @@ public class PriceRecipe {
                             ingredients.add(fixed); // Ajouter une copie de l'ItemStack
                         }
                     }
+                    // case BLAST_FURNACE -> { // SMELTING
+                    //     if (recipeConfig instanceof BlastingRecipe blastingRecipe) {
+                    //         ItemStack fixed = new ItemStack(blastingRecipe.getInput().getType(), 1);
+                    //         ingredients.add(fixed); // Ajouter une copie de l'ItemStack
+                    //     }
+                    // }
+                    // case SMOKER -> { // SMELTING
+                    //     if (recipeConfig instanceof SmokingRecipe smokingRecipe) {
+                    //         ItemStack fixed = new ItemStack(smokingRecipe.getInput().getType(), 1);
+                    //         ingredients.add(fixed); // Ajouter une copie de l'ItemStack
+                    //     }
+                    // }
+                    // case STONECUTTER -> { // SMELTING
+                    //     if (recipeConfig instanceof StonecuttingRecipe stonecuttingRecipe) {
+                    //         ItemStack fixed = new ItemStack(stonecuttingRecipe.getInput().getType(), 1);
+                    //         ingredients.add(fixed); // Ajouter une copie de l'ItemStack
+                    //     }
+                    // }
+                    // case BREWING -> { // SMELTING
+                    //     if (recipeConfig instanceof BrewerInventory brewingRecipe) {
+                    //         ItemStack fixed = new ItemStack(brewingRecipe.getIngredient().getType(), 1);
+                    //         ingredients.add(fixed); // Ajouter une copie de l'ItemStack
+                    //     }
+                    // }
                     default -> {
                     // Aucun traitement pour les autres types
                     }

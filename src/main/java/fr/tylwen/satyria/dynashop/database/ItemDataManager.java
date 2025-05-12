@@ -262,7 +262,7 @@ public class ItemDataManager {
         try {
             return dataManager.executeAsync(() -> checkItemExistsInDatabase(shopID, itemID)).get();
         } catch (Exception e) {
-            plugin.getLogger().severe("Erreur lors de la vérification de l'existence d'un item: " + e.getMessage());
+            plugin.getLogger().severe("Error checking for item existence: " + e.getMessage());
             return false;
         }
     }
@@ -279,7 +279,7 @@ public class ItemDataManager {
             ResultSet resultSet = stmt.executeQuery();
             return resultSet.next() && resultSet.getInt(1) > 0;
         } catch (SQLException e) {
-            plugin.getLogger().severe("Erreur SQL lors de la vérification de l'existence d'un item: " + e.getMessage());
+            plugin.getLogger().severe("SQL error while checking for the existence of an item: " + e.getMessage());
             return false;
         }
     }
@@ -314,7 +314,7 @@ public class ItemDataManager {
         try {
             return dataManager.executeAsync(() -> checkItemHasPriceInDatabase(shopID, itemID)).get();
         } catch (Exception e) {
-            plugin.getLogger().severe("Erreur lors de la vérification des prix d'un item: " + e.getMessage());
+            plugin.getLogger().severe("Error checking item prices: " + e.getMessage());
             return false;
         }
     }
@@ -331,7 +331,7 @@ public class ItemDataManager {
             ResultSet resultSet = stmt.executeQuery();
             return resultSet.next() && resultSet.getInt(1) > 0;
         } catch (SQLException e) {
-            plugin.getLogger().severe("Erreur SQL lors de la vérification des prix d'un item: " + e.getMessage());
+            plugin.getLogger().severe("SQL error while checking item prices: " + e.getMessage());
             return false;
         }
     }

@@ -18,7 +18,7 @@ public class ShopGUIPlusHook implements Listener {
     @EventHandler
     public void onShopGUIPlusPostEnable(ShopGUIPlusPostEnableEvent event) {
         // mainPlugin.getLogger().info("Plugin ShopGUIPlus is enabled, registering DynaShop as a shop type.");
-        mainPlugin.getLogger().info("Plugin ShopGUIPlus est activé, enregistrement de DynaShop");
+        mainPlugin.getLogger().info("ShopGUIPlus plugin is enabled, logging DynaShop");
         // Register DynaShop as a shop type in ShopGUIPlus
         // ShopGuiPlusApi.getInstance().getShopTypeManager().registerShopType(new DynaShopShopType(mainPlugin));
     }

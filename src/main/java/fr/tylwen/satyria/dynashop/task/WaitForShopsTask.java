@@ -18,17 +18,17 @@ public class WaitForShopsTask implements Runnable {
         ShopManager manager = ShopGuiPlusApi.getPlugin().getShopManager();
         try {
             if (manager.getShops().isEmpty()) {
-                plugin.getLogger().info("Les shops ne sont pas encore chargés. Nouvelle tentative dans 5 secondes...");
+                plugin.getLogger().info("Shops are not loaded yet. Try again in 5 seconds...");
                 return; // Les shops ne sont pas encore prêts
             }
         } catch (ShopsNotLoadedException e) {
             e.printStackTrace();
-            plugin.getLogger().info("Les shops ne sont pas encore chargés. Nouvelle tentative dans 5 secondes...");
+            plugin.getLogger().info("Shops are not loaded yet. Try again in 5 seconds...");
             return; // Les shops ne sont pas encore prêts
         }
 
         plugin.getShopConfigManager().initPricesFromShopConfigs();
-        plugin.getLogger().info("Les shops ont été chargés avec succès !");
+        plugin.getLogger().info("Shops loaded successfully!");
         plugin.getServer().getScheduler().cancelTasks(plugin);
     }
 }

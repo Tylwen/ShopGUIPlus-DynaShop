@@ -45,6 +45,16 @@ public class CustomRecipeManager {
                 return Optional.of(loadShapelessRecipe(itemID, recipeSection));
             case "FURNACE":
                 return Optional.of(loadFurnaceRecipe(itemID, recipeSection));
+            // case "BLAST_FURNACE":
+            //     return Optional.of(loadFurnaceRecipe(itemID, recipeSection));
+            // case "SMOKER":
+            //     return Optional.of(loadFurnaceRecipe(itemID, recipeSection));
+            // case "BREWING":
+            //     return Optional.of(loadFurnaceRecipe(itemID, recipeSection));
+            // case "STONECUTTER":
+            //     return Optional.of(loadFurnaceRecipe(itemID, recipeSection));
+            // case "NONE":
+            //     return Optional.empty(); // Pas de recette
             default:
                 // plugin.getLogger().warning("Type de recette inconnu pour l'item " + itemID + " dans le shop " + shopID);
                 return Optional.empty();

@@ -21,6 +21,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import fr.tylwen.satyria.dynashop.command.DynaShopCommand;
 import fr.tylwen.satyria.dynashop.command.ReloadCommand;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
+import fr.tylwen.satyria.dynashop.config.LangConfig;
 import fr.tylwen.satyria.dynashop.data.CustomRecipeManager;
 import fr.tylwen.satyria.dynashop.data.PriceRecipe;
 import fr.tylwen.satyria.dynashop.data.PriceStock;
@@ -65,6 +66,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private PriceRecipe priceRecipe;
     private PriceStock priceStock;
     private DataConfig dataConfig;
+    private LangConfig langConfig;
     private CustomRecipeManager customRecipeManager;
     private Logger logger;
     // private CommentedConfiguration config;
@@ -118,6 +120,10 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
 
     public DataConfig getDataConfig() {
         return this.dataConfig;
+    }
+
+    public LangConfig getLangConfig() {
+        return this.langConfig;
     }
 
     public CustomRecipeManager getCustomRecipeManager() {
@@ -221,7 +227,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         // Configuration des paramètres
         File configFile = new File(getDataFolder(), "config.yml");
         if (!configFile.exists()) {
-            saveResource("settings.yml", false);
+            saveResource("config.yml", false);
         }
         this.configMain = YamlConfiguration.loadConfiguration(configFile);
         // this.configMain = new Config(this, "config.yml");
@@ -305,7 +311,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
                             cacheRecipePrice(shopID, itemID, "buyPrice", buyPrice);
                             cacheRecipePrice(shopID, itemID, "sellPrice", sellPrice);
                             
-                            logger.info("Prix précalculés pour " + shopID + ":" + itemID + " - Buy: " + buyPrice + ", Sell: " + sellPrice);
+                            logger.info("Precalculated prices for " + shopID + ":" + itemID + " - Buy: " + buyPrice + ", Sell: " + sellPrice);
                         }
                     } catch (Exception e) {
                         logger.warning("Erreur lors du précalcul des prix pour " + shopID + ":" + itemID + ": " + e.getMessage());
