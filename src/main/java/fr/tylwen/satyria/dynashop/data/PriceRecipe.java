@@ -45,46 +45,10 @@ public class PriceRecipe {
     //     STONECUTTER
     // }
 
-    // public double calculateBuyPrice(String shopID, String itemID, ItemStack item, List<String> visitedItems) {
-    //     List<ItemStack> ingredients = getIngredients(shopID, itemID, item);
-    //     ingredients = consolidateIngredients(ingredients);
-    //     double basePrice = 0.0;
-
-    //     // Calculer le prix de base en fonction des ingrédients
-    //     for (ItemStack ingredient : ingredients) {
-    //         if (ingredient == null || ingredient.getType() == Material.AIR) {
-    //             continue; // Ignorer les ingrédients invalides
-    //         }
-    //         double ingredientPrice = getIngredientPrice(ingredient, "buyPrice", visitedItems);
-    //         basePrice += ingredientPrice * ingredient.getAmount(); // Multiplier par la quantité de l'ingrédient
-    //     }
-
-    //     // Appliquer le modificateur en fonction du type de recette
-    //     double modifier = getRecipeModifier(item);
-    //     return basePrice * modifier;
-    // }
     public double calculateBuyPrice(String shopID, String itemID, ItemStack item, List<String> visitedItems) {
         return calculatePrice(shopID, itemID, item, "buyPrice", visitedItems);
     }
 
-    // public double calculateSellPrice(String shopID, String itemID, ItemStack item, List<String> visitedItems) {
-    //     List<ItemStack> ingredients = getIngredients(shopID, itemID, item);
-    //     ingredients = consolidateIngredients(ingredients);
-    //     double basePrice = 0.0;
-
-    //     // Calculer le prix de base en fonction des ingrédients
-    //     for (ItemStack ingredient : ingredients) {
-    //         if (ingredient == null || ingredient.getType() == Material.AIR) {
-    //             continue; // Ignorer les ingrédients invalides
-    //         }
-    //         double ingredientPrice = getIngredientPrice(ingredient, "sellPrice", visitedItems);
-    //         basePrice += ingredientPrice * ingredient.getAmount(); // Multiplier par la quantité de l'ingrédient
-    //     }
-
-    //     // Appliquer le modificateur en fonction du type de recette
-    //     double modifier = getRecipeModifier(item);
-    //     return basePrice * modifier;
-    // }
     public double calculateSellPrice(String shopID, String itemID, ItemStack item, List<String> visitedItems) {
         return calculatePrice(shopID, itemID, item, "sellPrice", visitedItems);
     }
@@ -401,6 +365,8 @@ public class PriceRecipe {
         // Récupérer le prix d'achat depuis la base de données
         if (!typePrice.contains(".")) {
             price = DynaShopPlugin.getInstance().getItemDataManager().getPrice(shopID, itemID, typePrice);
+        // } else {
+        //     DynaShopPlugin.getInstance().getLogger().warning("Le type de prix " + typePrice + " n'est pas valide pour l'item " + itemID);
         }
     
         // Si le prix n'est pas trouvé dans la base de données, chercher dans les fichiers de configuration

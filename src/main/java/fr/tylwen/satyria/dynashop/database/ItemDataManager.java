@@ -3,209 +3,139 @@ package fr.tylwen.satyria.dynashop.database;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-// import java.util.HashMap;
+import java.sql.SQLException;
 import java.util.Map;
-// import java.sql.SQLException;
-// import java.util.ArrayList;
-// import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.bukkit.Bukkit;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
 import fr.tylwen.satyria.dynashop.data.DynamicPrice;
 import net.brcdev.shopgui.shop.item.ShopItem;
 
-// import org.jetbrains.annotations.NotNull;
-
-// import fr.tylwen.satyria.dynashop.DynaShopPlugin;
-// import fr.tylwen.satyria.dynashop.item.Item;
-// import fr.tylwen.satyria.dynashop.item.ItemManager;
-// import fr.tylwen.satyria.dynashop.price.PriceHistory;
-
+/**
+ * Gère l'accès aux données des items dans la base de données.
+ * Utilise les méthodes sécurisées du DataManager optimisé.
+ */
 public class ItemDataManager {
-
     private final DataManager dataManager;
     private final DataConfig dataConfig;
+    private final DynaShopPlugin plugin;
 
-    // public ItemDataManager(DataManager dataManager) {
-    //     this.dataManager = dataManager;
-    // }
+    // Cache pour les résultats d'existence d'items (shopID:itemID -> exists)
+    private final Map<String, Boolean> existenceCache = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> priceExistsCache = new ConcurrentHashMap<>();
+
     public ItemDataManager(DataManager dataManager) {
         this.dataManager = dataManager;
-        this.dataConfig = new DataConfig(DynaShopPlugin.getInstance().getConfigMain());
+        this.plugin = DynaShopPlugin.getInstance();
+        this.dataConfig = new DataConfig(plugin.getConfigMain());
     }
 
+    /**
+     * Récupère toutes les valeurs d'un item
+     */
     public Optional<DynamicPrice> getItemValues(String shopID, String itemID) {
-        String query = "SELECT buyPrice, sellPrice, stock FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ?";
-        try (Connection connection = dataManager.getDatabaseConnection();
-             PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, shopID);
-            stmt.setString(2, itemID);
-
-            ResultSet resultSet = stmt.executeQuery();
-            if (resultSet.next()) {
-                double buyPrice = resultSet.getDouble("buyPrice");
-                double sellPrice = resultSet.getDouble("sellPrice");
-                int stock = resultSet.getInt("stock");
-                return Optional.of(new DynamicPrice(buyPrice, sellPrice, stock));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return Optional.empty();
+        // Déléguer directement à dataManager.getPrices qui contient déjà cette logique
+        return dataManager.getPrices(shopID, itemID);
     }
 
     /**
      * Méthode générique pour récupérer un prix (achat ou vente) depuis la base de données.
-     *
-     * @param shopID L'ID du shop.
-     * @param itemID L'ID de l'item.
-     * @param column Le nom de la colonne à récupérer ("buyPrice" ou "sellPrice").
-     * @return Le prix (Optional.empty() si non trouvé).
      */
     public Optional<Double> getPrice(String shopID, String itemID, String column) {
-        String query = "SELECT " + column + " FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ?";
-        try (Connection connection = dataManager.getDatabaseConnection();
-             PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, shopID);
-            stmt.setString(2, itemID);
-
-            ResultSet resultSet = stmt.executeQuery();
-            if (resultSet.next()) {
-                return Optional.of(resultSet.getDouble(column));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return Optional.empty();
+        // Déléguer directement à dataManager.getPrice
+        return dataManager.getPrice(shopID, itemID, column);
     }
 
     /**
-     * Récupère le prix d'achat d'un item dans un shop spécifique.
-     *
-     * @param shopID L'ID du shop.
-     * @param itemID L'ID de l'item.
-     * @return Le prix d'achat (Optional.empty() si non trouvé).
+     * Récupère le prix d'achat d'un item.
      */
     public Optional<Double> getBuyPrice(String shopID, String itemID) {
-        return getPrice(shopID, itemID, "buyPrice");
+        return dataManager.getBuyPrice(shopID, itemID);
     }
 
     /**
-     * Récupère le prix de vente d'un item dans un shop spécifique.
-     *
-     * @param shopID L'ID du shop.
-     * @param itemID L'ID de l'item.
-     * @return Le prix de vente (Optional.empty() si non trouvé).
+     * Récupère le prix de vente d'un item.
      */
     public Optional<Double> getSellPrice(String shopID, String itemID) {
-        return getPrice(shopID, itemID, "sellPrice");
+        return dataManager.getSellPrice(shopID, itemID);
     }
 
-
     /**
-     * Méthode générique pour récupérer le prix (achat et vente) depuis la base de données.
-     *
-     * @param shopID L'ID du shop.
-     * @param itemID L'ID de l'item.
-     * @return Les prix d'achat et de vente (Optional.empty() si non trouvé).
+     * Récupère le prix d'achat et de vente d'un item.
      */
     public Optional<DynamicPrice> getPrices(String shopID, String itemID) {
-        String query = "SELECT buyPrice, sellPrice FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ?";
-        try (Connection connection = dataManager.getDatabaseConnection();
-             PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, shopID);
-            stmt.setString(2, itemID);
-
-            ResultSet resultSet = stmt.executeQuery();
-            if (resultSet.next()) {
-                double buyPrice = resultSet.getDouble("buyPrice");
-                double sellPrice = resultSet.getDouble("sellPrice");
-                return Optional.of(new DynamicPrice(buyPrice, sellPrice));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return Optional.empty();
+        return dataManager.getPrices(shopID, itemID);
     }
 
     /**
-     * Sauvegarde ou met à jour les prix d'un item dans un shop spécifique.
-     *
-     * @param shopID   L'ID du shop.
-     * @param itemID   L'ID de l'item.
-     * @param buyPrice Le prix d'achat.
-     * @param sellPrice Le prix de vente.
+     * Sauvegarde ou met à jour les prix d'un item.
      */
     public void savePrice(String shopID, String itemID, double buyPrice, double sellPrice) {
-        String query = "REPLACE INTO " + dataConfig.getDatabaseTablePrefix() + "_prices (shopID, itemID, buyPrice, sellPrice) VALUES (?, ?, ?, ?)";
-        try (Connection connection = dataManager.getDatabaseConnection();
-            PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, shopID);
-            stmt.setString(2, itemID);
-            stmt.setDouble(3, buyPrice);
-            stmt.setDouble(4, sellPrice);
-
-            stmt.executeUpdate();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        dataManager.savePrice(shopID, itemID, buyPrice, sellPrice);
     }
     
     /**
-     * Sauvegarde ou met à jour les prix d'un item dans un shop spécifique.
-     *
-     * @param shopID   L'ID du shop.
-     * @param itemID   L'ID de l'item.
-     * @param buyPrice Le prix d'achat.
-     * @param sellPrice Le prix de vente.
-     * @param stock Le stock de l'item.
+     * Sauvegarde ou met à jour les prix et le stock d'un item.
      */
     public void savePrice(String shopID, String itemID, double buyPrice, double sellPrice, int stock) {
-        String query = "REPLACE INTO " + dataConfig.getDatabaseTablePrefix() + "_prices (shopID, itemID, buyPrice, sellPrice, stock) VALUES (?, ?, ?, ?, ?)";
-        try (Connection connection = dataManager.getDatabaseConnection();
-            PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, shopID);
-            stmt.setString(2, itemID);
-            stmt.setDouble(3, buyPrice);
-            stmt.setDouble(4, sellPrice);
-            stmt.setInt(5, stock);
-
-            stmt.executeUpdate();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        dataManager.savePrice(shopID, itemID, buyPrice, sellPrice, stock);
     }
 
     /**
-     * Sauvegarde ou met à jour plusieurs prix dans la base de données.
-     *
-     * @param priceMap Une map contenant les ShopItem et leurs DynamicPrice associés.
+     * Sauvegarde plusieurs prix de manière optimisée.
      */
     public void savePrices(Map<ShopItem, DynamicPrice> priceMap) {
-        String query = "REPLACE INTO " + dataConfig.getDatabaseTablePrefix() + "_prices (shopID, itemID, buyPrice, sellPrice) VALUES (?, ?, ?, ?)";
-        try (Connection connection = dataManager.getDatabaseConnection();
-            PreparedStatement stmt = connection.prepareStatement(query)) {
-            for (Map.Entry<ShopItem, DynamicPrice> entry : priceMap.entrySet()) {
-                ShopItem item = entry.getKey();
-                DynamicPrice price = entry.getValue();
-
-                stmt.setString(1, item.getShop().getId());
-                stmt.setString(2, item.getId());
-                stmt.setDouble(3, price.getBuyPrice());
-                stmt.setDouble(4, price.getSellPrice());
-                stmt.addBatch();
+        // Utiliser le mode asynchrone pour les opérations groupées
+        dataManager.executeAsync(() -> {
+            String tablePrefix = dataConfig.getDatabaseTablePrefix();
+            String query = "REPLACE INTO " + tablePrefix + "_prices (shopID, itemID, buyPrice, sellPrice, stock) VALUES (?, ?, ?, ?, ?)";
+            
+            try (Connection connection = dataManager.getConnection();
+                 PreparedStatement stmt = connection.prepareStatement(query)) {
+                
+                for (Map.Entry<ShopItem, DynamicPrice> entry : priceMap.entrySet()) {
+                    ShopItem item = entry.getKey();
+                    DynamicPrice price = entry.getValue();
+                    
+                    stmt.setString(1, item.getShop().getId());
+                    stmt.setString(2, item.getId());
+                    stmt.setDouble(3, price.getBuyPrice());
+                    stmt.setDouble(4, price.getSellPrice());
+                    stmt.setInt(5, price.getStock());
+                    stmt.addBatch();
+                }
+                
+                int[] results = stmt.executeBatch();
+                return results.length; // Retourne le nombre d'enregistrements traités
             }
-            stmt.executeBatch();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        });
     }
 
+    /**
+     * Sauvegarde un DynamicPrice pour un ShopItem.
+     */
     public void saveDynamicPrice(ShopItem item, DynamicPrice price) {
-        savePrice(item.getShop().getId(), item.getId(), price.getBuyPrice(), price.getSellPrice(), price.getStock());
+        dataManager.savePrice(item.getShop().getId(), item.getId(), price.getBuyPrice(), price.getSellPrice(), price.getStock());
+    }
+    
+    /**
+     * Version asynchrone de saveDynamicPrice.
+     */
+    public CompletableFuture<Void> saveDynamicPriceAsync(ShopItem item, DynamicPrice price) {
+        return dataManager.executeAsync(() -> {
+            saveDynamicPrice(item, price);
+            return null;
+        });
     }
 
+    /**
+     * Charge un DynamicPrice depuis la base de données.
+     */
     public DynamicPrice loadDynamicPrice(String shopID, String itemID) {
         Optional<DynamicPrice> priceData = getPrices(shopID, itemID);
         if (priceData.isPresent()) {
@@ -215,77 +145,79 @@ public class ItemDataManager {
         }
         return null;
     }
-
-    public Optional<Integer> getStock(String shopID, String itemID) {
-        String query = "SELECT stock FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ?";
-        try (Connection connection = dataManager.getDatabaseConnection();
-             PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, shopID);
-            stmt.setString(2, itemID);
-
-            ResultSet resultSet = stmt.executeQuery();
-            if (resultSet.next()) {
-                return Optional.of(resultSet.getInt("stock"));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return Optional.empty();
+    
+    /**
+     * Version asynchrone de loadDynamicPrice.
+     */
+    public CompletableFuture<DynamicPrice> loadDynamicPriceAsync(String shopID, String itemID) {
+        return dataManager.executeAsync(() -> loadDynamicPrice(shopID, itemID));
     }
 
+    /**
+     * Récupère le stock d'un item.
+     */
+    public Optional<Integer> getStock(String shopID, String itemID) {
+        return dataManager.getStock(shopID, itemID);
+    }
+
+    /**
+     * Récupère le stock d'un ShopItem.
+     */
     public Optional<Integer> getStock(ShopItem item) {
         return getStock(item.getShop().getId(), item.getId());
     }
 
+    /**
+     * Met à jour le stock d'un item.
+     */
     public void setStock(String shopID, String itemID, int stock) {
-        String query = "UPDATE " + dataConfig.getDatabaseTablePrefix() + "_prices SET stock = ? WHERE shopID = ? AND itemID = ?";
-        try (Connection connection = dataManager.getDatabaseConnection();
-             PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setInt(1, stock);
-            stmt.setString(2, shopID);
-            stmt.setString(3, itemID);
-            stmt.executeUpdate();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        dataManager.setStock(shopID, itemID, stock);
     }
 
+    /**
+     * Met à jour le stock d'un ShopItem.
+     */
     public void setStock(ShopItem item, int stock) {
         setStock(item.getShop().getId(), item.getId(), stock);
+    }
+    
+    /**
+     * Version asynchrone de setStock.
+     */
+    public CompletableFuture<Void> setStockAsync(String shopID, String itemID, int stock) {
+        return dataManager.executeAsync(() -> {
+            setStock(shopID, itemID, stock);
+            return null;
+        });
     }
 
     /**
      * Supprime un item de la base de données.
-     *
-     * @param shopID L'ID du shop.
-     * @param itemID L'ID de l'item.
      */
     public void deleteItem(String shopID, String itemID) {
         String query = "DELETE FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ?";
-        try (Connection connection = dataManager.getDatabaseConnection();
-             PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, shopID);
-            stmt.setString(2, itemID);
-            stmt.executeUpdate();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        dataManager.executeAsync(() -> {
+            try (Connection connection = dataManager.getConnection();
+                 PreparedStatement stmt = connection.prepareStatement(query)) {
+                stmt.setString(1, shopID);
+                stmt.setString(2, itemID);
+                return stmt.executeUpdate();
+            }
+        });
     }
 
     /**
      * Supprime tous les items d'un shop de la base de données.
-     *
-     * @param shopID L'ID du shop.
      */
     public void deleteShopItems(String shopID) {
         String query = "DELETE FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ?";
-        try (Connection connection = dataManager.getDatabaseConnection();
-             PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, shopID);
-            stmt.executeUpdate();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        dataManager.executeAsync(() -> {
+            try (Connection connection = dataManager.getConnection();
+                 PreparedStatement stmt = connection.prepareStatement(query)) {
+                stmt.setString(1, shopID);
+                return stmt.executeUpdate();
+            }
+        });
     }
 
     /**
@@ -293,121 +225,163 @@ public class ItemDataManager {
      */
     public void deleteAllItems() {
         String query = "DELETE FROM " + dataConfig.getDatabaseTablePrefix() + "_prices";
-        try (Connection connection = dataManager.getDatabaseConnection();
-             PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.executeUpdate();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        dataManager.executeAsync(() -> {
+            try (Connection connection = dataManager.getConnection();
+                 PreparedStatement stmt = connection.prepareStatement(query)) {
+                return stmt.executeUpdate();
+            }
+        });
     }
 
     // /**
-    //  * Récupère tous les items d'un shop de la base de données.
-    //  *
-    //  * @param shopID L'ID du shop.
-    //  * @return Une map contenant les items et leurs prix associés.
+    //  * Vérifie si un item existe dans la base de données.
     //  */
-    // public Map<ShopItem, DynamicPrice> getAllItems(String shopID) {
-    //     Map<ShopItem, DynamicPrice> items = new HashMap<>();
-    //     String query = "SELECT itemID, buyPrice, sellPrice FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ?";
-    //     try (Connection connection = dataManager.getDatabaseConnection();
-    //          PreparedStatement stmt = connection.prepareStatement(query)) {
-    //         stmt.setString(1, shopID);
-    //         ResultSet resultSet = stmt.executeQuery();
-    //         while (resultSet.next()) {
-    //             String itemID = resultSet.getString("itemID");
-    //             double buyPrice = resultSet.getDouble("buyPrice");
-    //             double sellPrice = resultSet.getDouble("sellPrice");
-    //             items.put(new ShopItem(shopID, itemID), new DynamicPrice(buyPrice, sellPrice));
-    //         }
+    // public boolean itemExists(String shopID, String itemID) {
+    //     // String query = "SELECT 1 FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ?";
+    //     String query = "SELECT COUNT(*) FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ?";
+    //     try {
+    //         return dataManager.executeAsync(() -> {
+    //             try (Connection connection = dataManager.getConnection();
+    //                  PreparedStatement stmt = connection.prepareStatement(query)) {
+    //                 stmt.setString(1, shopID);
+    //                 stmt.setString(2, itemID);
+    //                 ResultSet resultSet = stmt.executeQuery();
+    //                 return resultSet.next();
+    //             }
+    //         }).get(); // Bloque jusqu'à l'obtention du résultat
     //     } catch (Exception e) {
-    //         e.printStackTrace();
+    //         plugin.getLogger().severe("Erreur lors de la vérification de l'existence d'un item: " + e.getMessage());
+    //         return false;
     //     }
-    //     return items;
     // }
-
-    // /**
-    //  * Récupère tous les items de la base de données.
-    //  *
-    //  * @return Une map contenant les items et leurs prix associés.
-    //  */
-    // public Map<ShopItem, DynamicPrice> getAllItems() {
-    //     Map<ShopItem, DynamicPrice> items = new HashMap<>();
-    //     String query = "SELECT shopID, itemID, buyPrice, sellPrice FROM " + dataConfig.getDatabaseTablePrefix() + "_prices";
-    //     try (Connection connection = dataManager.getDatabaseConnection();
-    //          PreparedStatement stmt = connection.prepareStatement(query)) {
-    //         ResultSet resultSet = stmt.executeQuery();
-    //         while (resultSet.next()) {
-    //             String shopID = resultSet.getString("shopID");
-    //             String itemID = resultSet.getString("itemID");
-    //             double buyPrice = resultSet.getDouble("buyPrice");
-    //             double sellPrice = resultSet.getDouble("sellPrice");
-    //             items.put(new ShopItem(new Shop(shopID), itemID), new DynamicPrice(buyPrice, sellPrice));
-    //         }
-    //     } catch (Exception e) {
-    //         e.printStackTrace();
-    //     }
-    //     return items;
-    // }
-    
     /**
      * Vérifie si un item existe dans la base de données.
-     *
-     * @param shopID L'ID du shop.
-     * @param itemID L'ID de l'item.
-     * @return true si l'item existe, false sinon.
+     * Version non-bloquante qui utilise une valeur en cache si disponible.
      */
     public boolean itemExists(String shopID, String itemID) {
-        String query = "SELECT COUNT(*) FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ?";
-        try (Connection connection = dataManager.getDatabaseConnection();
-             PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, shopID);
-            stmt.setString(2, itemID);
-            ResultSet resultSet = stmt.executeQuery();
-            if (resultSet.next()) {
-                return resultSet.getInt(1) > 0;
+        // Si nous sommes dans le thread principal, utiliser une version rapide
+        if (Bukkit.isPrimaryThread()) {
+            // Utiliser le cache si disponible, sinon supposer que l'item existe
+            // et laisser la vérification réelle se faire en arrière-plan
+            Boolean cachedExists = existenceCache.get(shopID + ":" + itemID);
+            if (cachedExists != null) {
+                return cachedExists;
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+            
+            // Lancer la vérification en arrière-plan pour mettre à jour le cache
+            dataManager.executeAsync(() -> {
+                boolean exists = checkItemExistsInDatabase(shopID, itemID);
+                existenceCache.put(shopID + ":" + itemID, exists);
+                return null;
+            });
+            
+            // Par défaut, supposer que l'item existe pour éviter de bloquer
+            return true;
         }
-        return false;
+        
+        // Version pour thread non-principal (peut bloquer sans problème)
+        try {
+            return dataManager.executeAsync(() -> checkItemExistsInDatabase(shopID, itemID)).get();
+        } catch (Exception e) {
+            plugin.getLogger().severe("Erreur lors de la vérification de l'existence d'un item: " + e.getMessage());
+            return false;
+        }
     }
 
-    
     /**
-     * Vérifie si un item a un prix
-     * 
-    * @param shopID L'ID du shop.
-    * @param itemID L'ID de l'item.
-    * @return true si l'item a un prix, false sinon.
-    */
-    public boolean itemHasPrice(String shopID, String itemID) {
-        String query = "SELECT COUNT(*) FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ? AND (buyPrice > 0 OR sellPrice > 0)";
-        try (Connection connection = dataManager.getDatabaseConnection();
-             PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setString(1, shopID);
-            stmt.setString(2, itemID);
-            ResultSet resultSet = stmt.executeQuery();
-            if (resultSet.next()) {
-                return resultSet.getInt(1) > 0;
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-    public boolean priceExists(String shopID, String itemID) {
-        String query = "SELECT 1 FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ?";
-        try (Connection connection = dataManager.getDatabaseConnection();
+     * Méthode interne pour vérifier l'existence d'un item dans la base de données.
+     */
+    private boolean checkItemExistsInDatabase(String shopID, String itemID) {
+        String query = "SELECT COUNT(*) FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ?";
+        try (Connection connection = dataManager.getConnection();
             PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setString(1, shopID);
             stmt.setString(2, itemID);
-
             ResultSet resultSet = stmt.executeQuery();
-            return resultSet.next(); // Retourne true si une ligne est trouvée
-        } catch (Exception e) {
-            e.printStackTrace();
+            return resultSet.next() && resultSet.getInt(1) > 0;
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Erreur SQL lors de la vérification de l'existence d'un item: " + e.getMessage());
+            return false;
         }
-        return false;
+    }
+
+    // /**
+    //  * Vérifie si un item a un prix.
+    //  */
+    // public boolean itemHasPrice(String shopID, String itemID) {
+    //     // String query = "SELECT 1 FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ? AND (buyPrice > 0 OR sellPrice > 0)";
+    //     String query = "SELECT COUNT(*) FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ? AND (buyPrice > 0 OR sellPrice > 0)";
+    //     try {
+    //         return dataManager.executeAsync(() -> {
+    //             try (Connection connection = dataManager.getConnection();
+    //                  PreparedStatement stmt = connection.prepareStatement(query)) {
+    //                 stmt.setString(1, shopID);
+    //                 stmt.setString(2, itemID);
+    //                 ResultSet resultSet = stmt.executeQuery();
+    //                 return resultSet.next();
+    //             }
+    //         }).get(); // Bloque jusqu'à l'obtention du résultat
+    //     } catch (Exception e) {
+    //         plugin.getLogger().severe("Erreur lors de la vérification des prix d'un item: " + e.getMessage());
+    //         return false;
+    //     }
+    // }
+    /**
+     * Vérifie si un item a un prix.
+     * Version non-bloquante qui utilise une valeur en cache si disponible.
+     */
+    public boolean itemHasPrice(String shopID, String itemID) {
+        // Si nous sommes dans le thread principal, utiliser une version rapide
+        if (Bukkit.isPrimaryThread()) {
+            String cacheKey = shopID + ":" + itemID + ":price";
+            
+            // Utiliser le cache si disponible
+            Boolean cachedHasPrice = priceExistsCache.get(cacheKey);
+            if (cachedHasPrice != null) {
+                return cachedHasPrice;
+            }
+            
+            // Lancer la vérification en arrière-plan pour mettre à jour le cache
+            dataManager.executeAsync(() -> {
+                boolean hasPrice = checkItemHasPriceInDatabase(shopID, itemID);
+                priceExistsCache.put(cacheKey, hasPrice);
+                return null;
+            });
+            
+            // Par défaut, supposer que l'item a un prix pour éviter de bloquer
+            return true;
+        }
+        
+        // Version pour thread non-principal (peut bloquer sans problème)
+        try {
+            return dataManager.executeAsync(() -> checkItemHasPriceInDatabase(shopID, itemID)).get();
+        } catch (Exception e) {
+            plugin.getLogger().severe("Erreur lors de la vérification des prix d'un item: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Méthode interne pour vérifier si un item a un prix dans la base de données.
+     */
+    private boolean checkItemHasPriceInDatabase(String shopID, String itemID) {
+        String query = "SELECT COUNT(*) FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ? AND (buyPrice > 0 OR sellPrice > 0)";
+        try (Connection connection = dataManager.getConnection();
+            PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, shopID);
+            stmt.setString(2, itemID);
+            ResultSet resultSet = stmt.executeQuery();
+            return resultSet.next() && resultSet.getInt(1) > 0;
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Erreur SQL lors de la vérification des prix d'un item: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Alias de itemExists pour la rétrocompatibilité.
+     */
+    public boolean priceExists(String shopID, String itemID) {
+        return itemExists(shopID, itemID);
     }
 }

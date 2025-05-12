@@ -1,10 +1,6 @@
 package fr.tylwen.satyria.dynashop.data;
 
-import java.util.ArrayList;
-import java.util.Optional;
-
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
-import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 
 public class DynamicPrice {
 
@@ -41,25 +37,6 @@ public class DynamicPrice {
      * @param stockSellModifier le coefficient pour ajuster le prix de vente en fonction du stock
      * @throws IllegalArgumentException si les bornes sont invalides ou si les facteurs de croissance/décroissance sont négatifs
      */
-    // public DynamicPrice(double buyPrice, double sellPrice,
-    //                     double minBuy, double maxBuy, double minSell, double maxSell,
-    //                     double growthBuy, double decayBuy,
-    //                     double growthSell, double decaySell) {
-    //     this.buyPrice   = buyPrice;
-    //     this.sellPrice  = sellPrice;
-    //     this.minBuy     = minBuy;
-    //     this.maxBuy     = maxBuy;
-    //     this.minSell    = minSell;
-    //     this.maxSell    = maxSell;
-    //     this.growthBuy  = growthBuy;
-    //     this.decayBuy   = decayBuy;
-    //     this.growthSell = growthSell;
-    //     this.decaySell  = decaySell;
-    // }
-    // public DynamicPrice(double buyPrice, double sellPrice,
-    //                     double minBuy, double maxBuy, double minSell, double maxSell,
-    //                     double growthBuy, double decayBuy,
-    //                     double growthSell, double decaySell) {
     public DynamicPrice(double buyPrice, double sellPrice,
         double minBuy, double maxBuy, double minSell, double maxSell,
         double growthBuy, double decayBuy,
@@ -124,22 +101,6 @@ public class DynamicPrice {
         this(buyPrice, sellPrice, 0.0, Double.MAX_VALUE, 0.0, Double.MAX_VALUE, 1.0, 1.0, 1.0, 1.0,
             stock, 0, Integer.MAX_VALUE, 1.0, 1.0);
     }
-
-    // public void incrementBuy() {
-    //     buyPrice = Math.min(buyPrice * growthBuy, maxBuy);
-    // }
-
-    // public void decrementBuy() {
-    //     buyPrice = Math.max(buyPrice * decayBuy, minBuy);
-    // }
-
-    // public void incrementSell() {
-    //     sellPrice = Math.max(sellPrice * decaySell, minSell);
-    // }
-
-    // public void decrementSell() {
-    //     sellPrice = Math.min(sellPrice * growthSell, maxSell);
-    // }
 
     // /** Appliqué périodiquement pour “rafraîchir” les prix */
     // public void applyDecay() {
@@ -222,29 +183,6 @@ public class DynamicPrice {
     //     System.out.println("Après croissance : buyPrice = " + buyPrice);
     // }
     
-    // public void applyDecay() {
-    //     System.out.println("Avant décroissance : sellPrice = " + sellPrice + ", decaySell = " + decaySell + ", minSell = " + minSell);
-    //     if (sellPrice > minSell) {
-    //         sellPrice *= decaySell;
-    //         if (sellPrice < minSell) {
-    //             sellPrice = minSell;
-    //         }
-    //     }
-    //     System.out.println("Après décroissance : sellPrice = " + sellPrice);
-    // }
-    // public void applyDynamicChanges() {
-    //     // this.buyPrice *= 1.0001;
-    //     // this.sellPrice *= 0.9999;
-    //     this.buyPrice *= 1.01;
-    //     this.sellPrice *= 0.99;
-    
-    //     // Vérifier les bornes
-    //     this.buyPrice = Math.min(this.buyPrice, this.maxBuy);
-    //     this.buyPrice = Math.max(this.buyPrice, this.minBuy);
-    
-    //     this.sellPrice = Math.min(this.sellPrice, this.maxSell);
-    //     this.sellPrice = Math.max(this.sellPrice, this.minSell);
-    // }
     public void applyBuyPriceChanges() {
         this.buyPrice *= 0.99;
         // this.buyPrice = Math.min(this.buyPrice, this.maxBuy);
@@ -270,54 +208,16 @@ public class DynamicPrice {
         return buyPrice;
     }
 
-    // public double getBuyPriceForAmount(int amount) {
-    //     // double price = buyPrice;
-    //     // for (int i = 0; i < amount; i++) {
-    //     //     price = Math.min(price * growthBuy, maxBuy);
-    //     // }
-    //     // return price;
-    //     // double price = buyPrice;
-    //     // for (int i = 0; i < amount; i++) {
-    //     //     price *= growthBuy;
-    //     // }
-    //     // return Math.min(price, maxBuy);
-    //     double price = buyPrice;
-    //     // for (int i = 1; i < amount; i++) {
-    //     //     price += Math.min(price * growthBuy, maxBuy);
-    //     // }
-
-    //     price = Math.min(price * growthBuy, maxBuy) * amount;
-    //     // price = Math.min(price * Math.pow(growthBuy, amount), maxBuy);
-    //     return price;
-    // }
     public double getBuyPriceForAmount(int amount) {
-        // return buyPrice * amount * Math.pow(growthBuy, amount);
         return buyPrice * amount;
-        // buyPrice = Math.min(buyPrice * growthBuy, maxBuy) * amount;
-        // price = Math.min(price * Math.pow(growthBuy, amount), maxBuy);
-        // return buyPrice;
     }
 
     public double getSellPrice() {
         return sellPrice;
     }
-    // public double getSellPriceForAmount(int amount) {
-    //     double price = sellPrice;
-    //     // for (int i = 1; i < amount; i++) {
-    //     //     price += Math.max(price * decaySell, minSell);
-    //     // }
-    //     // price = Math.max(price * decaySell, minSell) * amount;
-
-    //     price = Math.max(price * growthSell, minSell) * amount;
-    //     // price = Math.max(price * Math.pow(growthSell, amount), minSell);
-    //     return price;
-    // }
+    
     public double getSellPriceForAmount(int amount) {
-        // return sellPrice * amount * Math.pow(growthSell, amount);
         return sellPrice * amount;
-        // price = Math.max(price * growthSell, minSell) * amount;
-        // price = Math.max(price * Math.pow(growthSell, amount), minSell);
-        // return price;
     }
 
     public double getMinBuyPrice() {
@@ -356,6 +256,7 @@ public class DynamicPrice {
         return buyPrice >= minBuy && buyPrice <= maxBuy && sellPrice >= minSell && sellPrice <= maxSell;
     }
 
+    // Pour le système de recette DynaShopType.RECIPE
     public boolean isFromRecipe() {
         return isFromRecipe;
     }
@@ -364,6 +265,8 @@ public class DynamicPrice {
         this.isFromRecipe = fromRecipe;
     }
 
+
+    // Pour le système de stock DynaShopType.STOCK
     public int getStock() {
         return stock;
     }
@@ -403,51 +306,7 @@ public class DynamicPrice {
     public void setFromStock(boolean fromStock) {
         this.isFromStock = fromStock;
     }
-    
-    // public void adjustPricesBasedOnStock() {
-    //     // Ajuster le prix d'achat en fonction du stock
-    //     double stockFactorBuy = 1.0 + ((double) (maxStock - stock) / maxStock) * stockBuyModifier;
-    //     buyPrice = Math.min(buyPrice * stockFactorBuy, maxBuy);
-    
-    //     // Ajuster le prix de vente en fonction du stock
-    //     double stockFactorSell = 1.0 - ((double) (stock - minStock) / maxStock) * stockSellModifier;
-    //     sellPrice = Math.max(sellPrice * stockFactorSell, minSell);
-    
-    //     // Vérifier les bornes
-    //     if (buyPrice < sellPrice + MIN_MARGIN) {
-    //         buyPrice = sellPrice + MIN_MARGIN;
-    //     }
-    //     if (sellPrice > buyPrice - MIN_MARGIN) {
-    //         sellPrice = buyPrice - MIN_MARGIN;
-    //     }
-    // }
-    // public void adjustPricesBasedOnPrices() {
-    //     // Variables de débogage
-    //     double oldBuyPrice = this.buyPrice;
-    //     double oldSellPrice = this.sellPrice;
-        
-    //     // Calculer le ratio de prix (entre 0 et 1)
-    //     double priceBuyRatio = Math.max(0.0, Math.min(1.0, (buyPrice - minBuy) / (maxBuy - minBuy)));
-    //     double priceSellRatio = Math.max(0.0, Math.min(1.0, (sellPrice - minSell) / (maxSell - minSell)));
 
-    //     buyPrice = minBuy + (maxBuy - minBuy) * priceBuyRatio * stockBuyModifier;
-    //     sellPrice = minSell + (maxSell - minSell) * priceSellRatio * stockSellModifier;
-
-    //     // Vérifier les bornes
-    //     if (buyPrice < sellPrice + MIN_MARGIN) {
-    //         buyPrice = sellPrice + MIN_MARGIN;
-    //     }
-    //     if (sellPrice > buyPrice - MIN_MARGIN) {
-    //         sellPrice = buyPrice - MIN_MARGIN;
-    //     }
-
-        
-    //     // Log des changements
-    //     DynaShopPlugin.getInstance().getLogger().info("Stock: " + stock + "/" + maxStock + " (ratio BUY: " + priceBuyRatio + ", SELL: " + priceSellRatio + ")");
-    //     // DynaShopPlugin.getInstance().getLogger().info("Stock: " + stock + "/" + maxStock + " (ratio : " + priceRatio + ")");
-    //     DynaShopPlugin.getInstance().getLogger().info("Prix d'achat: " + oldBuyPrice + " -> " + buyPrice + " (mod: " + stockBuyModifier + ")");
-    //     DynaShopPlugin.getInstance().getLogger().info("Prix de vente: " + oldSellPrice + " -> " + sellPrice + " (mod: " + stockSellModifier + ")");
-    // }
 
     public void adjustPricesBasedOnStock() {
         // Variables de débogage
@@ -482,14 +341,12 @@ public class DynamicPrice {
     }
     
     public void increaseStock(int amount) {
-        increaseStock(amount);
-        // adjustPricesBasedOnStock();
+        incrementStock(amount);
         adjustPricesBasedOnStock();
     }
     
     public void decreaseStock(int amount) {
         decrementStock(amount);
-        // adjustPricesBasedOnStock();
         adjustPricesBasedOnStock();
     }
 }

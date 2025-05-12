@@ -5,111 +5,31 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.*;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.plugin.java.JavaPlugin;
 
-// import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 
-// import java.util.HashMap;
-// import java.util.Map;
 import java.util.Optional;
 
 public class CustomRecipeManager {
-    private final JavaPlugin plugin;
+    private final DynaShopPlugin plugin;
 
-    public CustomRecipeManager(JavaPlugin plugin) {
+    /**
+     * Constructeur de CustomRecipeManager.
+     *
+     * @param plugin L'instance du plugin.
+     */
+    public CustomRecipeManager(DynaShopPlugin plugin) {
         this.plugin = plugin;
     }
 
-    // public void loadRecipes(ConfigurationSection recipesSection) {
-    //     if (recipesSection == null) {
-    //         plugin.getLogger().warning("Aucune recette personnalisée trouvée.");
-    //         return;
-    //     }
-
-    //     for (String recipeKey : recipesSection.getKeys(false)) {
-    //         ConfigurationSection recipeSection = recipesSection.getConfigurationSection(recipeKey);
-    //         if (recipeSection == null) continue;
-
-    //         String type = recipeSection.getString("type", "NONE").toUpperCase();
-    //         switch (type) {
-    //             case "SHAPED" -> loadShapedRecipe(recipeKey, recipeSection);
-    //             case "SHAPELESS" -> loadShapelessRecipe(recipeKey, recipeSection);
-    //             case "FURNACE" -> loadFurnaceRecipe(recipeKey, recipeSection);
-    //             default -> plugin.getLogger().warning("Type de recette inconnu : " + type);
-    //         }
-    //     }
-    // }
-
-    // private void loadShapedRecipe(String recipeKey, ConfigurationSection recipeSection) {
-    //     String[] pattern = recipeSection.getStringList("pattern").toArray(new String[0]);
-    //     ConfigurationSection ingredientsSection = recipeSection.getConfigurationSection("ingredients");
-    //     if (ingredientsSection == null) return;
-
-    //     Map<Character, ItemStack> ingredientMap = new HashMap<>();
-    //     for (String key : ingredientsSection.getKeys(false)) {
-    //         ConfigurationSection ingredient = ingredientsSection.getConfigurationSection(key);
-    //         if (ingredient == null) continue;
-
-    //         Material material = Material.matchMaterial(ingredient.getString("material", ""));
-    //         int quantity = ingredient.getInt("quantity", 1);
-    //         if (material != null) {
-    //             ingredientMap.put(key.charAt(0), new ItemStack(material, quantity));
-    //         }
-    //     }
-
-    //     ShapedRecipe recipe = new ShapedRecipe(new NamespacedKey(plugin, recipeKey), new ItemStack(Material.matchMaterial(recipeKey)));
-    //     recipe.shape(pattern);
-    //     for (Map.Entry<Character, ItemStack> entry : ingredientMap.entrySet()) {
-    //         recipe.setIngredient(entry.getKey(), entry.getValue().getType());
-    //     }
-
-    //     Bukkit.addRecipe(recipe);
-    //     plugin.getLogger().info("Recette SHAPED ajoutée : " + recipeKey);
-    // }
-
-    // private void loadShapelessRecipe(String recipeKey, ConfigurationSection recipeSection) {
-    //     ConfigurationSection ingredientsSection = recipeSection.getConfigurationSection("ingredients");
-    //     if (ingredientsSection == null) return;
-
-    //     ShapelessRecipe recipe = new ShapelessRecipe(new NamespacedKey(plugin, recipeKey), new ItemStack(Material.matchMaterial(recipeKey)));
-    //     for (String key : ingredientsSection.getKeys(false)) {
-    //         ConfigurationSection ingredient = ingredientsSection.getConfigurationSection(key);
-    //         if (ingredient == null) continue;
-
-    //         Material material = Material.matchMaterial(ingredient.getString("material", ""));
-    //         int quantity = ingredient.getInt("quantity", 1);
-    //         if (material != null) {
-    //             for (int i = 0; i < quantity; i++) {
-    //                 recipe.addIngredient(material);
-    //             }
-    //         }
-    //     }
-
-    //     Bukkit.addRecipe(recipe);
-    //     plugin.getLogger().info("Recette SHAPELESS ajoutée : " + recipeKey);
-    // }
-
-    // private void loadFurnaceRecipe(String recipeKey, ConfigurationSection recipeSection) {
-    //     ConfigurationSection inputSection = recipeSection.getConfigurationSection("input");
-    //     if (inputSection == null) return;
-
-    //     Material inputMaterial = Material.matchMaterial(inputSection.getString("material", ""));
-    //     int quantity = inputSection.getInt("quantity", 1);
-    //     Material resultMaterial = Material.matchMaterial(recipeKey);
-
-    //     if (inputMaterial != null && resultMaterial != null) {
-    //         FurnaceRecipe recipe = new FurnaceRecipe(
-    //             new NamespacedKey(plugin, recipeKey),
-    //             new ItemStack(resultMaterial),
-    //             inputMaterial,
-    //             0.1f, // XP
-    //             200   // Temps de cuisson (ticks)
-    //         );
-
-    //         Bukkit.addRecipe(recipe);
-    //         plugin.getLogger().info("Recette FURNACE ajoutée : " + recipeKey);
-    //     }
-    // }
+    /**
+     * Charge une recette à partir de la configuration du shop.
+     *
+     * @param shopID      L'ID du shop.
+     * @param itemID      L'ID de l'item.
+     * @param itemSection La section de configuration de l'item.
+     * @return Une Optional contenant la recette si elle existe, sinon une Optional vide.
+     */
     public Optional<Recipe> loadRecipeFromShopConfig(String shopID, String itemID, ConfigurationSection itemSection) {
         if (!itemSection.isConfigurationSection("recipe")) {
             return Optional.empty(); // Pas de recette définie
@@ -131,6 +51,13 @@ public class CustomRecipeManager {
         }
     }
 
+    /**
+     * Charge une recette à partir de la configuration du shop.
+     *
+     * @param itemID      L'ID de l'item.
+     * @param recipeSection La section de configuration de la recette.
+     * @return La recette chargée.
+     */
     private ShapedRecipe loadShapedRecipe(String itemID, ConfigurationSection recipeSection) {
         String[] pattern = recipeSection.getStringList("pattern").toArray(new String[0]);
         ConfigurationSection ingredientsSection = recipeSection.getConfigurationSection("ingredients");
@@ -167,6 +94,13 @@ public class CustomRecipeManager {
         return recipe;
     }
 
+    /**
+     * Charge une recette de four à partir de la configuration du shop.
+     *
+     * @param itemID      L'ID de l'item.
+     * @param recipeSection La section de configuration de la recette.
+     * @return La recette chargée.
+     */
     private FurnaceRecipe loadFurnaceRecipe(String itemID, ConfigurationSection recipeSection) {
         ConfigurationSection inputSection = recipeSection.getConfigurationSection("input");
         Material inputMaterial = Material.matchMaterial(inputSection.getString("material"));

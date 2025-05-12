@@ -102,8 +102,7 @@ public class BatchDatabaseUpdater {
         // S'assurer que l'objet est dans la map des mises à jour en attente
         pendingUpdates.put(key, price);
         
-        plugin.getLogger().info("Prix mis en file d'attente pour mise à jour: " + shopID + ":" + itemID + 
-                            " Buy: " + buyPrice + ", Sell: " + sellPrice);
+        plugin.getLogger().info("Prix mis en file d'attente pour mise à jour: " + shopID + ":" + itemID + " Buy: " + buyPrice + ", Sell: " + sellPrice);
     }
     
     private void flushUpdates() {
@@ -112,10 +111,9 @@ public class BatchDatabaseUpdater {
         Map<String, DynamicPrice> updates = new HashMap<>(pendingUpdates);
         pendingUpdates.clear();
         
-        try (Connection connection = plugin.getDataManager().getDatabaseConnection();
+        try (Connection connection = plugin.getDataManager().getConnection();
              PreparedStatement stmt = connection.prepareStatement(
-                 "REPLACE INTO " + plugin.getDataConfig().getDatabaseTablePrefix() + 
-                 "_prices (shopID, itemID, buyPrice, sellPrice, stock) VALUES (?, ?, ?, ?, ?)"
+                 "REPLACE INTO " + plugin.getDataConfig().getDatabaseTablePrefix() + "_prices (shopID, itemID, buyPrice, sellPrice, stock) VALUES (?, ?, ?, ?, ?)"
              )) {
             
             for (Map.Entry<String, DynamicPrice> entry : updates.entrySet()) {
