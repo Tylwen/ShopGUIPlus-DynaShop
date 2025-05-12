@@ -162,7 +162,8 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         // Planification des tâches
         getServer().getScheduler().runTaskTimerAsynchronously(this, new ReloadDatabaseTask(this), 20L * 60L * 10L, 20L * 60L * 10L); // Toutes les 10 minutes
         getServer().getScheduler().runTaskTimer(this, new WaitForShopsTask(this), 0L, 20L * 5L); // Toutes les 5 secondes
-        getServer().getScheduler().runTaskTimerAsynchronously(this, new SavePricesTask(this), 20L * 60L * 5L, 20L * 60L * 5L); // Toutes les 5 minutes
+        // getServer().getScheduler().runTaskTimerAsynchronously(this, new SavePricesTask(this), 20L * 60L * 5L, 20L * 60L * 5L); // Toutes les 5 minutes
+        getServer().getScheduler().runTaskTimerAsynchronously(this, new SavePricesTask(this), 20L * 60L * dataConfig.getDynamicPriceDuration(), 20L * 60L * dataConfig.getDynamicPriceDuration()); // Toutes les 5 minutes
         Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
             // Précharger les recettes des items populaires
             for (String popularItemKey : configMain.getStringList("popular-items")) {

@@ -46,7 +46,7 @@ public class CustomRecipeManager {
             case "FURNACE":
                 return Optional.of(loadFurnaceRecipe(itemID, recipeSection));
             default:
-                plugin.getLogger().warning("Type de recette inconnu pour l'item " + itemID + " dans le shop " + shopID);
+                // plugin.getLogger().warning("Type de recette inconnu pour l'item " + itemID + " dans le shop " + shopID);
                 return Optional.empty();
         }
     }

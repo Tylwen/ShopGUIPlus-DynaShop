@@ -272,7 +272,7 @@ public class PriceRecipe {
         
         // Vérifier si l'item a déjà été visité
         if (visitedItems.contains(itemID)) {
-            DynaShopPlugin.getInstance().getLogger().warning("Boucle détectée pour l'item : " + itemID);
+            // DynaShopPlugin.getInstance().getLogger().warning("Boucle détectée pour l'item : " + itemID);
             return 0.0; // Retourner 0 pour éviter une boucle infinie
         }
 
@@ -429,11 +429,14 @@ public class PriceRecipe {
         // for (Recipe recipe : item.getItemMeta().getPersistentDataContainer().getRecipesFor(item)) {
         for (Recipe recipe : DynaShopPlugin.getInstance().getServer().getRecipesFor(item)) {
             if (recipe instanceof ShapedRecipe) {
-                return config.getDouble("actions.shaped", 1.0);
+                // return config.getDouble("actions.shaped", 1.0);
+                return DynaShopPlugin.getInstance().getDataConfig().getShapedValue();
             } else if (recipe instanceof ShapelessRecipe) {
-                return config.getDouble("actions.shapeless", 1.0);
+                // return config.getDouble("actions.shapeless", 1.0);
+                return DynaShopPlugin.getInstance().getDataConfig().getShapelessValue();
             } else if (recipe instanceof FurnaceRecipe) {
-                return config.getDouble("actions.furnace", 1.0);
+                // return config.getDouble("actions.furnace", 1.0);
+                return DynaShopPlugin.getInstance().getDataConfig().getFurnaceValue();
             }
         }
 

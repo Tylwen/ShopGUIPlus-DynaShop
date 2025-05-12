@@ -108,9 +108,9 @@ public class DataManager {
                     plugin.getDataFolder().mkdirs();
                 }
                 databaseFile.createNewFile();
-                plugin.getLogger().info("Fichier de base de données SQLite créé: " + databaseFile.getAbsolutePath());
+                // plugin.getLogger().info("Fichier de base de données SQLite créé: " + databaseFile.getAbsolutePath());
             } catch (IOException e) {
-                plugin.getLogger().severe("Impossible de créer le fichier SQLite: " + e.getMessage());
+                // plugin.getLogger().severe("Impossible de créer le fichier SQLite: " + e.getMessage());
                 e.printStackTrace();
             }
         }
@@ -291,15 +291,13 @@ public class DataManager {
      * Met à jour le stock d'un item.
      */
     public void setStock(String shopId, String itemId, int stock) {
-        String sql = "UPDATE " + dataConfig.getDatabaseTablePrefix() + 
-                     "_prices SET stock = ? WHERE shopID = ? AND itemID = ?";
+        String sql = "UPDATE " + dataConfig.getDatabaseTablePrefix() + "_prices SET stock = ? WHERE shopID = ? AND itemID = ?";
         
         int rowsAffected = executeUpdate(sql, stock, shopId, itemId);
         
         // Si aucune ligne n'a été affectée, l'item n'existe pas encore
         if (rowsAffected == 0) {
-            sql = "INSERT INTO " + dataConfig.getDatabaseTablePrefix() + 
-                  "_prices (shopID, itemID, buyPrice, sellPrice, stock) VALUES (?, ?, 0, 0, ?)";
+            sql = "INSERT INTO " + dataConfig.getDatabaseTablePrefix() + "_prices (shopID, itemID, buyPrice, sellPrice, stock) VALUES (?, ?, 0, 0, ?)";
             executeUpdate(sql, shopId, itemId, stock);
         }
     }
@@ -309,8 +307,7 @@ public class DataManager {
      */
     public Optional<Double> getPrice(String shopId, String itemId, String priceType) {
         String column = priceType.equals("buyPrice") ? "buyPrice" : "sellPrice";
-        String sql = "SELECT " + column + " FROM " + dataConfig.getDatabaseTablePrefix() + 
-                     "_prices WHERE shopID = ? AND itemID = ?";
+        String sql = "SELECT " + column + " FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ?";
         
         return executeQuery(sql, rs -> {
             if (rs.next()) {
@@ -353,8 +350,7 @@ public class DataManager {
      * Récupère les prix d'un item.
      */
     public Optional<DynamicPrice> getPrices(String shopId, String itemId) {
-        String sql = "SELECT buyPrice, sellPrice, stock FROM " + 
-                     dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ?";
+        String sql = "SELECT buyPrice, sellPrice, stock FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ?";
         
         return executeQuery(sql, rs -> {
             if (rs.next()) {
@@ -372,8 +368,7 @@ public class DataManager {
      */
     public Map<ShopItem, DynamicPrice> loadPricesFromDatabase() {
         Map<ShopItem, DynamicPrice> priceMap = new HashMap<>();
-        String sql = "SELECT shopID, itemID, buyPrice, sellPrice, stock FROM " + 
-                     dataConfig.getDatabaseTablePrefix() + "_prices";
+        String sql = "SELECT shopID, itemID, buyPrice, sellPrice, stock FROM " + dataConfig.getDatabaseTablePrefix() + "_prices";
         
         executeQuery(sql, rs -> {
             while (rs.next()) {

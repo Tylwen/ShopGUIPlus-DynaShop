@@ -50,14 +50,14 @@ package fr.tylwen.satyria.dynashop.task;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.data.DynamicPrice;
-import fr.tylwen.satyria.dynashop.database.BatchDatabaseUpdater;
+// import fr.tylwen.satyria.dynashop.database.BatchDatabaseUpdater;
 import net.brcdev.shopgui.shop.item.ShopItem;
 
 import org.bukkit.Bukkit;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
+// import java.util.concurrent.CompletableFuture;
 
 public class SavePricesTask implements Runnable {
     private final DynaShopPlugin plugin;
@@ -85,6 +85,12 @@ public class SavePricesTask implements Runnable {
                 
                 String shopID = item.getShop().getId();
                 String itemID = item.getId();
+
+                int stock = entry.getValue().getStock();
+                if (stock > 0) {
+                    // Si le stock est supérieur à 0, on ne met pas à jour le prix
+                    continue;
+                }
                 
                 boolean needsUpdate = false;
                 
@@ -126,7 +132,7 @@ public class SavePricesTask implements Runnable {
             }
             
             if (!pricesToUpdate.isEmpty()) {
-                plugin.getLogger().info("Mise à jour de " + pricesToUpdate.size() + " prix planifiée");
+                // plugin.getLogger().info("Mise à jour de " + pricesToUpdate.size() + " prix planifiée");
             }
             
             return null;

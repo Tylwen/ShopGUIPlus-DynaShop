@@ -102,7 +102,7 @@ public class BatchDatabaseUpdater {
         // S'assurer que l'objet est dans la map des mises à jour en attente
         pendingUpdates.put(key, price);
         
-        plugin.getLogger().info("Prix mis en file d'attente pour mise à jour: " + shopID + ":" + itemID + " Buy: " + buyPrice + ", Sell: " + sellPrice);
+        // plugin.getLogger().info("Prix mis en file d'attente pour mise à jour: " + shopID + ":" + itemID + " Buy: " + buyPrice + ", Sell: " + sellPrice);
     }
     
     private void flushUpdates() {
@@ -129,7 +129,7 @@ public class BatchDatabaseUpdater {
             }
             
             stmt.executeBatch();
-            plugin.getLogger().info("Mise à jour de " + updates.size() + " prix en base de données");
+            // plugin.getLogger().info("Mise à jour de " + updates.size() + " prix en base de données");
         } catch (Exception e) {
             plugin.getLogger().severe("Erreur lors de la mise à jour des prix : " + e.getMessage());
             e.printStackTrace();

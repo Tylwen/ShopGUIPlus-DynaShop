@@ -233,27 +233,6 @@ public class ItemDataManager {
         });
     }
 
-    // /**
-    //  * Vérifie si un item existe dans la base de données.
-    //  */
-    // public boolean itemExists(String shopID, String itemID) {
-    //     // String query = "SELECT 1 FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ?";
-    //     String query = "SELECT COUNT(*) FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ?";
-    //     try {
-    //         return dataManager.executeAsync(() -> {
-    //             try (Connection connection = dataManager.getConnection();
-    //                  PreparedStatement stmt = connection.prepareStatement(query)) {
-    //                 stmt.setString(1, shopID);
-    //                 stmt.setString(2, itemID);
-    //                 ResultSet resultSet = stmt.executeQuery();
-    //                 return resultSet.next();
-    //             }
-    //         }).get(); // Bloque jusqu'à l'obtention du résultat
-    //     } catch (Exception e) {
-    //         plugin.getLogger().severe("Erreur lors de la vérification de l'existence d'un item: " + e.getMessage());
-    //         return false;
-    //     }
-    // }
     /**
      * Vérifie si un item existe dans la base de données.
      * Version non-bloquante qui utilise une valeur en cache si disponible.
@@ -305,27 +284,6 @@ public class ItemDataManager {
         }
     }
 
-    // /**
-    //  * Vérifie si un item a un prix.
-    //  */
-    // public boolean itemHasPrice(String shopID, String itemID) {
-    //     // String query = "SELECT 1 FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ? AND (buyPrice > 0 OR sellPrice > 0)";
-    //     String query = "SELECT COUNT(*) FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ? AND (buyPrice > 0 OR sellPrice > 0)";
-    //     try {
-    //         return dataManager.executeAsync(() -> {
-    //             try (Connection connection = dataManager.getConnection();
-    //                  PreparedStatement stmt = connection.prepareStatement(query)) {
-    //                 stmt.setString(1, shopID);
-    //                 stmt.setString(2, itemID);
-    //                 ResultSet resultSet = stmt.executeQuery();
-    //                 return resultSet.next();
-    //             }
-    //         }).get(); // Bloque jusqu'à l'obtention du résultat
-    //     } catch (Exception e) {
-    //         plugin.getLogger().severe("Erreur lors de la vérification des prix d'un item: " + e.getMessage());
-    //         return false;
-    //     }
-    // }
     /**
      * Vérifie si un item a un prix.
      * Version non-bloquante qui utilise une valeur en cache si disponible.

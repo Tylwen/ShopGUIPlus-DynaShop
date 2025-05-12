@@ -244,7 +244,7 @@ public class DynaShopListener implements Listener {
 
         DynamicPrice price = getOrLoadPrice(shopID, itemID, itemStack);
         if (price == null) {
-            mainPlugin.warning(itemID + " : Pas de prix dynamique trouvé dans le shop " + shopID);
+            // mainPlugin.warning(itemID + " : Pas de prix dynamique trouvé dans le shop " + shopID);
             return;
         }
 
@@ -269,14 +269,14 @@ public class DynaShopListener implements Listener {
             handleRecipePrice(price, shopID, itemID, itemStack, amount, action); // Gérer les prix basés sur les recettes
         } else if (type == DynaShopType.STOCK || price.isFromStock()) {
             handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
-        } else {
-            mainPlugin.getLogger().warning("Type de gestion inconnu pour l'item " + itemID + " dans le shop " + shopID);
+        // } else {
+        //     mainPlugin.getLogger().warning("Type de gestion inconnu pour l'item " + itemID + " dans le shop " + shopID);
         }
 
-        mainPlugin.info(action + " - Prix mis à jour pour l'item " + itemID + " dans le shop " + shopID);
-        mainPlugin.info("Prix : " + resultPrice + ", amount : " + amount + ", growth : " + price.getGrowthBuy() + ", decay : " + price.getDecaySell());
-        mainPlugin.info("Next BUY : " + price.getBuyPrice() + ", Min : " + price.getMinBuyPrice() + ", Max : " + price.getMaxBuyPrice());
-        mainPlugin.info("Next SELL : " + price.getSellPrice() + ", Min : " + price.getMinSellPrice() + ", Max : " + price.getMaxSellPrice());
+        // mainPlugin.info(action + " - Prix mis à jour pour l'item " + itemID + " dans le shop " + shopID);
+        // mainPlugin.info("Prix : " + resultPrice + ", amount : " + amount + ", growth : " + price.getGrowthBuy() + ", decay : " + price.getDecaySell());
+        // mainPlugin.info("Next BUY : " + price.getBuyPrice() + ", Min : " + price.getMinBuyPrice() + ", Max : " + price.getMaxBuyPrice());
+        // mainPlugin.info("Next SELL : " + price.getSellPrice() + ", Min : " + price.getMinSellPrice() + ", Max : " + price.getMaxSellPrice());
 
         // Sauvegarder les nouveaux prix dans la base de données
         // savePriceIfNeeded(price, shopID, itemID);
@@ -315,16 +315,16 @@ public class DynaShopListener implements Listener {
 
     // private void handleStockPrice(DynamicPrice price, ShopAction action, int amount) {
     private void handleStockPrice(DynamicPrice price, String shopID, String itemID, ShopAction action, int amount) {
-        mainPlugin.getLogger().info("AVANT - Stock: " + price.getStock() + ", Buy: " + price.getBuyPrice() + ", Sell: " + price.getSellPrice());
+        // mainPlugin.getLogger().info("AVANT - Stock: " + price.getStock() + ", Buy: " + price.getBuyPrice() + ", Sell: " + price.getSellPrice());
         
         if (action == ShopAction.BUY) {
-            mainPlugin.getLogger().info("Diminution du stock de " + amount + " unités");
+            // mainPlugin.getLogger().info("Diminution du stock de " + amount + " unités");
             // price.decreaseStock(amount);
             mainPlugin.getPriceStock().processBuyTransaction(shopID, itemID, amount);
             // price.adjustPricesBasedOnStock();
             // price.adjustPricesBasedOnPrices();
         } else if (action == ShopAction.SELL || action == ShopAction.SELL_ALL) {
-            mainPlugin.getLogger().info("Augmentation du stock de " + amount + " unités");
+            // mainPlugin.getLogger().info("Augmentation du stock de " + amount + " unités");
             // price.increaseStock(amount);
             mainPlugin.getPriceStock().processSellTransaction(shopID, itemID, amount);
             // price.adjustPricesBasedOnStock();
@@ -339,7 +339,7 @@ public class DynaShopListener implements Listener {
         price.setSellPrice(newSellPrice);
         price.setStock(DynaShopPlugin.getInstance().getItemDataManager().getStock(shopID, itemID).orElse(0));
         
-        mainPlugin.getLogger().info("APRÈS - Stock: " + price.getStock() + ", Buy: " + price.getBuyPrice() + ", Sell: " + price.getSellPrice());
+        // mainPlugin.getLogger().info("APRÈS - Stock: " + price.getStock() + ", Buy: " + price.getBuyPrice() + ", Sell: " + price.getSellPrice());
     }
 
     // private void savePriceIfNeeded(DynamicPrice price, String shopID, String itemID) {
@@ -526,7 +526,7 @@ public class DynaShopListener implements Listener {
 
         // Limiter la profondeur de récursion
         if (depth > 5) {
-            mainPlugin.getLogger().warning("Profondeur de récursion maximale atteinte pour " + itemID);
+            // mainPlugin.getLogger().warning("Profondeur de récursion maximale atteinte pour " + itemID);
             return;
         }
 
@@ -565,15 +565,15 @@ public class DynaShopListener implements Listener {
 
                 // Selon le type d'ingrédient, traiter différemment
                 if (ingredientType == DynaShopType.STOCK) {
-                    mainPlugin.getLogger().info("Ingrédient " + ingredientID + " est en mode STOCK");
+                    // mainPlugin.getLogger().info("Ingrédient " + ingredientID + " est en mode STOCK");
                     
                     if (isGrowth) {
                         // Quand on achète un item, on réduit le stock des ingrédients
-                        mainPlugin.getLogger().info("Diminution du stock de l'ingrédient de " + ingredientAmount + " unités");
+                        // mainPlugin.getLogger().info("Diminution du stock de l'ingrédient de " + ingredientAmount + " unités");
                         DynaShopPlugin.getInstance().getPriceStock().processBuyTransaction(shopIngredientID, ingredientID, ingredientAmount);
                     } else {
                         // Quand on vend un item, on augmente le stock des ingrédients
-                        mainPlugin.getLogger().info("Augmentation du stock de l'ingrédient de " + ingredientAmount + " unités");
+                        // mainPlugin.getLogger().info("Augmentation du stock de l'ingrédient de " + ingredientAmount + " unités");
                         DynaShopPlugin.getInstance().getPriceStock().processSellTransaction(shopIngredientID, ingredientID, ingredientAmount);
                     }
                     
@@ -601,8 +601,7 @@ public class DynaShopListener implements Listener {
                 // }
 
                 // Log pour vérifier les changements
-                mainPlugin.getLogger().info("Prix mis à jour pour l'ingrédient " + ingredientID + " x " + amount * ingredient.getAmount() + ": " +
-                    "Buy = " + ingredientPrice.getBuyPrice() + ", Sell = " + ingredientPrice.getSellPrice());
+                // mainPlugin.getLogger().info("Prix mis à jour pour l'ingrédient " + ingredientID + " x " + amount * ingredient.getAmount() + ": " + "Buy = " + ingredientPrice.getBuyPrice() + ", Sell = " + ingredientPrice.getSellPrice());
 
                 // Sauvegarder les nouveaux prix dans la base de données
                 // Si l'ingrédient est lui-même basé sur une recette, appliquer récursivement
@@ -616,7 +615,7 @@ public class DynaShopListener implements Listener {
                     applyGrowthOrDecayToIngredients(shopIngredientID, ingredientID, ingredient, ingredient.getAmount(), isGrowth, visitedItems, depth + 1);
                 }
             } else {
-                mainPlugin.getLogger().warning("Prix dynamique introuvable pour l'ingrédient " + ingredientID + " dans le shop " + shopIngredientID);
+                // mainPlugin.getLogger().warning("Prix dynamique introuvable pour l'ingrédient " + ingredientID + " dans le shop " + shopIngredientID);
             }
         }
     }

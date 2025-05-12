@@ -119,12 +119,16 @@ public class DynamicPrice {
     // }
     
     public void applyDecay(int amount) {
-        // buyPrice  = Math.max(buyPrice * Math.pow(decayBuy, amount), minBuy);
+        buyPrice  = Math.max(buyPrice * Math.pow(decayBuy, amount), minBuy);
         sellPrice = Math.min(sellPrice * Math.pow(decaySell, amount), maxSell);
 
         // Vérifier que sellPrice est inférieur ou égal à buyPrice - MIN_MARGIN
         if (sellPrice > buyPrice - MIN_MARGIN) {
             sellPrice = buyPrice - MIN_MARGIN;
+        }
+        // Vérifier que buyPrice est supérieur ou égal à sellPrice + MIN_MARGIN
+        if (buyPrice < sellPrice + MIN_MARGIN) {
+            buyPrice = sellPrice + MIN_MARGIN;
         }
     }
     // public void applyDecay() {
@@ -155,11 +159,15 @@ public class DynamicPrice {
     
     public void applyGrowth(int amount) {
         buyPrice  = Math.min(buyPrice * Math.pow(growthBuy, amount), maxBuy);
-        // sellPrice = Math.max(sellPrice * Math.pow(growthSell, amount), minSell);
+        sellPrice = Math.max(sellPrice * Math.pow(growthSell, amount), minSell);
 
         // Vérifier que buyPrice est supérieur ou égal à sellPrice + MIN_MARGIN
         if (buyPrice < sellPrice + MIN_MARGIN) {
             buyPrice = sellPrice + MIN_MARGIN;
+        }
+        // Vérifier que sellPrice est inférieur ou égal à buyPrice - MIN_MARGIN
+        if (sellPrice > buyPrice - MIN_MARGIN) {
+            sellPrice = buyPrice - MIN_MARGIN;
         }
     }
     // public void applyGrowth() {
@@ -184,13 +192,15 @@ public class DynamicPrice {
     // }
     
     public void applyBuyPriceChanges() {
-        this.buyPrice *= 0.99;
+        // this.buyPrice *= 0.99;
+        this.buyPrice *= DynaShopPlugin.getInstance().getDataConfig().getPriceDecrease();
         // this.buyPrice = Math.min(this.buyPrice, this.maxBuy);
         // this.buyPrice = Math.max(this.buyPrice, this.minBuy);
         this.buyPrice = Math.max(minBuy, Math.min(this.buyPrice, maxBuy));
     }
     public void applySellPriceChanges() {
-        this.sellPrice *= 1.01;
+        // this.sellPrice *= 1.01;
+        this.sellPrice *= DynaShopPlugin.getInstance().getDataConfig().getPriceIncrease();
         // this.sellPrice = Math.min(this.sellPrice, this.maxSell);
         // this.sellPrice = Math.max(this.sellPrice, this.minSell);
         this.sellPrice = Math.max(minSell, Math.min(this.sellPrice, maxSell));
@@ -334,10 +344,10 @@ public class DynamicPrice {
             sellPrice = buyPrice - MIN_MARGIN;
         }
         
-        // Log des changements
-        DynaShopPlugin.getInstance().getLogger().info("Stock: " + stock + "/" + maxStock + " (ratio: " + stockRatio + ")");
-        DynaShopPlugin.getInstance().getLogger().info("Prix d'achat: " + oldBuyPrice + " -> " + buyPrice + " (mod: " + stockBuyModifier + ")");
-        DynaShopPlugin.getInstance().getLogger().info("Prix de vente: " + oldSellPrice + " -> " + sellPrice + " (mod: " + stockSellModifier + ")");
+        // // Log des changements
+        // DynaShopPlugin.getInstance().getLogger().info("Stock: " + stock + "/" + maxStock + " (ratio: " + stockRatio + ")");
+        // DynaShopPlugin.getInstance().getLogger().info("Prix d'achat: " + oldBuyPrice + " -> " + buyPrice + " (mod: " + stockBuyModifier + ")");
+        // DynaShopPlugin.getInstance().getLogger().info("Prix de vente: " + oldSellPrice + " -> " + sellPrice + " (mod: " + stockSellModifier + ")");
     }
     
     public void increaseStock(int amount) {

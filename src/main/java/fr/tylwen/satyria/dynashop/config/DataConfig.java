@@ -13,6 +13,8 @@ public class DataConfig {
     private final String databaseTablePrefix;
     private final String databaseSqliteFile;
 
+    private final int dynamicPriceDuration;
+
     // Variables pour les valeurs par défaut
     private final double priceMinMultiply;
     private final double priceMaxMultiply;
@@ -30,6 +32,11 @@ public class DataConfig {
     private final double stockBuyModifier;
     private final double stockSellModifier;
 
+    // Variables pour les recettes
+    private final double shapedValue;
+    private final double shapelessValue;
+    private final double furnaceValue;
+
     public DataConfig(FileConfiguration config) {
         // Charger la configuration de la base de données
         this.databaseType = config.getString("database.type", "sqlite").toLowerCase();
@@ -41,13 +48,15 @@ public class DataConfig {
         this.databaseTablePrefix = config.getString("database.table-prefix", "dynashop");
         this.databaseSqliteFile = config.getString("database.sqlite.file", "dynashop.db");
 
+        // Duration of dynamic pricing period (in seconds)
+        this.dynamicPriceDuration = config.getInt("time-period", 5);
+
         // Charger les valeurs par défaut depuis le fichier de configuration
         this.priceMinMultiply = config.getDouble("default.price-min-multiply", 0.5);
         this.priceMaxMultiply = config.getDouble("default.price-max-multiply", 2.0);
 
         this.priceMin = config.getDouble("default.price-min", 0.01);
         this.priceMax = config.getDouble("default.price-max", 1000.0);
-
         this.priceMargin = config.getDouble("default.price-margin", 0.1);
 
         this.buyGrowthRate = config.getDouble("default.buy-growth-rate", 1.00005);
@@ -55,13 +64,18 @@ public class DataConfig {
         this.sellGrowthRate = config.getDouble("default.sell-growth-rate", 1.00005);
         this.sellDecayRate = config.getDouble("default.sell-decay-rate", 0.99998);
 
-        this.priceIncrease = config.getDouble("default.price-increase", 0.1);
-        this.priceDecrease = config.getDouble("default.price-decrease", 0.1);
+        this.priceIncrease = config.getDouble("default.price-increase", 1.001);
+        this.priceDecrease = config.getDouble("default.price-decrease", 0.999);
 
         this.stockMin = config.getInt("default.stock-min", 0);
         this.stockMax = config.getInt("default.stock-max", Integer.MAX_VALUE);
         this.stockBuyModifier = config.getDouble("default.stock-buy-modifier", 0.5);
         this.stockSellModifier = config.getDouble("default.stock-sell-modifier", 2.0);
+
+        // Charger les valeurs pour les recipes
+        this.shapedValue = config.getDouble("actions.shaped", 1.0);
+        this.shapelessValue = config.getDouble("actions.shapeless", 1.0);
+        this.furnaceValue = config.getDouble("actions.furnace", 1.0);
     }
 
     // Getters pour accéder aux valeurs de la configuration de la base de données
@@ -95,6 +109,10 @@ public class DataConfig {
 
     public String getDatabaseSqliteFile() {
         return databaseSqliteFile;
+    }
+
+    public int getDynamicPriceDuration() {
+        return dynamicPriceDuration;
     }
 
     // Getters pour accéder aux valeurs par défaut
@@ -157,5 +175,18 @@ public class DataConfig {
 
     public double getStockSellModifier() {
         return stockSellModifier;
+    }
+
+    // Getters pour accéder aux valeurs des recettes
+    public double getShapedValue() {
+        return shapedValue;
+    }
+
+    public double getShapelessValue() {
+        return shapelessValue;
+    }
+
+    public double getFurnaceValue() {
+        return furnaceValue;
     }
 }
