@@ -78,7 +78,8 @@ public class DynaShopListener implements Listener {
             if (event.getShopAction() == ShopAction.BUY && !DynaShopPlugin.getInstance().getPriceStock().canBuy(shopID, itemID, amount)) {
                 event.setCancelled(true);
                 if (event.getPlayer() != null) {
-                    event.getPlayer().sendMessage("§c[DynaShop] Cet item est en rupture de stock !");
+                    // event.getPlayer().sendMessage("§c[DynaShop] Cet item est en rupture de stock !");
+                    event.getPlayer().sendMessage(this.mainPlugin.getLangConfig().getMsgOutOfStock());
                 }
                 return;
             }
@@ -88,7 +89,12 @@ public class DynaShopListener implements Listener {
             if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && !DynaShopPlugin.getInstance().getPriceStock().canSell(shopID, itemID, amount)) {
                 event.setCancelled(true);
                 if (event.getPlayer() != null) {
-                    event.getPlayer().sendMessage("§c[DynaShop] Le stock de cet item est complet, impossible de vendre plus !");
+                    // event.getPlayer().sendMessage("§c[DynaShop] Le stock de cet item est complet, impossible de vendre plus !");
+                    // event.getPlayer().sendMessage(this.mainPlugin.getConfigLang().getString("messages.stockFull")
+                    //     .replace("%item%", itemID)
+                    //     .replace("%shop%", shopID));
+                    // event.getPlayer().sendMessage(this.mainPlugin.getConfigLang().getString("stock.full-stock"));
+                    event.getPlayer().sendMessage(this.mainPlugin.getLangConfig().getMsgFullStock());
                 }
                 return;
             }

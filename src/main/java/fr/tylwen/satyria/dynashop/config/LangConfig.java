@@ -4,8 +4,8 @@ import org.bukkit.configuration.file.FileConfiguration;
 
 public class LangConfig {
     // Variables pour la configuration de la langue
-    private final String lang;
-    private final String langFile;
+    // private final String lang;
+    // private final String langFile;
     // Variables pour les messages
     // private final String messagePrefix;
     // private final String messageNoPermission;
@@ -26,9 +26,9 @@ public class LangConfig {
 
     
     public LangConfig(FileConfiguration config) {
-        // Load the language configuration
-        this.lang = config.getString("lang", "en");
-        this.langFile = config.getString("lang-file", "en.yml");
+        // // Load the language configuration
+        // this.lang = config.getString("lang", "en");
+        // this.langFile = config.getString("lang-file", "en.yml");
 
         // Load the messages from the configuration file
         // this.messagePrefix = config.getString("messages.prefix", "&7[&6Dynashop&7] ");
@@ -46,5 +46,20 @@ public class LangConfig {
         // this.messageNoShopItemPriceMaxMultiply = config.getString("messages.no-shop-item-price-max-multiply", "&cThe maximum price multiply for the shop item must be greater than 0.");
         this.msgOutOfStock = config.getString("messages.out-of-stock", "&cThis item is out of stock.");
         this.msgFullStock = config.getString("messages.full-stock", "&cThis item is full stock we cannot sell more.");
+    }
+
+    // Getters for the messages
+    // public String getLang() {
+    //     return lang;
+    // }
+    // public String getLangFile() {
+    //     return langFile;
+    // }
+
+    public String getMsgOutOfStock() {
+        return msgOutOfStock;
+    }
+    public String getMsgFullStock() {
+        return msgFullStock;
     }
 }

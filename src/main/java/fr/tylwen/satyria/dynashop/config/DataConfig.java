@@ -61,8 +61,8 @@ public class DataConfig {
 
         this.buyGrowthRate = config.getDouble("default.buy-growth-rate", 1.00005);
         this.buyDecayRate = config.getDouble("default.buy-decay-rate", 0.99998);
-        this.sellGrowthRate = config.getDouble("default.sell-growth-rate", 1.00005);
-        this.sellDecayRate = config.getDouble("default.sell-decay-rate", 0.99998);
+        this.sellGrowthRate = config.getDouble("default.sell-growth-rate", 1.00002);
+        this.sellDecayRate = config.getDouble("default.sell-decay-rate", 0.99995);
 
         this.priceIncrease = config.getDouble("default.price-increase", 1.001);
         this.priceDecrease = config.getDouble("default.price-decrease", 0.999);
