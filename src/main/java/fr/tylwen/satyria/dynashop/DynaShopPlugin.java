@@ -23,6 +23,7 @@ import fr.tylwen.satyria.dynashop.command.ReloadCommand;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
 import fr.tylwen.satyria.dynashop.config.LangConfig;
 import fr.tylwen.satyria.dynashop.data.CustomRecipeManager;
+import fr.tylwen.satyria.dynashop.data.DynamicPrice;
 import fr.tylwen.satyria.dynashop.data.PriceRecipe;
 import fr.tylwen.satyria.dynashop.data.PriceStock;
 // import fr.tylwen.satyria.dynashop.config.Config;
@@ -37,9 +38,11 @@ import fr.tylwen.satyria.dynashop.hook.ShopGUIPlusHook;
 import fr.tylwen.satyria.dynashop.listener.DynaShopListener;
 // import fr.tylwen.satyria.dynashop.utils.CommentedConfiguration;
 import fr.tylwen.satyria.dynashop.task.ReloadDatabaseTask;
-import fr.tylwen.satyria.dynashop.task.SavePricesTask;
+import fr.tylwen.satyria.dynashop.task.DynamicPricesTask;
 import fr.tylwen.satyria.dynashop.task.WaitForShopsTask;
+
 import net.brcdev.shopgui.ShopGuiPlusApi;
+import net.brcdev.shopgui.shop.item.ShopItem;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -70,6 +73,10 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private CustomRecipeManager customRecipeManager;
     private Logger logger;
     // private CommentedConfiguration config;
+    private DynaShopListener dynaShopListener;
+
+    private int dynamicPricesTaskId;
+    private int waitForShopsTaskId;
 
     private final Map<String, Double> recipePriceCache = new ConcurrentHashMap<>();
     // private final long RECIPE_CACHE_DURATION = 600000; // 10 minutes
@@ -84,6 +91,10 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
 
     public static DynaShopPlugin getInstance() {
         return instance;
+    }
+
+    public DynaShopListener getDynaShopListener() {
+        return dynaShopListener;
     }
 
     public YamlConfiguration getConfigMain() {
@@ -134,6 +145,18 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         return this.priceStock;
     }
 
+    public void setDynamicPricesTaskId(int id) {
+        this.dynamicPricesTaskId = id;
+    }
+
+    public int getDynamicPricesTaskId() {
+        return this.dynamicPricesTaskId;
+    }
+
+    public int getWaitForShopsTaskId() {
+        return this.waitForShopsTaskId;
+    }
+
     @Override
     public void onEnable() {
         // // Vérifier si ShopGUIPlus est installé
@@ -166,24 +189,49 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         this.dataManager.initDatabase();
 
         // Planification des tâches
-        getServer().getScheduler().runTaskTimerAsynchronously(this, new ReloadDatabaseTask(this), 20L * 60L * 10L, 20L * 60L * 10L); // Toutes les 10 minutes
+        getServer().getScheduler().runTaskTimerAsynchronously(this, new ReloadDatabaseTask(this), 0L, 20L * 60L * 10L); // Toutes les 10 minutes
         getServer().getScheduler().runTaskTimer(this, new WaitForShopsTask(this), 0L, 20L * 5L); // Toutes les 5 secondes
         // getServer().getScheduler().runTaskTimerAsynchronously(this, new SavePricesTask(this), 20L * 60L * 5L, 20L * 60L * 5L); // Toutes les 5 minutes
-        getServer().getScheduler().runTaskTimerAsynchronously(this, new SavePricesTask(this), 20L * 60L * dataConfig.getDynamicPriceDuration(), 20L * 60L * dataConfig.getDynamicPriceDuration()); // Toutes les 5 minutes
-        Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
-            // Précharger les recettes des items populaires
-            for (String popularItemKey : configMain.getStringList("popular-items")) {
-                String[] parts = popularItemKey.split(":");
-                if (parts.length == 2) {
-                    String shopID = parts[0];
-                    String itemID = parts[1];
-                    ItemStack itemStack = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem();
-                    if (itemStack != null) {
-                        priceRecipe.getIngredients(shopID, itemID, itemStack);
-                    }
-                }
-            }
-        }, 20L * 60, 20L * 60 * 15); // Toutes les 15 minutes
+        // Modifier cette ligne
+        // getServer().getScheduler().runTaskTimerAsynchronously(this, new DynamicPricesTask(this), 0L, 20L * 60L * 1L);
+
+        // // À ajouter à la fin de onEnable() dans DynaShopPlugin.java
+        // getServer().getScheduler().runTaskAsynchronously(this, () -> {
+        //     getLogger().warning("Test de loadPricesFromDatabase...");
+        //     Map<ShopItem, DynamicPrice> priceMap = getDataManager().loadPricesFromDatabase();
+        //     getLogger().warning("Résultat: " + (priceMap == null ? "null" : priceMap.size() + " éléments"));
+        // });
+
+        // // Nouvelle implémentation avec variable pour suivre la tâche
+        // this.dynamicPricesTaskId = getServer().getScheduler().runTaskTimerAsynchronously(
+        //     this, 
+        //     new DynamicPricesTask(this), 
+        //     20L * 10L, // Délai initial de 10 secondes pour s'assurer que tout est chargé
+        //     20L * 60L  // Une minute entre chaque exécution
+        // ).getTaskId();
+
+        // getLogger().info("Tâche DynamicPricesTask enregistrée avec l'ID: " + dynamicPricesTaskId);
+
+        // Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
+        //     // Précharger les recettes des items populaires
+        //     for (String popularItemKey : configMain.getStringList("popular-items")) {
+        //         String[] parts = popularItemKey.split(":");
+        //         if (parts.length == 2) {
+        //             String shopID = parts[0];
+        //             String itemID = parts[1];
+        //             ItemStack itemStack = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem();
+        //             if (itemStack != null) {
+        //                 priceRecipe.getIngredients(shopID, itemID, itemStack);
+        //             }
+        //         }
+        //     }
+        // }, 20L * 60, 20L * 60 * 15); // Toutes les 15 minutes
+        // Planifier la précharge périodique des items populaires
+        Bukkit.getScheduler().runTaskTimerAsynchronously(this, 
+            this::preloadPopularItems, 
+            20L * 60,         // Démarrer après 1 minute
+            20L * 60 * 15);   // Répéter toutes les 15 minutes
+
         // Ajouter une tâche de nettoyage du cache
         Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
             long currentTime = System.currentTimeMillis();
@@ -203,7 +251,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         this.dataManager = new DataManager(this);
         this.itemDataManager = new ItemDataManager(this.dataManager);
         this.batchDatabaseUpdater = new BatchDatabaseUpdater(this);
-        preloadPopularItems();
+        // preloadPopularItems();
     }
 
     // private void load() {
@@ -236,6 +284,12 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
+        // Annuler explicitement les tâches
+        if (dynamicPricesTaskId != 0) {
+            getServer().getScheduler().cancelTask(dynamicPricesTaskId);
+            getLogger().info("Tâche DynamicPricesTask annulée (ID: " + dynamicPricesTaskId + ")");
+        }
+        
         // Arrêter le gestionnaire de mises à jour en batch
         if (batchDatabaseUpdater != null) {
             batchDatabaseUpdater.shutdown();
@@ -285,7 +339,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         recipeCacheTimestamps.put(cacheKey, System.currentTimeMillis());
     }
 
-    private void preloadPopularItems() {
+    public void preloadPopularItems() {
         // Créer un pool de threads limité pour les précalculs
         ExecutorService precalcExecutor = Executors.newFixedThreadPool(3);
         

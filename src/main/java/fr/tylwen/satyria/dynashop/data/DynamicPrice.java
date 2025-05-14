@@ -192,15 +192,15 @@ public class DynamicPrice {
     // }
     
     public void applyBuyPriceChanges() {
-        // this.buyPrice *= 0.99;
-        this.buyPrice *= DynaShopPlugin.getInstance().getDataConfig().getPriceDecrease();
+        this.buyPrice *= 0.99;
+        // this.buyPrice *= DynaShopPlugin.getInstance().getDataConfig().getPriceDecrease();
         // this.buyPrice = Math.min(this.buyPrice, this.maxBuy);
         // this.buyPrice = Math.max(this.buyPrice, this.minBuy);
         this.buyPrice = Math.max(minBuy, Math.min(this.buyPrice, maxBuy));
     }
     public void applySellPriceChanges() {
-        // this.sellPrice *= 1.01;
-        this.sellPrice *= DynaShopPlugin.getInstance().getDataConfig().getPriceIncrease();
+        this.sellPrice *= 1.01;
+        // this.sellPrice *= DynaShopPlugin.getInstance().getDataConfig().getPriceIncrease();
         // this.sellPrice = Math.min(this.sellPrice, this.maxSell);
         // this.sellPrice = Math.max(this.sellPrice, this.minSell);
         this.sellPrice = Math.max(minSell, Math.min(this.sellPrice, maxSell));

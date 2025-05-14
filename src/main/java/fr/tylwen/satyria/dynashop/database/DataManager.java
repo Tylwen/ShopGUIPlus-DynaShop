@@ -362,6 +362,39 @@ public class DataManager {
         }, shopId, itemId);
     }
 
+    // /**
+    //  * Charge tous les prix depuis la base de données.
+    //  */
+    // public Map<ShopItem, DynamicPrice> loadPricesFromDatabase() {
+    //     Map<ShopItem, DynamicPrice> priceMap = new HashMap<>();
+    //     String sql = "SELECT shopID, itemID, buyPrice, sellPrice, stock FROM " + dataConfig.getDatabaseTablePrefix() + "_prices";
+        
+    //     executeQuery(sql, rs -> {
+    //         while (rs.next()) {
+    //             String shopId = rs.getString("shopID");
+    //             String itemId = rs.getString("itemID");
+    //             double buyPrice = rs.getDouble("buyPrice");
+    //             double sellPrice = rs.getDouble("sellPrice");
+    //             int stock = rs.getInt("stock");
+                
+    //             Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
+    //             if (shop != null) {
+    //                 ShopItem item = shop.getShopItems().stream()
+    //                     .filter(i -> i.getId().equals(itemId))
+    //                     .findFirst()
+    //                     .orElse(null);
+                    
+    //                 if (item != null) {
+    //                     DynamicPrice price = new DynamicPrice(buyPrice, sellPrice, stock);
+    //                     priceMap.put(item, price);
+    //                 }
+    //             }
+    //         }
+    //         return null;
+    //     });
+        
+    //     return priceMap;
+    // }
     /**
      * Charge tous les prix depuis la base de données.
      */
@@ -369,30 +402,66 @@ public class DataManager {
         Map<ShopItem, DynamicPrice> priceMap = new HashMap<>();
         String sql = "SELECT shopID, itemID, buyPrice, sellPrice, stock FROM " + dataConfig.getDatabaseTablePrefix() + "_prices";
         
-        executeQuery(sql, rs -> {
-            while (rs.next()) {
-                String shopId = rs.getString("shopID");
-                String itemId = rs.getString("itemID");
-                double buyPrice = rs.getDouble("buyPrice");
-                double sellPrice = rs.getDouble("sellPrice");
-                int stock = rs.getInt("stock");
-                
-                Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
-                if (shop != null) {
-                    ShopItem item = shop.getShopItems().stream()
-                        .filter(i -> i.getId().equals(itemId))
-                        .findFirst()
-                        .orElse(null);
+        // Log début de l'opération
+        // plugin.getLogger().warning("Chargement des prix depuis la base de données...");
+        
+        try {
+            int[] rowCount = {0}; // Utiliser un tableau pour pouvoir modifier la valeur dans le lambda
+            
+            executeQuery(sql, rs -> {
+                while (rs.next()) {
+                    rowCount[0]++;
+                    String shopId = rs.getString("shopID");
+                    String itemId = rs.getString("itemID");
+                    double buyPrice = rs.getDouble("buyPrice");
+                    double sellPrice = rs.getDouble("sellPrice");
+                    int stock = rs.getInt("stock");
                     
-                    if (item != null) {
+                    // Log pour vérifier si nous récupérons bien des données
+                    if (rowCount[0] <= 5 || rowCount[0] % 100 == 0) {
+                        // plugin.getLogger().info("Trouvé en base: " + shopId + ":" + itemId + " - Buy: " + buyPrice + ", Sell: " + sellPrice + ", Stock: " + stock);
+                    }
+                    
+                    try {
+                        // Vérifier si ShopGuiPlusApi est initialisé
+                        if (ShopGuiPlusApi.getPlugin() == null) {
+                            // plugin.getLogger().severe("ShopGuiPlusApi.getPlugin() est null! L'API n'est pas initialisée.");
+                            continue;
+                        }
+                        
+                        Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
+                        if (shop == null) {
+                            // plugin.getLogger().warning("Shop introuvable: " + shopId);
+                            continue;
+                        }
+                        
+                        ShopItem item = shop.getShopItems().stream()
+                            .filter(i -> i.getId().equals(itemId))
+                            .findFirst()
+                            .orElse(null);
+                        
+                        if (item == null) {
+                            // plugin.getLogger().warning("Item introuvable: " + itemId + " dans shop: " + shopId);
+                            continue;
+                        }
+                        
                         DynamicPrice price = new DynamicPrice(buyPrice, sellPrice, stock);
                         priceMap.put(item, price);
+                    } catch (Exception e) {
+                        // plugin.getLogger().severe("Erreur lors du traitement de " + shopId + ":" + itemId + ": " + e.getMessage());
                     }
                 }
-            }
-            return null;
-        });
+                
+                // plugin.getLogger().warning("Lecture terminée. Trouvé " + rowCount[0] + " enregistrements en base, " + priceMap.size() + " prix chargés avec succès.");
+                return null;
+            });
+        } catch (Exception e) {
+            // plugin.getLogger().severe("Erreur critique lors du chargement des prix: " + e.getMessage());
+            e.printStackTrace();
+        }
         
+        // Logs finaux
+        // plugin.getLogger().warning("Nombre final d'items chargés: " + priceMap.size());
         return priceMap;
     }
 

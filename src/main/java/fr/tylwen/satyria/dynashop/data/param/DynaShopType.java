@@ -5,4 +5,9 @@ public enum DynaShopType {
     DYNAMIC,    // Dynamique (prix évolutif)
     RECIPE,     // Basé sur une recette
     STOCK       // Basé sur le stock
+;
+
+    public DynaShopType orElse(DynaShopType other) {
+        return this == NONE ? other : this;
+    }
 }
