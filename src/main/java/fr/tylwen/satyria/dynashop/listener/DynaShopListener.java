@@ -1,29 +1,29 @@
 package fr.tylwen.satyria.dynashop.listener;
 
-import java.util.AbstractMap.SimpleEntry;
+// import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+// import java.util.Map;
 // import java.security.cert.PKIXRevocationChecker.Option;
 import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
+// import java.util.UUID;
+// import java.util.concurrent.ConcurrentHashMap;
+// import java.util.stream.Collectors;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
+// import org.bukkit.ChatColor;
 import org.bukkit.Material;
-import org.bukkit.block.Block;
-import org.bukkit.entity.Player;
+// import org.bukkit.block.Block;
+// import org.bukkit.entity.Player;
 // import org.bukkit.Bukkit;
 // import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.inventory.InventoryOpenEvent;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryView;
+// import org.bukkit.event.inventory.InventoryCloseEvent;
+// import org.bukkit.event.inventory.InventoryOpenEvent;
+// import org.bukkit.inventory.Inventory;
+// import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
@@ -37,10 +37,10 @@ import fr.tylwen.satyria.dynashop.config.DataConfig;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 import net.brcdev.shopgui.event.ShopPostTransactionEvent;
 import net.brcdev.shopgui.event.ShopPreTransactionEvent;
-import net.brcdev.shopgui.gui.gui.OpenGui;
-import net.brcdev.shopgui.player.PlayerData;
+// import net.brcdev.shopgui.gui.gui.OpenGui;
+// import net.brcdev.shopgui.player.PlayerData;
 import net.brcdev.shopgui.shop.item.ShopItem;
-import net.brcdev.shopgui.shop.Shop;
+// import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.ShopManager.ShopAction;
 import net.brcdev.shopgui.shop.ShopTransactionResult.ShopTransactionResultType;
 
@@ -56,7 +56,7 @@ public class DynaShopListener implements Listener {
     // Map pour stocker le shop actuellement ouvert par chaque joueur
     // private final Map<UUID, Pair<String, String>> openShopMap = new ConcurrentHashMap<>();
     // Puis remplacer toutes les occurrences de Pair par SimpleEntry
-    private final Map<UUID, SimpleEntry<String, String>> openShopMap = new ConcurrentHashMap<>();
+    // private final Map<UUID, SimpleEntry<String, String>> openShopMap = new ConcurrentHashMap<>();
 
     public DynaShopListener(DynaShopPlugin mainPlugin) {
         this.mainPlugin = mainPlugin;
@@ -472,7 +472,7 @@ public class DynaShopListener implements Listener {
     
         
         if (type == DynaShopType.STOCK) {
-            return DynaShopPlugin.getInstance().getPriceStock().createStockPrice(shopID, itemID, itemStack);
+            return DynaShopPlugin.getInstance().getPriceStock().createStockPrice(shopID, itemID);
             // price.setFromStock(true);
         }
         

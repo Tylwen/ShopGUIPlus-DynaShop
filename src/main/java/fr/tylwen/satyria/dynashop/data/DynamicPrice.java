@@ -1,7 +1,5 @@
 package fr.tylwen.satyria.dynashop.data;
 
-import org.checkerframework.checker.units.qual.min;
-
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 
 public class DynamicPrice {
@@ -327,8 +325,8 @@ public class DynamicPrice {
 
     public void adjustPricesBasedOnStock() {
         // Variables de débogage
-        double oldBuyPrice = this.buyPrice;
-        double oldSellPrice = this.sellPrice;
+        // double oldBuyPrice = this.buyPrice;
+        // double oldSellPrice = this.sellPrice;
         
         // Calculer le ratio de stock (entre 0 et 1)
         double stockRatio = Math.max(0.0, Math.min(1.0, (double)(stock - minStock) / (maxStock - minStock)));

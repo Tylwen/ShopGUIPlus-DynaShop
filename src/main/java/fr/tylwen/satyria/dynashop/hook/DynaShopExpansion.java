@@ -1,6 +1,8 @@
 package fr.tylwen.satyria.dynashop.hook;
 
-import java.lang.foreign.Linker.Option;
+// import java.lang.foreign.Linker.Option;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 // import java.sql.SQLException;
 import java.util.Optional;
@@ -18,7 +20,7 @@ import fr.tylwen.satyria.dynashop.data.ShopConfigManager;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 // import fr.tylwen.satyria.dynashop.database.DataManager;
 import fr.tylwen.satyria.dynashop.database.ItemDataManager;
-import fr.tylwen.satyria.dynashop.listener.DynaShopListener;
+// import fr.tylwen.satyria.dynashop.listener.DynaShopListener;
 import fr.tylwen.satyria.dynashop.listener.ShopItemPlaceholderListener;
 import me.clip.placeholderapi.PlaceholderAPI;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
@@ -220,6 +222,11 @@ public class DynaShopExpansion extends PlaceholderExpansion {
         // boolean useRecipe = shopConfigManager.getItemValue(shopID, itemID, "useRecipe", Boolean.class).orElse(false);
         boolean useRecipe = shopConfigManager.getTypeDynaShop(shopID, itemID).orElse(DynaShopType.NONE) == DynaShopType.RECIPE;
         ItemStack itemStack = null;
+
+        int maximumFractionDigits = 8;
+        if (ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains("numberFormat.maximumFractionDigits")) {
+            maximumFractionDigits = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("numberFormat.maximumFractionDigits");
+        }
         
         if (useRecipe) {
             itemStack = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem();
@@ -233,7 +240,9 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                 if (useRecipe && itemStack != null) {
                     double recipeBuyPrice = priceRecipe.calculateBuyPrice(shopID, itemID, itemStack, new ArrayList<>());
                     // return String.format("%.3f", recipeBuyPrice);
-                    return String.valueOf(recipeBuyPrice);
+                    // return String.valueOf(recipeBuyPrice);
+                    // return String.format("%." + maximumFractionDigits + "f", recipeBuyPrice);
+                    return formatPrice(recipeBuyPrice, maximumFractionDigits);
                 }
                 // return this.itemDataManager.getBuyPrice(shopID, itemID)
                 //     .or(() -> shopConfigManager.getItemValue(shopID, itemID, "buyPrice", Double.class))
@@ -244,23 +253,23 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                 Optional<Double> buyPrice = this.itemDataManager.getBuyPrice(shopID, itemID);
                 if (buyPrice.isPresent()) {
                     // return String.format("%.3f", buyPrice.get());
-                    return String.valueOf(buyPrice.get());
+                    return formatPrice(buyPrice.get(), maximumFractionDigits);
                 }
 
                 // Fallback sur les fichiers de configuration
                 Optional<Double> configBuyPrice = shopConfigManager.getItemValue(shopID, itemID, "buyPrice", Double.class);
                 if (configBuyPrice.isPresent()) {
                     // return String.format("%.3f", configBuyPrice.get());
-                    return String.valueOf(configBuyPrice.get());
+                    return formatPrice(configBuyPrice.get(), maximumFractionDigits);
                 }
-                
-                return "N/A 4";
+
+                return "N/A";
                     
             case "sell":
                 if (useRecipe && itemStack != null) {
                     double recipeSellPrice = priceRecipe.calculateSellPrice(shopID, itemID, itemStack, new ArrayList<>());
                     // return String.format("%.3f", recipeSellPrice);
-                    return String.valueOf(recipeSellPrice);
+                    return formatPrice(recipeSellPrice, maximumFractionDigits);
                 }
                 // return this.itemDataManager.getSellPrice(shopID, itemID)
                 //     .or(() -> shopConfigManager.getItemValue(shopID, itemID, "sellPrice", Double.class))
@@ -271,16 +280,16 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                 Optional<Double> sellPrice = this.itemDataManager.getSellPrice(shopID, itemID);
                 if (sellPrice.isPresent()) {
                     // return String.format("%.3f", sellPrice.get());
-                    return String.valueOf(sellPrice.get());
+                    return formatPrice(sellPrice.get(), maximumFractionDigits);
                 }
 
                 // Fallback sur les fichiers de configuration
                 Optional<Double> configSellPrice = shopConfigManager.getItemValue(shopID, itemID, "sellPrice", Double.class);
                 if (configSellPrice.isPresent()) {
                     // return String.format("%.3f", configSellPrice.get());
-                    return String.valueOf(configSellPrice.get());
+                    return formatPrice(configSellPrice.get(), maximumFractionDigits);
                 }
-                
+
                 return "N/A";
             
             case "buy_min":
@@ -289,7 +298,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                     double cachedMin = mainPlugin.getCachedRecipePrice(shopID, itemID, "buyDynamic.min");
                     if (cachedMin >= 0) {
                         // return String.format("%.3f", cachedMin);
-                        return String.valueOf(cachedMin);
+                        return formatPrice(cachedMin, maximumFractionDigits);
                     }
                 }
                 // return shopConfigManager.getItemValue(shopID, itemID, "buyDynamic.min", Double.class)
@@ -299,7 +308,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                 Optional<Double> minBuyPrice = shopConfigManager.getItemValue(shopID, itemID, "buyDynamic.min", Double.class);
                 if (minBuyPrice.isPresent()) {
                     // return String.format("%.3f", minBuyPrice.get());
-                    return String.valueOf(minBuyPrice.get());
+                    return formatPrice(minBuyPrice.get(), maximumFractionDigits);
                 }
                 return "N/A";
                     
@@ -308,7 +317,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                     double cachedMax = mainPlugin.getCachedRecipePrice(shopID, itemID, "buyDynamic.max");
                     if (cachedMax >= 0) {
                         // return String.format("%.3f", cachedMax);
-                        return String.valueOf(cachedMax);
+                        return formatPrice(cachedMax, maximumFractionDigits);
                     }
                 }
                 // return shopConfigManager.getItemValue(shopID, itemID, "buyDynamic.max", Double.class)
@@ -317,7 +326,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                 Optional<Double> maxBuyPrice = shopConfigManager.getItemValue(shopID, itemID, "buyDynamic.max", Double.class);
                 if (maxBuyPrice.isPresent()) {
                     // return String.format("%.3f", maxBuyPrice.get());
-                    return String.valueOf(maxBuyPrice.get());
+                    return formatPrice(maxBuyPrice.get(), maximumFractionDigits);
                 }
                 return "N/A";
                     
@@ -326,7 +335,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                     double cachedMin = mainPlugin.getCachedRecipePrice(shopID, itemID, "sellDynamic.min");
                     if (cachedMin >= 0) {
                         // return String.format("%.3f", cachedMin);
-                        return String.valueOf(cachedMin);
+                        return formatPrice(cachedMin, maximumFractionDigits);
                     }
                 }
                 // return shopConfigManager.getItemValue(shopID, itemID, "sellDynamic.min", Double.class)
@@ -335,7 +344,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                 Optional<Double> minSellPrice = shopConfigManager.getItemValue(shopID, itemID, "sellDynamic.min", Double.class);
                 if (minSellPrice.isPresent()) {
                     // return String.format("%.3f", minSellPrice.get());
-                    return String.valueOf(minSellPrice.get());
+                    return formatPrice(minSellPrice.get(), maximumFractionDigits);
                 }
                 return "N/A";
                     
@@ -344,7 +353,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                     double cachedMax = mainPlugin.getCachedRecipePrice(shopID, itemID, "sellDynamic.max");
                     if (cachedMax >= 0) {
                         // return String.format("%.3f", cachedMax);
-                        return String.valueOf(cachedMax);
+                        return formatPrice(cachedMax, maximumFractionDigits);
                     }
                 }
                 // return shopConfigManager.getItemValue(shopID, itemID, "sellDynamic.max", Double.class)
@@ -353,7 +362,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                 Optional<Double> maxSellPrice = shopConfigManager.getItemValue(shopID, itemID, "sellDynamic.max", Double.class);
                 if (maxSellPrice.isPresent()) {
                     // return String.format("%.3f", maxSellPrice.get());
-                    return String.valueOf(maxSellPrice.get());
+                    return formatPrice(maxSellPrice.get(), maximumFractionDigits);
                 }
                 return "N/A";
                 
@@ -361,8 +370,74 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                 return "Type inconnu";
         }
     }
+
+    /**
+    * Formate un prix en respectant les paramètres de configuration de ShopGUI+
+    * @param price Le prix à formater
+    * @param maxFractionDigits Nombre maximum de chiffres après la virgule
+    * @return Le prix formaté sous forme de chaîne
+    */
+    private String formatPrice(double price, int maxFractionDigits) {
+        // Récupérer les séparateurs depuis la configuration
+        String decimalSeparator = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getString("numberFormat.decimalSeparator", ".");
+        String groupingSeparator = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getString("numberFormat.groupingSeparator", ",");
+        int minimumFractionDigits = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("numberFormat.minimumFractionDigits", 0);
+        boolean hideFraction = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getBoolean("numberFormat.hideFraction", true);
+        
+        // Vérifier si le nombre est un entier et si hideFraction est activé
+        boolean isInteger = (price == Math.floor(price)) && !Double.isInfinite(price);
+        
+        // Configurer les symboles de formatage
+        DecimalFormatSymbols symbols = new DecimalFormatSymbols();
+        symbols.setDecimalSeparator(decimalSeparator.charAt(0));
+        symbols.setGroupingSeparator(groupingSeparator.charAt(0));
+        
+        // Créer un format adapté
+        DecimalFormat df;
+        
+        if (hideFraction && isInteger) {
+            // Aucune décimale pour les entiers quand hideFraction est activé
+            df = new DecimalFormat("#,##0", symbols);
+            df.setMinimumFractionDigits(0);
+            df.setMaximumFractionDigits(0);
+        } else {
+            // Pattern normal pour les nombres avec décimales
+            df = new DecimalFormat("#,##0.#", symbols);
+            df.setMaximumFractionDigits(maxFractionDigits);
+            df.setMinimumFractionDigits(minimumFractionDigits);
+        }
+        
+        // Activer le regroupement des chiffres
+        df.setGroupingUsed(true);
+        
+        return df.format(price);
+    }
     
     public String onRequest(OfflinePlayer player, String identifier) {
+        // %dynashop_current_buy%
+        if (identifier.equals("current_buy") && player instanceof Player p) {
+            // Player p = (Player) player;
+            ShopItemPlaceholderListener listener = mainPlugin.getShopItemPlaceholderListener();
+
+            String shopId = listener.getCurrentShopId(p);
+            String itemId = listener.getCurrentItemId(p);
+
+            if (shopId != null && itemId != null) {
+                // Récupérer le prix actuel
+                String buyPrice = getPriceByType(shopId, itemId, "buy");
+                String buyMinPrice = getPriceByType(shopId, itemId, "buy_min");
+                String buyMaxPrice = getPriceByType(shopId, itemId, "buy_max");
+                
+                if (buyPrice != null && buyMinPrice != null && buyMaxPrice != null) {
+                    return String.format("%s (%s - %s)", buyPrice, buyMinPrice, buyMaxPrice);
+                } else if (buyPrice != null) {
+                    return buyPrice;
+                } else {
+                    return "N/A"; // Aucun prix disponible
+                }
+            }
+        }
+
         // %dynashop_current_buyPrice%
         if (identifier.equals("current_buyPrice") && player instanceof Player p) {
             // Player p = (Player) player;
@@ -371,21 +446,21 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             // Vérification de nullité
             if (listener == null) {
                 mainPlugin.getLogger().warning("ShopItemPlaceholderListener est null dans DynaShopExpansion.onRequest()");
-                return "N/A 1";
+                return "N/A";
             }
             
             String shopId = listener.getCurrentShopId(p);
             String itemId = listener.getCurrentItemId(p);
 
-            mainPlugin.getLogger().info("Shop ID: " + shopId + ", Item ID: " + itemId);
+            // mainPlugin.getLogger().info("Shop ID: " + shopId + ", Item ID: " + itemId);
             
             if (shopId != null && itemId != null) {
                 // Récupérer le prix actuel
                 String price = getPriceByType(shopId, itemId, "buy");
-                return price != null ? price : "N/A 2"; // Si le prix est null, retourner "N/A"
+                return price != null ? price : "N/A"; // Si le prix est null, retourner "N/A"
             }
             
-            return "N/A F"; // Pas de shop ouvert
+            return "N/A"; // Pas de shop ouvert
         }
 
         // %dynashop_current_buyMinPrice%
@@ -433,6 +508,30 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             
             return "N/A"; // Pas de shop ouvert
         }
+        
+        // %dynashop_current_sell%
+        if (identifier.equals("current_sell") && player instanceof Player p) {
+            // Player p = (Player) player;
+            ShopItemPlaceholderListener listener = mainPlugin.getShopItemPlaceholderListener();
+
+            String shopId = listener.getCurrentShopId(p);
+            String itemId = listener.getCurrentItemId(p);
+
+            if (shopId != null && itemId != null) {
+                // Récupérer le prix actuel
+                String sellPrice = getPriceByType(shopId, itemId, "sell");
+                String sellMinPrice = getPriceByType(shopId, itemId, "sell_min");
+                String sellMaxPrice = getPriceByType(shopId, itemId, "sell_max");
+
+                if (sellPrice != null && sellMinPrice != null && sellMaxPrice != null) {
+                    return String.format("%s (%s - %s)", sellPrice, sellMinPrice, sellMaxPrice);
+                } else if (sellPrice != null) {
+                    return sellPrice;
+                } else {
+                    return "N/A"; // Aucun prix disponible
+                }
+            }
+        }
 
         // %dynashop_current_sellPrice%
         if (identifier.equals("current_sellPrice") && player instanceof Player p) {
@@ -442,7 +541,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             // Vérification de nullité
             if (listener == null) {
                 mainPlugin.getLogger().warning("ShopItemPlaceholderListener est null dans DynaShopExpansion.onRequest()");
-                return "N/A 1";
+                return "N/A";
             }
             
             String shopId = listener.getCurrentShopId(p);
@@ -451,10 +550,10 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             if (shopId != null && itemId != null) {
                 // Récupérer le prix actuel
                 String price = getPriceByType(shopId, itemId, "sell");
-                return price != null ? price : "N/A 2"; // Si le prix est null, retourner "N/A"
+                return price != null ? price : "N/A"; // Si le prix est null, retourner "N/A"
             }
 
-            return "N/A F"; // Pas de shop ouvert
+            return "N/A"; // Pas de shop ouvert
         }
 
         // %dynashop_current_sellMinPrice%

@@ -188,7 +188,7 @@ public class PriceStock {
     /**
      * Crée un objet DynamicPrice basé sur le stock.
      */
-    public DynamicPrice createStockPrice(String shopID, String itemID, ItemStack itemStack) {
+    public DynamicPrice createStockPrice(String shopID, String itemID) {
         double buyPrice = calculatePrice(shopID, itemID, "buyPrice");
         double sellPrice = calculatePrice(shopID, itemID, "sellPrice");
         

@@ -17,7 +17,7 @@ actions:
   shapeless: 1.1
   furnace: 1.5
 
-time-period: 5 # Duration of dynamic pricing period (in minutes)
+time-period: 15 # Duration of dynamic pricing period (in minutes)
 
 default:
   price-min-multiply: 0.5 # Minimum multiplier for dynamic pricing
@@ -29,11 +29,11 @@ default:
 
   buy-growth-rate: 1.00005 # Growth rate for dynamic pricing
   buy-decay-rate: 0.99998 # Decline rate for dynamic pricing
-  sell-growth-rate: 1.00005 # Growth rate for dynamic pricing
-  sell-decay-rate: 0.99998 # Decline rate for dynamic pricing
+  sell-growth-rate: 1.00002 # Growth rate for dynamic pricing
+  sell-decay-rate: 0.99995 # Decline rate for dynamic pricing
 
-  price-increase: 1.001 # Price increase for dynamic pricing
-  price-decrease: 0.999 # Price decrease for dynamic pricing
+  price-increase: 1.0001 # Price increase for dynamic pricing
+  price-decrease: 0.9999 # Price decrease for dynamic pricing
 
   stock-min: 0 # Minimum stock for dynamic pricing
   stock-max: 1000000 # Maximum stock for dynamic pricing
