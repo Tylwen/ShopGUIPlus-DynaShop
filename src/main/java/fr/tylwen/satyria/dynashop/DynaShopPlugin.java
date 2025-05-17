@@ -35,12 +35,14 @@ import fr.tylwen.satyria.dynashop.database.DataManager;
 import fr.tylwen.satyria.dynashop.database.ItemDataManager;
 import fr.tylwen.satyria.dynashop.hook.DynaShopExpansion;
 import fr.tylwen.satyria.dynashop.hook.ShopGUIPlusHook;
+// import fr.tylwen.satyria.dynashop.hook.ShopItemProcessor;
 import fr.tylwen.satyria.dynashop.listener.DynaShopListener;
+import fr.tylwen.satyria.dynashop.listener.ShopItemPlaceholderListener;
 // import fr.tylwen.satyria.dynashop.utils.CommentedConfiguration;
 import fr.tylwen.satyria.dynashop.task.ReloadDatabaseTask;
 import fr.tylwen.satyria.dynashop.task.DynamicPricesTask;
 import fr.tylwen.satyria.dynashop.task.WaitForShopsTask;
-
+import net.brcdev.shopgui.ShopGuiPlugin;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 import net.brcdev.shopgui.shop.item.ShopItem;
 
@@ -74,6 +76,8 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private Logger logger;
     // private CommentedConfiguration config;
     private DynaShopListener dynaShopListener;
+    private ShopItemPlaceholderListener shopItemPlaceholderListener;
+    private DynaShopExpansion placeholderExpansion;
 
     private int dynamicPricesTaskId;
     private int waitForShopsTaskId;
@@ -95,6 +99,10 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
 
     public DynaShopListener getDynaShopListener() {
         return dynaShopListener;
+    }
+
+    public ShopItemPlaceholderListener getShopItemPlaceholderListener() {
+        return shopItemPlaceholderListener;
     }
 
     public YamlConfiguration getConfigMain() {
@@ -156,6 +164,12 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     public int getWaitForShopsTaskId() {
         return this.waitForShopsTaskId;
     }
+    
+    // Getter pour l'expansion PlaceholderAPI
+    public DynaShopExpansion getPlaceholderExpansion() {
+        return placeholderExpansion;
+    }
+
 
     @Override
     public void onEnable() {
@@ -176,11 +190,16 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         hookIntoShopGUIPlus();
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             // new DynaShopExpansion(this.itemDataManager, this.shopConfigManager, this.priceRecipe).register();
-            new DynaShopExpansion(this).register();
+            // new DynaShopExpansion(this).register();
+            this.placeholderExpansion = new DynaShopExpansion(this);
+            this.placeholderExpansion.register();
             getLogger().info("Placeholders enregistrés avec PlaceholderAPI !");
         }
 
         getServer().getPluginManager().registerEvents(new DynaShopListener(this), this);
+        // Initialiser le listener avant de l'utiliser ailleurs
+        this.shopItemPlaceholderListener = new ShopItemPlaceholderListener(this);
+        getServer().getPluginManager().registerEvents(this.shopItemPlaceholderListener, this);
 
         getCommand("dynashop").setExecutor(new DynaShopCommand(this));
         getCommand("dynashop").setExecutor(new ReloadCommand(this));
@@ -308,6 +327,14 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         } else {
             this.getLogger().warning("ShopGUI+ not found.");
         }
+
+        // // Enregistrer notre processeur d'items
+        // ShopGuiPlugin shopGuiPlugin = (ShopGuiPlugin) getServer().getPluginManager().getPlugin("ShopGUIPlus");
+        // if (shopGuiPlugin != null) {
+        //     ShopItemProcessor itemProcessor = new ShopItemProcessor(this);
+        //     shopGuiPlugin.getItemManager().setProvider(itemProcessor);
+        //     getLogger().info("DynaShop ItemProcessor enregistré avec ShopGUIPlus !");
+        // }
     }
 
     public void severe(String string) {

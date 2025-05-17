@@ -89,19 +89,19 @@ public class DynamicPricesTask implements Runnable {
                 return;
             }
 
-            plugin.getLogger().warning("######### DÉBUT DE LA TÂCHE DYNAMICPRICESTASK #########");
-            plugin.getLogger().warning("Démarrage de la tâche de mise à jour des prix...");
+            // plugin.getLogger().warning("######### DÉBUT DE LA TÂCHE DYNAMICPRICESTASK #########");
+            // plugin.getLogger().warning("Démarrage de la tâche de mise à jour des prix...");
 
             // Au lieu de charger tous les prix synchrones, on fait la requête dans un thread séparé
             plugin.getDataManager().executeAsync(() -> {
                 // Charger les prix depuis la base de données (fait en thread asynchrone)
                 Map<ShopItem, DynamicPrice> priceMap = plugin.getDataManager().loadPricesFromDatabase();
                 if (priceMap == null || priceMap.isEmpty()) {
-                    plugin.getLogger().info("Aucun prix à mettre à jour (priceMap vide ou null)");
+                    // plugin.getLogger().info("Aucun prix à mettre à jour (priceMap vide ou null)");
                     return null;
                 }
                 
-                plugin.getLogger().info("Nombre d'items chargés depuis la base de données: " + priceMap.size());
+                // plugin.getLogger().info("Nombre d'items chargés depuis la base de données: " + priceMap.size());
                 
                 // Traiter les données en thread asynchrone
                 Map<String, DynamicPrice> pricesToUpdate = new HashMap<>();
@@ -157,17 +157,16 @@ public class DynamicPricesTask implements Runnable {
                         double newBuyPrice = price.getBuyPrice();
                         if (newBuyPrice < minBuy) {
                             price.setBuyPrice(minBuy);
-                            plugin.getLogger().info("Prix d'achat limité au minimum pour " + shopID + ":" + itemID + " (" + newBuyPrice + " -> " + minBuy + ")");
+                            // plugin.getLogger().info("Prix d'achat limité au minimum pour " + shopID + ":" + itemID + " (" + newBuyPrice + " -> " + minBuy + ")");
                         } else if (newBuyPrice > maxBuy) {
                             price.setBuyPrice(maxBuy);
-                            plugin.getLogger().info("Prix d'achat limité au maximum pour " + shopID + ":" + itemID + " (" + newBuyPrice + " -> " + maxBuy + ")");
+                            // plugin.getLogger().info("Prix d'achat limité au maximum pour " + shopID + ":" + itemID + " (" + newBuyPrice + " -> " + maxBuy + ")");
                         }
                         
                         // Vérifier si le prix a changé
                         if (Math.abs(oldBuyPrice - price.getBuyPrice()) > 0.001) {
                             needsUpdate = true;
-                            plugin.getLogger().info("Prix d'achat modifié pour " + shopID + ":" + itemID + 
-                                                " de " + oldBuyPrice + " à " + price.getBuyPrice());
+                            // plugin.getLogger().info("Prix d'achat modifié pour " + shopID + ":" + itemID + " de " + oldBuyPrice + " à " + price.getBuyPrice());
                         }
                     }
                     
@@ -215,8 +214,8 @@ public class DynamicPricesTask implements Runnable {
                     }
                 }
                 
-                plugin.getLogger().info("Items ignorés à cause du stock: " + itemsSkippedDueToStock);
-                plugin.getLogger().info("Nombre d'items à mettre à jour: " + pricesToUpdate.size());
+                // plugin.getLogger().info("Items ignorés à cause du stock: " + itemsSkippedDueToStock);
+                // plugin.getLogger().info("Nombre d'items à mettre à jour: " + pricesToUpdate.size());
                 
                 // Envoyer toutes les mises à jour à la base de données via le BatchDatabaseUpdater
                 for (Map.Entry<String, DynamicPrice> entry : pricesToUpdate.entrySet()) {
@@ -225,9 +224,7 @@ public class DynamicPricesTask implements Runnable {
                     String itemID = parts[1];
                     DynamicPrice price = entry.getValue();
                     
-                    plugin.getLogger().info("Envoi de la mise à jour pour " + shopID + ":" + itemID + 
-                                        " avec buyPrice=" + price.getBuyPrice() + 
-                                        ", sellPrice=" + price.getSellPrice());
+                    // plugin.getLogger().info("Envoi de la mise à jour pour " + shopID + ":" + itemID + " avec buyPrice=" + price.getBuyPrice() + ", sellPrice=" + price.getSellPrice());
                     
                     plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price);
                 }
@@ -238,7 +235,7 @@ public class DynamicPricesTask implements Runnable {
                 
                 return null;
             });
-            plugin.getLogger().warning("######### FIN DE LA TÂCHE DYNAMICPRICESTASK #########");
+            // plugin.getLogger().warning("######### FIN DE LA TÂCHE DYNAMICPRICESTASK #########");
         } catch (Exception e) {
             plugin.getLogger().severe("ERREUR CRITIQUE dans DynamicPricesTask: " + e.getMessage());
             e.printStackTrace();

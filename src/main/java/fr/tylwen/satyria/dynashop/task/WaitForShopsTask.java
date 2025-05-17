@@ -35,7 +35,7 @@
 package fr.tylwen.satyria.dynashop.task;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
-
+import fr.tylwen.satyria.dynashop.config.DataConfig;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 import net.brcdev.shopgui.exception.shop.ShopsNotLoadedException;
 import net.brcdev.shopgui.shop.ShopManager;
@@ -43,9 +43,11 @@ import net.brcdev.shopgui.shop.ShopManager;
 public class WaitForShopsTask implements Runnable {
     private final DynaShopPlugin plugin;
     private boolean isTasksInitialized = false;
+    private final DataConfig dataConfig;
 
     public WaitForShopsTask(DynaShopPlugin plugin) {
         this.plugin = plugin;
+        this.dataConfig = plugin.getDataConfig();
     }
 
     @Override
@@ -91,10 +93,10 @@ public class WaitForShopsTask implements Runnable {
             plugin, 
             new DynamicPricesTask(plugin), 
             20L * 10L, // Délai initial de 10 secondes
-            20L * 60L  // Une minute entre chaque exécution
+            20L * 60L * dataConfig.getDynamicPriceDuration() // Durée de X minutes
         ).getTaskId());
         
-        plugin.getLogger().info("DynamicPricesTask registered with ID: " + plugin.getDynamicPricesTaskId());
+        // plugin.getLogger().info("DynamicPricesTask registered with ID: " + plugin.getDynamicPricesTaskId());
         
         // Préchargement des recettes populaires
         plugin.getLogger().info("Preloading popular items...");

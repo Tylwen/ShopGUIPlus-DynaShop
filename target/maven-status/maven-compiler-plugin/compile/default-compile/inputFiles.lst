@@ -2,6 +2,7 @@ e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynas
 e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynashop\command\DynaShopCommand.java
 e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynashop\data\param\RecipeType.java
 e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynashop\database\ItemDataManager.java
+e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynashop\listener\ShopItemPlaceholderListener.java
 e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynashop\listener\DynaShopListener.java
 e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynashop\task\WaitForShopsTask.java
 e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynashop\task\ReloadDatabaseTask.java

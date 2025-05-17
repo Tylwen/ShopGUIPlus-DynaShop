@@ -669,97 +669,143 @@ public class DynaShopListener implements Listener {
     //         }
     //     }
     // }
-    @EventHandler
-    public void onInventoryOpen(InventoryOpenEvent event) {
-        if (!(event.getPlayer() instanceof Player)) return;
-        Player player = (Player) event.getPlayer();
-                // OpenGui gui = ShopGuiPlusApi.getPlugin().getPlayerManager().getPlayerData(player).getOpenGui();
+    // @EventHandler
+    // public void onInventoryOpen(InventoryOpenEvent event) {
+    //     if (!(event.getPlayer() instanceof Player)) return;
+    //     Player player = (Player) event.getPlayer();
+    //             // OpenGui gui = ShopGuiPlusApi.getPlugin().getPlayerManager().getPlayerData(player).getOpenGui();
         
-        // Vérifier si c'est une interface de ShopGUI+
-        if (event.getView().getTitle().contains("Shop") || (event.getView().getTitle().contains("Magasin") && event.getInventory().getHolder() != player)) {
+    //     // Vérifier si c'est une interface de ShopGUI+
+    //     if (event.getView().getTitle().contains("Shop") || (event.getView().getTitle().contains("Magasin") && event.getInventory().getHolder() != player)) {
             
-            // Essayer de déterminer le shop et l'item
-            try {
-                String shopId = determineShopId(event.getView());
+    //         // Essayer de déterminer le shop et l'item
+    //         try {
+    //             String shopId = determineShopId(event.getView());
                 
-                if (shopId != null) {
-                    // Pour l'item, on peut soit le détecter immédiatement, soit mettre une valeur nulle
-                    // et le mettre à jour au fur et à mesure que le joueur navigue dans le shop
-                    String itemId = determineSelectedItem(player, event.getView());
+    //             if (shopId != null) {
+    //                 // Pour l'item, on peut soit le détecter immédiatement, soit mettre une valeur nulle
+    //                 // et le mettre à jour au fur et à mesure que le joueur navigue dans le shop
+    //                 String itemId = determineSelectedItem(player, event.getView());
                     
-                    openShopMap.put(player.getUniqueId(), new SimpleEntry<>(shopId, itemId));
+    //                 openShopMap.put(player.getUniqueId(), new SimpleEntry<>(shopId, itemId));
                     
-                    // Log pour le débogage
-                    // if (mainPlugin.isDebug()) {
-                        mainPlugin.getLogger().info("Shop détecté pour " + player.getName() + ": " + shopId + (itemId != null ? ", item: " + itemId : ""));
-                    // }
-                }
-            } catch (Exception e) {
-                // if (mainPlugin.isDebug()) {
-                    mainPlugin.getLogger().warning("Erreur lors de la détection du shop: " + e.getMessage());
-                // }
-            }
-        }
-    }
+    //                 // Log pour le débogage
+    //                 // if (mainPlugin.isDebug()) {
+    //                     mainPlugin.getLogger().info("Shop détecté pour " + player.getName() + ": " + shopId + (itemId != null ? ", item: " + itemId : ""));
+    //                 // }
+    //             }
+    //         } catch (Exception e) {
+    //             // if (mainPlugin.isDebug()) {
+    //                 mainPlugin.getLogger().warning("Erreur lors de la détection du shop: " + e.getMessage());
+    //             // }
+    //         }
+    //     }
+    // }
 
-    @EventHandler
-    public void onInventoryClose(InventoryCloseEvent event) {
-        if (!(event.getPlayer() instanceof Player)) return;
-        Player player = (Player) event.getPlayer();
+    // @EventHandler
+    // public void onInventoryClose(InventoryCloseEvent event) {
+    //     if (!(event.getPlayer() instanceof Player)) return;
+    //     Player player = (Player) event.getPlayer();
         
-        // Supprimer l'entrée lorsque le joueur ferme l'inventaire
-        openShopMap.remove(player.getUniqueId());
-    }
+    //     // Supprimer l'entrée lorsque le joueur ferme l'inventaire
+    //     openShopMap.remove(player.getUniqueId());
+    // }
 
-    // Méthodes pour exposer ces informations
-    public String getCurrentShopId(Player player) {
-        SimpleEntry<String, String> shopData = openShopMap.get(player.getUniqueId());
-        return shopData == null ? null : shopData.getKey();
-    }
+    // // Méthodes pour exposer ces informations
+    // public String getCurrentShopId(Player player) {
+    //     SimpleEntry<String, String> shopData = openShopMap.get(player.getUniqueId());
+    //     return shopData == null ? null : shopData.getKey();
+    // }
 
-    public String getCurrentItemId(Player player) {
-        SimpleEntry<String, String> shopData = openShopMap.get(player.getUniqueId());
-        return shopData == null ? null : shopData.getValue();
-    }
+    // public String getCurrentItemId(Player player) {
+    //     SimpleEntry<String, String> shopData = openShopMap.get(player.getUniqueId());
+    //     return shopData == null ? null : shopData.getValue();
+    // }
 
-    /**
-     * Détermine l'ID du shop à partir du titre de l'inventaire.
-     * Cette méthode suppose que le titre contient l'ID du shop dans un format particulier.
-     * 
-     * @param view L'InventoryView à analyser
-     * @return L'ID du shop ou null si non trouvé
-     */
-    private String determineShopId(InventoryView view) {
-        String title = view.getTitle();
+    // /**
+    //  * Détermine l'ID du shop à partir du titre de l'inventaire.
+    //  * Cette méthode suppose que le titre contient l'ID du shop dans un format particulier.
+    //  * 
+    //  * @param view L'InventoryView à analyser
+    //  * @return L'ID du shop ou null si non trouvé
+    //  */
+    // private String determineShopId(InventoryView view) {
+    //     String title = view.getTitle();
         
-        // Méthode 1: Extraire du titre (en supposant un format comme "Shop - {shopId}")
-        if (title.contains("»")) {
-            String[] parts = title.split("»");
-            if (parts.length > 0) {
-                // Nettoyer le texte pour obtenir l'ID du shop
-                String shopName = ChatColor.stripColor(parts[0].trim());
+    //     // Méthode 1: Extraire du titre (en supposant un format comme "Shop - {shopId}")
+    //     if (title.contains("»")) {
+    //         String[] parts = title.split("»");
+    //         if (parts.length > 0) {
+    //             // Nettoyer le texte pour obtenir l'ID du shop
+    //             String shopName = ChatColor.stripColor(parts[0].trim());
                 
-                // Convertir le nom affiché en ID de shop (en supposant que l'ID est en minuscules sans espaces)
-                return shopName.toLowerCase().replace(" ", "_").replace("-", "_");
-            }
-        }
+    //             // Convertir le nom affiché en ID de shop (en supposant que l'ID est en minuscules sans espaces)
+    //             return shopName.toLowerCase().replace(" ", "_").replace("-", "_");
+    //         }
+    //     }
         
-        // Méthode 2: Essayer d'utiliser l'API de ShopGUI+ si disponible
-        try {
-            // Tenter de récupérer le shop actif du joueur via l'API ShopGUI+
-            // for (String shopId : ShopGuiPlusApi.getShops().keySet()) {
-            for (String shopId : ShopGuiPlusApi.getPlugin().getShopManager().getShops().stream().map(Shop::getId).toList()) {
-                if (title.contains(ShopGuiPlusApi.getShop(shopId).getName())) {
-                    return shopId;
-                }
-            }
-        } catch (Exception e) {
-            mainPlugin.getLogger().warning("Erreur lors de la récupération du shop via l'API: " + e.getMessage());
-        }
+    //     // Méthode 2: Essayer d'utiliser l'API de ShopGUI+ si disponible
+    //     try {
+    //         // Tenter de récupérer le shop actif du joueur via l'API ShopGUI+
+    //         // for (String shopId : ShopGuiPlusApi.getShops().keySet()) {
+    //         for (String shopId : ShopGuiPlusApi.getPlugin().getShopManager().getShops().stream().map(Shop::getId).toList()) {
+    //             if (title.contains(ShopGuiPlusApi.getShop(shopId).getName())) {
+    //                 return shopId;
+    //             }
+    //         }
+    //     } catch (Exception e) {
+    //         mainPlugin.getLogger().warning("Erreur lors de la récupération du shop via l'API: " + e.getMessage());
+    //     }
         
-        return null;
-    }
+    //     return null;
+    // }
 
+    // // /**
+    // //  * Détermine l'ID de l'item sélectionné dans l'inventaire du shop.
+    // //  * 
+    // //  * @param player Le joueur qui a ouvert l'inventaire
+    // //  * @param view L'InventoryView à analyser
+    // //  * @return L'ID de l'item ou null si non trouvé
+    // //  */
+    // // private String determineSelectedItem(Player player, InventoryView view) {
+    // //     // Méthode 1: Essayer de déterminer l'item actuellement visé par le curseur
+    // //     try {
+    // //         // int slot = view.getCursor().getType() != Material.AIR ? view.getConverter().convertSlot(view.getCursorSlot()) : -1;
+    // //         int slot = view.getCursor().getType() != Material.AIR ? view.getConverter().convertSlot(view.getCursorSlot()) : -1;
+            
+    // //         if (slot >= 0 && slot < view.getTopInventory().getSize()) {
+    // //             ItemStack item = view.getItem(slot);
+    // //             if (item != null && item.getType() != Material.AIR) {
+    // //                 // Essayer d'obtenir l'ID de l'item via l'API ShopGUI+
+    // //                 ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(item);
+    // //                 if (shopItem != null) {
+    // //                     return shopItem.getId();
+    // //                 }
+    // //             }
+    // //         }
+    // //     } catch (Exception e) {
+    // //         // Ignorer les erreurs, essayer d'autres méthodes
+    // //     }
+        
+    // //     // Méthode 2: Si le joueur a un item dans son viseur, essayer cet item
+    // //     try {
+    // //         ItemStack targetItem = player.getTargetBlock(null, 5).getType().isBlock() ? 
+    // //                                 new ItemStack(player.getTargetBlock(null, 5).getType()) : 
+    // //                                 player.getInventory().getItemInMainHand();
+                                    
+    // //         ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(targetItem);
+    // //         if (shopItem != null) {
+    // //             return shopItem.getId();
+    // //         }
+    // //     } catch (Exception e) {
+    // //         // Ignorer les erreurs
+    // //     }
+        
+    // //     // Méthode 3: En dernier recours, essayer d'utiliser les données de transaction récentes
+    // //     // Cette logique pourrait être ajoutée si vous conservez un historique de transactions
+        
+    // //     return null;
+    // // }
     // /**
     //  * Détermine l'ID de l'item sélectionné dans l'inventaire du shop.
     //  * 
@@ -768,15 +814,37 @@ public class DynaShopListener implements Listener {
     //  * @return L'ID de l'item ou null si non trouvé
     //  */
     // private String determineSelectedItem(Player player, InventoryView view) {
-    //     // Méthode 1: Essayer de déterminer l'item actuellement visé par le curseur
+    //     // Méthode 1: Vérifier l'item sur le curseur du joueur
     //     try {
-    //         // int slot = view.getCursor().getType() != Material.AIR ? view.getConverter().convertSlot(view.getCursorSlot()) : -1;
-    //         int slot = view.getCursor().getType() != Material.AIR ? view.getConverter().convertSlot(view.getCursorSlot()) : -1;
+    //         ItemStack cursorItem = view.getCursor();
+    //         if (cursorItem != null && cursorItem.getType() != Material.AIR) {
+    //             ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(cursorItem);
+    //             if (shopItem != null) {
+    //                 return shopItem.getId();
+    //             }
+    //         }
+    //     } catch (Exception e) {
+    //         // Ignorer les erreurs, essayer d'autres méthodes
+    //     }
+        
+    //     // Méthode 2: Parcourir les items de l'inventaire supérieur
+    //     try {
+    //         Inventory topInventory = view.getTopInventory();
             
-    //         if (slot >= 0 && slot < view.getTopInventory().getSize()) {
-    //             ItemStack item = view.getItem(slot);
+    //         // Vérifier d'abord le slot central (souvent utilisé pour l'item principal)
+    //         int centerSlot = topInventory.getSize() / 2;
+    //         ItemStack centerItem = topInventory.getItem(centerSlot);
+    //         if (centerItem != null && centerItem.getType() != Material.AIR) {
+    //             ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(centerItem);
+    //             if (shopItem != null) {
+    //                 return shopItem.getId();
+    //             }
+    //         }
+            
+    //         // Parcourir tous les slots et trouver un item qui n'est pas un élément d'interface
+    //         for (int i = 0; i < topInventory.getSize(); i++) {
+    //             ItemStack item = topInventory.getItem(i);
     //             if (item != null && item.getType() != Material.AIR) {
-    //                 // Essayer d'obtenir l'ID de l'item via l'API ShopGUI+
     //                 ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(item);
     //                 if (shopItem != null) {
     //                     return shopItem.getId();
@@ -787,102 +855,34 @@ public class DynaShopListener implements Listener {
     //         // Ignorer les erreurs, essayer d'autres méthodes
     //     }
         
-    //     // Méthode 2: Si le joueur a un item dans son viseur, essayer cet item
+    //     // Méthode 3: Utiliser l'item dans la main du joueur
     //     try {
-    //         ItemStack targetItem = player.getTargetBlock(null, 5).getType().isBlock() ? 
-    //                                 new ItemStack(player.getTargetBlock(null, 5).getType()) : 
-    //                                 player.getInventory().getItemInMainHand();
-                                    
-    //         ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(targetItem);
-    //         if (shopItem != null) {
-    //             return shopItem.getId();
+    //         ItemStack handItem = player.getInventory().getItemInMainHand();
+    //         if (handItem != null && handItem.getType() != Material.AIR) {
+    //             ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(handItem);
+    //             if (shopItem != null) {
+    //                 return shopItem.getId();
+    //             }
     //         }
     //     } catch (Exception e) {
     //         // Ignorer les erreurs
     //     }
         
-    //     // Méthode 3: En dernier recours, essayer d'utiliser les données de transaction récentes
-    //     // Cette logique pourrait être ajoutée si vous conservez un historique de transactions
+    //     // Méthode 4: Utiliser le bloc visé par le joueur
+    //     try {
+    //         Block targetBlock = player.getTargetBlockExact(5);
+    //         if (targetBlock != null && targetBlock.getType() != Material.AIR) {
+    //             ItemStack targetItem = new ItemStack(targetBlock.getType());
+    //             ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(targetItem);
+    //             if (shopItem != null) {
+    //                 return shopItem.getId();
+    //             }
+    //         }
+    //     } catch (Exception e) {
+    //         // Ignorer les erreurs
+    //     }
         
     //     return null;
     // }
-    /**
-     * Détermine l'ID de l'item sélectionné dans l'inventaire du shop.
-     * 
-     * @param player Le joueur qui a ouvert l'inventaire
-     * @param view L'InventoryView à analyser
-     * @return L'ID de l'item ou null si non trouvé
-     */
-    private String determineSelectedItem(Player player, InventoryView view) {
-        // Méthode 1: Vérifier l'item sur le curseur du joueur
-        try {
-            ItemStack cursorItem = view.getCursor();
-            if (cursorItem != null && cursorItem.getType() != Material.AIR) {
-                ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(cursorItem);
-                if (shopItem != null) {
-                    return shopItem.getId();
-                }
-            }
-        } catch (Exception e) {
-            // Ignorer les erreurs, essayer d'autres méthodes
-        }
-        
-        // Méthode 2: Parcourir les items de l'inventaire supérieur
-        try {
-            Inventory topInventory = view.getTopInventory();
-            
-            // Vérifier d'abord le slot central (souvent utilisé pour l'item principal)
-            int centerSlot = topInventory.getSize() / 2;
-            ItemStack centerItem = topInventory.getItem(centerSlot);
-            if (centerItem != null && centerItem.getType() != Material.AIR) {
-                ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(centerItem);
-                if (shopItem != null) {
-                    return shopItem.getId();
-                }
-            }
-            
-            // Parcourir tous les slots et trouver un item qui n'est pas un élément d'interface
-            for (int i = 0; i < topInventory.getSize(); i++) {
-                ItemStack item = topInventory.getItem(i);
-                if (item != null && item.getType() != Material.AIR) {
-                    ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(item);
-                    if (shopItem != null) {
-                        return shopItem.getId();
-                    }
-                }
-            }
-        } catch (Exception e) {
-            // Ignorer les erreurs, essayer d'autres méthodes
-        }
-        
-        // Méthode 3: Utiliser l'item dans la main du joueur
-        try {
-            ItemStack handItem = player.getInventory().getItemInMainHand();
-            if (handItem != null && handItem.getType() != Material.AIR) {
-                ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(handItem);
-                if (shopItem != null) {
-                    return shopItem.getId();
-                }
-            }
-        } catch (Exception e) {
-            // Ignorer les erreurs
-        }
-        
-        // Méthode 4: Utiliser le bloc visé par le joueur
-        try {
-            Block targetBlock = player.getTargetBlockExact(5);
-            if (targetBlock != null && targetBlock.getType() != Material.AIR) {
-                ItemStack targetItem = new ItemStack(targetBlock.getType());
-                ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(targetItem);
-                if (shopItem != null) {
-                    return shopItem.getId();
-                }
-            }
-        } catch (Exception e) {
-            // Ignorer les erreurs
-        }
-        
-        return null;
-    }
 
 }
