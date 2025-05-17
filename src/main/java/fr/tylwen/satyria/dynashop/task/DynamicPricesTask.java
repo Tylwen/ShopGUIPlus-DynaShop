@@ -184,17 +184,16 @@ public class DynamicPricesTask implements Runnable {
                         double newSellPrice = price.getSellPrice();
                         if (newSellPrice < minSell) {
                             price.setSellPrice(minSell);
-                            plugin.getLogger().info("Prix de vente limité au minimum pour " + shopID + ":" + itemID + " (" + newSellPrice + " -> " + minSell + ")");
+                            // plugin.getLogger().info("Prix de vente limité au minimum pour " + shopID + ":" + itemID + " (" + newSellPrice + " -> " + minSell + ")");
                         } else if (newSellPrice > maxSell) {
                             price.setSellPrice(maxSell);
-                            plugin.getLogger().info("Prix de vente limité au maximum pour " + shopID + ":" + itemID + " (" + newSellPrice + " -> " + maxSell + ")");
+                            // plugin.getLogger().info("Prix de vente limité au maximum pour " + shopID + ":" + itemID + " (" + newSellPrice + " -> " + maxSell + ")");
                         }
                         
                         // Vérifier si le prix a changé
                         if (Math.abs(oldSellPrice - price.getSellPrice()) > 0.001) {
                             needsUpdate = true;
-                            plugin.getLogger().info("Prix de vente modifié pour " + shopID + ":" + itemID + 
-                                                " de " + oldSellPrice + " à " + price.getSellPrice());
+                            // plugin.getLogger().info("Prix de vente modifié pour " + shopID + ":" + itemID + " de " + oldSellPrice + " à " + price.getSellPrice());
                         }
                     }
                     

@@ -251,6 +251,15 @@ public class ShopItemPlaceholderListener implements Listener {
                 // Convertir le nom affiché en ID de shop (en supposant que l'ID est en minuscules sans espaces)
                 return shopName.toLowerCase().replace(" ", "").replace("-", "").replace("_", "");
             }
+        } else if (title.contains("-")) {
+            String[] parts = title.split("-");
+            if (parts.length > 0) {
+                // Nettoyer le texte pour obtenir l'ID du shop
+                String shopName = ChatColor.stripColor(parts[1].trim());
+                
+                // Convertir le nom affiché en ID de shop (en supposant que l'ID est en minuscules sans espaces)
+                return shopName.toLowerCase().replace(" ", "").replace("-", "").replace("_", "");
+            }
         }
         
         // Méthode 2: Essayer d'utiliser l'API de ShopGUI+ si disponible
