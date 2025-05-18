@@ -2,7 +2,7 @@ package fr.tylwen.satyria.dynashop.data;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
-import org.bukkit.inventory.ItemStack;
+// import org.bukkit.inventory.ItemStack;
 
 import java.util.HashMap;
 import java.util.Map;

@@ -13,6 +13,7 @@ import org.bukkit.event.inventory.InventoryOpenEvent;
 // import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.inventory.InventoryView;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
@@ -37,9 +38,26 @@ public class ShopItemPlaceholderListener implements Listener {
     
     // Map pour stocker le shop actuellement ouvert par chaque joueur
     private final Map<UUID, SimpleEntry<String, String>> openShopMap = new ConcurrentHashMap<>();
+
+    // Stockage des inventaires à actualiser
+    private final Map<UUID, InventoryRefreshData> openInventories = new ConcurrentHashMap<>();
+    private BukkitTask refreshTask;
     
     public ShopItemPlaceholderListener(DynaShopPlugin plugin) {
         this.plugin = plugin;
+
+        // // Démarrer le planificateur de rafraîchissement
+        // startRefreshScheduler();
+    }
+
+    /**
+     * Met à jour les informations de l'item actuel pour un joueur.
+     * Cette méthode est utilisée par l'ItemProvider pour maintenir la cohérence entre l'affichage et les données internes.
+     */
+    public void updateCurrentItem(Player player, String shopId, String itemId) {
+        if (player == null || shopId == null) return;
+        
+        openShopMap.put(player.getUniqueId(), new SimpleEntry<>(shopId, itemId));
     }
     
     // @EventHandler(priority = EventPriority.LOWEST)
@@ -188,17 +206,30 @@ public class ShopItemPlaceholderListener implements Listener {
             
         if (event.getView().getTitle().contains(nameShop)) {
             // Attendre 1 tick puis mettre à jour l'inventaire avec notre méthode optimisée
-            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            // plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                 String fullShopId = determineShopId(event.getView());
                 if (fullShopId == null) return;
                 
                 String shopId = fullShopId;
+                int page = 1;
+
                 if (fullShopId.contains("#")) {
-                    shopId = fullShopId.split("#")[0];
+                    String[] parts = fullShopId.split("#");
+                    shopId = parts[0];
+                    try {
+                        page = Integer.parseInt(parts[1]);
+                    } catch (NumberFormatException e) {
+                        page = 1;
+                    }
                 }
+
+                // // Ajouter à la liste des inventaires à rafraîchir
+                // openInventories.put(player.getUniqueId(), new InventoryRefreshData(shopId, event.getView()));
+                // Enregistrer la session dans le ShopRefreshManager
+                plugin.getShopRefreshManager().registerSession(player, fullShopId, page);
                 
                 updateShopInventory(player, event.getView(), shopId);
-            }, 1L);
+            // }, 1L);
         }
     }
 
@@ -209,15 +240,25 @@ public class ShopItemPlaceholderListener implements Listener {
             
         Player player = (Player) event.getPlayer();
         
-        // Vérifier si le joueur était dans un inventaire de shop
-        SimpleEntry<String, String> shopData = openShopMap.get(player.getUniqueId());
-        if (shopData != null) {
-            // Logs pour le débogage
-            // plugin.getLogger().info("Fermeture du shop pour " + player.getName() + ": " + shopData.getKey() + (shopData.getValue() != null ? ", dernier item consulté: " + shopData.getValue() : ""));
+        // // Supprimer de la liste des rafraîchissements
+        // openInventories.remove(player.getUniqueId());
+        
+        // // Vérifier si le joueur était dans un inventaire de shop
+        // SimpleEntry<String, String> shopData = openShopMap.get(player.getUniqueId());
+        // if (shopData != null) {
+        //     // Logs pour le débogage
+        //     // plugin.getLogger().info("Fermeture du shop pour " + player.getName() + ": " + shopData.getKey() + (shopData.getValue() != null ? ", dernier item consulté: " + shopData.getValue() : ""));
             
-            // Nettoyer les données associées au joueur
-            openShopMap.remove(player.getUniqueId());
-        }
+        //     // Nettoyer les données associées au joueur
+        //     openShopMap.remove(player.getUniqueId());
+        // }
+        
+        // Désenregistrer du ShopRefreshManager
+        plugin.getShopRefreshManager().unregisterSession(player);
+        
+        // Nettoyer les autres maps
+        openInventories.remove(player.getUniqueId());
+        openShopMap.remove(player.getUniqueId());
     }
 
     // Méthodes pour exposer ces informations
@@ -687,4 +728,47 @@ public class ShopItemPlaceholderListener implements Listener {
         
     //     return null;
     // }
+    // Classe pour stocker les données de l'inventaire
+    private static class InventoryRefreshData {
+        final String shopId;
+        final InventoryView view;
+        
+        public InventoryRefreshData(String shopId, InventoryView view) {
+            this.shopId = shopId;
+            this.view = view;
+        }
+    }
+
+    // private void startRefreshScheduler() {
+    //     // Annuler toute tâche existante
+    //     if (refreshTask != null) {
+    //         refreshTask.cancel();
+    //     }
+        
+    //     // Créer une nouvelle tâche qui s'exécute toutes les 10 secondes (200 ticks)
+    //     refreshTask = plugin.getServer().getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+    //         // Pour chaque inventaire ouvert, effectuer une mise à jour
+    //         for (Map.Entry<UUID, InventoryRefreshData> entry : openInventories.entrySet()) {
+    //             UUID playerId = entry.getKey();
+    //             InventoryRefreshData data = entry.getValue();
+                
+    //             Player player = plugin.getServer().getPlayer(playerId);
+    //             if (player != null && player.isOnline()) {
+    //                 updateShopInventory(player, data.view, data.shopId);
+    //             } else {
+    //                 // Supprimer si le joueur est déconnecté
+    //                 openInventories.remove(playerId);
+    //             }
+    //         }
+    //     }, 200L, 200L); // Délai initial: 200 ticks, puis répéter toutes les 200 ticks
+    // }
+
+    public void shutdown() {
+        if (refreshTask != null) {
+            refreshTask.cancel();
+            refreshTask = null;
+        }
+        openInventories.clear();
+        openShopMap.clear();
+    }
 }

@@ -19,6 +19,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import fr.tylwen.satyria.dynashop.command.DynaShopCommand;
+import fr.tylwen.satyria.dynashop.command.LimitResetCommand;
 import fr.tylwen.satyria.dynashop.command.ReloadCommand;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
 import fr.tylwen.satyria.dynashop.config.LangConfig;
@@ -33,8 +34,11 @@ import fr.tylwen.satyria.dynashop.data.ShopConfigManager;
 import fr.tylwen.satyria.dynashop.database.BatchDatabaseUpdater;
 import fr.tylwen.satyria.dynashop.database.DataManager;
 import fr.tylwen.satyria.dynashop.database.ItemDataManager;
+import fr.tylwen.satyria.dynashop.gui.ShopRefreshManager;
 import fr.tylwen.satyria.dynashop.hook.DynaShopExpansion;
+// import fr.tylwen.satyria.dynashop.hook.DynaShopItemProvider;
 import fr.tylwen.satyria.dynashop.hook.ShopGUIPlusHook;
+import fr.tylwen.satyria.dynashop.limit.TransactionLimiter;
 // import fr.tylwen.satyria.dynashop.hook.ShopItemProcessor;
 import fr.tylwen.satyria.dynashop.listener.DynaShopListener;
 import fr.tylwen.satyria.dynashop.listener.ShopItemPlaceholderListener;
@@ -42,9 +46,11 @@ import fr.tylwen.satyria.dynashop.listener.ShopItemPlaceholderListener;
 import fr.tylwen.satyria.dynashop.task.ReloadDatabaseTask;
 // import fr.tylwen.satyria.dynashop.task.DynamicPricesTask;
 import fr.tylwen.satyria.dynashop.task.WaitForShopsTask;
+import net.brcdev.shopgui.ShopGuiPlugin;
 // import net.brcdev.shopgui.ShopGuiPlugin;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 // import net.brcdev.shopgui.shop.item.ShopItem;
+import net.brcdev.shopgui.provider.item.ItemProvider;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -78,6 +84,8 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private DynaShopListener dynaShopListener;
     private ShopItemPlaceholderListener shopItemPlaceholderListener;
     private DynaShopExpansion placeholderExpansion;
+    private TransactionLimiter transactionLimiter;
+    private ShopRefreshManager shopRefreshManager;
 
     private int dynamicPricesTaskId;
     private int waitForShopsTaskId;
@@ -170,6 +178,14 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         return placeholderExpansion;
     }
 
+    public TransactionLimiter getTransactionLimiter() {
+        return transactionLimiter;
+    }
+
+    public ShopRefreshManager getShopRefreshManager() {
+        return shopRefreshManager;
+    }
+
 
     @Override
     public void onEnable() {
@@ -202,13 +218,14 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(this.shopItemPlaceholderListener, this);
 
         getCommand("dynashop").setExecutor(new DynaShopCommand(this));
+        getCommand("dynashop").setExecutor(new LimitResetCommand(this));
         getCommand("dynashop").setExecutor(new ReloadCommand(this));
         // getCommand("dynashop").setTabCompleter(new ReloadCommand(this));
 
         this.dataManager.initDatabase();
 
         // Planification des tâches
-        getServer().getScheduler().runTaskTimerAsynchronously(this, new ReloadDatabaseTask(this), 0L, 20L * 60L * 10L); // Toutes les 10 minutes
+        // getServer().getScheduler().runTaskTimerAsynchronously(this, new ReloadDatabaseTask(this), 0L, 20L * 60L * 10L); // Toutes les 10 minutes
         getServer().getScheduler().runTaskTimer(this, new WaitForShopsTask(this), 0L, 20L * 5L); // Toutes les 5 secondes
         // getServer().getScheduler().runTaskTimerAsynchronously(this, new SavePricesTask(this), 20L * 60L * 5L, 20L * 60L * 5L); // Toutes les 5 minutes
         // Modifier cette ligne
@@ -258,6 +275,20 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
                 currentTime - recipeCacheTimestamps.getOrDefault(entry.getKey(), 0L) > RECIPE_CACHE_DURATION);
         }, 20L * 60L * 5L, 20L * 60L * 5L); // Nettoyage toutes les 5 minutes
 
+        // Planifier le nettoyage des transactions périmées (toutes les heures)
+        getServer().getScheduler().runTaskTimerAsynchronously(this, 
+            () -> transactionLimiter.cleanupExpiredTransactions(), 
+            20L * 60L * 5L, // Délai initial: 5 minutes après le démarrage 
+            20L * 60L * 60L // Intervalle: toutes les heures
+        );
+
+        // Planifier le nettoyage des cooldowns (toutes les 15 minutes)
+        getServer().getScheduler().runTaskTimerAsynchronously(this, 
+            () -> transactionLimiter.cleanupCooldownTransactions(), 
+            20L * 60L * 10L, // Délai initial: 10 minutes après le démarrage
+            20L * 60L * 15L // Intervalle: toutes les 15 minutes
+        );
+
         getLogger().info("DynaShop activé avec succès !");
     }
 
@@ -266,10 +297,13 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         this.shopConfigManager = new ShopConfigManager(new File(Bukkit.getPluginManager().getPlugin("ShopGUIPlus").getDataFolder(), "shops/"));
         this.priceRecipe = new PriceRecipe(this.configMain);
         this.dataConfig = new DataConfig(this.configMain);
+        this.langConfig = new LangConfig(this.configLang);
         this.priceStock = new PriceStock(this);
         this.dataManager = new DataManager(this);
         this.itemDataManager = new ItemDataManager(this.dataManager);
         this.batchDatabaseUpdater = new BatchDatabaseUpdater(this);
+        this.transactionLimiter = new TransactionLimiter(this);
+        this.shopRefreshManager = new ShopRefreshManager(this);
         // preloadPopularItems();
     }
 
@@ -307,6 +341,14 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         if (dynamicPricesTaskId != 0) {
             getServer().getScheduler().cancelTask(dynamicPricesTaskId);
             getLogger().info("Tâche DynamicPricesTask annulée (ID: " + dynamicPricesTaskId + ")");
+        }
+        
+        if (shopItemPlaceholderListener != null) {
+            shopItemPlaceholderListener.shutdown();
+        }
+        
+        if (shopRefreshManager != null) {
+            shopRefreshManager.shutdown();
         }
         
         // Arrêter le gestionnaire de mises à jour en batch

@@ -4,6 +4,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import net.brcdev.shopgui.ShopGuiPlusApi;
 // import net.brcdev.shopgui.ShopGuiPlusApi;
 import net.brcdev.shopgui.event.ShopGUIPlusPostEnableEvent;
 
@@ -21,5 +22,8 @@ public class ShopGUIPlusHook implements Listener {
         mainPlugin.getLogger().info("ShopGUIPlus plugin is enabled, logging DynaShop");
         // Register DynaShop as a shop type in ShopGUIPlus
         // ShopGuiPlusApi.getInstance().getShopTypeManager().registerShopType(new DynaShopShopType(mainPlugin));
+
+        // // Register the DynaShopItemProvider
+        // ShopGuiPlusApi.registerItemProvider(new DynaShopItemProvider(mainPlugin, null));
     }
 }

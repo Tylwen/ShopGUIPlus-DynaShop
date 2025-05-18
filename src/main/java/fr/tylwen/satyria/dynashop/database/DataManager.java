@@ -205,7 +205,7 @@ public class DataManager {
     /**
      * Exécute une requête UPDATE/INSERT/DELETE avec gestion des erreurs et reconnexion automatique.
      */
-    private int executeUpdate(String sql, Object... params) {
+    public int executeUpdate(String sql, Object... params) {
         for (int attempt = 0; attempt < RETRY_LIMIT; attempt++) {
             try (Connection conn = getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {

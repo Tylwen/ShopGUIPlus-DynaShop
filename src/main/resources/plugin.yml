@@ -2,7 +2,7 @@ name: ShopGUIPlus-DynaShop
 prefix: DynaShop
 author: Tylwen
 main: fr.tylwen.satyria.dynashop.DynaShopPlugin
-version: 1.0.2
+version: 1.0.3
 description: Plugin de gestion de boutique dynamique pour Minecraft
 api-version: '1.13'
 depend: [ ShopGUIPlus ]
@@ -24,6 +24,10 @@ commands:
         usage: /<command> reload
         permission: dynashop.reload
         permission-message: '&cVous n''avez pas la permission d''utiliser cette commande.'
+      resetlimits:
+        description: Réinitialise les limites d'achat/vente d'un joueur
+        usage: /<command> resetlimits <joueur> <shopID> <itemID>
+        permission: dynashop.admin.resetlimits
 
 # permission:
 #   dynashop.*:

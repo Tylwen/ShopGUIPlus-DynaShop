@@ -24,7 +24,12 @@ public class LangConfig {
     private final String msgOutOfStock;
     private final String msgFullStock;
 
-    
+    private final String msgLimit;
+    private final String msgLimitReached;
+    private final String msgLimitCannotBuy;
+    private final String msgLimitCannotSell;
+    // private final String msgLimitExceeded;
+
     public LangConfig(FileConfiguration config) {
         // // Load the language configuration
         // this.lang = config.getString("lang", "en");
@@ -44,8 +49,14 @@ public class LangConfig {
         // this.messageNoShopItemPriceMargin = config.getString("messages.no-shop-item-price-margin", "&cThe price margin for the shop item must be greater than 0.");
         // this.messageNoShopItemPriceMinMultiply = config.getString("messages.no-shop-item-price-min-multiply", "&cThe minimum price multiply for the shop item must be greater than 0.");
         // this.messageNoShopItemPriceMaxMultiply = config.getString("messages.no-shop-item-price-max-multiply", "&cThe maximum price multiply for the shop item must be greater than 0.");
-        this.msgOutOfStock = config.getString("messages.out-of-stock", "&cThis item is out of stock.");
-        this.msgFullStock = config.getString("messages.full-stock", "&cThis item is full stock we cannot sell more.");
+        this.msgOutOfStock = config.getString("stock.out-of-stock", "&cThis item is out of stock.");
+        this.msgFullStock = config.getString("stock.full-stock", "&cThis item is full stock we cannot sell more.");
+
+        this.msgLimitReached = config.getString("limit.reached", "&cYou have reached your limit. Try again in %time%");
+        this.msgLimit = config.getString("limit.limit", "&cYou have reached your limit for this item.");
+
+        this.msgLimitCannotBuy = config.getString("limit.cannotbuy", "&cLimit reached! You can only buy %limit% more of this item at this time.");
+        this.msgLimitCannotSell = config.getString("limit.cannotSell", "&cLimit reached! You can only sell %limit% more of this item at this time.");
     }
 
     // Getters for the messages
@@ -61,5 +72,18 @@ public class LangConfig {
     }
     public String getMsgFullStock() {
         return msgFullStock;
+    }
+
+    public String getMsgLimit() {
+        return msgLimit;
+    }
+    public String getMsgLimitReached() {
+        return msgLimitReached;
+    }
+    public String getMsgLimitCannotBuy() {
+        return msgLimitCannotBuy;
+    }
+    public String getMsgLimitCannotSell() {
+        return msgLimitCannotSell;
     }
 }

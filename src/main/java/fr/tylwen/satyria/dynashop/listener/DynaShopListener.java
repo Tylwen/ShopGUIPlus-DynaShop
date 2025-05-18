@@ -3,16 +3,20 @@ package fr.tylwen.satyria.dynashop.listener;
 // import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 // import java.util.Map;
 // import java.security.cert.PKIXRevocationChecker.Option;
 import java.util.Optional;
 // import java.util.UUID;
 // import java.util.concurrent.ConcurrentHashMap;
 // import java.util.stream.Collectors;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.Bukkit;
 // import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.Sound;
+import org.bukkit.entity.Player;
 // import org.bukkit.block.Block;
 // import org.bukkit.entity.Player;
 // import org.bukkit.Bukkit;
@@ -49,6 +53,8 @@ public class DynaShopListener implements Listener {
     private final PriceRecipe priceRecipe;
     private final DataConfig dataConfig;
     private final ShopConfigManager shopConfigManager;
+    private final Map<String, LimitCacheEntry> limitsCache = new ConcurrentHashMap<>();
+    private final Map<String, TransactionInfo> pendingLimitChecks = new ConcurrentHashMap<>();
     
     // private long lastPriceUpdate = 0;
     // private static final long PRICE_UPDATE_COOLDOWN = 500; // 500ms minimum entre les mises à jour
@@ -72,20 +78,149 @@ public class DynaShopListener implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onShopPreTransaction(ShopPreTransactionEvent event) {
+        Player player = event.getPlayer();
         ShopItem item = event.getShopItem();
         int amount = event.getAmount();
         String shopID = item.getShop().getId();
         String itemID = item.getId();
         ItemStack itemStack = item.getItem();
+        boolean isBuy = event.getShopAction() == ShopAction.BUY;
 
-        // if (!shopConfigManager.hasDynaShopSection(shopID, itemID)) {
+        if (mainPlugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
+            // // Annuler immédiatement pour éviter le traitement par ShopGUI+
+            // event.setCancelled(true);
+            
+            // Vérifier d'abord le cache pour une réponse rapide
+            String cacheKey = player.getUniqueId() + ":" + shopID + ":" + itemID + ":" + (isBuy ? "buy" : "sell");
+            
+            // Vérifier d'abord dans le cache
+            if (limitsCache.containsKey(cacheKey)) {
+                LimitCacheEntry entry = limitsCache.get(cacheKey);
+                // Si le cache est récent (moins de 5 secondes), l'utiliser
+                if (System.currentTimeMillis() - entry.timestamp < 5000) {
+                    if (!entry.canPerform) {
+                        // Si la limite est atteinte, annuler l'événement
+                        event.setCancelled(true);
+                        handleLimitExceeded(player, shopID, itemID, isBuy, event);
+                        return;
+                    }
+                    // Limite respectée (selon le cache), laisser passer la transaction
+                    // return;
+                    // Limite respectée selon le cache, continuer directement avec le reste du traitement
+                    processRegularTransaction(event, player, item, amount, shopID, itemID, itemStack, isBuy);
+                    return;
+                } else {
+                    // Le cache est périmé, on le supprime
+                    limitsCache.remove(cacheKey);
+                }
+            }
+            
+            // Stocker des informations de transaction pour utilisation ultérieure
+            TransactionInfo transactionInfo = new TransactionInfo(player, item, event.getShopAction(), amount);
+            pendingLimitChecks.put(cacheKey, transactionInfo);
+            
+            // Aucun cache valide, on effectue la vérification de manière asynchrone
+            // et on annule l'événement par sécurité en attendant la réponse
+            event.setCancelled(true);
+            
+            
+            mainPlugin.getTransactionLimiter().canPerformTransaction(player, shopID, itemID, isBuy, amount).thenAcceptAsync(canPerform -> {
+                // Cache le résultat pour les prochaines requêtes
+                limitsCache.put(cacheKey, new LimitCacheEntry(canPerform, System.currentTimeMillis()));
+                
+                if (canPerform) {
+                    // // Replanifier la transaction
+                    Bukkit.getScheduler().runTask(mainPlugin, () -> {
+                        pendingLimitChecks.remove(cacheKey);
+                        event.setCancelled(false); // Annuler l'annulation de l'événement
+                        // Appeler directement la méthode qui traite le reste de la logique
+                        processRegularTransaction(event, player, item, amount, shopID, itemID, itemStack, isBuy);
+                    });
+                } else {
+                    // Obtient les informations supplémentaires de manière asynchrone
+                    handleLimitExceeded(player, shopID, itemID, isBuy, null);
+                    pendingLimitChecks.remove(cacheKey);
+                    // if (event.isCancelled()) {
+                    //     // // Annuler l'événement si la limite est atteinte
+                    //     // event.setCancelled(true);
+                    //     return;
+                    // }
+                    // event.setCancelled(true);
+                    // return;
+                }
+            });
+            return;
+        }
+
+        // Si on arrive ici, c'est qu'il n'y a pas de limite à vérifier
+        processRegularTransaction(event, player, item, amount, shopID, itemID, itemStack, isBuy);
+
+        // // if (!shopConfigManager.hasDynaShopSection(shopID, itemID)) {
+        // if (!shopConfigManager.getItemValue(shopID, itemID, "typeDynaShop", String.class).isPresent()) {
+        //     return; // Ignorer les items non configurés pour DynaShop
+        // }
+        // if (!shopConfigManager.hasStockSection(shopID, itemID) && !shopConfigManager.hasDynamicSection(shopID, itemID) && !shopConfigManager.hasRecipeSection(shopID, itemID)) {
+        //     return; // Ignorer les items sans les sections requises
+        // }
+
+        // DynamicPrice price = getOrLoadPrice(shopID, itemID, itemStack);
+        // if (price == null) {
+        //     return;
+        // }
+        
+        // // Vérifier le mode STOCK et les limites de stock
+        // if (shopConfigManager.getTypeDynaShop(shopID, itemID) == DynaShopType.STOCK) {
+        //     // Si c'est un achat et que le stock est vide
+        //     // if (event.getShopAction() == ShopAction.BUY && price.getStock() <= 0) {
+        //     if (event.getShopAction() == ShopAction.BUY && !DynaShopPlugin.getInstance().getPriceStock().canBuy(shopID, itemID, amount)) {
+        //         event.setCancelled(true);
+        //         if (event.getPlayer() != null) {
+        //             // event.getPlayer().sendMessage("§c[DynaShop] Cet item est en rupture de stock !");
+        //             event.getPlayer().sendMessage(this.mainPlugin.getLangConfig().getMsgOutOfStock());
+        //         }
+        //         return;
+        //     }
+            
+        //     // Si c'est une vente et que le stock est plein
+        //     // if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && price.getStock() >= price.getMaxStock()) {
+        //     if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && !DynaShopPlugin.getInstance().getPriceStock().canSell(shopID, itemID, amount)) {
+        //         event.setCancelled(true);
+        //         if (event.getPlayer() != null) {
+        //             // event.getPlayer().sendMessage("§c[DynaShop] Le stock de cet item est complet, impossible de vendre plus !");
+        //             // event.getPlayer().sendMessage(this.mainPlugin.getConfigLang().getString("messages.stockFull")
+        //             //     .replace("%item%", itemID)
+        //             //     .replace("%shop%", shopID));
+        //             // event.getPlayer().sendMessage(this.mainPlugin.getConfigLang().getString("stock.full-stock"));
+        //             event.getPlayer().sendMessage(this.mainPlugin.getLangConfig().getMsgFullStock());
+        //         }
+        //         return;
+        //     }
+        // }
+
+        // if (event.getShopAction() == ShopAction.BUY) {
+        //     event.setPrice(price.getBuyPriceForAmount(amount));
+        // } else if (event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) {
+        //     event.setPrice(price.getSellPriceForAmount(amount));
+        // }
+    }
+
+    /**
+     * Traite une transaction normale après vérification des limites ou si aucune limite n'est définie.
+     */
+    private void processRegularTransaction(ShopPreTransactionEvent event, Player player, ShopItem item, int amount, String shopID, String itemID, ItemStack itemStack, boolean isBuy) {
+        // Vérifier si l'item est configuré pour DynaShop
         if (!shopConfigManager.getItemValue(shopID, itemID, "typeDynaShop", String.class).isPresent()) {
             return; // Ignorer les items non configurés pour DynaShop
         }
-        if (!shopConfigManager.hasStockSection(shopID, itemID) && !shopConfigManager.hasDynamicSection(shopID, itemID) && !shopConfigManager.hasRecipeSection(shopID, itemID)) {
+        
+        // Vérifier les sections requises
+        if (!shopConfigManager.hasStockSection(shopID, itemID) && 
+            !shopConfigManager.hasDynamicSection(shopID, itemID) && 
+            !shopConfigManager.hasRecipeSection(shopID, itemID)) {
             return; // Ignorer les items sans les sections requises
         }
-
+        
+        // Le reste de votre logique de traitement des transactions dynamiques
         DynamicPrice price = getOrLoadPrice(shopID, itemID, itemStack);
         if (price == null) {
             return;
@@ -242,6 +377,7 @@ public class DynaShopListener implements Listener {
         }
 
         // Capturer toutes les données nécessaires dans le thread principal
+        final Player player = event.getResult().getPlayer();
         final ShopItem item = event.getResult().getShopItem();
         final int amount = event.getResult().getAmount();
         final String shopID = item.getShop().getId();
@@ -249,10 +385,16 @@ public class DynaShopListener implements Listener {
         final ItemStack itemStack = item.getItem().clone(); // Cloner pour éviter des problèmes de concurrence
         final ShopAction action = event.getResult().getShopAction();
         final double resultPrice = event.getResult().getPrice();
+        final boolean isBuy = action == ShopAction.BUY;
 
         Bukkit.getScheduler().runTaskAsynchronously(mainPlugin, () -> {
             processTransactionAsync(shopID, itemID, itemStack, amount, action, resultPrice);
         });
+        
+        // Enregistrer la transaction si l'item a des limites
+        if (mainPlugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
+            mainPlugin.getTransactionLimiter().recordTransaction(player, shopID, itemID, isBuy, amount);
+        }
     }
     
     private void processTransactionAsync(String shopID, String itemID, ItemStack itemStack, int amount, ShopAction action, double resultPrice) {
@@ -643,6 +785,103 @@ public class DynaShopListener implements Listener {
             } else {
                 // mainPlugin.getLogger().warning("Prix dynamique introuvable pour l'ingrédient " + ingredientID + " dans le shop " + shopIngredientID);
             }
+        }
+    }
+
+    // Méthode utilitaire pour formater le temps
+    private String formatTime(long seconds) {
+        if (seconds < 60) {
+            return seconds + " sec";
+        } else if (seconds < 3600) {
+            return (seconds / 60) + " min";
+        } else if (seconds < 86400) {
+            return (seconds / 3600) + " j";
+        } else {
+            return (seconds / 86400) + " d";
+        }
+    }
+
+    private static class TransactionInfo {
+        final Player player;
+        final ShopItem item;
+        final ShopAction action;
+        final int amount;
+        
+        TransactionInfo(Player player, ShopItem item, ShopAction action, int amount) {
+            this.player = player;
+            this.item = item;
+            this.action = action;
+            this.amount = amount;
+        }
+    }
+
+    /**
+     * Gestion des cas où la limite est dépassée
+     */
+    private void handleLimitExceeded(Player player, String shopID, String itemID, boolean isBuy, ShopPreTransactionEvent event) {
+        // Annuler l'événement si fourni
+        if (event != null) {
+            event.setCancelled(true);
+        }
+        
+        // Extraire les informations de limite de manière asynchrone
+        mainPlugin.getServer().getScheduler().runTaskAsynchronously(mainPlugin, () -> {
+            try {
+                int remaining = mainPlugin.getTransactionLimiter()
+                        .getRemainingAmount(player, shopID, itemID, isBuy)
+                        .get();
+                
+                final String message;
+                if (remaining > 0) {
+                    message = isBuy 
+                        ? mainPlugin.getLangConfig().getMsgLimitCannotBuy().replace("%limit%", String.valueOf(remaining))
+                        : mainPlugin.getLangConfig().getMsgLimitCannotSell().replace("%limit%", String.valueOf(remaining));
+                } else {
+                    long nextAvailable = mainPlugin.getTransactionLimiter()
+                            .getNextAvailableTime(player, shopID, itemID, isBuy)
+                            .get();
+                    
+                    if (nextAvailable > 0) {
+                        long seconds = (nextAvailable - System.currentTimeMillis()) / 1000;
+                        message = mainPlugin.getLangConfig().getMsgLimitReached().replace("%time%", formatTime(seconds));
+                    } else {
+                        message = mainPlugin.getLangConfig().getMsgLimit();
+                    }
+                }
+                
+                // Envoyer le message de manière synchrone
+                Bukkit.getScheduler().runTask(mainPlugin, () -> {
+                    player.sendMessage(message);
+                    player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                });
+                
+            } catch (Exception e) {
+                mainPlugin.getLogger().severe("Erreur lors de la récupération des limites: " + e.getMessage());
+            }
+        });
+    }
+
+    /**
+    //  * Exécute manuellement une transaction en utilisant l'API de ShopGUI+
+    //  */
+    // private void executeTransactionManually(Player player, ShopItem item, ShopAction action, int amount) {
+    //     try {
+    //         // Utiliser l'API de ShopGUI+ pour exécuter la transaction
+    //         ShopGuiPlusApi.processTransaction(player, item, action, amount);
+    //     } catch (Exception e) {
+    //         mainPlugin.getLogger().severe("Erreur lors de l'exécution manuelle de la transaction: " + e.getMessage());
+    //         player.sendMessage("§cUne erreur est survenue lors de la transaction.");
+    //     }
+    // }
+
+    // Ajouter cette classe interne pour le cache
+    private static class LimitCacheEntry {
+        final boolean canPerform;
+        final long timestamp;
+        
+        LimitCacheEntry(boolean canPerform, long timestamp) {
+            this.canPerform = canPerform;
+            this.timestamp = timestamp;
         }
     }
 

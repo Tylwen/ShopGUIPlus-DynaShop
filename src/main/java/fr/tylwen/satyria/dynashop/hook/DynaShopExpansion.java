@@ -831,6 +831,46 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             return "N/A"; // Aucun prix disponible
         }
 
+        // %dynashop_limit_buy_remaining_shopID:itemID%
+        if (identifier.startsWith("limit_buy_remaining_")) {
+            String[] parts = identifier.substring("limit_buy_remaining_".length()).split(":");
+            if (parts.length != 2) return null;
+            
+            String shopID = parts[0];
+            String itemID = parts[1];
+            
+            if (!(player instanceof Player)) return "N/A";
+            
+            try {
+                int remaining = mainPlugin.getTransactionLimiter()
+                                    .getRemainingAmount((Player)player, shopID, itemID, true)
+                                    .get();
+                return String.valueOf(remaining);
+            } catch (Exception e) {
+                return "Erreur";
+            }
+        }
+
+        // %dynashop_limit_sell_remaining_shopID:itemID%
+        if (identifier.startsWith("limit_sell_remaining_")) {
+            String[] parts = identifier.substring("limit_sell_remaining_".length()).split(":");
+            if (parts.length != 2) return null;
+            
+            String shopID = parts[0];
+            String itemID = parts[1];
+            
+            if (!(player instanceof Player)) return "N/A";
+            
+            try {
+                int remaining = mainPlugin.getTransactionLimiter()
+                                    .getRemainingAmount((Player)player, shopID, itemID, false)
+                                    .get();
+                return String.valueOf(remaining);
+            } catch (Exception e) {
+                return "Erreur";
+            }
+        }
+
         return null; // Placeholder non reconnu
 
         // // %dynashop_buy_min_price_shopID:itemID%
