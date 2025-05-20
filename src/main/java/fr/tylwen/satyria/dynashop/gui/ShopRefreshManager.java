@@ -243,19 +243,15 @@ public class ShopRefreshManager {
                 // Si le joueur est toujours connecté et a un inventaire ouvert
                 if (player != null && player.isOnline() && player.getOpenInventory() != null) {
                     // Si l'inventaire ouvert est toujours un shop et n'a pas changé
-                    String currentShop = null;
-                    try {
-                        currentShop = extractShopId(player.getOpenInventory());
+                    // String currentShop = null;
+                    // try {
+                        String currentShop = extractShopId(player.getOpenInventory());
                         // plugin.getLogger().info("[DEBUG] ShopID actuel détecté: " + currentShop);
-                    } catch (ShopsNotLoadedException e) {
-                        // plugin.getLogger().warning("[DEBUG] Erreur lors de l'extraction du shopId: " + e.getMessage());
-                        e.printStackTrace();
-                        continue;
-                    } catch (Exception e) {
-                        // plugin.getLogger().severe("[DEBUG] Exception inattendue lors de l'extraction du shopId: " + e.getMessage());
-                        e.printStackTrace();
-                        continue;
-                    }
+                    // } catch (Exception e) {
+                    //     // plugin.getLogger().severe("[DEBUG] Exception inattendue lors de l'extraction du shopId: " + e.getMessage());
+                    //     e.printStackTrace();
+                    //     continue;
+                    // }
                     
                     if (currentShop != null && currentShop.equals(session.shopId)) {
                         // plugin.getLogger().info("[DEBUG] Rafraîchissement requis pour " + player.getName() + " - Shop: " + session.shopId);
@@ -358,92 +354,137 @@ public class ShopRefreshManager {
     //     plugin.getLogger().warning("[DEBUG] Aucun shop trouvé pour le titre: '" + title + "'");
     //     return null;
     // }
+    // /**
+    //  * Extrait l'ID du shop et le numéro de page à partir du titre de l'inventaire
+    //  * @throws ShopsNotLoadedException 
+    //  */
+    // public String extractShopId(InventoryView view) throws ShopsNotLoadedException {
+    //     if (view == null) {
+    //         // plugin.getLogger().warning("[DEBUG] extractShopId: InventoryView est null");
+    //         return null;
+    //     }
+        
+    //     String title = view.getTitle();
+    //     // plugin.getLogger().info("[DEBUG] Extraction du shopId à partir du titre: '" + title + "'");
+        
+    //     // Nettoyer le titre pour le comparer
+    //     String cleanTitle = ChatColor.stripColor(title);
+    //     // plugin.getLogger().info("[DEBUG] Titre nettoyé: '" + cleanTitle + "'");
+        
+    //     // Extraire le numéro de page du titre s'il existe
+    //     int page = 1;
+    //     Matcher matcher = PAGE_PATTERN.matcher(cleanTitle);
+    //     if (matcher.find()) {
+    //         try {
+    //             page = Integer.parseInt(matcher.group(1));
+    //             // plugin.getLogger().info("[DEBUG] Numéro de page extrait: " + page);
+    //         } catch (NumberFormatException e) {
+    //             // plugin.getLogger().warning("[DEBUG] Erreur lors de l'extraction du numéro de page: " + e.getMessage());
+    //         }
+    //     }
+        
+    //     // Essayer de trouver le shop par son ID dans le titre
+    //     String shopId = null;
+        
+    //     try {
+    //         // Vérifier d'abord par correspondance directe de l'ID
+    //         for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
+    //             if (cleanTitle.contains(shop.getId())) {
+    //                 shopId = shop.getId();
+    //                 // plugin.getLogger().info("[DEBUG] Shop trouvé par ID dans le titre: " + shopId);
+    //                 return shopId + "#" + page;
+    //             }
+    //         }
+            
+    //         // Si ça échoue, essayer par correspondance du nom
+    //         for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
+    //             String shopName = ChatColor.stripColor(shop.getName());
+    //             if (cleanTitle.contains(shopName)) {
+    //                 shopId = shop.getId();
+    //                 // plugin.getLogger().info("[DEBUG] Shop trouvé par nom dans le titre: " + shopId + " (Nom: " + shopName + ")");
+    //                 return shopId + "#" + page;
+    //             }
+    //         }
+            
+    //         // Dernier recours: extraction manuelle basée sur le format connu du titre
+    //         // Supposons que le format est "Magasin » NomDuShop #Page"
+    //         String[] parts = cleanTitle.split("»");
+    //         if (parts.length > 1) {
+    //             String shopPart = parts[1].trim();
+    //             // Supprimer le numéro de page s'il existe
+    //             if (shopPart.contains("#")) {
+    //                 shopPart = shopPart.split("#")[0].trim();
+    //             }
+                
+    //             // plugin.getLogger().info("[DEBUG] Extraction manuelle du nom de shop: '" + shopPart + "'");
+                
+    //             // Chercher le shop avec ce nom
+    //             for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
+    //                 String shopName = ChatColor.stripColor(shop.getName());
+    //                 if (shopName.equalsIgnoreCase(shopPart) || shopPart.contains(shopName)) {
+    //                     shopId = shop.getId();
+    //                     // plugin.getLogger().info("[DEBUG] Shop trouvé par extraction manuelle: " + shopId);
+    //                     return shopId + "#" + page;
+    //                 }
+    //             }
+    //         }
+    //     } catch (Exception e) {
+    //         // plugin.getLogger().severe("[DEBUG] Exception lors de l'extraction du shopId: " + e.getMessage());
+    //         e.printStackTrace();
+    //     }
+        
+    //     // Si c'est "Minerais" spécifiquement (d'après vos logs)
+    //     if (cleanTitle.contains("Minerais")) {
+    //         // plugin.getLogger().info("[DEBUG] Shop 'Minerais' détecté manuellement");
+    //         return "minerais#" + page;
+    //     }
+        
+    //     // plugin.getLogger().warning("[DEBUG] Aucun shop trouvé pour le titre: '" + cleanTitle + "'");
+    //     return null;
+    // }
+    
     /**
-     * Extrait l'ID du shop et le numéro de page à partir du titre de l'inventaire
-     * @throws ShopsNotLoadedException 
+     * Détermine l'ID du shop à partir du titre de l'inventaire.
+     * Cette méthode suppose que le titre contient l'ID du shop dans un format particulier.
+     * 
+     * @param view L'InventoryView à analyser
+     * @return L'ID du shop ou null si non trouvé
      */
-    public String extractShopId(InventoryView view) throws ShopsNotLoadedException {
-        if (view == null) {
-            // plugin.getLogger().warning("[DEBUG] extractShopId: InventoryView est null");
-            return null;
-        }
-        
+    private String extractShopId(InventoryView view) {
         String title = view.getTitle();
-        // plugin.getLogger().info("[DEBUG] Extraction du shopId à partir du titre: '" + title + "'");
         
-        // Nettoyer le titre pour le comparer
-        String cleanTitle = ChatColor.stripColor(title);
-        // plugin.getLogger().info("[DEBUG] Titre nettoyé: '" + cleanTitle + "'");
-        
-        // Extraire le numéro de page du titre s'il existe
-        int page = 1;
-        Matcher matcher = PAGE_PATTERN.matcher(cleanTitle);
-        if (matcher.find()) {
-            try {
-                page = Integer.parseInt(matcher.group(1));
-                // plugin.getLogger().info("[DEBUG] Numéro de page extrait: " + page);
-            } catch (NumberFormatException e) {
-                // plugin.getLogger().warning("[DEBUG] Erreur lors de l'extraction du numéro de page: " + e.getMessage());
-            }
-        }
-        
-        // Essayer de trouver le shop par son ID dans le titre
-        String shopId = null;
-        
+        // Méthode 2: Essayer d'utiliser l'API de ShopGUI+ si disponible
         try {
-            // Vérifier d'abord par correspondance directe de l'ID
             for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
-                if (cleanTitle.contains(shop.getId())) {
-                    shopId = shop.getId();
-                    // plugin.getLogger().info("[DEBUG] Shop trouvé par ID dans le titre: " + shopId);
-                    return shopId + "#" + page;
-                }
-            }
-            
-            // Si ça échoue, essayer par correspondance du nom
-            for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
-                String shopName = ChatColor.stripColor(shop.getName());
-                if (cleanTitle.contains(shopName)) {
-                    shopId = shop.getId();
-                    // plugin.getLogger().info("[DEBUG] Shop trouvé par nom dans le titre: " + shopId + " (Nom: " + shopName + ")");
-                    return shopId + "#" + page;
-                }
-            }
-            
-            // Dernier recours: extraction manuelle basée sur le format connu du titre
-            // Supposons que le format est "Magasin » NomDuShop #Page"
-            String[] parts = cleanTitle.split("»");
-            if (parts.length > 1) {
-                String shopPart = parts[1].trim();
-                // Supprimer le numéro de page s'il existe
-                if (shopPart.contains("#")) {
-                    shopPart = shopPart.split("#")[0].trim();
-                }
-                
-                // plugin.getLogger().info("[DEBUG] Extraction manuelle du nom de shop: '" + shopPart + "'");
-                
-                // Chercher le shop avec ce nom
-                for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
-                    String shopName = ChatColor.stripColor(shop.getName());
-                    if (shopName.equalsIgnoreCase(shopPart) || shopPart.contains(shopName)) {
-                        shopId = shop.getId();
-                        // plugin.getLogger().info("[DEBUG] Shop trouvé par extraction manuelle: " + shopId);
-                        return shopId + "#" + page;
+                // Vérifier si le titre correspond au modèle du shop
+                String shopNameTemplate = shop.getName().replace("%page%", "");
+                if (title.contains(shopNameTemplate)) {
+                    // Extraire le numéro de page
+                    int page = 1;
+                    if (shop.getName().contains("%page%")) {
+                        // Trouver où se trouve %page% dans le nom du shop
+                        String before = shop.getName().split("%page%")[0];
+                        String after = shop.getName().split("%page%").length > 1 ? shop.getName().split("%page%")[1] : "";
+                        
+                        // Extraire la partie du titre qui correspond à la page
+                        if (title.startsWith(before) && (after.isEmpty() || title.endsWith(after))) {
+                            String pageStr = title.substring(before.length(), 
+                                            after.isEmpty() ? title.length() : title.length() - after.length());
+                            try {
+                                page = Integer.parseInt(pageStr);
+                            } catch (NumberFormatException e) {
+                                page = 1;
+                            }
+                        }
+                        return shop.getId() + "#" + page;
                     }
+                    return shop.getId();
                 }
             }
         } catch (Exception e) {
-            // plugin.getLogger().severe("[DEBUG] Exception lors de l'extraction du shopId: " + e.getMessage());
-            e.printStackTrace();
+            plugin.getLogger().warning("Erreur lors de la récupération du shop via l'API: " + e.getMessage());
         }
         
-        // Si c'est "Minerais" spécifiquement (d'après vos logs)
-        if (cleanTitle.contains("Minerais")) {
-            // plugin.getLogger().info("[DEBUG] Shop 'Minerais' détecté manuellement");
-            return "minerais#" + page;
-        }
-        
-        // plugin.getLogger().warning("[DEBUG] Aucun shop trouvé pour le titre: '" + cleanTitle + "'");
         return null;
     }
     
@@ -459,12 +500,7 @@ public class ShopRefreshManager {
                 // plugin.getLogger().info("[DEBUG] Vérification si l'inventaire est toujours le même...");
                 // Si l'inventaire a changé entre-temps, abandonner
                 String currentShop = null;
-                try {
-                    currentShop = extractShopId(player.getOpenInventory());
-                } catch (ShopsNotLoadedException e) {
-                    // plugin.getLogger().warning("[DEBUG] ShopsNotLoadedException lors de la vérification: " + e.getMessage());
-                    return;
-                }
+                currentShop = extractShopId(player.getOpenInventory());
                 
                 if (currentShop == null) {
                     // plugin.getLogger().warning("[DEBUG] L'inventaire actuel n'est pas un shop, abandon du rafraîchissement");

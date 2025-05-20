@@ -42,6 +42,7 @@ import fr.tylwen.satyria.dynashop.limit.TransactionLimiter;
 // import fr.tylwen.satyria.dynashop.hook.ShopItemProcessor;
 import fr.tylwen.satyria.dynashop.listener.DynaShopListener;
 import fr.tylwen.satyria.dynashop.listener.ShopItemPlaceholderListener;
+// import fr.tylwen.satyria.dynashop.packet.ItemPacketInterceptor;
 // import fr.tylwen.satyria.dynashop.utils.CommentedConfiguration;
 import fr.tylwen.satyria.dynashop.task.ReloadDatabaseTask;
 // import fr.tylwen.satyria.dynashop.task.DynamicPricesTask;
@@ -86,6 +87,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private DynaShopExpansion placeholderExpansion;
     private TransactionLimiter transactionLimiter;
     private ShopRefreshManager shopRefreshManager;
+    // private ItemPacketInterceptor packetInterceptor;
 
     private int dynamicPricesTaskId;
     private int waitForShopsTaskId;
@@ -186,6 +188,10 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         return shopRefreshManager;
     }
 
+    // public ItemPacketInterceptor getPacketInterceptor() {
+    //     return packetInterceptor;
+    // }
+
 
     @Override
     public void onEnable() {
@@ -211,6 +217,13 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
             this.placeholderExpansion.register();
             getLogger().info("Placeholders enregistrés avec PlaceholderAPI !");
         }
+        // if (getServer().getPluginManager().getPlugin("ProtocolLib") != null) {
+        //     this.packetInterceptor = new ItemPacketInterceptor(this);
+        //     getLogger().info("ProtocolLib détecté, intercepteur de paquets activé!");
+        // } else {
+        //     getLogger().warning("ProtocolLib n'est pas installé, l'intercepteur de paquets est désactivé.");
+        //     getLogger().warning("Installez ProtocolLib pour une expérience optimale avec les placeholders.");
+        // }
 
         getServer().getPluginManager().registerEvents(new DynaShopListener(this), this);
         // Initialiser le listener avant de l'utiliser ailleurs
@@ -295,6 +308,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private void init() {
         generateFiles();
         this.shopConfigManager = new ShopConfigManager(new File(Bukkit.getPluginManager().getPlugin("ShopGUIPlus").getDataFolder(), "shops/"));
+        this.dynaShopListener = new DynaShopListener(this);
         this.priceRecipe = new PriceRecipe(this.configMain);
         this.dataConfig = new DataConfig(this.configMain);
         this.langConfig = new LangConfig(this.configLang);
@@ -355,6 +369,11 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         if (batchDatabaseUpdater != null) {
             batchDatabaseUpdater.shutdown();
         }
+
+        // if (packetInterceptor != null) {
+        //     // packetInterceptor.clearCache();
+        //     packetInterceptor.shutdown();
+        // }
         
         // dataManager.savePricesToDatabase(priceMap);
         dataManager.closeDatabase();

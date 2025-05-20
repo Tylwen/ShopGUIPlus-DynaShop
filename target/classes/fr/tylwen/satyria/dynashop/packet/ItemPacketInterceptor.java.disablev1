@@ -1,0 +1,341 @@
+package fr.tylwen.satyria.dynashop.packet;
+
+import com.comphenix.protocol.PacketType;
+import com.comphenix.protocol.ProtocolLibrary;
+import com.comphenix.protocol.ProtocolManager;
+import com.comphenix.protocol.events.ListenerPriority;
+import com.comphenix.protocol.events.PacketAdapter;
+import com.comphenix.protocol.events.PacketContainer;
+import com.comphenix.protocol.events.PacketEvent;
+import com.comphenix.protocol.wrappers.nbt.NbtBase;
+import com.comphenix.protocol.wrappers.nbt.NbtCompound;
+import com.comphenix.protocol.wrappers.nbt.NbtFactory;
+import com.comphenix.protocol.wrappers.nbt.NbtList;
+import com.comphenix.protocol.wrappers.nbt.NbtType;
+import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import me.clip.placeholderapi.PlaceholderAPI;
+import net.brcdev.shopgui.ShopGuiPlusApi;
+
+import org.bukkit.ChatColor;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class ItemPacketInterceptor {
+    private final DynaShopPlugin plugin;
+    private final Pattern shopIdPattern;
+    private final Pattern dynaShopPattern;
+    private final Pattern pagePattern;
+    
+    // Cache pour éviter de recalculer les mêmes valeurs trop souvent
+    private final Map<String, Map<String, String>> priceCache = new HashMap<>();
+    private final Map<String, Long> cacheTimes = new HashMap<>();
+    private static final long CACHE_EXPIRY = 5000; // 5 secondes
+    
+    public ItemPacketInterceptor(DynaShopPlugin plugin) {
+        this.plugin = plugin;
+        // this.shopIdPattern = Pattern.compile("Magasin.*?[»-]\\s*([\\w\\s]+)");
+        this.shopIdPattern = Pattern.compile("(?:Magasin|Shop).*?[»\\-]\\s*([\\w\\s]+)");
+        this.dynaShopPattern = Pattern.compile("%dynashop_current_([\\w]+)%");
+        this.pagePattern = Pattern.compile("#(\\d+)");
+        
+        registerPacketListener();
+        plugin.getLogger().info("ItemPacketInterceptor initialisé");
+    }
+    
+    private void registerPacketListener() {
+        ProtocolManager protocolManager = ProtocolLibrary.getProtocolManager();
+        
+        // Écouter les paquets d'affichage d'inventaire
+        protocolManager.addPacketListener(new PacketAdapter(plugin, 
+                ListenerPriority.NORMAL, 
+                PacketType.Play.Server.WINDOW_ITEMS,
+                PacketType.Play.Server.SET_SLOT) {
+            @Override
+            public void onPacketSending(PacketEvent event) {
+                if (event.getPacketType() == PacketType.Play.Server.WINDOW_ITEMS) {
+                    handleWindowItemsPacket(event);
+                } else if (event.getPacketType() == PacketType.Play.Server.SET_SLOT) {
+                    handleSetSlotPacket(event);
+                }
+            }
+        });
+    }
+    
+    private void handleWindowItemsPacket(PacketEvent event) {
+        Player player = event.getPlayer();
+        String title = player.getOpenInventory().getTitle();
+        
+        // Vérifier s'il s'agit d'un inventaire de shop
+        Matcher matcher = shopIdPattern.matcher(title);
+        if (!matcher.find()) {
+            return;
+        }
+        
+        String shopName = matcher.group(1).trim();
+        String shopId = extractShopId(shopName, title);
+        
+        if (shopId == null) {
+            return;
+        }
+        
+        // Obtenir les items dans le paquet
+        PacketContainer packet = event.getPacket();
+        Object[] itemArrays = packet.getItemArrayModifier().read(0);
+        
+        // Traiter chaque item
+        for (int i = 0; i < itemArrays.length; i++) {
+            Object item = itemArrays[i];
+            if (item != null) {
+                itemArrays[i] = processItem(player, item, shopId);
+            }
+        }
+        
+        // Réécrire le paquet avec les items modifiés
+        packet.getItemArrayModifier().write(0, (ItemStack[]) itemArrays);
+    }
+    
+    private void handleSetSlotPacket(PacketEvent event) {
+        Player player = event.getPlayer();
+        String title = player.getOpenInventory().getTitle();
+        
+        // Vérifier s'il s'agit d'un inventaire de shop
+        Matcher matcher = shopIdPattern.matcher(title);
+        if (!matcher.find()) {
+            return;
+        }
+        
+        String shopName = matcher.group(1).trim();
+        String shopId = extractShopId(shopName, title);
+        
+        if (shopId == null) {
+            return;
+        }
+        
+        // Obtenir l'item dans le paquet
+        PacketContainer packet = event.getPacket();
+        Object item = packet.getItemModifier().read(0);
+        
+        if (item != null) {
+            // Mettre à jour l'item avec les placeholders remplacés
+            packet.getItemModifier().write(0, (ItemStack) processItem(player, item, shopId));
+        }
+    }
+    
+    private Object processItem(Player player, Object nmsItem, String shopId) {
+        try {
+            // Convertir en NBT pour manipuler facilement
+            // NbtCompound compound = NbtFactory.asCompound(NbtFactory.fromItemOptional(nmsItem));
+            // NbtCompound compound = NbtFactory.asCompound(NbtFactory.fromItemOptional((ItemStack) nmsItem));
+            NbtCompound compound = NbtFactory.fromNMSCompound(NbtFactory.fromItemOptional((ItemStack) nmsItem));
+            
+            // Vérifier si l'item a un tag display
+            if (compound.containsKey("display")) {
+                NbtCompound display = compound.getCompoundOrDefault("display");
+                
+                // Vérifier si l'item a un lore
+                if (display.containsKey("Lore")) {
+                    NbtList<String> lore = display.getListOrDefault("Lore");
+                    
+                    // Vérifier si le lore contient des placeholders DynaShop
+                    boolean hasDynaShopPlaceholder = false;
+                    for (String line : lore) {
+                        if (line.contains("%dynashop_current_")) {
+                            hasDynaShopPlaceholder = true;
+                            break;
+                        }
+                    }
+                    
+                    if (hasDynaShopPlaceholder) {
+                        // Trouver l'ID de l'item en fonction du slot
+                        int slot = -1;
+                        if (compound.containsKey("SGP_SLOT")) {
+                            slot = compound.getInteger("SGP_SLOT");
+                        }
+                        
+                        // Trouver l'ID de l'item
+                        String itemId = null;
+                        if (compound.containsKey("SGP_ITEM_ID")) {
+                            itemId = compound.getString("SGP_ITEM_ID");
+                        } else if (slot >= 0) {
+                            try {
+                                itemId = String.valueOf(slot);
+                            } catch (Exception e) {
+                                // Ignorer, nous utiliserons l'ID numérique
+                            }
+                        }
+                        
+                        if (itemId != null) {
+                            // Obtenir ou calculer les valeurs de prix
+                            Map<String, String> prices = getPrices(shopId, itemId);
+                            
+                            // Créer un nouveau lore avec les placeholders remplacés
+                            NbtList<String> newLore = NbtFactory.ofList("Lore");
+                            for (String line : lore) {
+                                // Vérifier si la ligne contient des placeholders à traiter
+                                if (line.contains("%dynashop_current_")) {
+                                    // Décider si la ligne doit être omise
+                                    boolean skipLine = shouldSkipLine(line, prices);
+                                    
+                                    if (!skipLine) {
+                                        // Remplacer les placeholders DynaShop
+                                        line = replacePlaceholders(line, prices);
+                                        
+                                        // Traiter les autres placeholders
+                                        if (line.contains("%")) {
+                                            line = PlaceholderAPI.setPlaceholders(player, line);
+                                        }
+                                        
+                                        newLore.add(line);
+                                    }
+                                } else {
+                                    // Pour les lignes sans placeholders DynaShop
+                                    if (line.contains("%")) {
+                                        line = PlaceholderAPI.setPlaceholders(player, line);
+                                    }
+                                    newLore.add(line);
+                                }
+                            }
+                            
+                            // Remplacer le lore original
+                            display.put("Lore", newLore);
+                        }
+                    }
+                }
+            }
+            
+            // return NbtFactory.getCraftItemStack(compound);
+            return NbtFactory.fromNMSCompound(compound);
+        } catch (Exception e) {
+            plugin.getLogger().warning("Erreur lors du traitement d'un item: " + e.getMessage());
+            return nmsItem; // Retourner l'item non modifié en cas d'erreur
+        }
+    }
+    
+    private boolean shouldSkipLine(String line, Map<String, String> prices) {
+        // Vérifier les conditions pour masquer certaines lignes
+        if (line.contains("%dynashop_current_buyPrice%") && 
+            (prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0"))) {
+            return true;
+        }
+        
+        if (line.contains("%dynashop_current_sellPrice%") && 
+            (prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0"))) {
+            return true;
+        }
+        
+        if (line.contains("%dynashop_current_buy%") && 
+            (prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0"))) {
+            return true;
+        }
+        
+        if (line.contains("%dynashop_current_sell%") && 
+            (prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0"))) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    private String replacePlaceholders(String line, Map<String, String> prices) {
+        return line.replace("%dynashop_current_buyPrice%", prices.get("buy"))
+                   .replace("%dynashop_current_sellPrice%", prices.get("sell"))
+                   .replace("%dynashop_current_buyMinPrice%", prices.get("buy_min"))
+                   .replace("%dynashop_current_buyMaxPrice%", prices.get("buy_max"))
+                   .replace("%dynashop_current_sellMinPrice%", prices.get("sell_min"))
+                   .replace("%dynashop_current_sellMaxPrice%", prices.get("sell_max"))
+                   .replace("%dynashop_current_buy%", prices.get("base_buy"))
+                   .replace("%dynashop_current_sell%", prices.get("base_sell"));
+    }
+    
+    private Map<String, String> getPrices(String shopId, String itemId) {
+        String cacheKey = shopId + ":" + itemId;
+        
+        // Vérifier si nous avons des valeurs mises en cache récemment
+        if (priceCache.containsKey(cacheKey)) {
+            long lastUpdate = cacheTimes.getOrDefault(cacheKey, 0L);
+            if (System.currentTimeMillis() - lastUpdate < CACHE_EXPIRY) {
+                return priceCache.get(cacheKey);
+            }
+        }
+        
+        // Obtenir les valeurs de l'API DynaShop
+        Map<String, String> prices = new HashMap<>();
+        
+        // Obtenir la devise
+        String currencyPrefix = "";
+        String currencySuffix = "";
+        try {
+            currencyPrefix = ShopGuiPlusApi.getPlugin().getEconomyManager()
+                .getEconomyProvider(ShopGuiPlusApi.getShop(shopId).getEconomyType()).getCurrencyPrefix();
+            currencySuffix = ShopGuiPlusApi.getPlugin().getEconomyManager()
+                .getEconomyProvider(ShopGuiPlusApi.getShop(shopId).getEconomyType()).getCurrencySuffix();
+        } catch (Exception e) {
+            // Ignorer les erreurs
+        }
+        
+        // Obtenir les prix
+        prices.put("buy", plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy"));
+        prices.put("sell", plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell"));
+        prices.put("buy_min", plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy_min"));
+        prices.put("buy_max", plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy_max"));
+        prices.put("sell_min", plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell_min"));
+        prices.put("sell_max", plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell_max"));
+        
+        // Préparer les formats composites
+        String buyPrice = prices.get("buy");
+        String buyMinPrice = prices.get("buy_min");
+        String buyMaxPrice = prices.get("buy_max");
+        
+        if (!buyMinPrice.equals("N/A") && !buyMaxPrice.equals("N/A")) {
+            prices.put("base_buy", String.format(currencyPrefix + "%s" + currencySuffix + " §7(%s - %s)", 
+                buyPrice, buyMinPrice, buyMaxPrice));
+        } else {
+            prices.put("base_buy", currencyPrefix + buyPrice + currencySuffix);
+        }
+        
+        String sellPrice = prices.get("sell");
+        String sellMinPrice = prices.get("sell_min");
+        String sellMaxPrice = prices.get("sell_max");
+        
+        if (!sellMinPrice.equals("N/A") && !sellMaxPrice.equals("N/A")) {
+            prices.put("base_sell", String.format(currencyPrefix + "%s" + currencySuffix + " §7(%s - %s)", 
+                sellPrice, sellMinPrice, sellMaxPrice));
+        } else {
+            prices.put("base_sell", currencyPrefix + sellPrice + currencySuffix);
+        }
+        
+        // Mettre à jour le cache
+        priceCache.put(cacheKey, prices);
+        cacheTimes.put(cacheKey, System.currentTimeMillis());
+        
+        return prices;
+    }
+    
+    private String extractShopId(String shopName, String fullTitle) {
+        // Nettoyer le nom pour obtenir l'ID
+        String cleanName = ChatColor.stripColor(shopName.toLowerCase())
+            .replace(" ", "")
+            .replace("-", "")
+            .replace("_", "");
+            
+        // Extraire le numéro de page s'il existe
+        Pattern pagePattern = Pattern.compile("#(\\d+)");
+        Matcher matcher = pagePattern.matcher(fullTitle);
+        String page = matcher.find() ? matcher.group(1) : "1";
+        
+        // Retourner l'ID avec le numéro de page
+        return cleanName + "#" + page;
+    }
+    
+    public void clearCache() {
+        priceCache.clear();
+        cacheTimes.clear();
+    }
+}

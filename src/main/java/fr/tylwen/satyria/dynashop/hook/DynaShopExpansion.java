@@ -4,6 +4,8 @@ package fr.tylwen.satyria.dynashop.hook;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 // import java.sql.SQLException;
 import java.util.Optional;
 
@@ -15,6 +17,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import fr.tylwen.satyria.dynashop.data.DynamicPrice;
+import fr.tylwen.satyria.dynashop.data.ItemPriceData;
 import fr.tylwen.satyria.dynashop.data.PriceRecipe;
 import fr.tylwen.satyria.dynashop.data.ShopConfigManager;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
@@ -369,6 +373,56 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             default:
                 return "Type inconnu";
         }
+    }
+
+    /**
+     * Récupère tous les prix et valeurs pour un item spécifique en UNE SEULE opération de base de données.
+     * Beaucoup plus efficace qu'appeler getPriceByType() plusieurs fois.
+     * 
+     * @param shopID ID du shop
+     * @param itemID ID de l'item
+     * @return Map contenant toutes les valeurs formatées
+     */
+    public Map<String, String> getAllItemValues(String shopID, String itemID) {
+        Map<String, String> values = new HashMap<>();
+        
+        // UN SEUL accès à la base de données pour récupérer toutes les informations
+        Optional<DynamicPrice> priceData = this.itemDataManager.getItemValues(shopID, itemID);
+        
+        // UN SEUL accès aux fichiers de config pour récupérer les infos manquantes
+        ItemPriceData configData = shopConfigManager.getItemAllValues(shopID, itemID);
+        
+        // Formatage numérique
+        int maximumFractionDigits = 8;
+        if (ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains("numberFormat.maximumFractionDigits")) {
+            maximumFractionDigits = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("numberFormat.maximumFractionDigits");
+        }
+        
+        // Extraire toutes les valeurs en une fois
+        double buyPrice = priceData.map(DynamicPrice::getBuyPrice).orElse(configData.buyPrice.orElse(0.0));
+        double sellPrice = priceData.map(DynamicPrice::getSellPrice).orElse(configData.sellPrice.orElse(0.0));
+        double minBuy = configData.minBuy.orElse(buyPrice * 0.5);
+        double maxBuy = configData.maxBuy.orElse(buyPrice * 2.0);
+        double minSell = configData.minSell.orElse(sellPrice * 0.5);
+        double maxSell = configData.maxSell.orElse(sellPrice * 2.0);
+        
+        // Formatter toutes les valeurs en texte
+        values.put("buy", formatPrice(buyPrice, maximumFractionDigits));
+        values.put("sell", formatPrice(sellPrice, maximumFractionDigits));
+        values.put("buy_min", formatPrice(minBuy, maximumFractionDigits));
+        values.put("buy_max", formatPrice(maxBuy, maximumFractionDigits));
+        values.put("sell_min", formatPrice(minSell, maximumFractionDigits));
+        values.put("sell_max", formatPrice(maxSell, maximumFractionDigits));
+        
+        // Valeurs pour "N/A" ou zéro
+        if (buyPrice <= 0.001) values.put("buy", "N/A");
+        if (sellPrice <= 0.001) values.put("sell", "N/A");
+        if (minBuy <= 0.001) values.put("buy_min", "N/A");
+        if (maxBuy <= 0.001) values.put("buy_max", "N/A");
+        if (minSell <= 0.001) values.put("sell_min", "N/A");
+        if (maxSell <= 0.001) values.put("sell_max", "N/A");
+        
+        return values;
     }
 
     /**

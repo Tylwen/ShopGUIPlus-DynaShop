@@ -1,0 +1,850 @@
+package fr.tylwen.satyria.dynashop.packet;
+
+import com.comphenix.protocol.PacketType;
+import com.comphenix.protocol.ProtocolLibrary;
+import com.comphenix.protocol.ProtocolManager;
+import com.comphenix.protocol.events.ListenerPriority;
+import com.comphenix.protocol.events.PacketAdapter;
+import com.comphenix.protocol.events.PacketEvent;
+import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import me.clip.placeholderapi.PlaceholderAPI;
+import net.brcdev.shopgui.ShopGuiPlusApi;
+import net.brcdev.shopgui.exception.shop.ShopsNotLoadedException;
+import net.brcdev.shopgui.shop.Shop;
+
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.scheduler.BukkitTask;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class ItemPacketInterceptor {
+    private final DynaShopPlugin plugin;
+    private final Pattern shopIdPattern = Pattern.compile("(?:Magasin|Shop).*?[»\\-]\\s*([\\w\\s]+)");
+    private final Pattern pagePattern = Pattern.compile("#(\\d+)");
+    
+    // Cache de très courte durée pour les prix (2 secondes maximum)
+    private final Map<String, Map<String, String>> priceCache = new ConcurrentHashMap<>();
+    private static final long CACHE_EXPIRY = 2000; // 2 secondes seulement
+    
+    // Thread de préchargement haute fréquence dédié
+    private final ScheduledExecutorService priceUpdateService = Executors.newScheduledThreadPool(1);
+    
+    // File prioritaire pour les joueurs actifs
+    private final Set<String> activePlayers = Collections.synchronizedSet(new HashSet<>());
+    
+    // Tâche d'actualisation du cache
+    private BukkitTask priceRefreshTask;
+
+    // Cache des lores déjà traités par joueur
+    private final Map<UUID, Map<String, List<String>>> processedLoreCache = new ConcurrentHashMap<>();
+
+    // File d'attente pour mises à jour asynchrones
+    private final Queue<String> updateQueue = new ConcurrentLinkedQueue<>();
+    
+    public ItemPacketInterceptor(DynaShopPlugin plugin) {
+        this.plugin = plugin;
+        
+        // Enregistrer l'intercepteur de paquets
+        registerPacketListener();
+        
+        // Démarrer la tâche de rafraîchissement des prix en haute fréquence (toutes les 0.5s)
+        startHighFrequencyPriceUpdates();
+        
+        // Démarrer le processeur asynchrone
+        startAsyncProcessor();
+        
+        // Actualiser préventivement les prix de tous les shops au démarrage
+        refreshAllShopPrices();
+        
+        plugin.getLogger().info("§a[DynaShop] Intercepteur de paquets optimisé initialisé avec rafraîchissement ultra-rapide");
+    }
+
+    private void startAsyncProcessor() {
+        plugin.getServer().getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+            // Traiter jusqu'à 50 éléments par tick
+            for (int i = 0; i < 50 && !updateQueue.isEmpty(); i++) {
+                String cacheKey = updateQueue.poll();
+                if (cacheKey == null) break;
+                
+                try {
+                    String[] parts = cacheKey.split(":");
+                    if (parts.length == 2) {
+                        // Calculer les prix en arrière-plan
+                        Map<String, String> prices = calculateRealTimePrices(parts[0], parts[1]);
+                        priceCache.put(cacheKey, prices);
+                        
+                        // AJOUT CRUCIAL: Planifier une mise à jour de l'inventaire pour tous les joueurs concernés
+                        final String shopId = parts[0];
+                        plugin.getServer().getScheduler().runTask(plugin, () -> {
+                            for (Player player : plugin.getServer().getOnlinePlayers()) {
+                                if (player.getOpenInventory() != null && 
+                                    player.getOpenInventory().getTitle() != null && 
+                                    player.getOpenInventory().getTitle().contains(shopId)) {
+                                    // Forcer une mise à jour de l'inventaire
+                                    player.updateInventory();
+                                }
+                            }
+                        });
+                    }
+                } catch (Exception ignored) {
+                    // Ignorer les erreurs de calcul asynchrone
+                }
+            }
+        }, 1L, 1L); // Exécution fréquente sans surcharger
+    }
+    
+    /**
+     * Rafraîchir tous les prix au démarrage (préchargement complet)
+     */
+    private void refreshAllShopPrices() {
+        // Tâche asynchrone pour ne pas bloquer le démarrage
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
+                    String shopId = shop.getId();
+                    
+                    // Traiter chaque item du shop
+                    shop.getShopItems().forEach(item -> {
+                        String itemId = item.getId();
+                        
+                        // Calculer les vrais prix (sans utiliser le cache)
+                        calculateRealTimePrices(shopId, itemId);
+                    });
+                }
+                plugin.getLogger().info("§a[DynaShop] Préchargement des prix terminé pour tous les shops");
+            } catch (Exception e) {
+                plugin.getLogger().warning("§c[DynaShop] Erreur lors du préchargement des prix: " + e.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * Démarre une tâche de mise à jour des prix à haute fréquence
+     */
+    private void startHighFrequencyPriceUpdates() {
+        // Utiliser un thread séparé pour les mises à jour très fréquentes
+        priceUpdateService.scheduleAtFixedRate(() -> {
+            try {
+                // Mettre à jour les prix pour les joueurs actifs en priorité
+                synchronized (activePlayers) {
+                    for (String key : activePlayers) {
+                        try {
+                            String[] parts = key.split(":");
+                            if (parts.length == 2) {
+                                // Forcer une mise à jour du prix (sans utiliser le cache)
+                                Map<String, String> freshPrices = calculateRealTimePrices(parts[0], parts[1]);
+                                priceCache.put(key, freshPrices);
+                            }
+                        } catch (Exception e) {
+                            // Ignorer les erreurs individuelles pour ne pas interrompre la tâche
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                plugin.getLogger().warning("§c[DynaShop] Erreur lors de la mise à jour haute fréquence: " + e.getMessage());
+            }
+        }, 500, 500, TimeUnit.MILLISECONDS); // Mise à jour toutes les 0.5 secondes
+        
+        // Tâche supplémentaire pour la gestion des joueurs actifs
+        priceRefreshTask = plugin.getServer().getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+            synchronized (activePlayers) {
+                activePlayers.clear(); // Réinitialiser la liste des joueurs actifs périodiquement
+            }
+        }, 300L, 300L); // 15 secondes
+    }
+    
+    private void registerPacketListener() {
+        ProtocolManager protocolManager = ProtocolLibrary.getProtocolManager();
+        
+        // Utiliser la priorité LOWEST pour intercepter au plus tôt
+        protocolManager.addPacketListener(new PacketAdapter(plugin, 
+                ListenerPriority.LOWEST, // Priorité maximale pour capter le paquet avant même qu'il ne soit créé
+                PacketType.Play.Server.WINDOW_ITEMS,
+                PacketType.Play.Server.SET_SLOT) {
+            @Override
+            public void onPacketSending(PacketEvent event) {
+                try {
+                    // Ultra-optimisé - vérification initiale ultra-rapide 
+                    Player player = event.getPlayer();
+                    String title = player.getOpenInventory().getTitle();
+                    
+                    // Filtrage rapide - évite le traitement inutile
+                    if (title == null || (!title.contains("Magasin") && !title.contains("Shop"))) {
+                        return;
+                    }
+                    
+                    // Accélération du traitement
+                    if (event.getPacketType() == PacketType.Play.Server.WINDOW_ITEMS) {
+                        processWindowItemsPacketUltraFast(event);
+                    } else if (event.getPacketType() == PacketType.Play.Server.SET_SLOT) {
+                        processSetSlotPacketUltraFast(event);
+                    }
+                } catch (Exception e) {
+                    // Ignorer silencieusement pour éviter tout impact
+                }
+            }
+        });
+    }
+
+    // Méthode ultra-rapide pour le traitement groupé
+    private void processWindowItemsPacketUltraFast(PacketEvent event) {
+        try {
+            // Obtenir tous les items d'un coup
+            List<ItemStack> items = null;
+            
+            try {
+                items = event.getPacket().getItemListModifier().read(0);
+            } catch (Exception e) {
+                // Fallback pour versions anciennes
+                ItemStack[] itemArray = event.getPacket().getItemArrayModifier().read(0);
+                items = Arrays.asList(itemArray);
+            }
+            
+            // OPTIMISATION CRITIQUE: Remplacer les placeholders sans traitement lourd
+            for (int i = 0; i < items.size(); i++) {
+                ItemStack item = items.get(i);
+                if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasLore()) {
+                    continue;
+                }
+                
+                // Préparation au remplacement direct
+                ItemMeta meta = item.getItemMeta();
+                List<String> lore = meta.getLore();
+                
+                // Vérifier uniquement les lignes nécessaires
+                boolean needsReplacement = false;
+                for (String line : lore) {
+                    if (line.contains("%dynashop_current_")) {
+                        needsReplacement = true;
+                        break;
+                    }
+                }
+                
+                if (!needsReplacement) continue;
+                
+                // Remplacement direct par valeurs pré-cachées ou texte d'attente
+                List<String> newLore = new ArrayList<>();
+                for (String line : lore) {
+                    if (line.contains("%dynashop_current_")) {
+                        // Remplacement minimal sans appel à des méthodes externes
+                        line = line.replace("%dynashop_current_buyPrice%", "Chargement...")
+                                .replace("%dynashop_current_sellPrice%", "Chargement...")
+                                .replace("%dynashop_current_buy%", "Chargement...")
+                                .replace("%dynashop_current_sell%", "Chargement...");
+                    }
+                    newLore.add(line);
+                }
+                
+                meta.setLore(newLore);
+                item.setItemMeta(meta);
+            }
+            
+            // Appliquer les modifications - plus rapide
+            try {
+                event.getPacket().getItemListModifier().write(0, items);
+            } catch (Exception e) {
+                event.getPacket().getItemArrayModifier().write(0, items.toArray(new ItemStack[0]));
+            }
+            
+            // Planifier mise à jour réelle en arrière-plan
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                try {
+                    Player player = event.getPlayer();
+                    if (player.isOnline()) {
+                        player.updateInventory();
+                    }
+                } catch (Exception e) {
+                    // Ignorer
+                }
+            }, 1L);
+            
+        } catch (Exception e) {
+            // Ignorer pour éviter tout impact
+        }
+    }
+
+    private void processSetSlotPacketUltraFast(PacketEvent event) {
+        try {
+            // Obtenir l'item du paquet
+            ItemStack item = event.getPacket().getItemModifier().read(0);
+            
+            // Vérifications rapides
+            if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasLore()) {
+                return;
+            }
+            
+            // Préparer pour le remplacement
+            ItemMeta meta = item.getItemMeta();
+            List<String> lore = meta.getLore();
+            
+            // Vérifier si un remplacement est nécessaire
+            boolean needsReplacement = false;
+            for (String line : lore) {
+                if (line.contains("%dynashop_current_")) {
+                    needsReplacement = true;
+                    break;
+                }
+            }
+            
+            if (!needsReplacement) return;
+            
+            // Remplacer les placeholders directement par du texte d'attente
+            List<String> newLore = new ArrayList<>();
+            for (String line : lore) {
+                if (line.contains("%dynashop_current_")) {
+                    // Remplacement ultra-rapide
+                    line = line.replace("%dynashop_current_buyPrice%", "Chargement...")
+                            .replace("%dynashop_current_sellPrice%", "Chargement...")
+                            .replace("%dynashop_current_buy%", "Chargement...")
+                            .replace("%dynashop_current_sell%", "Chargement...");
+                }
+                newLore.add(line);
+            }
+            
+            // Appliquer le nouveau lore
+            meta.setLore(newLore);
+            item.setItemMeta(meta);
+            
+            // Mettre à jour le paquet
+            event.getPacket().getItemModifier().write(0, item);
+            
+            // Planifier une mise à jour d'inventaire juste après
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                try {
+                    Player player = event.getPlayer();
+                    if (player.isOnline()) {
+                        player.updateInventory();
+                    }
+                } catch (Exception e) {
+                    // Ignorer les erreurs
+                }
+            }, 1L);
+            
+        } catch (Exception e) {
+            // Ignorer pour ne pas perturber le flux normal
+        }
+    }
+    
+    private void processWindowItemsPacket(PacketEvent event, Player player, String shopId, int page) {
+        try {
+            // Essayer d'abord avec l'API moderne (1.17+)
+            try {
+                List<ItemStack> items = event.getPacket().getItemListModifier().read(0);
+                
+                for (int i = 0; i < items.size(); i++) {
+                    ItemStack item = items.get(i);
+                    if (item != null && item.hasItemMeta()) {
+                        // Traitement direct sans délai
+                        ItemStack processedItem = processItem(player, item, shopId, page, i);
+                        items.set(i, processedItem);
+                    }
+                }
+                
+                event.getPacket().getItemListModifier().write(0, items);
+                return;
+            } catch (Exception e) {
+                // Méthode alternative pour les versions antérieures
+            }
+            
+            // Fallback pour 1.16 et avant
+            ItemStack[] itemArray = event.getPacket().getItemArrayModifier().read(0);
+            
+            for (int i = 0; i < itemArray.length; i++) {
+                if (itemArray[i] != null && itemArray[i].hasItemMeta()) {
+                    itemArray[i] = processItem(player, itemArray[i], shopId, page, i);
+                }
+            }
+            
+            event.getPacket().getItemArrayModifier().write(0, itemArray);
+        } catch (Exception e) {
+            plugin.getLogger().warning("§c[DynaShop] Erreur items: " + e.getMessage());
+        }
+    }
+    
+    private void processSetSlotPacket(PacketEvent event, Player player, String shopId, int page) {
+        try {
+            ItemStack item = event.getPacket().getItemModifier().read(0);
+            int slot = event.getPacket().getIntegers().read(1);
+            
+            if (item != null && item.hasItemMeta()) {
+                ItemStack processedItem = processItem(player, item, shopId, page, slot);
+                event.getPacket().getItemModifier().write(0, processedItem);
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("§c[DynaShop] Erreur slot: " + e.getMessage());
+        }
+    }
+    
+    private ItemStack processItem(Player player, ItemStack item, String shopId, int page, int slot) {
+        if (item == null || !item.hasItemMeta()) return item;
+        
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null || !meta.hasLore()) return item;
+        
+        List<String> lore = meta.getLore();
+        if (lore == null || lore.isEmpty()) return item;
+        
+        // Vérification ultra-rapide des placeholders (maximum 5 premières lignes)
+        boolean hasDynaShopPlaceholder = false;
+        for (int i = 0; i < Math.min(lore.size(), 5); i++) {
+            if (lore.get(i).contains("%dynashop_current_")) {
+                hasDynaShopPlaceholder = true;
+                break;
+            }
+        }
+        
+        if (!hasDynaShopPlaceholder) return item;
+        
+        // Génération d'une clé de cache unique pour cet item
+        String cacheKey = shopId + ":" + page + ":" + slot;
+        
+        // Vérifier le cache de lore AVANT de faire des appels coûteux
+        Map<String, List<String>> loreCache = processedLoreCache.get(player.getUniqueId());
+        if (loreCache != null && loreCache.containsKey(cacheKey)) {
+            meta.setLore(loreCache.get(cacheKey));
+            item.setItemMeta(meta);
+            return item;
+        }
+        
+        // Obtenir l'ID de l'item - méthode rapide sans récursion
+        String itemId = null;
+        try {
+            itemId = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId).getShopItem(page, slot).getId();
+        } catch (Exception ignored) {
+            // Si l'ID ne peut pas être récupéré, retourner l'item non modifié
+            return item;
+        }
+        
+        if (itemId == null) return item;
+        
+        // Utiliser une version threadée de getPrices
+        Map<String, String> prices = getPricesFast(shopId, itemId);
+        
+        // Traiter le lore de manière non-bloquante
+        List<String> newLore = new ArrayList<>();
+        for (String line : lore) {
+            if (line.contains("%dynashop_current_")) {
+                boolean skipLine = false;
+                
+                // Logique de filtrage très simple et rapide
+                if ((line.contains("%dynashop_current_buy") && 
+                    (prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0"))) ||
+                    (line.contains("%dynashop_current_sell") && 
+                    (prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0")))) {
+                    skipLine = true;
+                }
+                
+                if (!skipLine) {
+                    // Remplacement sans méthode supplémentaire
+                    String processed = line;
+                    for (Map.Entry<String, String> entry : prices.entrySet()) {
+                        processed = processed.replace("%dynashop_current_" + entry.getKey() + "%", entry.getValue());
+                    }
+                    processed = processed.replace("%dynashop_current_buy%", prices.get("base_buy"))
+                                    .replace("%dynashop_current_sell%", prices.get("base_sell"));
+                    
+                    if (processed.contains("%")) {
+                        try {
+                            processed = PlaceholderAPI.setPlaceholders(player, processed);
+                        } catch (Exception ignored) {
+                            // Ignorer les erreurs de PlaceholderAPI
+                        }
+                    }
+                    newLore.add(processed);
+                }
+            } else {
+                if (line.contains("%")) {
+                    try {
+                        newLore.add(PlaceholderAPI.setPlaceholders(player, line));
+                    } catch (Exception ignored) {
+                        newLore.add(line);
+                    }
+                } else {
+                    newLore.add(line);
+                }
+            }
+        }
+        
+        // Mettre en cache le lore pour cet item et ce joueur
+        loreCache = processedLoreCache.computeIfAbsent(player.getUniqueId(), k -> new ConcurrentHashMap<>());
+        loreCache.put(cacheKey, newLore);
+        
+        // Ajouter à la liste de préchargement en arrière-plan sans bloquer
+        updateQueue.offer(shopId + ":" + itemId);
+        
+        meta.setLore(newLore);
+        item.setItemMeta(meta);
+        
+        return item;
+    }
+
+    // Méthode getPrices optimisée qui ne bloque jamais
+    private Map<String, String> getPricesFast(String shopId, String itemId) {
+        String cacheKey = shopId + ":" + itemId;
+        
+        // Vérifier le cache
+        Map<String, String> cachedPrices = priceCache.get(cacheKey);
+        if (cachedPrices != null) {
+            return cachedPrices;
+        }
+        
+        // Essayer de calculer les prix directement (en mode non-bloquant)
+        try {
+            // Tenter une méthode légère pour obtenir les prix (sans calculs lourds)
+            Map<String, String> fastPrices = getLightweightPrices(shopId, itemId);
+            if (fastPrices != null) {
+                // Stocker dans le cache
+                priceCache.put(cacheKey, fastPrices);
+                return fastPrices;
+            }
+        } catch (Exception ignored) {
+            // Continuer avec les valeurs par défaut si ça échoue
+        }
+        
+        // Valeurs par défaut seulement en dernier recours
+        Map<String, String> defaultPrices = new HashMap<>();
+        defaultPrices.put("buy", "...");
+        defaultPrices.put("sell", "...");
+        defaultPrices.put("buy_min", "...");
+        defaultPrices.put("buy_max", "...");
+        defaultPrices.put("sell_min", "...");
+        defaultPrices.put("sell_max", "...");
+        defaultPrices.put("base_buy", "Chargement...");
+        defaultPrices.put("base_sell", "Chargement...");
+        
+        // Programmation d'un calcul en arrière-plan avec haute priorité
+        updateQueue.offer(cacheKey);
+        // Ajouter également aux joueurs actifs pour une mise à jour fréquente
+        synchronized (activePlayers) {
+            activePlayers.add(cacheKey);
+        }
+        
+        return defaultPrices;
+    }
+
+    /**
+     * Obtient des prix légers, essentiellement depuis la base de données et les fichiers de config
+     * sans les calculs complexes basés sur les recettes
+     */
+    private Map<String, String> getLightweightPrices(String shopId, String itemId) {
+        Map<String, String> prices = new HashMap<>();
+        
+        try {
+            // Obtenir la devise
+            String currencyPrefix = "";
+            String currencySuffix = "";
+            
+            // Obtenir directement depuis la base de données (très rapide)
+            Optional<Double> buyPriceOpt = plugin.getItemDataManager().getBuyPrice(shopId, itemId);
+            Optional<Double> sellPriceOpt = plugin.getItemDataManager().getSellPrice(shopId, itemId);
+            
+            // Prix d'achat et de vente de base
+            String buyPrice = buyPriceOpt.map(String::valueOf).orElse("N/A");
+            String sellPrice = sellPriceOpt.map(String::valueOf).orElse("N/A");
+            
+            prices.put("buy", buyPrice);
+            prices.put("sell", sellPrice);
+            
+            // Min/Max depuis la configuration (aussi rapide)
+            Optional<Double> minBuyOpt = plugin.getShopConfigManager().getItemValue(shopId, itemId, "buyDynamic.min", Double.class);
+            Optional<Double> maxBuyOpt = plugin.getShopConfigManager().getItemValue(shopId, itemId, "buyDynamic.max", Double.class);
+            Optional<Double> minSellOpt = plugin.getShopConfigManager().getItemValue(shopId, itemId, "sellDynamic.min", Double.class);
+            Optional<Double> maxSellOpt = plugin.getShopConfigManager().getItemValue(shopId, itemId, "sellDynamic.max", Double.class);
+            
+            prices.put("buy_min", minBuyOpt.map(String::valueOf).orElse("N/A"));
+            prices.put("buy_max", maxBuyOpt.map(String::valueOf).orElse("N/A"));
+            prices.put("sell_min", minSellOpt.map(String::valueOf).orElse("N/A"));
+            prices.put("sell_max", maxSellOpt.map(String::valueOf).orElse("N/A"));
+            
+            // Formats composites
+            boolean hasBuyPrice = !buyPrice.equals("N/A");
+            boolean hasSellPrice = !sellPrice.equals("N/A");
+            
+            if (hasBuyPrice) {
+                if (minBuyOpt.isPresent() && maxBuyOpt.isPresent()) {
+                    prices.put("base_buy", String.format(currencyPrefix + "%s" + currencySuffix + " §7(%s - %s)",
+                            buyPrice, prices.get("buy_min"), prices.get("buy_max")));
+                } else {
+                    prices.put("base_buy", currencyPrefix + buyPrice + currencySuffix);
+                }
+            } else {
+                prices.put("base_buy", "N/A");
+            }
+            
+            if (hasSellPrice) {
+                if (minSellOpt.isPresent() && maxSellOpt.isPresent()) {
+                    prices.put("base_sell", String.format(currencyPrefix + "%s" + currencySuffix + " §7(%s - %s)",
+                            sellPrice, prices.get("sell_min"), prices.get("sell_max")));
+                } else {
+                    prices.put("base_sell", currencyPrefix + sellPrice + currencySuffix);
+                }
+            } else {
+                prices.put("base_sell", "N/A");
+            }
+            
+            return prices;
+        } catch (Exception e) {
+            return null; // En cas d'erreur, laisser le code principal continuer avec les valeurs par défaut
+        }
+    }
+    
+    /**
+     * Obtient l'ID de l'item, avec plusieurs méthodes de secours
+     */
+    private String getItemId(String shopId, int page, int slot, ItemStack item) {
+        try {
+            // Méthode 1: Obtenir directement par API
+            try {
+                return ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId).getShopItem(page, slot).getId();
+            } catch (Exception e) {
+                // Continue avec les autres méthodes
+            }
+            
+            // Méthode 2: Recherche par index calculé
+            try {
+                Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
+                int itemsPerPage = 45; // Généralement 45 slots par page
+                int index = (page - 1) * itemsPerPage + slot;
+                
+                if (index < shop.getShopItems().size()) {
+                    return shop.getShopItems().get(index).getId();
+                }
+            } catch (Exception e) {
+                // Continue avec les autres méthodes
+            }
+            
+            // Méthode 3: Recherche par similitude d'item
+            try {
+                for (net.brcdev.shopgui.shop.item.ShopItem shopItem : ShopGuiPlusApi.getShop(shopId).getShopItems()) {
+                    if (shopItem.getItem().isSimilar(item)) {
+                        return shopItem.getId();
+                    }
+                }
+            } catch (Exception e) {
+                // Continue avec les autres méthodes
+            }
+            
+            // Méthode 4: Dernière chance, extraire du nom
+            if (item.hasItemMeta() && item.getItemMeta().hasDisplayName()) {
+                String name = ChatColor.stripColor(item.getItemMeta().getDisplayName());
+                return name.toLowerCase().replace(" ", "_");
+            }
+            
+            return null;
+        } catch (Exception e) {
+            plugin.getLogger().warning("§c[DynaShop] Erreur ID item: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Obtient les prix, avec une forte priorité au temps réel
+     */
+    private Map<String, String> getPrices(String shopId, String itemId) {
+        String cacheKey = shopId + ":" + itemId;
+        
+        // Vérifier si on a une entrée en cache très récente
+        if (priceCache.containsKey(cacheKey)) {
+            return priceCache.get(cacheKey);
+        }
+        
+        // Sinon, calculer les prix en temps réel
+        Map<String, String> prices = calculateRealTimePrices(shopId, itemId);
+        priceCache.put(cacheKey, prices);
+        
+        return prices;
+    }
+    
+    /**
+     * Calcule les prix en temps réel, sans utiliser le cache
+     */
+    private Map<String, String> calculateRealTimePrices(String shopId, String itemId) {
+        Map<String, String> prices = new HashMap<>();
+        
+        try {
+            // Obtenir la devise
+            String currencyPrefix = "";
+            String currencySuffix = "";
+            try {
+                currencyPrefix = ShopGuiPlusApi.getPlugin().getEconomyManager()
+                        .getEconomyProvider(ShopGuiPlusApi.getShop(shopId).getEconomyType()).getCurrencyPrefix();
+                currencySuffix = ShopGuiPlusApi.getPlugin().getEconomyManager()
+                        .getEconomyProvider(ShopGuiPlusApi.getShop(shopId).getEconomyType()).getCurrencySuffix();
+            } catch (Exception e) {
+                // Ignorer
+            }
+            
+            // Obtenir les prix frais
+            String buyPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy");
+            String sellPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell");
+            
+            prices.put("buy", buyPrice);
+            prices.put("sell", sellPrice);
+            
+            boolean hasBuyPrice = !buyPrice.equals("N/A") && !buyPrice.equals("0.0");
+            boolean hasSellPrice = !sellPrice.equals("N/A") && !sellPrice.equals("0.0");
+            
+            // Obtenir les min/max si nécessaires
+            if (hasBuyPrice) {
+                prices.put("buy_min", plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy_min"));
+                prices.put("buy_max", plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy_max"));
+            } else {
+                prices.put("buy_min", "N/A");
+                prices.put("buy_max", "N/A");
+            }
+            
+            if (hasSellPrice) {
+                prices.put("sell_min", plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell_min"));
+                prices.put("sell_max", plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell_max"));
+            } else {
+                prices.put("sell_min", "N/A");
+                prices.put("sell_max", "N/A");
+            }
+            
+            // Composés pour l'affichage
+            if (hasBuyPrice) {
+                String buyMinPrice = prices.get("buy_min");
+                String buyMaxPrice = prices.get("buy_max");
+                
+                if (!buyMinPrice.equals("N/A") && !buyMaxPrice.equals("N/A")) {
+                    prices.put("base_buy", String.format(currencyPrefix + "%s" + currencySuffix + " §7(%s - %s)",
+                            buyPrice, buyMinPrice, buyMaxPrice));
+                } else {
+                    prices.put("base_buy", currencyPrefix + buyPrice + currencySuffix);
+                }
+            } else {
+                prices.put("base_buy", "N/A");
+            }
+            
+            if (hasSellPrice) {
+                String sellMinPrice = prices.get("sell_min");
+                String sellMaxPrice = prices.get("sell_max");
+                
+                if (!sellMinPrice.equals("N/A") && !sellMaxPrice.equals("N/A")) {
+                    prices.put("base_sell", String.format(currencyPrefix + "%s" + currencySuffix + " §7(%s - %s)",
+                            sellPrice, sellMinPrice, sellMaxPrice));
+                } else {
+                    prices.put("base_sell", currencyPrefix + sellPrice + currencySuffix);
+                }
+            } else {
+                prices.put("base_sell", "N/A");
+            }
+            
+        } catch (Exception e) {
+            // Valeurs par défaut en cas d'erreur
+            plugin.getLogger().warning("§c[DynaShop] Erreur calcul prix: " + e.getMessage());
+            prices.put("buy", "N/A");
+            prices.put("sell", "N/A");
+            prices.put("buy_min", "N/A");
+            prices.put("buy_max", "N/A");
+            prices.put("sell_min", "N/A");
+            prices.put("sell_max", "N/A");
+            prices.put("base_buy", "N/A");
+            prices.put("base_sell", "N/A");
+        }
+        
+        return prices;
+    }
+    
+    private boolean shouldSkipLine(String line, Map<String, String> prices) {
+        // Pour achat
+        if ((line.contains("%dynashop_current_buyPrice%") || line.contains("%dynashop_current_buy%")) && 
+            (prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0"))) {
+            return true;
+        }
+        
+        // Pour vente
+        if ((line.contains("%dynashop_current_sellPrice%") || line.contains("%dynashop_current_sell%")) && 
+            (prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0"))) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    private String replacePlaceholders(String line, Map<String, String> prices) {
+        // Remplacement optimisé
+        if (line.contains("%dynashop_current_buy%")) {
+            line = line.replace("%dynashop_current_buy%", prices.get("base_buy"));
+        }
+        
+        if (line.contains("%dynashop_current_sell%")) {
+            line = line.replace("%dynashop_current_sell%", prices.get("base_sell"));
+        }
+        
+        // Autres remplacements
+        line = line.replace("%dynashop_current_buyPrice%", prices.get("buy"))
+                   .replace("%dynashop_current_sellPrice%", prices.get("sell"))
+                   .replace("%dynashop_current_buyMinPrice%", prices.get("buy_min"))
+                   .replace("%dynashop_current_buyMaxPrice%", prices.get("buy_max"))
+                   .replace("%dynashop_current_sellMinPrice%", prices.get("sell_min"))
+                   .replace("%dynashop_current_sellMaxPrice%", prices.get("sell_max"));
+        
+        return line;
+    }
+    
+    private String extractShopId(String title) throws ShopsNotLoadedException {
+        if (title == null) return null;
+        
+        String cleanTitle = ChatColor.stripColor(title);
+        
+        Matcher shopMatcher = shopIdPattern.matcher(cleanTitle);
+        if (!shopMatcher.find()) return null;
+        
+        String shopName = shopMatcher.group(1).trim();
+        
+        try {
+            for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
+                String shopId = shop.getId();
+                String currentShopName = shop.getName();
+                
+                if (currentShopName.equalsIgnoreCase(shopName) || 
+                    cleanTitle.toLowerCase().contains(shopId.toLowerCase())) {
+                    
+                    Matcher pageMatcher = pagePattern.matcher(cleanTitle);
+                    if (pageMatcher.find()) {
+                        return shopId + "#" + pageMatcher.group(1);
+                    }
+                    return shopId + "#1"; // Page 1 par défaut
+                }
+            }
+        } catch (Exception e) {
+            // Ignorer
+        }
+        
+        return null;
+    }
+    
+    // Méthode pour vider le cache manuellement
+    public void clearCache() {
+        priceCache.clear();
+        synchronized (activePlayers) {
+            activePlayers.clear();
+        }
+    }
+    
+    // Méthode pour arrêter proprement les tâches planifiées
+    public void shutdown() {
+        if (priceRefreshTask != null) {
+            priceRefreshTask.cancel();
+        }
+        
+        priceUpdateService.shutdownNow();
+        priceCache.clear();
+        
+        synchronized (activePlayers) {
+            activePlayers.clear();
+        }
+    }
+}
