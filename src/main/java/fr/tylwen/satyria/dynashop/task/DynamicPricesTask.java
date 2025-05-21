@@ -105,7 +105,7 @@ public class DynamicPricesTask implements Runnable {
                 
                 // Traiter les données en thread asynchrone
                 Map<String, DynamicPrice> pricesToUpdate = new HashMap<>();
-                int itemsSkippedDueToStock = 0;
+                // int itemsSkippedDueToStock = 0;
                 
                 for (Map.Entry<ShopItem, DynamicPrice> entry : priceMap.entrySet()) {
                     ShopItem item = entry.getKey();
@@ -116,7 +116,7 @@ public class DynamicPricesTask implements Runnable {
 
                     int stock = entry.getValue().getStock();
                     if (stock > 0) {
-                        itemsSkippedDueToStock++;
+                        // itemsSkippedDueToStock++;
                         // Si le stock est supérieur à 0, on ne met pas à jour le prix
                         continue;
                     }

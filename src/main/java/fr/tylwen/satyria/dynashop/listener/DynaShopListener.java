@@ -11,6 +11,9 @@ import java.util.Optional;
 // import java.util.concurrent.ConcurrentHashMap;
 // import java.util.stream.Collectors;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+
+import javax.swing.text.StyledEditorKit.BoldAction;
 
 import org.bukkit.Bukkit;
 // import org.bukkit.ChatColor;
@@ -86,69 +89,109 @@ public class DynaShopListener implements Listener {
         ItemStack itemStack = item.getItem();
         boolean isBuy = event.getShopAction() == ShopAction.BUY;
 
+        // if (mainPlugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
+        //     // // Annuler immédiatement pour éviter le traitement par ShopGUI+
+        //     // event.setCancelled(true);
+            
+        //     // Vérifier d'abord le cache pour une réponse rapide
+        //     String cacheKey = player.getUniqueId() + ":" + shopID + ":" + itemID + ":" + (isBuy ? "buy" : "sell");
+            
+        //     // Vérifier d'abord dans le cache
+        //     if (limitsCache.containsKey(cacheKey)) {
+        //         LimitCacheEntry entry = limitsCache.get(cacheKey);
+        //         // Si le cache est récent (moins de 5 secondes), l'utiliser
+        //         if (System.currentTimeMillis() - entry.timestamp < 5000) {
+        //             if (!entry.canPerform) {
+        //                 // Si la limite est atteinte, annuler l'événement
+        //                 event.setCancelled(true);
+        //                 handleLimitExceeded(player, shopID, itemID, isBuy, event);
+        //                 return;
+        //             }
+        //             // Limite respectée (selon le cache), laisser passer la transaction
+        //             // return;
+        //             // Limite respectée selon le cache, continuer directement avec le reste du traitement
+        //             processRegularTransaction(event, player, item, amount, shopID, itemID, itemStack, isBuy);
+        //             return;
+        //         } else {
+        //             // Le cache est périmé, on le supprime
+        //             limitsCache.remove(cacheKey);
+        //         }
+        //     }
+            
+        //     // Stocker des informations de transaction pour utilisation ultérieure
+        //     TransactionInfo transactionInfo = new TransactionInfo(player, item, event.getShopAction(), amount);
+        //     pendingLimitChecks.put(cacheKey, transactionInfo);
+            
+        //     // Aucun cache valide, on effectue la vérification de manière asynchrone
+        //     // et on annule l'événement par sécurité en attendant la réponse
+        //     event.setCancelled(true);
+            
+            
+        //     mainPlugin.getTransactionLimiter().canPerformTransaction(player, shopID, itemID, isBuy, amount).thenAcceptAsync(canPerform -> {
+        //         // Cache le résultat pour les prochaines requêtes
+        //         limitsCache.put(cacheKey, new LimitCacheEntry(canPerform, System.currentTimeMillis()));
+                
+        //         if (Boolean.TRUE.equals(canPerform)) {
+        //             // // Replanifier la transaction
+        //             mainPlugin.getLogger().info("Transaction autorisée pour " + player.getName() + " sur " + shopID + ":" + itemID);
+        //             Bukkit.getScheduler().runTask(mainPlugin, () -> {
+        //                 pendingLimitChecks.remove(cacheKey);
+        //                 event.setCancelled(false); // Annuler l'annulation de l'événement
+        //                 // Appeler directement la méthode qui traite le reste de la logique
+        //                 processRegularTransaction(event, player, item, amount, shopID, itemID, itemStack, isBuy);
+        //             });
+        //         } else {
+        //             // Obtient les informations supplémentaires de manière asynchrone
+        //             handleLimitExceeded(player, shopID, itemID, isBuy, null);
+        //             pendingLimitChecks.remove(cacheKey);
+        //             // if (event.isCancelled()) {
+        //             //     // // Annuler l'événement si la limite est atteinte
+        //             //     // event.setCancelled(true);
+        //             //     return;
+        //             // }
+        //             // event.setCancelled(true);
+        //             // return;
+        //         }
+        //     });
+        //     return;
+        // }
+        
         if (mainPlugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
-            // // Annuler immédiatement pour éviter le traitement par ShopGUI+
+            // Annuler l'événement en attendant la vérification
             // event.setCancelled(true);
             
-            // Vérifier d'abord le cache pour une réponse rapide
-            String cacheKey = player.getUniqueId() + ":" + shopID + ":" + itemID + ":" + (isBuy ? "buy" : "sell");
-            
-            // Vérifier d'abord dans le cache
-            if (limitsCache.containsKey(cacheKey)) {
-                LimitCacheEntry entry = limitsCache.get(cacheKey);
-                // Si le cache est récent (moins de 5 secondes), l'utiliser
-                if (System.currentTimeMillis() - entry.timestamp < 5000) {
-                    if (!entry.canPerform) {
-                        // Si la limite est atteinte, annuler l'événement
-                        event.setCancelled(true);
-                        handleLimitExceeded(player, shopID, itemID, isBuy, event);
-                        return;
-                    }
-                    // Limite respectée (selon le cache), laisser passer la transaction
-                    // return;
-                    // Limite respectée selon le cache, continuer directement avec le reste du traitement
-                    processRegularTransaction(event, player, item, amount, shopID, itemID, itemStack, isBuy);
-                    return;
-                } else {
-                    // Le cache est périmé, on le supprime
-                    limitsCache.remove(cacheKey);
-                }
-            }
+            // Créer une clé pour identifier cette transaction
+            String transactionKey = player.getUniqueId() + ":" + shopID + ":" + itemID + ":" + (isBuy ? "buy" : "sell");
             
             // Stocker des informations de transaction pour utilisation ultérieure
             TransactionInfo transactionInfo = new TransactionInfo(player, item, event.getShopAction(), amount);
-            pendingLimitChecks.put(cacheKey, transactionInfo);
+            pendingLimitChecks.put(transactionKey, transactionInfo);
             
-            // Aucun cache valide, on effectue la vérification de manière asynchrone
-            // et on annule l'événement par sécurité en attendant la réponse
-            event.setCancelled(true);
-            
-            
+            // Vérifier directement en BDD sans utiliser de cache
             mainPlugin.getTransactionLimiter().canPerformTransaction(player, shopID, itemID, isBuy, amount).thenAcceptAsync(canPerform -> {
-                // Cache le résultat pour les prochaines requêtes
-                limitsCache.put(cacheKey, new LimitCacheEntry(canPerform, System.currentTimeMillis()));
-                
-                if (canPerform) {
-                    // // Replanifier la transaction
+                if (Boolean.TRUE.equals(canPerform)) {
+                    // Transaction autorisée
+                    // mainPlugin.getLogger().info("Transaction autorisée pour " + player.getName() + " sur " + shopID + ":" + itemID);
                     Bukkit.getScheduler().runTask(mainPlugin, () -> {
-                        pendingLimitChecks.remove(cacheKey);
-                        event.setCancelled(false); // Annuler l'annulation de l'événement
-                        // Appeler directement la méthode qui traite le reste de la logique
+                        pendingLimitChecks.remove(transactionKey);
+                        // Traiter la transaction normalement
+                        // event.setCancelled(false); // Annuler l'annulation de l'événement
+                        // mainPlugin.getLogger().info("État de l'événement : " + event.isCancelled());
                         processRegularTransaction(event, player, item, amount, shopID, itemID, itemStack, isBuy);
+                        // mainPlugin.getLogger().info("État de l'événement : " + event.isCancelled());
                     });
                 } else {
-                    // Obtient les informations supplémentaires de manière asynchrone
-                    handleLimitExceeded(player, shopID, itemID, isBuy, null);
-                    pendingLimitChecks.remove(cacheKey);
-                    // if (event.isCancelled()) {
-                    //     // // Annuler l'événement si la limite est atteinte
-                    //     // event.setCancelled(true);
-                    //     return;
-                    // }
-                    // event.setCancelled(true);
-                    // return;
+                    // Limite atteinte, afficher message d'erreur
+                    // Si la transaction n'est pas autorisée, annuler l'événement
+                    Bukkit.getScheduler().runTask(mainPlugin, () -> {
+                        event.setCancelled(true);
+                        handleLimitExceeded(player, shopID, itemID, isBuy, event);
+                        pendingLimitChecks.remove(transactionKey);
+                    });
                 }
             });
+            // IMPORTANT: Annuler temporairement l'événement, il sera rétabli si la vérification réussit
+            // event.setCancelled(true);
             return;
         }
 
@@ -210,19 +253,20 @@ public class DynaShopListener implements Listener {
     private void processRegularTransaction(ShopPreTransactionEvent event, Player player, ShopItem item, int amount, String shopID, String itemID, ItemStack itemStack, boolean isBuy) {
         // Vérifier si l'item est configuré pour DynaShop
         if (!shopConfigManager.getItemValue(shopID, itemID, "typeDynaShop", String.class).isPresent()) {
+            // mainPlugin.warning(itemID + " : Pas de section DynaShop dans le shop " + shopID);
             return; // Ignorer les items non configurés pour DynaShop
         }
         
         // Vérifier les sections requises
-        if (!shopConfigManager.hasStockSection(shopID, itemID) && 
-            !shopConfigManager.hasDynamicSection(shopID, itemID) && 
-            !shopConfigManager.hasRecipeSection(shopID, itemID)) {
+        if (!shopConfigManager.hasStockSection(shopID, itemID) && !shopConfigManager.hasDynamicSection(shopID, itemID) && !shopConfigManager.hasRecipeSection(shopID, itemID)) {
+            // mainPlugin.warning(itemID + " : Pas de section dynamique, recette ou stock dans le shop " + shopID);
             return; // Ignorer les items sans les sections requises
         }
         
         // Le reste de votre logique de traitement des transactions dynamiques
         DynamicPrice price = getOrLoadPrice(shopID, itemID, itemStack);
         if (price == null) {
+            // mainPlugin.warning(itemID + " : Pas de prix dynamique trouvé dans le shop " + shopID);
             return;
         }
         
@@ -232,9 +276,9 @@ public class DynaShopListener implements Listener {
             // if (event.getShopAction() == ShopAction.BUY && price.getStock() <= 0) {
             if (event.getShopAction() == ShopAction.BUY && !DynaShopPlugin.getInstance().getPriceStock().canBuy(shopID, itemID, amount)) {
                 event.setCancelled(true);
-                if (event.getPlayer() != null) {
+                if (player != null) {
                     // event.getPlayer().sendMessage("§c[DynaShop] Cet item est en rupture de stock !");
-                    event.getPlayer().sendMessage(this.mainPlugin.getLangConfig().getMsgOutOfStock());
+                    player.sendMessage(this.mainPlugin.getLangConfig().getMsgOutOfStock());
                 }
                 return;
             }
@@ -243,13 +287,13 @@ public class DynaShopListener implements Listener {
             // if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && price.getStock() >= price.getMaxStock()) {
             if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && !DynaShopPlugin.getInstance().getPriceStock().canSell(shopID, itemID, amount)) {
                 event.setCancelled(true);
-                if (event.getPlayer() != null) {
+                if (player != null) {
                     // event.getPlayer().sendMessage("§c[DynaShop] Le stock de cet item est complet, impossible de vendre plus !");
                     // event.getPlayer().sendMessage(this.mainPlugin.getConfigLang().getString("messages.stockFull")
                     //     .replace("%item%", itemID)
                     //     .replace("%shop%", shopID));
                     // event.getPlayer().sendMessage(this.mainPlugin.getConfigLang().getString("stock.full-stock"));
-                    event.getPlayer().sendMessage(this.mainPlugin.getLangConfig().getMsgFullStock());
+                    player.sendMessage(this.mainPlugin.getLangConfig().getMsgFullStock());
                 }
                 return;
             }
@@ -260,6 +304,7 @@ public class DynaShopListener implements Listener {
         } else if (event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) {
             event.setPrice(price.getSellPriceForAmount(amount));
         }
+        // mainPlugin.getLogger().info("Transaction traitée pour " + player.getName() + " sur " + shopID + ":" + itemID);
     }
 
     // // @EventHandler

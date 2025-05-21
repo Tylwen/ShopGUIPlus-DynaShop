@@ -34,7 +34,7 @@ import fr.tylwen.satyria.dynashop.data.ShopConfigManager;
 import fr.tylwen.satyria.dynashop.database.BatchDatabaseUpdater;
 import fr.tylwen.satyria.dynashop.database.DataManager;
 import fr.tylwen.satyria.dynashop.database.ItemDataManager;
-import fr.tylwen.satyria.dynashop.gui.ShopRefreshManager;
+// import fr.tylwen.satyria.dynashop.gui.ShopRefreshManager;
 import fr.tylwen.satyria.dynashop.hook.DynaShopExpansion;
 // import fr.tylwen.satyria.dynashop.hook.DynaShopItemProvider;
 import fr.tylwen.satyria.dynashop.hook.ShopGUIPlusHook;
@@ -44,14 +44,14 @@ import fr.tylwen.satyria.dynashop.listener.DynaShopListener;
 import fr.tylwen.satyria.dynashop.listener.ShopItemPlaceholderListener;
 // import fr.tylwen.satyria.dynashop.packet.ItemPacketInterceptor;
 // import fr.tylwen.satyria.dynashop.utils.CommentedConfiguration;
-import fr.tylwen.satyria.dynashop.task.ReloadDatabaseTask;
+// import fr.tylwen.satyria.dynashop.task.ReloadDatabaseTask;
 // import fr.tylwen.satyria.dynashop.task.DynamicPricesTask;
 import fr.tylwen.satyria.dynashop.task.WaitForShopsTask;
-import net.brcdev.shopgui.ShopGuiPlugin;
+// import net.brcdev.shopgui.ShopGuiPlugin;
 // import net.brcdev.shopgui.ShopGuiPlugin;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 // import net.brcdev.shopgui.shop.item.ShopItem;
-import net.brcdev.shopgui.provider.item.ItemProvider;
+// import net.brcdev.shopgui.provider.item.ItemProvider;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -86,7 +86,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private ShopItemPlaceholderListener shopItemPlaceholderListener;
     private DynaShopExpansion placeholderExpansion;
     private TransactionLimiter transactionLimiter;
-    private ShopRefreshManager shopRefreshManager;
+    // private ShopRefreshManager shopRefreshManager;
     // private ItemPacketInterceptor packetInterceptor;
 
     private int dynamicPricesTaskId;
@@ -184,9 +184,9 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         return transactionLimiter;
     }
 
-    public ShopRefreshManager getShopRefreshManager() {
-        return shopRefreshManager;
-    }
+    // public ShopRefreshManager getShopRefreshManager() {
+    //     return shopRefreshManager;
+    // }
 
     // public ItemPacketInterceptor getPacketInterceptor() {
     //     return packetInterceptor;
@@ -317,7 +317,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         this.itemDataManager = new ItemDataManager(this.dataManager);
         this.batchDatabaseUpdater = new BatchDatabaseUpdater(this);
         this.transactionLimiter = new TransactionLimiter(this);
-        this.shopRefreshManager = new ShopRefreshManager(this);
+        // this.shopRefreshManager = new ShopRefreshManager(this);
         // preloadPopularItems();
     }
 
@@ -361,9 +361,9 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
             shopItemPlaceholderListener.shutdown();
         }
         
-        if (shopRefreshManager != null) {
-            shopRefreshManager.shutdown();
-        }
+        // if (shopRefreshManager != null) {
+        //     shopRefreshManager.shutdown();
+        // }
         
         // Arrêter le gestionnaire de mises à jour en batch
         if (batchDatabaseUpdater != null) {

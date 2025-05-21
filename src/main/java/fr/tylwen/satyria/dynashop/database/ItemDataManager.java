@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 
 import org.bukkit.Bukkit;
 
@@ -342,4 +343,59 @@ public class ItemDataManager {
     public boolean priceExists(String shopID, String itemID) {
         return itemExists(shopID, itemID);
     }
+
+    // /**
+    //  * Récupère toutes les valeurs de prix pour un item en une seule opération.
+    //  * Fournit un accès optimisé aux données sans appels répétés à la DB.
+    //  */
+    // public Optional<DynamicPrice> getItemValues(String shopID, String itemID) {
+    //     // Si nous sommes dans le thread principal, utiliser une version asynchrone non-bloquante
+    //     if (Bukkit.isPrimaryThread()) {
+    //         // Vérifier le cache d'abord
+    //         String cacheKey = shopID + ":" + itemID + ":dynprice";
+    //         DynamicPrice cachedPrice = itemValuesCache.get(cacheKey);
+    //         if (cachedPrice != null) {
+    //             return Optional.of(cachedPrice);
+    //         }
+            
+    //         // Lancer la récupération en arrière-plan pour mettre à jour le cache
+    //         dataManager.executeAsync(() -> {
+    //             Optional<DynamicPrice> price = fetchItemValuesFromDB(shopID, itemID);
+    //             price.ifPresent(p -> itemValuesCache.put(cacheKey, p));
+    //             return null;
+    //         });
+            
+    //         // Retourner une valeur vide si pas en cache
+    //         return Optional.empty();
+    //     }
+        
+    //     // Version pour thread non-principal
+    //     try {
+    //         return dataManager.executeAsync(() -> fetchItemValuesFromDB(shopID, itemID)).get();
+    //     } catch (InterruptedException e) {
+    //         // CORRECTION : Réinterrompre le thread pour préserver le signal d'interruption
+    //         Thread.currentThread().interrupt();
+    //         plugin.getLogger().warning("Thread interrompu pendant la récupération des prix: " + e.getMessage());
+    //         return Optional.empty();
+    //     } catch (ExecutionException e) {
+    //         plugin.getLogger().severe("Erreur lors de la récupération des valeurs d'item: " + e.getMessage());
+    //         return Optional.empty();
+    //     }
+    // }
+
+    // /**
+    //  * Récupère un prix spécifique pour un item.
+    //  */
+    // public Optional<Double> getBuyPrice(String shopID, String itemID) {
+    //     try {
+    //         return dataManager.getBuyPrice(shopID, itemID);
+    //     } catch (RuntimeException e) {
+    //         if (e.getCause() instanceof InterruptedException) {
+    //             // CORRECTION : Réinterrompre le thread
+    //             Thread.currentThread().interrupt();
+    //         }
+    //         plugin.getLogger().warning("Erreur lors de la récupération du prix d'achat: " + e.getMessage());
+    //         return Optional.empty();
+    //     }
+    // }
 }

@@ -1,6 +1,6 @@
 package fr.tylwen.satyria.dynashop.listener;
 
-import org.bukkit.ChatColor;
+// import org.bukkit.ChatColor;
 // import org.bukkit.Material;
 // import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -17,7 +17,7 @@ import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.inventory.InventoryView;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
-import fr.tylwen.satyria.dynashop.data.DynamicPrice;
+// import fr.tylwen.satyria.dynashop.data.DynamicPrice;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.ShopGuiPlusApi;
@@ -41,7 +41,7 @@ public class ShopItemPlaceholderListener implements Listener {
     private final Map<UUID, SimpleEntry<String, String>> openShopMap = new ConcurrentHashMap<>();
 
     // Stockage des inventaires à actualiser
-    private final Map<UUID, InventoryRefreshData> openInventories = new ConcurrentHashMap<>();
+    // private final Map<UUID, InventoryRefreshData> openInventories = new ConcurrentHashMap<>();
     private BukkitTask refreshTask;
 
     private final Map<String, Map<String, String>> globalPriceCache = new ConcurrentHashMap<>();
@@ -65,140 +65,6 @@ public class ShopItemPlaceholderListener implements Listener {
         
         openShopMap.put(player.getUniqueId(), new SimpleEntry<>(shopId, itemId));
     }
-    
-    // @EventHandler(priority = EventPriority.LOWEST)
-    // public void onInventoryOpen(InventoryOpenEvent event) {
-    //     if (!(event.getPlayer() instanceof Player))
-    //         return;
-            
-    //     Player player = (Player) event.getPlayer();
-        
-    //     // Vérifier si c'est une interface de ShopGUI+
-    //     // String nameShop = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getString("shopMenuName");
-    //     // if (event.getView().getTitle().contains("Shop") || event.getView().getTitle().contains("Magasin")) {
-    //     // il faut replace toutes les couleurs "&7" par rien
-    //     String nameShop = ChatColor.stripColor(ChatColor.translateAlternateColorCodes('&', ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getString("shopMenuName")));
-    //     // DynaShopPlugin.getInstance().getLogger().info("Nom du shop: " + nameShop);
-    //     // String nameShop = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getString("shopMenuName").replace("&7", "");
-    //     if (event.getView().getTitle().contains(nameShop)) {
-            
-    //         // // Essayer de déterminer le shop et l'item
-    //         // try {
-    //         //     String shopId = determineShopId(event.getView());
-                
-    //         //     if (shopId != null) {
-    //         //         // Pour l'item, on peut soit le détecter immédiatement, soit mettre une valeur nulle
-    //         //         // et le mettre à jour au fur et à mesure que le joueur navigue dans le shop
-    //         //         String itemId = determineSelectedItem(player, event.getView());
-                    
-    //         //         openShopMap.put(player.getUniqueId(), new SimpleEntry<>(shopId, itemId));
-                    
-    //         //         // Log pour le débogage
-    //         //         plugin.getLogger().info("Shop détecté pour " + player.getName() + ": " + shopId + (itemId != null ? ", item: " + itemId : ""));
-    //         //     }
-    //         // } catch (Exception e) {
-    //         //     plugin.getLogger().warning("Erreur lors de la détection du shop: " + e.getMessage());
-    //         // }
-
-    //         // try {
-    //         //     OpenGui openGui = ShopGuiPlusApi.getPlugin().getPlayerManager().getPlayerData(player).getOpenGui();
-    //         //     if (openGui != null) {
-    //         //         // On peut aussi essayer de récupérer l'item sélectionné dans le shop
-    //         //         ItemStack cursorItem = openGui.
-    //         //         if (cursorItem != null && cursorItem.getType() != Material.AIR) {
-    //         //             ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(cursorItem);
-    //         //             if (shopItem != null) {
-    //         //                 String itemId = shopItem.getId();
-    //         //                 openShopMap.put(player.getUniqueId(), new SimpleEntry<>(shopId, itemId));
-    //         //             }
-    //         //         }
-    //         //     }
-    //         // } catch (PlayerDataNotLoadedException e) {
-    //         //     // TODO Auto-generated catch block
-    //         //     e.printStackTrace();
-    //         // }
-            
-    //         // Attendre 1 tick pour que l'inventaire soit rempli
-    //         // plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-    //         plugin.getServer().getScheduler().runTaskLaterAsynchronously(plugin, () -> {
-    //             String shopID = determineShopId(event.getView());
-    //             if (shopID == null) {
-    //                 // plugin.getLogger().warning("Shop ID non trouvé pour " + player.getName());
-    //                 return;
-    //             }
-    //             if (!shopID.contains("#")) {
-    //                 // plugin.getLogger().warning("Shop ID non valide pour " + player.getName());
-    //                 return;
-    //             }
-    //             // int page = shopID.split("#")[1].equals("0") ? 0 : Integer.parseInt(shopID.split("#")[1]);
-    //             int page = Integer.parseInt(shopID.split("#")[1]);
-    //             shopID = shopID.split("#")[0];
-    //             // Parcourir tous les items de l'inventaire
-    //             for (int i = 0; i < event.getInventory().getSize(); i++) {
-    //                 ItemStack item = event.getInventory().getItem(i);
-    //                 if (item != null && item.hasItemMeta() && item.getItemMeta().hasLore()) {
-    //                     // Mettre à jour le lore avec les placeholders
-    //                     ItemMeta meta = item.getItemMeta();
-    //                     List<String> lore = meta.getLore();
-    //                     List<String> newLore = new ArrayList<>();
-
-    //                     // String itemId = determineSelectedItem(player, event.getView());
-    //                     String itemId = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopID).getShopItem(page, i).getId();
-    //                     openShopMap.put(player.getUniqueId(), new SimpleEntry<>(shopID, itemId));
-                        
-    //                     for (String line : lore) {
-    //                         // Éviter d'utiliser nos propres placeholders pour éviter une boucle
-    //                         if (line.contains("%dynashop_current_")) {
-    //                             // Traiter manuellement nos placeholders ici
-    //                             // Pour le moment, laissez-les intacts pour éviter la boucle
-    //                             // line = line.replace("%dynashop_current_buyPrice%", String.valueOf(DynaShopPlugin.getInstance().getPlaceholderExpansion().getPriceByType(shopID, itemId, "buy")));
-    //                             // line = line.replace("%dynashop_current_buyMinPrice%", String.valueOf(DynaShopPlugin.getInstance().getPlaceholderExpansion().getPriceByType(shopID, itemId, "buy_min")));
-    //                             // line = line.replace("%dynashop_current_buyMaxPrice%", String.valueOf(DynaShopPlugin.getInstance().getPlaceholderExpansion().getPriceByType(shopID, itemId, "buy_max")));
-    //                             // line = line.replace("%dynashop_current_sellPrice%", String.valueOf(DynaShopPlugin.getInstance().getPlaceholderExpansion().getPriceByType(shopID, itemId, "sell")));
-    //                             // line = line.replace("%dynashop_current_sellMinPrice%", String.valueOf(DynaShopPlugin.getInstance().getPlaceholderExpansion().getPriceByType(shopID, itemId, "sell_min")));
-    //                             // line = line.replace("%dynashop_current_sellMaxPrice%", String.valueOf(DynaShopPlugin.getInstance().getPlaceholderExpansion().getPriceByType(shopID, itemId, "sell_max")));
-    //                             // line = line.replace("%dynashop_current_stock%", String.valueOf(DynaShopPlugin.getInstance().getPlaceholderExpansion().getStock(shopID, itemId)));
-    //                             // line = line.replace("%dynashop_current_maxStock%", String.valueOf(DynaShopPlugin.getInstance().getPlaceholderExpansion().getMaxStock(shopID, itemId)));
-
-    //                             line = line.replace("%dynashop_current_buyPrice%", String.valueOf(DynaShopPlugin.getInstance().getPlaceholderExpansion().getPriceByType(shopID, itemId, "buy")))
-    //                                 .replace("%dynashop_current_buyMinPrice%", String.valueOf(DynaShopPlugin.getInstance().getPlaceholderExpansion().getPriceByType(shopID, itemId, "buy_min")))
-    //                                 .replace("%dynashop_current_buyMaxPrice%", String.valueOf(DynaShopPlugin.getInstance().getPlaceholderExpansion().getPriceByType(shopID, itemId, "buy_max")))
-    //                                 .replace("%dynashop_current_sellPrice%", String.valueOf(DynaShopPlugin.getInstance().getPlaceholderExpansion().getPriceByType(shopID, itemId, "sell")))
-    //                                 .replace("%dynashop_current_sellMinPrice%", String.valueOf(DynaShopPlugin.getInstance().getPlaceholderExpansion().getPriceByType(shopID, itemId, "sell_min")))
-    //                                 .replace("%dynashop_current_sellMaxPrice%", String.valueOf(DynaShopPlugin.getInstance().getPlaceholderExpansion().getPriceByType(shopID, itemId, "sell_max")));
-
-    //                             newLore.add(line);
-    //                         // }
-    //                         } else {
-    //                             // // Pour les autres placeholders, utiliser PlaceholderAPI normalement
-    //                             // String processed = PlaceholderAPI.setPlaceholders(player, line);
-    //                             // newLore.add(processed);
-    //                             newLore.add(line);
-    //                         }
-    //                     }
-                        
-    //                     meta.setLore(newLore);
-    //                     item.setItemMeta(meta);
-    //                 }
-    //             }
-    //         }, 1L);
-    //     }
-        
-    //     //     // Remplacer votre bloc actuel de mise à jour par:
-    //     //     plugin.getServer().getScheduler().runTaskLaterAsynchronously(plugin, () -> {
-    //     //         String fullShopId = determineShopId(event.getView());
-    //     //         if (fullShopId == null) {
-    //     //             return;
-    //     //         }
-    //     //         String shopId = fullShopId;
-    //     //         if (fullShopId.contains("#")) {
-    //     //             shopId = fullShopId.split("#")[0];
-    //     //         }
-                
-    //     //         updateShopInventory(player, event.getView(), shopId);
-    //     //     }, 1L);
-    //     // }
-    // }
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onInventoryOpen(InventoryOpenEvent event) {
@@ -209,65 +75,55 @@ public class ShopItemPlaceholderListener implements Listener {
         Player player = (Player) event.getPlayer();
         InventoryView view = event.getView();
 
-        // // Vérifier si c'est une interface de ShopGUI+
-        // String nameShop = ChatColor.stripColor(ChatColor.translateAlternateColorCodes('&', ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getString("shopMenuName")));
+        String fullShopId = determineShopId(view);
+        if (fullShopId == null) return;
+        
+        String shopId = fullShopId;
+        int page = 1;
 
-        // if (event.getView().getTitle().contains(nameShop)) {
-            // Attendre 1 tick puis mettre à jour l'inventaire avec notre méthode optimisée
-            // plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                String fullShopId = determineShopId(view);
-                if (fullShopId == null) return;
+        if (fullShopId.contains("#")) {
+            String[] parts = fullShopId.split("#");
+            shopId = parts[0];
+            try {
+                page = Integer.parseInt(parts[1]);
+            } catch (NumberFormatException e) {
+                page = 1;
+            }
+        }
+
+        // IMPORTANT: Stocker les lores originaux avant de les modifier
+        Map<Integer, List<String>> originalLores = new HashMap<>();
+        
+        // IMPORTANT: Pré-traitement pour masquer les placeholders pendant le chargement
+        for (int slot = 0; slot < view.getTopInventory().getSize(); slot++) {
+            ItemStack item = view.getTopInventory().getItem(slot);
+            if (item != null && item.hasItemMeta() && item.getItemMeta().hasLore()) {
+                ItemMeta meta = item.getItemMeta();
+                List<String> lore = meta.getLore();
                 
-                String shopId = fullShopId;
-                int page = 1;
+                if (containsDynaShopPlaceholder(lore)) {
+                    // CRUCIAL: Stocker le lore original avant de le modifier
+                    originalLores.put(slot, new ArrayList<>(lore));
 
-                if (fullShopId.contains("#")) {
-                    String[] parts = fullShopId.split("#");
-                    shopId = parts[0];
-                    try {
-                        page = Integer.parseInt(parts[1]);
-                    } catch (NumberFormatException e) {
-                        page = 1;
-                    }
-                }
-                // plugin.getLogger().info("Shop ID: " + shopId + ", Page: " + page);
-
-                
-            // IMPORTANT: Stocker les lores originaux avant de les modifier
-            Map<Integer, List<String>> originalLores = new HashMap<>();
-            
-            // IMPORTANT: Pré-traitement pour masquer les placeholders pendant le chargement
-            for (int slot = 0; slot < view.getTopInventory().getSize(); slot++) {
-                ItemStack item = view.getTopInventory().getItem(slot);
-                if (item != null && item.hasItemMeta() && item.getItemMeta().hasLore()) {
-                    ItemMeta meta = item.getItemMeta();
-                    List<String> lore = meta.getLore();
-                    
-                    if (containsDynaShopPlaceholder(lore)) {
-                        // CRUCIAL: Stocker le lore original avant de le modifier
-                        originalLores.put(slot, new ArrayList<>(lore));
-
-                        // Pré-remplacer les placeholders pour éviter de les voir bruts
-                        List<String> tempLore = preProcessPlaceholders(lore);
-                        meta.setLore(tempLore);
-                        item.setItemMeta(meta);
-                    }
+                    // Pré-remplacer les placeholders pour éviter de les voir bruts
+                    List<String> tempLore = preProcessPlaceholders(lore);
+                    meta.setLore(tempLore);
+                    item.setItemMeta(meta);
                 }
             }
+        }
 
-                // // Ajouter à la liste des inventaires à rafraîchir
-                // openInventories.put(player.getUniqueId(), new InventoryRefreshData(shopId, event.getView()));
-                // Enregistrer la session dans le ShopRefreshManager
-                // plugin.getShopRefreshManager().registerSession(player, fullShopId, page);
-                
-                // final String finalShopId = shopId;
-                // plugin.getServer().getScheduler().runTaskLaterAsynchronously(plugin, () -> {
-                //     // Mettre à jour l'inventaire du shop
-                //     updateShopInventory(player, event.getView(), finalShopId);
-                // }, 1L);
-                updateShopInventory(player, view, shopId, page, originalLores);
-            // }, 1L);
-        // }
+        // // Ajouter à la liste des inventaires à rafraîchir
+        // openInventories.put(player.getUniqueId(), new InventoryRefreshData(shopId, event.getView()));
+        // Enregistrer la session dans le ShopRefreshManager
+        // plugin.getShopRefreshManager().registerSession(player, fullShopId, page);
+        
+        // final String finalShopId = shopId;
+        // plugin.getServer().getScheduler().runTaskLaterAsynchronously(plugin, () -> {
+        //     // Mettre à jour l'inventaire du shop
+        //     updateShopInventory(player, event.getView(), finalShopId);
+        // }, 1L);
+        updateShopInventory(player, view, shopId, page, originalLores);
         
         // Démarrer l'actualisation continue
         startContinuousRefresh(player, view, shopId, page, originalLores);
@@ -300,7 +156,7 @@ public class ShopItemPlaceholderListener implements Listener {
         // plugin.getShopRefreshManager().unregisterSession(player);
         
         // Nettoyer les autres maps
-        openInventories.remove(player.getUniqueId());
+        // openInventories.remove(player.getUniqueId());
         openShopMap.remove(player.getUniqueId());
     }
 
@@ -324,58 +180,8 @@ public class ShopItemPlaceholderListener implements Listener {
      */
     private String determineShopId(InventoryView view) {
         String title = view.getTitle();
-        
-        // // Méthode 1: Extraire du titre (en supposant un format comme "Shop - {shopId}")
-        // if (title.contains("»")) {
-        //     String[] parts = title.split("»");
-        //     if (parts.length > 0) {
-        //         // Nettoyer le texte pour obtenir l'ID du shop
-        //         String shopName = ChatColor.stripColor(parts[1].trim());
-                
-        //         // Convertir le nom affiché en ID de shop (en supposant que l'ID est en minuscules sans espaces)
-        //         return shopName.toLowerCase().replace(" ", "").replace("-", "").replace("_", "");
-        //     }
-        // } else if (title.contains("-")) {
-        //     String[] parts = title.split("-");
-        //     if (parts.length > 0) {
-        //         // Nettoyer le texte pour obtenir l'ID du shop
-        //         String shopName = ChatColor.stripColor(parts[1].trim());
-                
-        //         // Convertir le nom affiché en ID de shop (en supposant que l'ID est en minuscules sans espaces)
-        //         return shopName.toLowerCase().replace(" ", "").replace("-", "").replace("_", "");
-        //     }
-        // }
-        
-        // Méthode 2: Essayer d'utiliser l'API de ShopGUI+ si disponible
+
         try {
-            // // // Tenter de récupérer le shop actif du joueur via l'API ShopGUI+
-            // // for (String shopId : ShopGuiPlusApi.getPlugin().getShopManager().getShops().stream().map(Shop::getId).toList()) {
-            // //     if (title.contains(ShopGuiPlusApi.getShop(shopId).getName())) {
-            // //         return shopId;
-            // //     }
-            // // }
-            // for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
-            //     if (title.contains(shop.getName().replace("%page%", ""))) {
-            //         // plugin.getLogger().info("Nom du shop: " + shop.getName());
-            //         // plugin.getLogger().info("Titre de l'inventaire: " + title);
-            //         // [19:15:08 INFO]: [DynaShop] Nom du shop: Magasin §l»§r Minerais #%page%
-            //         // [19:15:08 INFO]: [DynaShop] Titre de l'inventaire: Magasin §l»§r Minerais #1
-            //         // il faut extraire le numéro de page, via où se trouve le %page%
-            //         int page = 1;
-            //         if (shop.getName().contains("%page%")) {
-            //             String[] parts = shop.getName().split("%page%");
-            //             if (parts.length > 0) {
-            //                 String pageString = parts[0];
-            //             return shop.getId() + "#" + page;
-            //         }
-            //         return shop.getId();
-            //     }
-            //     // plugin.getLogger().info("Nom du shop: " + shop.getName());
-            //     // plugin.getLogger().info("Titre de l'inventaire: " + title);
-            //     // if (shop.getName().contains(title)) {
-            //     //     return shop.getId();
-            //     // }
-            // }
             for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
                 // Vérifier si le titre correspond au modèle du shop
                 String shopNameTemplate = shop.getName().replace("%page%", "");
@@ -408,82 +214,6 @@ public class ShopItemPlaceholderListener implements Listener {
         
         return null;
     }
-
-    // @EventHandler(priority = EventPriority.MONITOR)
-    // public void onInventoryClick(InventoryClickEvent event) {
-    //     if (!(event.getWhoClicked() instanceof Player))
-    //         return;
-            
-    //     Player player = (Player) event.getWhoClicked();
-        
-    //     // Ne traiter que les clics dans les shops
-    //     SimpleEntry<String, String> shopData = openShopMap.get(player.getUniqueId());
-    //     if (shopData == null) 
-    //         return;
-        
-    //     // Mettre à jour uniquement l'item cliqué après une courte pause
-    //     plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-    //         int slot = event.getSlot();
-    //         updateSingleItem(player, player.getOpenInventory(), shopData.getKey(), slot);
-    //     }, 2L);
-    // }
-
-    // // Méthode pour mettre à jour un seul item
-    // private void updateSingleItem(Player player, InventoryView view, String shopId, int slot) {
-    //     if (view == null || view.getTopInventory() == null) return;
-        
-    //     try {
-    //         String fullShopId = determineShopId(view);
-    //         if (fullShopId == null) return;
-            
-    //         int page = 0;
-    //         if (fullShopId.contains("#")) {
-    //             page = Integer.parseInt(fullShopId.split("#")[1]);
-    //             shopId = fullShopId.split("#")[0];
-    //         }
-            
-    //         ItemStack item = view.getTopInventory().getItem(slot);
-    //         if (item != null && item.hasItemMeta() && item.getItemMeta().hasLore()) {
-    //             ItemMeta meta = item.getItemMeta();
-    //             List<String> lore = meta.getLore();
-    //             List<String> newLore = new ArrayList<>();
-                
-    //             // Essayer de trouver l'itemId pour cet item
-    //             String itemId = null;
-    //             try {
-    //                 itemId = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId).getShopItem(page, slot).getId();
-    //                 if (itemId != null) {
-    //                     openShopMap.put(player.getUniqueId(), new SimpleEntry<>(shopId, itemId));
-                        
-    //                     for (String line : lore) {
-    //                         if (line.contains("%dynashop_current_")) {
-    //                             // Cache des valeurs pour éviter des appels répétés
-    //                             String buyPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy");
-    //                             String sellPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell");
-                                
-    //                             line = line.replace("%dynashop_current_buyPrice%", buyPrice)
-    //                                 .replace("%dynashop_current_sellPrice%", sellPrice)
-    //                                 .replace("%dynashop_current_buyMinPrice%", plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy_min"))
-    //                                 .replace("%dynashop_current_buyMaxPrice%", plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy_max"))
-    //                                 .replace("%dynashop_current_sellMinPrice%", plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell_min"))
-    //                                 .replace("%dynashop_current_sellMaxPrice%", plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell_max"))
-    //                                 .replace("%dynashop_current_buy%", plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy"))
-    //                                 .replace("%dynashop_current_sell%", plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell"));
-    //                         }
-    //                         newLore.add(line);
-    //                     }
-                        
-    //                     meta.setLore(newLore);
-    //                     item.setItemMeta(meta);
-    //                 }
-    //             } catch (Exception e) {
-    //                 // Item slot peut être vide ou ne pas correspondre à un item de shop
-    //             }
-    //         }
-    //     } catch (Exception e) {
-    //         plugin.getLogger().warning("Erreur lors de la mise à jour de l'item: " + e.getMessage());
-    //     }
-    // }
 
     // @EventHandler(priority = EventPriority.MONITOR)
     // public void onInventoryClick(InventoryClickEvent event) {
@@ -632,7 +362,7 @@ public class ShopItemPlaceholderListener implements Listener {
     private void startContinuousRefresh(Player player, InventoryView view, String shopId, int page, Map<Integer, List<String>> originalLores) {
         // ID unique pour cette session de refresh
         final UUID refreshId = UUID.randomUUID();
-        final String taskKey = player.getUniqueId().toString() + ":" + refreshId.toString();
+        // final String taskKey = player.getUniqueId().toString() + ":" + refreshId.toString();
         
         // Stocker l'ID du refresh dans une map pour pouvoir l'arrêter plus tard
         playerRefreshTasks.put(player.getUniqueId(), refreshId);
@@ -681,15 +411,6 @@ public class ShopItemPlaceholderListener implements Listener {
         if (view == null || view.getTopInventory() == null) return;
         
         try {
-            // String fullShopId = determineShopId(view);
-            // int pageValue = 1;
-            // String shopIdValue = shopId;
-            
-            // if (fullShopId != null && fullShopId.contains("#")) {
-            //     String[] parts = fullShopId.split("#");
-            //     pageValue = Integer.parseInt(parts[1]);
-            //     shopIdValue = parts[0];
-            // }
             int pageValue = page;
             String shopIdValue = shopId;
             
@@ -1056,154 +777,16 @@ public class ShopItemPlaceholderListener implements Listener {
         return processed;
     }
 
-    // // Méthode utilitaire pour mettre à jour l'inventaire du shop
-    // private void updateShopInventory(Player player, InventoryView view, String shopId) {
-    //     if (view == null || view.getTopInventory() == null) return;
+    // // Classe pour stocker les données de l'inventaire
+    // private static class InventoryRefreshData {
+    //     final String shopId;
+    //     final InventoryView view;
         
-    //     try {
-    //         // Récupérer la page actuelle (si vous avez cette info)
-    //         String fullShopId = determineShopId(view);
-    //         int page = 0;
-            
-    //         if (fullShopId != null && fullShopId.contains("#")) {
-    //             page = Integer.parseInt(fullShopId.split("#")[1]);
-    //             shopId = fullShopId.split("#")[0];
-    //         }
-            
-    //         // Mettre à jour tous les items
-    //         for (int i = 0; i < view.getTopInventory().getSize(); i++) {
-    //             ItemStack item = view.getTopInventory().getItem(i);
-    //             if (item != null && item.hasItemMeta() && item.getItemMeta().hasLore()) {
-    //                 ItemMeta meta = item.getItemMeta();
-    //                 List<String> lore = meta.getLore();
-    //                 List<String> newLore = new ArrayList<>();
-                    
-    //                 // Essayer de trouver l'itemId pour cet item
-    //                 String itemId = null;
-    //                 try {
-    //                     itemId = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId).getShopItem(page, i).getId();
-    //                     openShopMap.put(player.getUniqueId(), new SimpleEntry<>(shopId, itemId));
-    //                 } catch (Exception e) {
-    //                     // Item slot peut être vide ou ne pas correspondre à un item de shop
-    //                     continue;
-    //                 }
-                    
-    //                 // if (itemId == null) continue;
-                    
-    //                 for (String line : lore) {
-    //                     // Remplacer tous les placeholders dynashop_current_
-    //                     if (line.contains("%dynashop_current_")) {
-    //                         line = line.replace("%dynashop_current_buyPrice%", String.valueOf(plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy")));
-    //                         line = line.replace("%dynashop_current_buyMinPrice%", String.valueOf(plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy_min")));
-    //                         line = line.replace("%dynashop_current_buyMaxPrice%", String.valueOf(plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy_max")));
-    //                         line = line.replace("%dynashop_current_sellPrice%", String.valueOf(plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell")));
-    //                         line = line.replace("%dynashop_current_sellMinPrice%", String.valueOf(plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell_min")));
-    //                         line = line.replace("%dynashop_current_sellMaxPrice%", String.valueOf(plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell_max")));
-    //                     } else {
-    //                         // // Pour les autres placeholders, utiliser PlaceholderAPI normalement
-    //                         // String processed = PlaceholderAPI.setPlaceholders(player, line);
-    //                         // newLore.add(processed);
-    //                         newLore.add(line);
-    //                     }
-    //                 }
-
-    //                 meta.setLore(newLore);
-    //                 item.setItemMeta(meta);
-    //             }
-    //         }
-    //     } catch (Exception e) {
-    //         plugin.getLogger().warning("Erreur lors de la mise à jour de l'inventaire du shop: " + e.getMessage());
+    //     public InventoryRefreshData(String shopId, InventoryView view) {
+    //         this.shopId = shopId;
+    //         this.view = view;
     //     }
     // }
-
-    // /**
-    //  * Détermine l'ID de l'item sélectionné dans l'inventaire du shop.
-    //  * 
-    //  * @param player Le joueur qui a ouvert l'inventaire
-    //  * @param view L'InventoryView à analyser
-    //  * @return L'ID de l'item ou null si non trouvé
-    //  */
-    // private String determineSelectedItem(Player player, InventoryView view) {
-    //     // // Méthode 1: Vérifier l'item sur le curseur du joueur
-    //     // try {
-    //     //     ItemStack cursorItem = view.getCursor();
-    //     //     if (cursorItem != null && cursorItem.getType() != Material.AIR) {
-    //     //         ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(cursorItem);
-    //     //         if (shopItem != null) {
-    //     //             return shopItem.getId();
-    //     //         }
-    //     //     }
-    //     // } catch (Exception e) {
-    //     //     // Ignorer les erreurs, essayer d'autres méthodes
-    //     // }
-        
-    //     // Méthode 2: Parcourir les items de l'inventaire supérieur
-    //     try {
-    //         Inventory topInventory = view.getTopInventory();
-            
-    //         // // Vérifier d'abord le slot central (souvent utilisé pour l'item principal)
-    //         // int centerSlot = topInventory.getSize() / 2;
-    //         // ItemStack centerItem = topInventory.getItem(centerSlot);
-    //         // if (centerItem != null && centerItem.getType() != Material.AIR) {
-    //         //     ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(centerItem);
-    //         //     if (shopItem != null) {
-    //         //         return shopItem.getId();
-    //         //     }
-    //         // }
-            
-    //         // Parcourir tous les slots et trouver un item qui n'est pas un élément d'interface
-    //         for (int i = 0; i < topInventory.getSize(); i++) {
-    //             ItemStack item = topInventory.getItem(i);
-    //             if (item != null && item.getType() != Material.AIR) {
-    //                 ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(item);
-    //                 if (shopItem != null) {
-    //                     return shopItem.getId();
-    //                 }
-    //             }
-    //         }
-    //     } catch (Exception e) {
-    //         // Ignorer les erreurs, essayer d'autres méthodes
-    //     }
-        
-    //     // // Méthode 3: Utiliser l'item dans la main du joueur
-    //     // try {
-    //     //     ItemStack handItem = player.getInventory().getItemInMainHand();
-    //     //     if (handItem != null && handItem.getType() != Material.AIR) {
-    //     //         ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(handItem);
-    //     //         if (shopItem != null) {
-    //     //             return shopItem.getId();
-    //     //         }
-    //     //     }
-    //     // } catch (Exception e) {
-    //     //     // Ignorer les erreurs
-    //     // }
-        
-    //     // Méthode 4: Utiliser le bloc visé par le joueur
-    //     try {
-    //         Block targetBlock = player.getTargetBlockExact(5);
-    //         if (targetBlock != null && targetBlock.getType() != Material.AIR) {
-    //             ItemStack targetItem = new ItemStack(targetBlock.getType());
-    //             ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(targetItem);
-    //             if (shopItem != null) {
-    //                 return shopItem.getId();
-    //             }
-    //         }
-    //     } catch (Exception e) {
-    //         // Ignorer les erreurs
-    //     }
-        
-    //     return null;
-    // }
-    // Classe pour stocker les données de l'inventaire
-    private static class InventoryRefreshData {
-        final String shopId;
-        final InventoryView view;
-        
-        public InventoryRefreshData(String shopId, InventoryView view) {
-            this.shopId = shopId;
-            this.view = view;
-        }
-    }
 
     // private void startRefreshScheduler() {
     //     // Annuler toute tâche existante
@@ -1234,7 +817,7 @@ public class ShopItemPlaceholderListener implements Listener {
             refreshTask.cancel();
             refreshTask = null;
         }
-        openInventories.clear();
+        // openInventories.clear();
         openShopMap.clear();
     }
 }

@@ -4,7 +4,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
-import net.brcdev.shopgui.ShopGuiPlusApi;
 // import net.brcdev.shopgui.ShopGuiPlusApi;
 import net.brcdev.shopgui.event.ShopGUIPlusPostEnableEvent;
 
