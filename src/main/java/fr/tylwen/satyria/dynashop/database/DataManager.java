@@ -56,9 +56,9 @@ public class DataManager {
             
             // Configuration commune
             config.setMaximumPoolSize(10);
-            config.setMinimumIdle(3);
+            config.setMinimumIdle(1);
             config.setConnectionTimeout(30000);
-            config.setIdleTimeout(600000);
+            config.setIdleTimeout(60000);
             config.setMaxLifetime(1800000);
             config.setConnectionTestQuery("SELECT 1");
             config.setPoolName("DynaShopHikariPool");

@@ -10,6 +10,7 @@ package fr.tylwen.satyria.dynashop;
 
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.event.HandlerList;
 // import org.bukkit.configuration.ConfigurationSection;
 // import org.bukkit.configuration.file.YamlConfiguration;
 // import org.bukkit.event.EventHandler;
@@ -17,6 +18,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
 // import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import com.comphenix.protocol.wrappers.EnumWrappers.Hand;
 
 import fr.tylwen.satyria.dynashop.command.DynaShopCommand;
 import fr.tylwen.satyria.dynashop.command.LimitResetCommand;
@@ -225,7 +228,8 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         //     getLogger().warning("Installez ProtocolLib pour une expérience optimale avec les placeholders.");
         // }
 
-        getServer().getPluginManager().registerEvents(new DynaShopListener(this), this);
+        // getServer().getPluginManager().registerEvents(new DynaShopListener(this), this);
+        getServer().getPluginManager().registerEvents(this.dynaShopListener, this);
         // Initialiser le listener avant de l'utiliser ailleurs
         this.shopItemPlaceholderListener = new ShopItemPlaceholderListener(this);
         getServer().getPluginManager().registerEvents(this.shopItemPlaceholderListener, this);
@@ -237,9 +241,11 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
 
         this.dataManager.initDatabase();
 
+        // Utiliser un executor service commun avec un nombre limité de threads
+        // ExecutorService sharedExecutor = Executors.newFixedThreadPool(3);
         // Planification des tâches
         // getServer().getScheduler().runTaskTimerAsynchronously(this, new ReloadDatabaseTask(this), 0L, 20L * 60L * 10L); // Toutes les 10 minutes
-        getServer().getScheduler().runTaskTimer(this, new WaitForShopsTask(this), 0L, 20L * 5L); // Toutes les 5 secondes
+        getServer().getScheduler().runTaskTimer(this, new WaitForShopsTask(this), 0L, 20L * 5L); // Toutes les 10 secondes
         // getServer().getScheduler().runTaskTimerAsynchronously(this, new SavePricesTask(this), 20L * 60L * 5L, 20L * 60L * 5L); // Toutes les 5 minutes
         // Modifier cette ligne
         // getServer().getScheduler().runTaskTimerAsynchronously(this, new DynamicPricesTask(this), 0L, 20L * 60L * 1L);
@@ -278,29 +284,29 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         // Planifier la précharge périodique des items populaires
         Bukkit.getScheduler().runTaskTimerAsynchronously(this, 
             this::preloadPopularItems, 
-            20L * 60,         // Démarrer après 1 minute
-            20L * 60 * 15);   // Répéter toutes les 15 minutes
+            20L * 60 * 2,         // Démarrer après 2 minutes
+            20L * 60 * 30);   // Répéter toutes les 30 minutes
 
         // Ajouter une tâche de nettoyage du cache
         Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
             long currentTime = System.currentTimeMillis();
             recipePriceCache.entrySet().removeIf(entry -> 
                 currentTime - recipeCacheTimestamps.getOrDefault(entry.getKey(), 0L) > RECIPE_CACHE_DURATION);
-        }, 20L * 60L * 5L, 20L * 60L * 5L); // Nettoyage toutes les 5 minutes
+        }, 20L * 60L * 15L, 20L * 60L * 15L); // Nettoyage toutes les 5 minutes
 
-        // Planifier le nettoyage des transactions périmées (toutes les heures)
-        getServer().getScheduler().runTaskTimerAsynchronously(this, 
-            () -> transactionLimiter.cleanupExpiredTransactions(), 
-            20L * 60L * 5L, // Délai initial: 5 minutes après le démarrage 
-            20L * 60L * 60L // Intervalle: toutes les heures
-        );
+        // // Planifier le nettoyage des transactions périmées (toutes les heures)
+        // getServer().getScheduler().runTaskTimerAsynchronously(this, 
+        //     () -> transactionLimiter.cleanupExpiredTransactions(), 
+        //     20L * 60L * 5L, // Délai initial: 5 minutes après le démarrage 
+        //     20L * 60L * 60L // Intervalle: toutes les heures
+        // );
 
-        // Planifier le nettoyage des cooldowns (toutes les 15 minutes)
-        getServer().getScheduler().runTaskTimerAsynchronously(this, 
-            () -> transactionLimiter.cleanupCooldownTransactions(), 
-            20L * 60L * 10L, // Délai initial: 10 minutes après le démarrage
-            20L * 60L * 15L // Intervalle: toutes les 15 minutes
-        );
+        // // Planifier le nettoyage des cooldowns (toutes les 15 minutes)
+        // getServer().getScheduler().runTaskTimerAsynchronously(this, 
+        //     () -> transactionLimiter.cleanupCooldownTransactions(), 
+        //     20L * 60L * 10L, // Délai initial: 10 minutes après le démarrage
+        //     20L * 60L * 15L // Intervalle: toutes les 15 minutes
+        // );
 
         getLogger().info("DynaShop activé avec succès !");
     }
@@ -370,6 +376,10 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
             batchDatabaseUpdater.shutdown();
         }
 
+        if (dynaShopListener != null) {
+            HandlerList.unregisterAll(dynaShopListener);
+        }
+
         // if (packetInterceptor != null) {
         //     // packetInterceptor.clearCache();
         //     packetInterceptor.shutdown();
@@ -377,6 +387,10 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         
         // dataManager.savePricesToDatabase(priceMap);
         dataManager.closeDatabase();
+
+        // HandlerList.unregisterAll(this);
+
+        // getServer().getPluginManager().disablePlugin(this);
     }
 
     private void hookIntoShopGUIPlus() {

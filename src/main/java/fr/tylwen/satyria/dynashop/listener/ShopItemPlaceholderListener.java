@@ -761,14 +761,14 @@ public class ShopItemPlaceholderListener implements Listener {
             if (line.contains("%dynashop_current_")) {
                 // Remplacer temporairement par "Chargement..." mais UNIQUEMENT pour l'affichage
                 String tempLine = line
-                    .replace("%dynashop_current_buyPrice%", "Chargement...")
-                    .replace("%dynashop_current_sellPrice%", "Chargement...")
+                    .replace("%dynashop_current_buyPrice%", "Loading...")
+                    .replace("%dynashop_current_sellPrice%", "Loading...")
                     .replace("%dynashop_current_buyMinPrice%", "...")
                     .replace("%dynashop_current_buyMaxPrice%", "...")
                     .replace("%dynashop_current_sellMinPrice%", "...")
                     .replace("%dynashop_current_sellMaxPrice%", "...")
-                    .replace("%dynashop_current_buy%", "Chargement...")
-                    .replace("%dynashop_current_sell%", "Chargement...");
+                    .replace("%dynashop_current_buy%", "Loading...")
+                    .replace("%dynashop_current_sell%", "Loading...");
                 processed.add(tempLine);
             } else {
                 processed.add(line);

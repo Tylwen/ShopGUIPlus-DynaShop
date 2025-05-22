@@ -1,5 +1,6 @@
 package fr.tylwen.satyria.dynashop.listener;
 
+import java.time.Duration;
 // import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,12 +12,14 @@ import java.util.Optional;
 // import java.util.concurrent.ConcurrentHashMap;
 // import java.util.stream.Collectors;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
+// import java.util.concurrent.ExecutionException;
+// import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.TimeUnit;
 
-import javax.swing.text.StyledEditorKit.BoldAction;
+// import javax.swing.text.StyledEditorKit.BoldAction;
 
 import org.bukkit.Bukkit;
-// import org.bukkit.ChatColor;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -47,6 +50,7 @@ import net.brcdev.shopgui.event.ShopPreTransactionEvent;
 // import net.brcdev.shopgui.gui.gui.OpenGui;
 // import net.brcdev.shopgui.player.PlayerData;
 import net.brcdev.shopgui.shop.item.ShopItem;
+// import net.md_5.bungee.api.ChatColor;
 // import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.ShopManager.ShopAction;
 import net.brcdev.shopgui.shop.ShopTransactionResult.ShopTransactionResultType;
@@ -156,117 +160,111 @@ public class DynaShopListener implements Listener {
         //     return;
         // }
         
-        if (mainPlugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
-            // Annuler l'événement en attendant la vérification
-            // event.setCancelled(true);
+        // if (mainPlugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
+        //     // Annuler l'événement en attendant la vérification
+        //     // event.setCancelled(true);
             
-            // Créer une clé pour identifier cette transaction
-            String transactionKey = player.getUniqueId() + ":" + shopID + ":" + itemID + ":" + (isBuy ? "buy" : "sell");
+        //     // Créer une clé pour identifier cette transaction
+        //     String transactionKey = player.getUniqueId() + ":" + shopID + ":" + itemID + ":" + (isBuy ? "buy" : "sell");
             
-            // Stocker des informations de transaction pour utilisation ultérieure
-            TransactionInfo transactionInfo = new TransactionInfo(player, item, event.getShopAction(), amount);
-            pendingLimitChecks.put(transactionKey, transactionInfo);
+        //     // Stocker des informations de transaction pour utilisation ultérieure
+        //     TransactionInfo transactionInfo = new TransactionInfo(player, item, event.getShopAction(), amount);
+        //     pendingLimitChecks.put(transactionKey, transactionInfo);
             
-            // Vérifier directement en BDD sans utiliser de cache
-            mainPlugin.getTransactionLimiter().canPerformTransaction(player, shopID, itemID, isBuy, amount).thenAcceptAsync(canPerform -> {
-                if (Boolean.TRUE.equals(canPerform)) {
-                    // Transaction autorisée
-                    // mainPlugin.getLogger().info("Transaction autorisée pour " + player.getName() + " sur " + shopID + ":" + itemID);
-                    Bukkit.getScheduler().runTask(mainPlugin, () -> {
-                        pendingLimitChecks.remove(transactionKey);
-                        // Traiter la transaction normalement
-                        // event.setCancelled(false); // Annuler l'annulation de l'événement
-                        // mainPlugin.getLogger().info("État de l'événement : " + event.isCancelled());
-                        processRegularTransaction(event, player, item, amount, shopID, itemID, itemStack, isBuy);
-                        // mainPlugin.getLogger().info("État de l'événement : " + event.isCancelled());
-                    });
-                } else {
-                    // Limite atteinte, afficher message d'erreur
-                    // Si la transaction n'est pas autorisée, annuler l'événement
-                    Bukkit.getScheduler().runTask(mainPlugin, () -> {
-                        event.setCancelled(true);
-                        handleLimitExceeded(player, shopID, itemID, isBuy, event);
-                        pendingLimitChecks.remove(transactionKey);
-                    });
-                }
-            });
-            // IMPORTANT: Annuler temporairement l'événement, il sera rétabli si la vérification réussit
-            // event.setCancelled(true);
-            return;
-        }
-
-        // Si on arrive ici, c'est qu'il n'y a pas de limite à vérifier
-        processRegularTransaction(event, player, item, amount, shopID, itemID, itemStack, isBuy);
-
-        // // if (!shopConfigManager.hasDynaShopSection(shopID, itemID)) {
-        // if (!shopConfigManager.getItemValue(shopID, itemID, "typeDynaShop", String.class).isPresent()) {
-        //     return; // Ignorer les items non configurés pour DynaShop
-        // }
-        // if (!shopConfigManager.hasStockSection(shopID, itemID) && !shopConfigManager.hasDynamicSection(shopID, itemID) && !shopConfigManager.hasRecipeSection(shopID, itemID)) {
-        //     return; // Ignorer les items sans les sections requises
-        // }
-
-        // DynamicPrice price = getOrLoadPrice(shopID, itemID, itemStack);
-        // if (price == null) {
+        //     // Vérifier directement en BDD sans utiliser de cache
+        //     mainPlugin.getTransactionLimiter().canPerformTransaction(player, shopID, itemID, isBuy, amount).thenAcceptAsync(canPerform -> {
+        //         if (Boolean.TRUE.equals(canPerform)) {
+        //             // Transaction autorisée
+        //             // mainPlugin.getLogger().info("Transaction autorisée pour " + player.getName() + " sur " + shopID + ":" + itemID);
+        //             Bukkit.getScheduler().runTask(mainPlugin, () -> {
+        //                 pendingLimitChecks.remove(transactionKey);
+        //                 // Traiter la transaction normalement
+        //                 // event.setCancelled(false); // Annuler l'annulation de l'événement
+        //                 // mainPlugin.getLogger().info("État de l'événement : " + event.isCancelled());
+        //                 processRegularTransaction(event, player, item, amount, shopID, itemID, itemStack, isBuy);
+        //                 // mainPlugin.getLogger().info("État de l'événement : " + event.isCancelled());
+        //             });
+        //         } else {
+        //             // Limite atteinte, afficher message d'erreur
+        //             // Si la transaction n'est pas autorisée, annuler l'événement
+        //             Bukkit.getScheduler().runTask(mainPlugin, () -> {
+        //                 event.setCancelled(true);
+        //                 handleLimitExceeded(player, shopID, itemID, isBuy, event);
+        //                 pendingLimitChecks.remove(transactionKey);
+        //             });
+        //         }
+        //     });
+        //     // IMPORTANT: Annuler temporairement l'événement, il sera rétabli si la vérification réussit
+        //     // event.setCancelled(true);
         //     return;
         // }
-        
-        // // Vérifier le mode STOCK et les limites de stock
-        // if (shopConfigManager.getTypeDynaShop(shopID, itemID) == DynaShopType.STOCK) {
-        //     // Si c'est un achat et que le stock est vide
-        //     // if (event.getShopAction() == ShopAction.BUY && price.getStock() <= 0) {
-        //     if (event.getShopAction() == ShopAction.BUY && !DynaShopPlugin.getInstance().getPriceStock().canBuy(shopID, itemID, amount)) {
-        //         event.setCancelled(true);
-        //         if (event.getPlayer() != null) {
-        //             // event.getPlayer().sendMessage("§c[DynaShop] Cet item est en rupture de stock !");
-        //             event.getPlayer().sendMessage(this.mainPlugin.getLangConfig().getMsgOutOfStock());
-        //         }
-        //         return;
-        //     }
+        // if (mainPlugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
+        //     // // Annuler l'événement en attendant la vérification
+        //     // event.setCancelled(true);
             
-        //     // Si c'est une vente et que le stock est plein
-        //     // if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && price.getStock() >= price.getMaxStock()) {
-        //     if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && !DynaShopPlugin.getInstance().getPriceStock().canSell(shopID, itemID, amount)) {
-        //         event.setCancelled(true);
-        //         if (event.getPlayer() != null) {
-        //             // event.getPlayer().sendMessage("§c[DynaShop] Le stock de cet item est complet, impossible de vendre plus !");
-        //             // event.getPlayer().sendMessage(this.mainPlugin.getConfigLang().getString("messages.stockFull")
-        //             //     .replace("%item%", itemID)
-        //             //     .replace("%shop%", shopID));
-        //             // event.getPlayer().sendMessage(this.mainPlugin.getConfigLang().getString("stock.full-stock"));
-        //             event.getPlayer().sendMessage(this.mainPlugin.getLangConfig().getMsgFullStock());
-        //         }
+        //     // Créer une clé pour identifier cette transaction
+        //     String transactionKey = player.getUniqueId() + ":" + shopID + ":" + itemID + ":" + (isBuy ? "buy" : "sell");
+            
+        //     // Stocker des informations de transaction pour utilisation ultérieure
+        //     TransactionInfo transactionInfo = new TransactionInfo(player, item, event.getShopAction(), amount);
+        //     pendingLimitChecks.put(transactionKey, transactionInfo);
+
+        //     // final AtomicBoolean isCancelled = new AtomicBoolean(false);
+            
+        //     // Vérifier directement en BDD sans utiliser de cache
+        //     mainPlugin.getTransactionLimiter().canPerformTransaction(player, shopID, itemID, isBuy, amount).thenAccept(canPerform -> {
+        //         Bukkit.getScheduler().runTask(mainPlugin, () -> {
+        //             if (Boolean.FALSE.equals(canPerform)) {
+        //                 // event.setCancelled(true);
+        //                 handleLimitExceeded(player, shopID, itemID, isBuy, event);
+        //             }
+        //             pendingLimitChecks.remove(transactionKey);
+        //         });
+        //     });
+        //     mainPlugin.getLogger().info("Etat de l'événement isCancelled ? : " + event.isCancelled());
+        //     // mainPlugin.getLogger().info(pendingLimitChecks.get(transactionKey).toString());
+        //     // event.setCancelled(false);
+        //     if (event.isCancelled()) {
+        //         // // Annuler l'événement si la limite est atteinte
+        //         // event.setCancelled(true);
         //         return;
         //     }
         // }
+        if (mainPlugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
+            // mainPlugin.getServer().getScheduler().runTaskAsynchronously(mainPlugin, () -> {
+            //     try {
+            //         boolean canPerform = mainPlugin.getTransactionLimiter().canPerformTransaction(player, shopID, itemID, isBuy, amount).get();
+            //         if (!canPerform) {
+            //             // event.setCancelled(true);
+            //             handleLimitExceeded(player, shopID, itemID, isBuy, event);
+            //             return;
+            //         }
+            //     } catch (InterruptedException | ExecutionException e) {
+            //         // Gérer l'exception si nécessaire
+            //         e.printStackTrace();
+            //     }
+            // });
+            boolean canPerform = mainPlugin.getTransactionLimiter().canPerformTransactionSync(player, shopID, itemID, isBuy, amount);
+            if (!canPerform) {
+                // event.setCancelled(true);
+                handleLimitExceeded(player, shopID, itemID, isBuy, event);
+                return;
+            }
+        }
 
-        // if (event.getShopAction() == ShopAction.BUY) {
-        //     event.setPrice(price.getBuyPriceForAmount(amount));
-        // } else if (event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) {
-        //     event.setPrice(price.getSellPriceForAmount(amount));
-        // }
-    }
+        // // Si on arrive ici, c'est qu'il n'y a pas de limite à vérifier
+        // processRegularTransaction(event, player, item, amount, shopID, itemID, itemStack, isBuy);
 
-    /**
-     * Traite une transaction normale après vérification des limites ou si aucune limite n'est définie.
-     */
-    private void processRegularTransaction(ShopPreTransactionEvent event, Player player, ShopItem item, int amount, String shopID, String itemID, ItemStack itemStack, boolean isBuy) {
-        // Vérifier si l'item est configuré pour DynaShop
+        // if (!shopConfigManager.hasDynaShopSection(shopID, itemID)) {
         if (!shopConfigManager.getItemValue(shopID, itemID, "typeDynaShop", String.class).isPresent()) {
-            // mainPlugin.warning(itemID + " : Pas de section DynaShop dans le shop " + shopID);
             return; // Ignorer les items non configurés pour DynaShop
         }
-        
-        // Vérifier les sections requises
         if (!shopConfigManager.hasStockSection(shopID, itemID) && !shopConfigManager.hasDynamicSection(shopID, itemID) && !shopConfigManager.hasRecipeSection(shopID, itemID)) {
-            // mainPlugin.warning(itemID + " : Pas de section dynamique, recette ou stock dans le shop " + shopID);
             return; // Ignorer les items sans les sections requises
         }
-        
-        // Le reste de votre logique de traitement des transactions dynamiques
+
         DynamicPrice price = getOrLoadPrice(shopID, itemID, itemStack);
         if (price == null) {
-            // mainPlugin.warning(itemID + " : Pas de prix dynamique trouvé dans le shop " + shopID);
             return;
         }
         
@@ -276,9 +274,9 @@ public class DynaShopListener implements Listener {
             // if (event.getShopAction() == ShopAction.BUY && price.getStock() <= 0) {
             if (event.getShopAction() == ShopAction.BUY && !DynaShopPlugin.getInstance().getPriceStock().canBuy(shopID, itemID, amount)) {
                 event.setCancelled(true);
-                if (player != null) {
+                if (event.getPlayer() != null) {
                     // event.getPlayer().sendMessage("§c[DynaShop] Cet item est en rupture de stock !");
-                    player.sendMessage(this.mainPlugin.getLangConfig().getMsgOutOfStock());
+                    event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.mainPlugin.getLangConfig().getMsgOutOfStock()));
                 }
                 return;
             }
@@ -287,13 +285,13 @@ public class DynaShopListener implements Listener {
             // if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && price.getStock() >= price.getMaxStock()) {
             if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && !DynaShopPlugin.getInstance().getPriceStock().canSell(shopID, itemID, amount)) {
                 event.setCancelled(true);
-                if (player != null) {
+                if (event.getPlayer() != null) {
                     // event.getPlayer().sendMessage("§c[DynaShop] Le stock de cet item est complet, impossible de vendre plus !");
                     // event.getPlayer().sendMessage(this.mainPlugin.getConfigLang().getString("messages.stockFull")
                     //     .replace("%item%", itemID)
                     //     .replace("%shop%", shopID));
                     // event.getPlayer().sendMessage(this.mainPlugin.getConfigLang().getString("stock.full-stock"));
-                    player.sendMessage(this.mainPlugin.getLangConfig().getMsgFullStock());
+                    event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.mainPlugin.getLangConfig().getMsgFullStock()));
                 }
                 return;
             }
@@ -304,8 +302,67 @@ public class DynaShopListener implements Listener {
         } else if (event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) {
             event.setPrice(price.getSellPriceForAmount(amount));
         }
-        // mainPlugin.getLogger().info("Transaction traitée pour " + player.getName() + " sur " + shopID + ":" + itemID);
     }
+
+    // /**
+    //  * Traite une transaction normale après vérification des limites ou si aucune limite n'est définie.
+    //  */
+    // private void processRegularTransaction(ShopPreTransactionEvent event, Player player, ShopItem item, int amount, String shopID, String itemID, ItemStack itemStack, boolean isBuy) {
+    //     // Vérifier si l'item est configuré pour DynaShop
+    //     if (!shopConfigManager.getItemValue(shopID, itemID, "typeDynaShop", String.class).isPresent()) {
+    //         // mainPlugin.warning(itemID + " : Pas de section DynaShop dans le shop " + shopID);
+    //         return; // Ignorer les items non configurés pour DynaShop
+    //     }
+        
+    //     // Vérifier les sections requises
+    //     if (!shopConfigManager.hasStockSection(shopID, itemID) && !shopConfigManager.hasDynamicSection(shopID, itemID) && !shopConfigManager.hasRecipeSection(shopID, itemID)) {
+    //         // mainPlugin.warning(itemID + " : Pas de section dynamique, recette ou stock dans le shop " + shopID);
+    //         return; // Ignorer les items sans les sections requises
+    //     }
+        
+    //     // Le reste de votre logique de traitement des transactions dynamiques
+    //     DynamicPrice price = getOrLoadPrice(shopID, itemID, itemStack);
+    //     if (price == null) {
+    //         // mainPlugin.warning(itemID + " : Pas de prix dynamique trouvé dans le shop " + shopID);
+    //         return;
+    //     }
+        
+    //     // Vérifier le mode STOCK et les limites de stock
+    //     if (shopConfigManager.getTypeDynaShop(shopID, itemID) == DynaShopType.STOCK) {
+    //         // Si c'est un achat et que le stock est vide
+    //         // if (event.getShopAction() == ShopAction.BUY && price.getStock() <= 0) {
+    //         if (event.getShopAction() == ShopAction.BUY && !DynaShopPlugin.getInstance().getPriceStock().canBuy(shopID, itemID, amount)) {
+    //             event.setCancelled(true);
+    //             if (player != null) {
+    //                 // event.getPlayer().sendMessage("§c[DynaShop] Cet item est en rupture de stock !");
+    //                 player.sendMessage(this.mainPlugin.getLangConfig().getMsgOutOfStock());
+    //             }
+    //             return;
+    //         }
+            
+    //         // Si c'est une vente et que le stock est plein
+    //         // if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && price.getStock() >= price.getMaxStock()) {
+    //         if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && !DynaShopPlugin.getInstance().getPriceStock().canSell(shopID, itemID, amount)) {
+    //             event.setCancelled(true);
+    //             if (player != null) {
+    //                 // event.getPlayer().sendMessage("§c[DynaShop] Le stock de cet item est complet, impossible de vendre plus !");
+    //                 // event.getPlayer().sendMessage(this.mainPlugin.getConfigLang().getString("messages.stockFull")
+    //                 //     .replace("%item%", itemID)
+    //                 //     .replace("%shop%", shopID));
+    //                 // event.getPlayer().sendMessage(this.mainPlugin.getConfigLang().getString("stock.full-stock"));
+    //                 player.sendMessage(this.mainPlugin.getLangConfig().getMsgFullStock());
+    //             }
+    //             return;
+    //         }
+    //     }
+
+    //     if (event.getShopAction() == ShopAction.BUY) {
+    //         event.setPrice(price.getBuyPriceForAmount(amount));
+    //     } else if (event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) {
+    //         event.setPrice(price.getSellPriceForAmount(amount));
+    //     }
+    //     // mainPlugin.getLogger().info("Transaction traitée pour " + player.getName() + " sur " + shopID + ":" + itemID);
+    // }
 
     // // @EventHandler
     // @EventHandler(priority = EventPriority.HIGHEST)
@@ -833,17 +890,157 @@ public class DynaShopListener implements Listener {
         }
     }
 
-    // Méthode utilitaire pour formater le temps
+    // // Méthode utilitaire pour formater le temps
+    // private String formatTime(long seconds) {
+    //     if (seconds < 60) {
+    //         return seconds + " sec";
+    //     } else if (seconds < 3600) {
+    //         return (seconds / 60) + " min";
+    //     } else if (seconds < 86400) {
+    //         return (seconds / 3600) + " h";
+    //     } else {
+    //         return (seconds / 86400) + " d";
+    //     }
+    // }
+    // private String formatTime(long seconds) {
+    //     if (seconds < 0) {
+    //         return "0 sec"; // Gérer les valeurs négatives
+    //     }
+        
+    //     if (seconds < 60) {
+    //         // Moins d'une minute
+    //         return seconds + " sec";
+    //     } else if (seconds < 3600) {
+    //         // Moins d'une heure: afficher minutes et secondes
+    //         long minutes = seconds / 60;
+    //         long remainingSeconds = seconds % 60;
+            
+    //         if (remainingSeconds == 0) {
+    //             return minutes + " min";
+    //         } else {
+    //             return minutes + " min " + remainingSeconds + " sec";
+    //         }
+    //     } else if (seconds < 86400) {
+    //         // Moins d'un jour: afficher heures et minutes
+    //         long hours = seconds / 3600;
+    //         long remainingMinutes = (seconds % 3600) / 60;
+            
+    //         if (remainingMinutes == 0) {
+    //             return hours + " h";
+    //         } else {
+    //             return hours + " h " + remainingMinutes + " min";
+    //         }
+    //     } else {
+    //         // Un jour ou plus: afficher jours et heures
+    //         long days = seconds / 86400;
+    //         long remainingHours = (seconds % 86400) / 3600;
+            
+    //         if (remainingHours == 0) {
+    //             return days + " j";
+    //         } else {
+    //             return days + " j " + remainingHours + " h";
+    //         }
+    //     }
+    // }
+    /**
+     * Méthode utilitaire pour formater le temps de manière lisible en utilisant l'API Duration
+     */
     private String formatTime(long seconds) {
-        if (seconds < 60) {
-            return seconds + " sec";
-        } else if (seconds < 3600) {
-            return (seconds / 60) + " min";
-        } else if (seconds < 86400) {
-            return (seconds / 3600) + " j";
-        } else {
-            return (seconds / 86400) + " d";
+        if (seconds < 0) {
+            return "0 sec";
         }
+        
+        // Option 1: Pour Java 9+ (utilise les méthodes XXXPart)
+        Duration duration = Duration.ofSeconds(seconds);
+        long years = duration.toDaysPart() / 365;
+        long months = (duration.toDaysPart() % 365) / 30;
+        long weeks = (duration.toDaysPart() % 30) / 7;
+        long days = duration.toDaysPart() % 7;
+        // long days = duration.toDaysPart();
+        long hours = duration.toHoursPart();
+        long minutes = duration.toMinutesPart();
+        long remainingSeconds = duration.toSecondsPart();
+        
+        // // Option 2: Pour Java 8 (compatible avec toutes les versions Bukkit)
+        // long days = TimeUnit.SECONDS.toDays(seconds);
+        // long hours = TimeUnit.SECONDS.toHours(seconds) % 24;
+        // long minutes = TimeUnit.SECONDS.toMinutes(seconds) % 60;
+        // long remainingSeconds = seconds % 60;
+        
+        StringBuilder formatted = new StringBuilder();
+        
+        // if (days > 0) {
+        //     formatted.append(days).append(" j");
+        //     if (hours > 0) {
+        //         formatted.append(" ").append(hours).append(" h");
+        //     }
+        //     if (minutes > 0) {
+        //         formatted.append(" ").append(minutes).append(" min");
+        //     }
+        // } else if (hours > 0) {
+        //     formatted.append(hours).append(" h");
+        //     if (minutes > 0) {
+        //         formatted.append(" ").append(minutes).append(" min");
+        //     }
+        // } else if (minutes > 0) {
+        //     formatted.append(minutes).append(" min");
+        //     if (remainingSeconds > 0) {
+        //         formatted.append(" ").append(remainingSeconds).append(" sec");
+        //     }
+        // } else {
+        //     formatted.append(remainingSeconds).append(" sec");
+        // }
+        // if (days > 0) {
+        //     formatted.append(days).append("d");
+        //     if (hours > 0) {
+        //         formatted.append(" ").append(hours).append("h");
+        //     }
+        //     if (minutes > 0) {
+        //         formatted.append(" ").append(minutes).append("min");
+        //     }
+        // } else if (hours > 0) {
+        //     formatted.append(hours).append("h");
+        //     if (minutes > 0) {
+        //         formatted.append(" ").append(minutes).append("min");
+        //     }
+        // } else if (minutes > 0) {
+        //     formatted.append(minutes).append("min");
+        //     if (remainingSeconds > 0) {
+        //         formatted.append(" ").append(remainingSeconds).append("sec");
+        //     }
+        // } else {
+        //     formatted.append(remainingSeconds).append("sec");
+        // }
+        if (years > 0) {
+            formatted.append(years).append("years");
+            // if (months > 0) {
+            //     formatted.append(" ").append(months).append("months");
+            // }
+            // if (weeks > 0) {
+            //     formatted.append(" ").append(weeks).append("weeks");
+            // }
+            // if (days > 0) {
+            //     formatted.append(" ").append(days).append("days");
+            // }
+        }
+        if (weeks > 0) {
+            formatted.append(" ").append(weeks).append("weeks");
+        }
+        if (days > 0) {
+            formatted.append(" ").append(days).append("d");
+        }
+        if (hours > 0) {
+            formatted.append(" ").append(hours).append("h");
+        }
+        if (minutes > 0) {
+            formatted.append(" ").append(minutes).append("min");
+        }
+        if (remainingSeconds > 0) {
+            formatted.append(" ").append(remainingSeconds).append("sec");
+        }
+
+
+        return formatted.toString();
     }
 
     private static class TransactionInfo {
@@ -879,18 +1076,18 @@ public class DynaShopListener implements Listener {
                 final String message;
                 if (remaining > 0) {
                     message = isBuy 
-                        ? mainPlugin.getLangConfig().getMsgLimitCannotBuy().replace("%limit%", String.valueOf(remaining))
-                        : mainPlugin.getLangConfig().getMsgLimitCannotSell().replace("%limit%", String.valueOf(remaining));
+                        ? ChatColor.translateAlternateColorCodes('&', mainPlugin.getLangConfig().getMsgLimitCannotBuy().replace("%limit%", String.valueOf(remaining)))
+                        : ChatColor.translateAlternateColorCodes('&', mainPlugin.getLangConfig().getMsgLimitCannotSell().replace("%limit%", String.valueOf(remaining)));
                 } else {
                     long nextAvailable = mainPlugin.getTransactionLimiter()
                             .getNextAvailableTime(player, shopID, itemID, isBuy)
                             .get();
                     
                     if (nextAvailable > 0) {
-                        long seconds = (nextAvailable - System.currentTimeMillis()) / 1000;
-                        message = mainPlugin.getLangConfig().getMsgLimitReached().replace("%time%", formatTime(seconds));
+                        long seconds = nextAvailable / 1000;
+                        message = ChatColor.translateAlternateColorCodes('&', mainPlugin.getLangConfig().getMsgLimitReached().replace("%time%", formatTime(seconds)));
                     } else {
-                        message = mainPlugin.getLangConfig().getMsgLimit();
+                        message = ChatColor.translateAlternateColorCodes('&', mainPlugin.getLangConfig().getMsgLimit());
                     }
                 }
                 
@@ -1168,5 +1365,6 @@ public class DynaShopListener implements Listener {
         
     //     return null;
     // }
+
 
 }

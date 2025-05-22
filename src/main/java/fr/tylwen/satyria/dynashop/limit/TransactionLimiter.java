@@ -2,13 +2,14 @@ package fr.tylwen.satyria.dynashop.limit;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 
-import org.bukkit.configuration.file.FileConfiguration;
+// import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
@@ -213,6 +214,7 @@ public class TransactionLimiter {
                 
                 // Si transaction réussie, vérifier si un nettoyage est nécessaire
                 if (result > 0 && Math.random() < 0.01) { // 1% de chance de déclencher un nettoyage
+                // if (result > 0) {
                     cleanupExpiredTransactions();
                 }
                 
@@ -297,6 +299,10 @@ public class TransactionLimiter {
         
         String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
         String transactionType = isBuy ? "BUY" : "SELL";
+        
+        // Forcer la correction des horodatages futurs AVANT la vérification
+        cleanFutureTimestamps(player.getUniqueId(), shopId, itemId, transactionType);
+        clearExpiredTimestamps(player.getUniqueId(), shopId, itemId, transactionType);
 
         // Déterminer la date de début en fonction de la période ou du cooldown
         LocalDateTime startDate;
@@ -314,8 +320,8 @@ public class TransactionLimiter {
         // Utiliser la vue pour interroger toutes les tables
         String query = "SELECT SUM(amount) as total FROM " + tablePrefix + "_transactions_view " +
                     "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
-                    "AND transaction_time >= ?";
-                    // "AND transaction_time >= ? AND transaction_time <= NOW()";
+                    "AND transaction_time >= ? AND transaction_time <= NOW()";
+                    // "AND transaction_time >= ?";
         
         return plugin.getDataManager().executeAsync(() -> {
             try (Connection connection = plugin.getDataManager().getConnection();
@@ -342,11 +348,11 @@ public class TransactionLimiter {
                     // Vérifier si la limite est atteinte
                     boolean canPerform = currentTotal + amount <= limit.getAmount();
                     
-                    // Log pour le debug
-                    plugin.getLogger().info("Limite pour " + player.getName() + " sur " + shopId + ":" + itemId + 
-                                        " - Total actuel: " + currentTotal + "/" + limit.getAmount() + 
-                                        " (Depuis " + startDate + ")" +
-                                        " - Peut effectuer: " + canPerform);
+                    // // Log pour le debug
+                    // plugin.getLogger().info("Limite pour " + player.getName() + " sur " + shopId + ":" + itemId + 
+                    //                     " - Total actuel: " + currentTotal + "/" + limit.getAmount() + 
+                    //                     " (Depuis " + startDate + ")" +
+                    //                     " - Peut effectuer: " + canPerform);
                     
                     // if (!canPerform) {
                     //     // Vérifier aussi le cooldown
@@ -366,7 +372,75 @@ public class TransactionLimiter {
             }
         });
     }
-    
+
+    /**
+     * Version synchrone de canPerformTransaction qui retourne immédiatement une réponse.
+     * Utilise le cache et des valeurs approximatives pour éviter de bloquer le thread principal.
+     */
+    public boolean canPerformTransactionSync(Player player, String shopId, String itemId, boolean isBuy, int amount) {
+        TransactionLimit limit = getTransactionLimit(shopId, itemId, isBuy);
+        if (limit == null) {
+            return true; // Pas de limite définie
+        }
+        
+        String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
+        String transactionType = isBuy ? "BUY" : "SELL";
+        
+        // Forcer la correction des horodatages futurs AVANT la vérification
+        cleanFutureTimestamps(player.getUniqueId(), shopId, itemId, transactionType);
+        clearExpiredTimestamps(player.getUniqueId(), shopId, itemId, transactionType);
+
+        // Déterminer la date de début en fonction de la période ou du cooldown
+        LocalDateTime startDate;
+        if (limit.getPeriodEquivalent() != LimitPeriod.NONE) {
+            // Pour les périodes prédéfinies, utiliser la date de début de la période
+            startDate = getStartDateForPeriod(limit.getPeriodEquivalent());
+        } else {
+            // Pour les cooldowns en secondes, calculer la date à partir du moment actuel
+            startDate = LocalDateTime.now().minusSeconds(limit.getCooldown());
+        }
+        // String query = "SELECT SUM(amount) as total FROM " + tablePrefix + "_transaction_limits "
+        //         + "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? "
+        //         + "AND transaction_time >= ?";
+        
+        // Utiliser la vue pour interroger toutes les tables
+        String query = "SELECT SUM(amount) as total FROM " + tablePrefix + "_transactions_view " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+                    "AND transaction_time >= ?";
+                    // "AND transaction_time >= ? AND transaction_time <= NOW()";
+                 
+        try (Connection connection = plugin.getDataManager().getConnection();
+                PreparedStatement stmt = connection.prepareStatement(query)) {
+                stmt.setString(1, player.getUniqueId().toString());
+                stmt.setString(2, shopId);
+                stmt.setString(3, itemId);
+                stmt.setString(4, transactionType);
+                stmt.setTimestamp(5, java.sql.Timestamp.valueOf(startDate));
+                
+                ResultSet rs = stmt.executeQuery();
+                if (rs.next()) {
+                    int currentTotal = rs.getInt("total");
+                    if (rs.wasNull()) {
+                        currentTotal = 0; // Corriger le cas où le résultat est NULL
+                    }
+                    
+                    // Vérifier si la limite est atteinte
+                    boolean canPerform = currentTotal + amount <= limit.getAmount();
+                    
+                    // // Log pour le debug
+                    // plugin.getLogger().info("Limite pour " + player.getName() + " sur " + shopId + ":" + itemId + 
+                    //                     " - Total actuel: " + currentTotal + "/" + limit.getAmount() + 
+                    //                     " (Depuis " + startDate + ")" +
+                    //                     " - Peut effectuer: " + canPerform);
+                    
+                    return canPerform;
+                }
+            } catch (SQLException e) {
+                plugin.getLogger().severe("Erreur lors de la vérification de la limite: " + e.getMessage());
+            }
+        return true; // En cas d'erreur, autoriser la transaction par défaut
+    }
+
     // private LocalDateTime getStartDateForPeriod(LimitPeriod period) {
     //     LocalDateTime now = LocalDateTime.now();
         
@@ -425,7 +499,15 @@ public class TransactionLimiter {
         String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
         String transactionType = isBuy ? "BUY" : "SELL";
         
-        LocalDateTime startDate = getStartDateForPeriod(limit.getPeriodEquivalent());
+        // Déterminer la date de début en fonction de la période ou du cooldown
+        LocalDateTime startDate;
+        if (limit.getPeriodEquivalent() != LimitPeriod.NONE) {
+            // Pour les périodes prédéfinies, utiliser la date de début de la période
+            startDate = getStartDateForPeriod(limit.getPeriodEquivalent());
+        } else {
+            // Pour les cooldowns en secondes, calculer la date à partir du moment actuel
+            startDate = LocalDateTime.now().minusSeconds(limit.getCooldown());
+        }
         // String query = "SELECT SUM(amount) as total FROM " + tablePrefix + "_transaction_limits "
         //         + "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? "
         //         + "AND transaction_time >= ?";
@@ -447,6 +529,9 @@ public class TransactionLimiter {
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()) {
                     int currentTotal = rs.getInt("total");
+                    // plugin.getLogger().info("Total actuel pour " + player.getName() + " sur " + shopId + ":" + itemId + 
+                    //                     " - Total actuel: " + currentTotal + "/" + limit.getAmount() + 
+                    //                     " (Depuis " + startDate + ")");
                     return Math.max(0, limit.getAmount() - currentTotal);
                 }
                 return limit.getAmount();
@@ -492,13 +577,13 @@ public class TransactionLimiter {
             if (cooldownInt.isPresent()) {
                 // Si c'est un nombre, utiliser directement
                 cooldownSeconds = cooldownInt.get();
-                plugin.getLogger().info("Cooldown trouvé (nombre): " + cooldownSeconds);
+                // plugin.getLogger().info("Cooldown trouvé (nombre): " + cooldownSeconds);
             } else {
                 // Si ce n'est pas un nombre, essayer comme une chaîne
                 Optional<String> cooldownStr = plugin.getShopConfigManager().getItemValue(shopId, itemId, "limit.cooldown", String.class);
                 if (cooldownStr.isPresent()) {
                     String periodStr = cooldownStr.get().toUpperCase();
-                    plugin.getLogger().info("Cooldown trouvé (texte): " + periodStr);
+                    // plugin.getLogger().info("Cooldown trouvé (texte): " + periodStr);
                     
                     try {
                         // Essayer de l'interpréter comme une période prédéfinie
@@ -587,22 +672,148 @@ public class TransactionLimiter {
         }
     }
     
+    // public CompletableFuture<Long> getNextAvailableTime(Player player, String shopId, String itemId, boolean isBuy) {
+    //     TransactionLimit limit = getTransactionLimit(shopId, itemId, isBuy);
+    //     if (limit == null || limit.getCooldown() <= 0) {
+    //         return CompletableFuture.completedFuture(0L);
+    //     }
+        
+    //     String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
+    //     String transactionType = isBuy ? "BUY" : "SELL";
+        
+    //     // cleanFutureTimestamps(player.getUniqueId(), shopId, itemId, transactionType);
+    //     // clearExpiredTimestamps(player.getUniqueId(), shopId, itemId, transactionType);
+        
+    //     // String query = "SELECT MAX(transaction_time) as latest FROM " + tablePrefix + "_transaction_limits "
+    //     //         + "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?";
+
+    //     // Utiliser la vue pour interroger toutes les tables
+    //     String query = "SELECT MAX(transaction_time) as latest FROM " + tablePrefix + "_transactions_view " +
+    //                 "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?";
+        
+    //     return plugin.getDataManager().executeAsync(() -> {
+    //         try (Connection connection = plugin.getDataManager().getConnection();
+    //              PreparedStatement stmt = connection.prepareStatement(query)) {
+    //             stmt.setString(1, player.getUniqueId().toString());
+    //             stmt.setString(2, shopId);
+    //             stmt.setString(3, itemId);
+    //             stmt.setString(4, transactionType);
+                
+    //             ResultSet rs = stmt.executeQuery();
+    //             if (rs.next() && rs.getTimestamp("latest") != null) {
+    //                 java.sql.Timestamp latestTime = rs.getTimestamp("latest");
+    //                 // LocalDateTime nextAvailable = latestTime.toLocalDateTime().plusSeconds(limit.getCooldown());
+    //                 // return nextAvailable.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+                    
+    //                 // Vérifier si l'horodatage est dans le futur
+    //                 long now = System.currentTimeMillis();
+    //                 // long latestTimeMillis = latestTime.getTime();
+                    
+    //                 // if (latestTimeMillis > now) {
+    //                 //     // plugin.getLogger().warning("Détection d'un horodatage futur pour " + player.getName() + 
+    //                 //     //                     " sur " + shopId + ":" + itemId + " - Réinitialisation forcée");
+                        
+    //                 //     // Corriger en supprimant les entrées avec horodatages futurs
+    //                 //     resetFutureTimestamps(player.getUniqueId(), shopId, itemId, transactionType);
+                        
+    //                 //     // Disponible immédiatement
+    //                 //     return 0L;
+    //                 // }
+                    
+    //                 // Calculer le temps jusqu'à la prochaine disponibilité
+    //                 LocalDateTime nextAvailable = latestTime.toLocalDateTime().plusSeconds(limit.getCooldown());
+    //                 long nextTimeMillis = nextAvailable.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+                    
+    //                 // Si le temps est déjà passé, retourner 0 (disponible immédiatement)
+    //                 return Math.max(0L, nextTimeMillis - now);
+    //             }
+    //             return 0L;
+    //         }
+    //     });
+    // }
+    // Il faut récupérer le premier horodatage dans la base de données
+    // je veux que getNextAvailableTime prenne également en compte les périodes DAILY, WEEKLY où çà ne doit pas être depuis le début, mais dans le jour même ou la semaine même.
+    // En gros, à minuit, çà refonctionne ou Lundi pour le WEEKL
     public CompletableFuture<Long> getNextAvailableTime(Player player, String shopId, String itemId, boolean isBuy) {
         TransactionLimit limit = getTransactionLimit(shopId, itemId, isBuy);
         if (limit == null || limit.getCooldown() <= 0) {
             return CompletableFuture.completedFuture(0L);
         }
         
+        LimitPeriod period = limit.getPeriodEquivalent();
+        
+        // Pour les périodes prédéfinies (DAILY, WEEKLY, etc.), calculer la fin de la période actuelle
+        // if (period != LimitPeriod.NONE && period != LimitPeriod.FOREVER) {
+        if (period != LimitPeriod.NONE) {
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime nextReset;
+            
+            switch (period) {
+                case DAILY:
+                    // Prochain reset à minuit
+                    nextReset = now.withHour(0).withMinute(0).withSecond(0).withNano(0).plusDays(1);
+                    break;
+                case WEEKLY:
+                    // Prochain reset lundi prochain à minuit
+                    nextReset = now.with(TemporalAdjusters.next(java.time.DayOfWeek.MONDAY))
+                        .withHour(0).withMinute(0).withSecond(0).withNano(0);
+                    if (now.getDayOfWeek() == java.time.DayOfWeek.MONDAY && now.getHour() == 0 && now.getMinute() == 0) {
+                        // Si c'est déjà lundi à minuit, on est déjà réinitialisé
+                        return CompletableFuture.completedFuture(0L);
+                    }
+                    break;
+                case MONTHLY:
+                    // Prochain reset au 1er du mois prochain
+                    nextReset = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0).plusMonths(1);
+                    break;
+                case YEARLY:
+                    // Prochain reset au 1er janvier prochain
+                    nextReset = now.withDayOfYear(1).withHour(0).withMinute(0).withSecond(0).withNano(0).plusYears(1);
+                    break;
+                case FOREVER:
+                    // Pas de reset, donc on retourne -1
+                    return CompletableFuture.completedFuture(-1L);
+                // case NONE:
+                default:
+                    nextReset = now; // Ne devrait jamais arriver
+                    break;
+            }
+            
+            long nextResetMillis = nextReset.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            long nowMillis = System.currentTimeMillis();
+            
+            // Calculer le temps restant jusqu'au prochain reset
+            return CompletableFuture.completedFuture(Math.max(0, nextResetMillis - nowMillis));
+        }
+        
         String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
         String transactionType = isBuy ? "BUY" : "SELL";
         
-        // String query = "SELECT MAX(transaction_time) as latest FROM " + tablePrefix + "_transaction_limits "
-        //         + "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?";
+        // // long now = System.currentTimeMillis();
+        // LocalDateTime now = LocalDateTime.now();
+        // LocalDateTime startDate;
+        // if (limit.getPeriodEquivalent() != LimitPeriod.NONE) {
+        //     // Pour les périodes prédéfinies, utiliser la date de début de la période
+        //     startDate = getStartDateForPeriod(limit.getPeriodEquivalent());
+        //     if (startDate.getDayOfWeek() == DayOfWeek.MONDAY && now.getHour() == 0 && now.getMinute() == 0) {
+        //         return CompletableFuture.completedFuture(0L);
+        //     }
+        // } else {
+        //     // Pour les cooldowns en secondes, calculer la date à partir du moment actuel
+        //     startDate = LocalDateTime.now().minusSeconds(limit.getCooldown());
+        // }
 
-        // Utiliser la vue pour interroger toutes les tables
-        String query = "SELECT MAX(transaction_time) as latest FROM " + tablePrefix + "_transactions_view " +
-                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?";
-        
+        // long nowMillis = System.currentTimeMillis();
+        // long startTimeMillis = startDate.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        // if (startTimeMillis > nowMillis) {
+        //     // Si la date de début est dans le futur, retourner 0 (disponible immédiatement)
+        //     return CompletableFuture.completedFuture(0L);
+        // }
+
+
+        String query = "SELECT MIN(transaction_time) as earliest FROM " + tablePrefix + "_transactions_view "
+                + "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?";
+
         return plugin.getDataManager().executeAsync(() -> {
             try (Connection connection = plugin.getDataManager().getConnection();
                  PreparedStatement stmt = connection.prepareStatement(query)) {
@@ -612,28 +823,26 @@ public class TransactionLimiter {
                 stmt.setString(4, transactionType);
                 
                 ResultSet rs = stmt.executeQuery();
-                if (rs.next() && rs.getTimestamp("latest") != null) {
-                    java.sql.Timestamp latestTime = rs.getTimestamp("latest");
-                    // LocalDateTime nextAvailable = latestTime.toLocalDateTime().plusSeconds(limit.getCooldown());
-                    // return nextAvailable.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+                if (rs.next() && rs.getTimestamp("earliest") != null) {
+                    java.sql.Timestamp earliestTime = rs.getTimestamp("earliest");
                     
                     // Vérifier si l'horodatage est dans le futur
                     long now = System.currentTimeMillis();
-                    long latestTimeMillis = latestTime.getTime();
+                    // long earliestTimeMillis = earliestTime.getTime();
                     
-                    if (latestTimeMillis > now) {
-                        // plugin.getLogger().warning("Détection d'un horodatage futur pour " + player.getName() + 
-                        //                     " sur " + shopId + ":" + itemId + " - Réinitialisation forcée");
+                    // if (earliestTimeMillis > now) {
+                    //     // plugin.getLogger().warning("Détection d'un horodatage futur pour " + player.getName() + 
+                    //     //                     " sur " + shopId + ":" + itemId + " - Réinitialisation forcée");
                         
-                        // Corriger en supprimant les entrées avec horodatages futurs
-                        resetFutureTimestamps(player.getUniqueId(), shopId, itemId, transactionType);
+                    //     // Corriger en supprimant les entrées avec horodatages futurs
+                    //     resetFutureTimestamps(player.getUniqueId(), shopId, itemId, transactionType);
                         
-                        // Disponible immédiatement
-                        return 0L;
-                    }
+                    //     // Disponible immédiatement
+                    //     return 0L;
+                    // }
                     
                     // Calculer le temps jusqu'à la prochaine disponibilité
-                    LocalDateTime nextAvailable = latestTime.toLocalDateTime().plusSeconds(limit.getCooldown());
+                    LocalDateTime nextAvailable = earliestTime.toLocalDateTime().plusSeconds(limit.getCooldown());
                     long nextTimeMillis = nextAvailable.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
                     
                     // Si le temps est déjà passé, retourner 0 (disponible immédiatement)
@@ -643,9 +852,15 @@ public class TransactionLimiter {
             }
         });
     }
-    
-    // Nouvelle méthode pour nettoyer les horodatages futurs
-    private void resetFutureTimestamps(UUID playerUuid, String shopId, String itemId, String transactionType) {
+
+
+    private void clearExpiredTimestamps(UUID playerUuid, String shopId, String itemId, String transactionType) {
+        // plugin.getLogger().info("Nettoyage des horodatages périmés pour " + playerUuid + " sur " + shopId + ":" + itemId);
+        TransactionLimit limit = getTransactionLimit(shopId, itemId, transactionType.equals("BUY"));
+        if (limit == null) {
+            // plugin.getLogger().info("Aucune limite trouvée pour " + playerUuid + " sur " + shopId + ":" + itemId);
+            return;
+        }
         String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
         String[] tables = {
             tablePrefix + "_tx_daily",
@@ -656,10 +871,26 @@ public class TransactionLimiter {
             tablePrefix + "_transaction_limits"
         };
         
+        // Déterminer la date de début en fonction de la période ou du cooldown
+        LocalDateTime startDate;
+        if (limit.getPeriodEquivalent() != LimitPeriod.NONE) {
+            // Pour les périodes prédéfinies, utiliser la date de début de la période
+            startDate = getStartDateForPeriod(limit.getPeriodEquivalent());
+        } else {
+            // Pour les cooldowns en secondes, calculer la date à partir du moment actuel
+            startDate = LocalDateTime.now().minusSeconds(limit.getCooldown());
+        }
+
+        // plugin.getLogger().info("Date de début pour le nettoyage: " + startDate);
         for (String table : tables) {
             String query = "DELETE FROM " + table + 
                         " WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
-                        " AND transaction_time > NOW()";
+                        " AND transaction_time < ?";
+
+            // plugin.getLogger().info("Suppression des entrées périmées pour la table " + table + 
+            //                     " pour le joueur " + playerUuid + 
+            //                     " sur le shop " + shopId + 
+            //                     " et l'item " + itemId);
             
             plugin.getDataManager().executeAsync(() -> {
                 try (Connection connection = plugin.getDataManager().getConnection();
@@ -668,6 +899,47 @@ public class TransactionLimiter {
                     stmt.setString(2, shopId);
                     stmt.setString(3, itemId);
                     stmt.setString(4, transactionType);
+                    stmt.setTimestamp(5, java.sql.Timestamp.valueOf(startDate));
+                    
+                    return stmt.executeUpdate();
+                } catch (SQLException e) {
+                    plugin.getLogger().severe("Erreur lors de la suppression d'entrées périmées: " + e.getMessage());
+                    return 0;
+                }
+            });
+        }
+    }
+    
+    // Nouvelle méthode pour nettoyer les horodatages futurs
+    private void cleanFutureTimestamps(UUID playerUuid, String shopId, String itemId, String transactionType) {
+        String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
+        String[] tables = {
+            tablePrefix + "_tx_daily",
+            tablePrefix + "_tx_weekly",
+            tablePrefix + "_tx_monthly",
+            tablePrefix + "_tx_yearly",
+            tablePrefix + "_tx_forever",
+            tablePrefix + "_transaction_limits"
+        };
+        
+        // Obtenir la date/heure actuelle
+        long currentTimeMillis = System.currentTimeMillis();
+        java.sql.Timestamp currentTimestamp = new java.sql.Timestamp(currentTimeMillis);
+        
+        for (String table : tables) {
+            String query = "DELETE FROM " + table + 
+                        " WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+                        " AND transaction_time > ?";
+                        // " AND transaction_time > NOW()";
+            
+            plugin.getDataManager().executeAsync(() -> {
+                try (Connection connection = plugin.getDataManager().getConnection();
+                    PreparedStatement stmt = connection.prepareStatement(query)) {
+                    stmt.setString(1, playerUuid.toString());
+                    stmt.setString(2, shopId);
+                    stmt.setString(3, itemId);
+                    stmt.setString(4, transactionType);
+                    stmt.setTimestamp(5, currentTimestamp);
                     
                     return stmt.executeUpdate();
                 } catch (SQLException e) {
@@ -725,11 +997,7 @@ public class TransactionLimiter {
                     PreparedStatement stmt = connection.prepareStatement(
                         "DELETE FROM " + finalTableName + " WHERE transaction_time < ?")) {
                     stmt.setTimestamp(1, java.sql.Timestamp.valueOf(finalCutoffDate));
-                    int deleted = stmt.executeUpdate();
-                    if (deleted > 0) {
-                        plugin.getLogger().info("Nettoyage des transactions " + period.name() + ": " + deleted + " entrées supprimées");
-                    }
-                    return deleted;
+                    return stmt.executeUpdate();
                 } catch (SQLException e) {
                     plugin.getLogger().severe("Erreur lors du nettoyage des transactions " + period.name() + ": " + e.getMessage());
                     return 0;
@@ -853,34 +1121,34 @@ public class TransactionLimiter {
     //     }
     // }
 
-    /**
-     * Nettoie les transactions expirées liées au cooldown.
-     */
-    public void cleanupCooldownTransactions() {
-        String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
+    // /**
+    //  * Nettoie les transactions expirées liées au cooldown.
+    //  */
+    // public void cleanupCooldownTransactions() {
+    //     String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
         
-        // La requête supprime les transactions dont le cooldown est expiré
-        String query = "DELETE t1 FROM " + tablePrefix + "_transaction_limits t1 " +
-                    "INNER JOIN " + tablePrefix + "_transaction_limits t2 ON " +
-                    "t1.player_uuid = t2.player_uuid AND t1.shop_id = t2.shop_id AND " +
-                    "t1.item_id = t2.item_id AND t1.transaction_type = t2.transaction_type " +
-                    "WHERE t1.transaction_time < t2.transaction_time";
+    //     // La requête supprime les transactions dont le cooldown est expiré
+    //     String query = "DELETE t1 FROM " + tablePrefix + "_transaction_limits t1 " +
+    //                 "INNER JOIN " + tablePrefix + "_transaction_limits t2 ON " +
+    //                 "t1.player_uuid = t2.player_uuid AND t1.shop_id = t2.shop_id AND " +
+    //                 "t1.item_id = t2.item_id AND t1.transaction_type = t2.transaction_type " +
+    //                 "WHERE t1.transaction_time < t2.transaction_time";
         
-        // Version alternative pour SQLite qui ne supporte pas les JOINs dans DELETE
-        String sqliteQuery = "DELETE FROM " + tablePrefix + "_transaction_limits " +
-                            "WHERE transaction_time NOT IN (SELECT MAX(transaction_time) FROM " + 
-                            tablePrefix + "_transaction_limits GROUP BY player_uuid, shop_id, item_id, transaction_type)";
+    //     // Version alternative pour SQLite qui ne supporte pas les JOINs dans DELETE
+    //     String sqliteQuery = "DELETE FROM " + tablePrefix + "_transaction_limits " +
+    //                         "WHERE transaction_time NOT IN (SELECT MAX(transaction_time) FROM " + 
+    //                         tablePrefix + "_transaction_limits GROUP BY player_uuid, shop_id, item_id, transaction_type)";
         
-        plugin.getDataManager().executeAsync(() -> {
-            try (Connection connection = plugin.getDataManager().getConnection();
-                PreparedStatement stmt = connection.prepareStatement(plugin.getDataConfig().getDatabaseType().equals("mysql") ? query : sqliteQuery)) {
-                    return stmt.executeUpdate();
-            } catch (SQLException e) {
-                plugin.getLogger().severe("Erreur lors du nettoyage des cooldowns: " + e.getMessage());
-                return 0;
-            }
-        });
-    }
+    //     plugin.getDataManager().executeAsync(() -> {
+    //         try (Connection connection = plugin.getDataManager().getConnection();
+    //             PreparedStatement stmt = connection.prepareStatement(plugin.getDataConfig().getDatabaseType().equals("mysql") ? query : sqliteQuery)) {
+    //                 return stmt.executeUpdate();
+    //         } catch (SQLException e) {
+    //             plugin.getLogger().severe("Erreur lors du nettoyage des cooldowns: " + e.getMessage());
+    //             return 0;
+    //         }
+    //     });
+    // }
     
     // private static class TransactionLimit {
     //     private final int amount;
@@ -1019,79 +1287,79 @@ public class TransactionLimiter {
     //         }
     //     });
     // }
-    public void recordBulkTransactions(List<TransactionRecord> records) {
-        if (records.isEmpty()) {
-            return;
-        }
+    // public void recordBulkTransactions(List<TransactionRecord> records) {
+    //     if (records.isEmpty()) {
+    //         return;
+    //     }
         
-        // Regrouper les transactions par période (basée sur le type de limite)
-        Map<String, List<TransactionRecord>> recordsByTable = new HashMap<>();
+    //     // Regrouper les transactions par période (basée sur le type de limite)
+    //     Map<String, List<TransactionRecord>> recordsByTable = new HashMap<>();
         
-        for (TransactionRecord record : records) {
-            TransactionLimit limit = getTransactionLimit(record.shopId, record.itemId, record.isBuy);
-            String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
-            String tableName = tablePrefix + "_transaction_limits"; // Table par défaut
+    //     for (TransactionRecord record : records) {
+    //         TransactionLimit limit = getTransactionLimit(record.shopId, record.itemId, record.isBuy);
+    //         String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
+    //         String tableName = tablePrefix + "_transaction_limits"; // Table par défaut
             
-            if (limit != null) {
-                // Sélectionner la table partitionnée appropriée
-                switch (limit.getPeriodEquivalent()) {
-                    case DAILY:
-                        tableName = tablePrefix + "_tx_daily";
-                        break;
-                    case WEEKLY:
-                        tableName = tablePrefix + "_tx_weekly";
-                        break;
-                    case MONTHLY:
-                        tableName = tablePrefix + "_tx_monthly";
-                        break;
-                    case YEARLY:
-                        tableName = tablePrefix + "_tx_yearly";
-                        break;
-                    case FOREVER:
-                        tableName = tablePrefix + "_tx_forever";
-                        break;
-                    case NONE:
-                        tableName = tablePrefix + "_transaction_limits"; // Table principale
-                        break;
-                }
-            }
+    //         if (limit != null) {
+    //             // Sélectionner la table partitionnée appropriée
+    //             switch (limit.getPeriodEquivalent()) {
+    //                 case DAILY:
+    //                     tableName = tablePrefix + "_tx_daily";
+    //                     break;
+    //                 case WEEKLY:
+    //                     tableName = tablePrefix + "_tx_weekly";
+    //                     break;
+    //                 case MONTHLY:
+    //                     tableName = tablePrefix + "_tx_monthly";
+    //                     break;
+    //                 case YEARLY:
+    //                     tableName = tablePrefix + "_tx_yearly";
+    //                     break;
+    //                 case FOREVER:
+    //                     tableName = tablePrefix + "_tx_forever";
+    //                     break;
+    //                 case NONE:
+    //                     tableName = tablePrefix + "_transaction_limits"; // Table principale
+    //                     break;
+    //             }
+    //         }
             
-            recordsByTable.computeIfAbsent(tableName, k -> new ArrayList<>()).add(record);
-        }
+    //         recordsByTable.computeIfAbsent(tableName, k -> new ArrayList<>()).add(record);
+    //     }
         
-        // Traiter chaque groupe de transactions pour sa table spécifique
-        for (Map.Entry<String, List<TransactionRecord>> entry : recordsByTable.entrySet()) {
-            String tableName = entry.getKey();
-            List<TransactionRecord> tableRecords = entry.getValue();
+    //     // Traiter chaque groupe de transactions pour sa table spécifique
+    //     for (Map.Entry<String, List<TransactionRecord>> entry : recordsByTable.entrySet()) {
+    //         String tableName = entry.getKey();
+    //         List<TransactionRecord> tableRecords = entry.getValue();
             
-            String query = "INSERT INTO " + tableName + " "
-                    + "(player_uuid, shop_id, item_id, transaction_type, amount, transaction_time) "
-                    + "VALUES (?, ?, ?, ?, ?, NOW())";
+    //         String query = "INSERT INTO " + tableName + " "
+    //                 + "(player_uuid, shop_id, item_id, transaction_type, amount, transaction_time) "
+    //                 + "VALUES (?, ?, ?, ?, ?, NOW())";
             
-            plugin.getDataManager().executeAsync(() -> {
-                try (Connection connection = plugin.getDataManager().getConnection();
-                    PreparedStatement stmt = connection.prepareStatement(query)) {
+    //         plugin.getDataManager().executeAsync(() -> {
+    //             try (Connection connection = plugin.getDataManager().getConnection();
+    //                 PreparedStatement stmt = connection.prepareStatement(query)) {
                     
-                    connection.setAutoCommit(false);
+    //                 connection.setAutoCommit(false);
                     
-                    for (TransactionRecord record : tableRecords) {
-                        stmt.setString(1, record.playerUuid.toString());
-                        stmt.setString(2, record.shopId);
-                        stmt.setString(3, record.itemId);
-                        stmt.setString(4, record.isBuy ? "BUY" : "SELL");
-                        stmt.setInt(5, record.amount);
-                        stmt.addBatch();
-                    }
+    //                 for (TransactionRecord record : tableRecords) {
+    //                     stmt.setString(1, record.playerUuid.toString());
+    //                     stmt.setString(2, record.shopId);
+    //                     stmt.setString(3, record.itemId);
+    //                     stmt.setString(4, record.isBuy ? "BUY" : "SELL");
+    //                     stmt.setInt(5, record.amount);
+    //                     stmt.addBatch();
+    //                 }
                     
-                    int[] results = stmt.executeBatch();
-                    connection.commit();
-                    connection.setAutoCommit(true);
+    //                 int[] results = stmt.executeBatch();
+    //                 connection.commit();
+    //                 connection.setAutoCommit(true);
                     
-                    return results.length;
-                }
-            });
-        }
-    }
+    //                 return results.length;
+    //             }
+    //         });
+    //     }
+    // }
 
     // Classe interne pour les enregistrements de transaction en lot
     public static class TransactionRecord {
