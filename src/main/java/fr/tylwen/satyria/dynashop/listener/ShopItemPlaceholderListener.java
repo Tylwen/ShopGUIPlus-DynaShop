@@ -1,5 +1,6 @@
 package fr.tylwen.satyria.dynashop.listener;
 
+import org.bukkit.ChatColor;
 // import org.bukkit.ChatColor;
 // import org.bukkit.Material;
 // import org.bukkit.block.Block;
@@ -17,6 +18,7 @@ import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.inventory.InventoryView;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 // import fr.tylwen.satyria.dynashop.data.DynamicPrice;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.brcdev.shopgui.shop.Shop;
@@ -126,6 +128,7 @@ public class ShopItemPlaceholderListener implements Listener {
         updateShopInventory(player, view, shopId, page, originalLores);
         
         // Démarrer l'actualisation continue
+        // plugin.getLogger().info("Démarrage de l'actualisation continue pour le shop " + shopId + " à la page " + page + " pour le joueur " + player.getName());
         startContinuousRefresh(player, view, shopId, page, originalLores);
     }
 
@@ -408,17 +411,23 @@ public class ShopItemPlaceholderListener implements Listener {
     }
 
     private void updateShopInventory(Player player, InventoryView view, String shopId, int page, Map<Integer, List<String>> originalLores) {
-        if (view == null || view.getTopInventory() == null) return;
-        
+        if (view == null || view.getTopInventory() == null) {
+            // plugin.getLogger().warning("Tentative de mise à jour d'un inventaire invalide pour le joueur " + player.getName());
+            return;
+        }
+
         try {
+            // Déterminer l'ID du shop et la page
             int pageValue = page;
             String shopIdValue = shopId;
             
             // Capturer les valeurs finales pour utilisation dans les lambdas
             final int finalPage = pageValue;
             final String finalShopId = shopIdValue;
-            if (finalShopId == null) return;
-            
+            if (finalShopId == null) {
+                return;
+            }
+
             // // IMPORTANT: Stocker les lores originaux avant de les modifier
             // Map<Integer, List<String>> originalLores = new HashMap<>();
             
@@ -456,6 +465,7 @@ public class ShopItemPlaceholderListener implements Listener {
                     
                     // Ne traiter que les slots qui avaient des placeholders originaux
                     if (!originalLores.containsKey(slot)) {
+                        // plugin.getLogger().info("Aucun placeholder trouvé pour le slot " + slot + " dans l'inventaire de " + player.getName());
                         continue;
                     }
                     
@@ -651,6 +661,27 @@ public class ShopItemPlaceholderListener implements Listener {
                     (prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0"))) {
                     skipLine = true;
                 }
+
+                // // Vérifier les placeholders de stock
+                // if (line.contains("%dynashop_current_stock%") && 
+                //     // (prices.get("stock").equals("N/A") || prices.get("stock").equals("0"))) {
+                //     (prices.get("stock").equals("N/A"))) {
+                //     skipLine = true;
+                // }
+                // if (line.contains("%dynashop_current_stock_ratio%") && 
+                //     // (prices.get("stock").equals("N/A") || prices.get("stock").equals("0"))) {
+                //     (prices.get("stock").equals("N/A"))) {
+                //     skipLine = true;
+                // }
+                // Vérifier les placeholders de stock - Ajouter une vérification du mode STOCK
+                if ((line.contains("%dynashop_current_stock%") || 
+                    line.contains("%dynashop_current_maxstock%") ||
+                    line.contains("%dynashop_current_stock_ratio%") || 
+                    line.contains("%dynashop_current_colored_stock_ratio%")) && 
+                    (!Boolean.parseBoolean(prices.get("is_stock_mode")) || 
+                    prices.get("stock").equals("N/A"))) {
+                    skipLine = true;
+                }
                 
                 // Si la ligne doit être conservée, remplacer les placeholders
                 if (!skipLine) {
@@ -661,7 +692,11 @@ public class ShopItemPlaceholderListener implements Listener {
                         .replace("%dynashop_current_sellMinPrice%", prices.get("sell_min"))
                         .replace("%dynashop_current_sellMaxPrice%", prices.get("sell_max"))
                         .replace("%dynashop_current_buy%", prices.get("base_buy"))
-                        .replace("%dynashop_current_sell%", prices.get("base_sell"));
+                        .replace("%dynashop_current_sell%", prices.get("base_sell"))
+                        .replace("%dynashop_current_stock%", prices.get("stock"))
+                        .replace("%dynashop_current_maxstock%", prices.get("stock_max"))
+                        .replace("%dynashop_current_stock_ratio%", prices.get("base_stock"))
+                        .replace("%dynashop_current_colored_stock_ratio%", prices.get("colored_stock_ratio"));
                 }
             }
             
@@ -708,6 +743,10 @@ public class ShopItemPlaceholderListener implements Listener {
         }
         
         Map<String, String> prices = new HashMap<>();
+
+        // Déterminer si l'item est en mode STOCK
+        boolean isStockMode = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.STOCK;
+        prices.put("is_stock_mode", String.valueOf(isStockMode));
         
         // Calcul des prix
         String buyPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy");
@@ -717,6 +756,10 @@ public class ShopItemPlaceholderListener implements Listener {
         String sellMinPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell_min");
         String sellMaxPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell_max");
         
+        // // Ajouter les informations de stock
+        // String currentStock = plugin.getPlaceholderExpansion().getStockByType(shopId, itemId, "stock");
+        // String maxStock = plugin.getPlaceholderExpansion().getStockByType(shopId, itemId, "stock_max");
+        
         // Stocker les valeurs
         prices.put("buy", buyPrice);
         prices.put("sell", sellPrice);
@@ -724,6 +767,36 @@ public class ShopItemPlaceholderListener implements Listener {
         prices.put("buy_max", buyMaxPrice);
         prices.put("sell_min", sellMinPrice);
         prices.put("sell_max", sellMaxPrice);
+        
+        // Si l'item n'est pas en mode STOCK, ne pas afficher les informations de stock
+        if (!isStockMode) {
+            prices.put("stock", "N/A");
+            prices.put("stock_max", "N/A");
+            prices.put("base_stock", "N/A");
+            prices.put("colored_stock_ratio", "N/A");
+        } else {
+            // Ajouter les informations de stock
+            String currentStock = plugin.getPlaceholderExpansion().getStockByType(shopId, itemId, "stock");
+            String maxStock = plugin.getPlaceholderExpansion().getStockByType(shopId, itemId, "stock_max");
+            
+            prices.put("stock", currentStock);
+            prices.put("stock_max", maxStock);
+            
+            // Format pour le stock
+            if (currentStock.equals("N/A") || currentStock.equals("0")) {
+                prices.put("base_stock", ChatColor.translateAlternateColorCodes('&', "&cOut of stock"));
+                prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', "&cOut of stock"));
+            } else {
+                prices.put("base_stock", String.format("%s/%s", currentStock, maxStock));
+
+                // Format avec couleurs selon le niveau de stock
+                int current = Integer.parseInt(currentStock);
+                int max = Integer.parseInt(maxStock);
+                String colorCode = (current < max * 0.25) ? "&c" : (current < max * 0.5) ? "&e" : "&a";
+                prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 
+                    String.format("%s%s&7/%s", colorCode, currentStock, maxStock)));
+            }
+        }
         
         // Format pour le prix d'achat avec min-max
         if (!buyMinPrice.equals("N/A") && !buyMaxPrice.equals("N/A")) {
@@ -744,6 +817,20 @@ public class ShopItemPlaceholderListener implements Listener {
         } else {
             prices.put("base_sell", currencyPrefix + sellPrice + currencySuffix);
         }
+
+        // // Format pour le stock
+        // if (currentStock.equals("N/A") || currentStock.equals("0")) {
+        //     prices.put("base_stock", ChatColor.translateAlternateColorCodes('&', "&cOut of stock"));
+        //     prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', "&cOut of stock"));
+        // } else {
+        //     prices.put("base_stock", String.format("%s/%s", currentStock, maxStock));
+
+        //     // Format avec couleurs selon le niveau de stock
+        //     int current = Integer.parseInt(currentStock);
+        //     int max = Integer.parseInt(maxStock);
+        //     String colorCode = (current < max * 0.25) ? "&c" : (current < max * 0.5) ? "&e" : "&a";
+        //     prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', String.format("%s%s&7/%s", colorCode, currentStock, maxStock)));
+        // }
         
         // Mettre en cache avec timestamp
         globalPriceCache.put(cacheKey, prices);
@@ -768,7 +855,11 @@ public class ShopItemPlaceholderListener implements Listener {
                     .replace("%dynashop_current_sellMinPrice%", "...")
                     .replace("%dynashop_current_sellMaxPrice%", "...")
                     .replace("%dynashop_current_buy%", "Loading...")
-                    .replace("%dynashop_current_sell%", "Loading...");
+                    .replace("%dynashop_current_sell%", "Loading...")
+                    .replace("%dynashop_current_stock%", "Loading...")
+                    .replace("%dynashop_current_maxstock%", "Loading...")
+                    .replace("%dynashop_current_stock_ratio%", "Loading...")
+                    .replace("%dynashop_current_colored_stock_ratio%", "Loading...");
                 processed.add(tempLine);
             } else {
                 processed.add(line);

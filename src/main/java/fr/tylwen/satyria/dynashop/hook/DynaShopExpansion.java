@@ -375,6 +375,65 @@ public class DynaShopExpansion extends PlaceholderExpansion {
         }
     }
 
+    public String getStockByType(String shopID, String itemID, String stockType) {
+        // // Vérifier d'abord si "useRecipe" est activé
+        // boolean useRecipe = shopConfigManager.getTypeDynaShop(shopID, itemID).orElse(DynaShopType.NONE) == DynaShopType.RECIPE;
+        // ItemStack itemStack = null;
+        
+        // if (useRecipe) {
+        //     itemStack = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem();
+        //     if (itemStack == null) {
+        //         return "N/A";
+        //     }
+        // }
+        
+        switch (stockType) {
+            case "stock":
+                // if (useRecipe && itemStack != null) {
+                //     // Utiliser la valeur en cache si disponible
+                //     double cachedStock = mainPlugin.getCachedRecipePrice(shopID, itemID, "stock");
+                //     if (cachedStock >= 0) {
+                //         return String.valueOf((int) cachedStock);
+                //     }
+                // }
+                Optional<Integer> stock = this.itemDataManager.getStock(shopID, itemID);
+                if (stock.isPresent()) {
+                    return String.valueOf(stock.get());
+                }
+                Optional<Integer> configStock = shopConfigManager.getItemValue(shopID, itemID, "stock.base", Integer.class);
+                if (configStock.isPresent()) {
+                    return String.valueOf(configStock.get());
+                }
+                return "N/A";
+            case "stock_min":
+                // if (useRecipe && itemStack != null) {
+                //     double cachedMinStock = mainPlugin.getCachedRecipePrice(shopID, itemID, "stock.min");
+                //     if (cachedMinStock >= 0) {
+                //         return String.valueOf((int) cachedMinStock);
+                //     }
+                // }
+                Optional<Integer> minStock = shopConfigManager.getItemValue(shopID, itemID, "stock.min", Integer.class);
+                if (minStock.isPresent()) {
+                    return String.valueOf(minStock.get());
+                }
+                return "N/A";
+            case "stock_max":
+                // if (useRecipe && itemStack != null) {
+                //     double cachedMaxStock = mainPlugin.getCachedRecipePrice(shopID, itemID, "stock.max");
+                //     if (cachedMaxStock >= 0) {
+                //         return String.valueOf((int) cachedMaxStock);
+                //     }
+                // }
+                Optional<Integer> maxStock = shopConfigManager.getItemValue(shopID, itemID, "stock.max", Integer.class);
+                if (maxStock.isPresent()) {
+                    return String.valueOf(maxStock.get());
+                }
+                return "N/A";
+            default:
+                return "Type inconnu";
+        }
+    }
+
     /**
      * Récupère tous les prix et valeurs pour un item spécifique en UNE SEULE opération de base de données.
      * Beaucoup plus efficace qu'appeler getPriceByType() plusieurs fois.

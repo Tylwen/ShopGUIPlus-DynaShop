@@ -376,9 +376,9 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
             batchDatabaseUpdater.shutdown();
         }
 
-        if (dynaShopListener != null) {
-            HandlerList.unregisterAll(dynaShopListener);
-        }
+        // if (dynaShopListener != null) {
+        //     // HandlerList.unregisterAll(dynaShopListener);
+        // }
 
         // if (packetInterceptor != null) {
         //     // packetInterceptor.clearCache();

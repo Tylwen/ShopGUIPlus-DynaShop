@@ -79,6 +79,40 @@ public class PriceRecipe {
         return basePrice * modifier;
     }
 
+    public int calculateStock(String shopID, String itemID, ItemStack item, List<String> visitedItems) {
+        List<ItemStack> ingredients = getIngredients(shopID, itemID, item);
+        ingredients = consolidateIngredients(ingredients);
+        int totalStock = 0;
+        // Calculer le stock total en fonction des ingrédients
+        for (ItemStack ingredient : ingredients) {
+            if (ingredient == null || ingredient.getType() == Material.AIR) {
+                continue; // Ignorer les ingrédients invalides
+            }
+            int ingredientStock = getIngredientStock(ingredient, visitedItems);
+            // totalStock += ingredientStock * ingredient.getAmount(); // Multiplier par la quantité de l'ingrédient
+            totalStock += ingredientStock / ingredient.getAmount(); // Diviser par la quantité de l'ingrédient
+            // totalStock += ingredientStock; // Ajouter le stock de l'ingrédient
+        }
+        return totalStock;
+    }
+
+    public int calculateMaxStock(String shopID, String itemID, ItemStack item, List<String> visitedItems) {
+        List<ItemStack> ingredients = getIngredients(shopID, itemID, item);
+        ingredients = consolidateIngredients(ingredients);
+        int maxStock = 0;
+        // Calculer le stock maximum en fonction des ingrédients
+        for (ItemStack ingredient : ingredients) {
+            if (ingredient == null || ingredient.getType() == Material.AIR) {
+                continue; // Ignorer les ingrédients invalides
+            }
+            int ingredientStock = getIngredientMaxStock(ingredient, visitedItems);
+            // maxStock += ingredientStock * ingredient.getAmount(); // Multiplier par la quantité de l'ingrédient
+            maxStock += ingredientStock / ingredient.getAmount(); // Diviser par la quantité de l'ingrédient
+            // maxStock += ingredientStock; // Ajouter le stock maximum de l'ingrédient
+        }
+        return maxStock;
+    }
+
     public void calculatePriceAsync(String shopID, String itemID, ItemStack item, String typePrice, Consumer<Double> callback) {
         // Exécuter le calcul de prix coûteux dans un thread séparé
         Bukkit.getScheduler().runTaskAsynchronously(DynaShopPlugin.getInstance(), () -> {
@@ -310,11 +344,11 @@ public class PriceRecipe {
         // Ajouter l'item à la liste des visités
         visitedItems.add(itemID);
 
-        // 1. Vérifier le cache si disponible
-        Double cachedPrice = checkCache(shopID, itemID, typePrice);
-        if (cachedPrice != null) {
-            return cachedPrice;
-        }
+        // // 1. Vérifier le cache si disponible
+        // Double cachedPrice = checkCache(shopID, itemID, typePrice);
+        // if (cachedPrice != null) {
+        //     return cachedPrice;
+        // }
     
         // Vérifier le type d'item
         DynaShopType itemType = DynaShopPlugin.getInstance().getShopConfigManager().getTypeDynaShop(shopID, itemID);
@@ -418,22 +452,22 @@ public class PriceRecipe {
         return price.orElse(10.0); // 10.0 est une valeur par défaut si aucun prix n'est trouvé
     }
 
-    // Méthodes auxiliaires extraites:
-    private Double checkCache(String shopID, String itemID, String typePrice) {
-        // Utiliser le système de cache global du plugin
-        double cachedPrice = DynaShopPlugin.getInstance().getCachedRecipePrice(shopID, itemID, typePrice);
+    // // Méthodes auxiliaires extraites:
+    // private Double checkCache(String shopID, String itemID, String typePrice) {
+    //     // Utiliser le système de cache global du plugin
+    //     double cachedPrice = DynaShopPlugin.getInstance().getCachedRecipePrice(shopID, itemID, typePrice);
         
-        // Si le prix est en cache (différent de -1.0, la valeur retournée quand le prix n'est pas en cache)
-        if (cachedPrice >= 0) {
-            // Ajouter du logging pour le débogage
-            // if (DynaShopPlugin.getInstance().isDebug()) {
-            //     DynaShopPlugin.getInstance().getLogger().info("Cache hit pour " + shopID + ":" + itemID + ":" + typePrice + " = " + cachedPrice);
-            // }
-            return cachedPrice;
-        }
+    //     // Si le prix est en cache (différent de -1.0, la valeur retournée quand le prix n'est pas en cache)
+    //     if (cachedPrice >= 0) {
+    //         // Ajouter du logging pour le débogage
+    //         // if (DynaShopPlugin.getInstance().isDebug()) {
+    //         //     DynaShopPlugin.getInstance().getLogger().info("Cache hit pour " + shopID + ":" + itemID + ":" + typePrice + " = " + cachedPrice);
+    //         // }
+    //         return cachedPrice;
+    //     }
         
-        return null; // Le prix n'est pas en cache
-    }
+    //     return null; // Le prix n'est pas en cache
+    // }
 
     public List<ItemStack> consolidateIngredients(List<ItemStack> ingredients) {
         // Map<Material, Integer> ingredientCounts = new HashMap<>();
@@ -474,5 +508,83 @@ public class PriceRecipe {
         // Retourner un modificateur par défaut si aucune recette n'est trouvée
         return 1.0;
     }
+
+    public int getIngredientStock(ItemStack ingredient, List<String> visitedItems) {
+        // Récupérer l'ID de l'item dans le shop
+        String itemID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
+        String shopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
+
+        // Vérifier si l'item a déjà été visité
+        if (visitedItems.contains(itemID)) {
+            // DynaShopPlugin.getInstance().getLogger().warning("Boucle détectée pour l'item : " + itemID);
+            return 0; // Retourner 0 pour éviter une boucle infinie
+        }
+        // Ajouter l'item à la liste des visités
+        visitedItems.add(itemID);
+
+        // Récupérer le stock de l'item
+        Optional<Integer> stockOptional = DynaShopPlugin.getInstance().getItemDataManager().getStock(shopID, itemID);
+        if (stockOptional.isPresent()) {
+            return stockOptional.get();
+        }
+        return 0; // Retourner 0 si le stock n'est pas trouvé
+    }
+
+    public int getIngredientMaxStock(ItemStack ingredient, List<String> visitedItems) {
+        // Récupérer l'ID de l'item dans le shop
+        String itemID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
+        String shopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
+
+        // Vérifier si l'item a déjà été visité
+        if (visitedItems.contains(itemID)) {
+            // DynaShopPlugin.getInstance().getLogger().warning("Boucle détectée pour l'item : " + itemID);
+            return 0; // Retourner 0 pour éviter une boucle infinie
+        }
+        // Ajouter l'item à la liste des visités
+        visitedItems.add(itemID);
+
+        // Récupérer le stock maximum de l'item
+        Optional<Integer> maxStockOptional = DynaShopPlugin.getInstance().getShopConfigManager().getItemValue(shopID, itemID, "stock.max", Integer.class);
+        if (maxStockOptional.isPresent()) {
+            return maxStockOptional.get();
+        }
+        return 0; // Retourner 0 si le stock maximum n'est pas trouvé
+    }
+
+    //     // Récupérer l'ID de l'item dans le shop
+    //     String itemID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
+    //     String shopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
+
+    //     // Récupérer le stock maximum de l'item
+    //     return DynaShopPlugin.getInstance().getShopConfigManager().getItemValue(shopID, itemID, "stock.max", Integer.class).orElse(1000);
+    // }
+
+    public DynaShopType getItemType(String shopID, String itemID) {
+        // Récupérer le type d'item depuis la configuration
+        return DynaShopPlugin.getInstance().getShopConfigManager().getTypeDynaShop(shopID, itemID);
+    }
+
+    public DynaShopType getIngredientType(ItemStack ingredient) {
+        // Récupérer l'ID de l'item dans le shop
+        String itemID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
+        String shopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
+        
+        // Récupérer le type d'item depuis la configuration
+        return DynaShopPlugin.getInstance().getShopConfigManager().getTypeDynaShop(shopID, itemID);
+    }
+
+    // public int calculateStock(String shopID, String itemID, ItemStack item) {
+    //     // Récupérer le stock de l'item
+    //     Optional<Integer> stockOptional = DynaShopPlugin.getInstance().getItemDataManager().getStock(shopID, itemID);
+    //     if (stockOptional.isPresent()) {
+    //         return stockOptional.get();
+    //     }
+    //     return 0; // Retourner 0 si le stock n'est pas trouvé
+    // }
+
+    // public int calculateMaxStock(String shopID, String itemID) {
+    //     // Récupérer le stock maximum de l'item
+    //     return DynaShopPlugin.getInstance().getShopConfigManager().getItemValue(shopID, itemID, "stock.max", Integer.class).orElse(1000);
+    // }
     
 }
