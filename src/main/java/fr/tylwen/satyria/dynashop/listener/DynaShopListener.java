@@ -93,157 +93,7 @@ public class DynaShopListener implements Listener {
         ItemStack itemStack = item.getItem();
         boolean isBuy = event.getShopAction() == ShopAction.BUY;
 
-        // if (mainPlugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
-        //     // // Annuler immédiatement pour éviter le traitement par ShopGUI+
-        //     // event.setCancelled(true);
-            
-        //     // Vérifier d'abord le cache pour une réponse rapide
-        //     String cacheKey = player.getUniqueId() + ":" + shopID + ":" + itemID + ":" + (isBuy ? "buy" : "sell");
-            
-        //     // Vérifier d'abord dans le cache
-        //     if (limitsCache.containsKey(cacheKey)) {
-        //         LimitCacheEntry entry = limitsCache.get(cacheKey);
-        //         // Si le cache est récent (moins de 5 secondes), l'utiliser
-        //         if (System.currentTimeMillis() - entry.timestamp < 5000) {
-        //             if (!entry.canPerform) {
-        //                 // Si la limite est atteinte, annuler l'événement
-        //                 event.setCancelled(true);
-        //                 handleLimitExceeded(player, shopID, itemID, isBuy, event);
-        //                 return;
-        //             }
-        //             // Limite respectée (selon le cache), laisser passer la transaction
-        //             // return;
-        //             // Limite respectée selon le cache, continuer directement avec le reste du traitement
-        //             processRegularTransaction(event, player, item, amount, shopID, itemID, itemStack, isBuy);
-        //             return;
-        //         } else {
-        //             // Le cache est périmé, on le supprime
-        //             limitsCache.remove(cacheKey);
-        //         }
-        //     }
-            
-        //     // Stocker des informations de transaction pour utilisation ultérieure
-        //     TransactionInfo transactionInfo = new TransactionInfo(player, item, event.getShopAction(), amount);
-        //     pendingLimitChecks.put(cacheKey, transactionInfo);
-            
-        //     // Aucun cache valide, on effectue la vérification de manière asynchrone
-        //     // et on annule l'événement par sécurité en attendant la réponse
-        //     event.setCancelled(true);
-            
-            
-        //     mainPlugin.getTransactionLimiter().canPerformTransaction(player, shopID, itemID, isBuy, amount).thenAcceptAsync(canPerform -> {
-        //         // Cache le résultat pour les prochaines requêtes
-        //         limitsCache.put(cacheKey, new LimitCacheEntry(canPerform, System.currentTimeMillis()));
-                
-        //         if (Boolean.TRUE.equals(canPerform)) {
-        //             // // Replanifier la transaction
-        //             mainPlugin.getLogger().info("Transaction autorisée pour " + player.getName() + " sur " + shopID + ":" + itemID);
-        //             Bukkit.getScheduler().runTask(mainPlugin, () -> {
-        //                 pendingLimitChecks.remove(cacheKey);
-        //                 event.setCancelled(false); // Annuler l'annulation de l'événement
-        //                 // Appeler directement la méthode qui traite le reste de la logique
-        //                 processRegularTransaction(event, player, item, amount, shopID, itemID, itemStack, isBuy);
-        //             });
-        //         } else {
-        //             // Obtient les informations supplémentaires de manière asynchrone
-        //             handleLimitExceeded(player, shopID, itemID, isBuy, null);
-        //             pendingLimitChecks.remove(cacheKey);
-        //             // if (event.isCancelled()) {
-        //             //     // // Annuler l'événement si la limite est atteinte
-        //             //     // event.setCancelled(true);
-        //             //     return;
-        //             // }
-        //             // event.setCancelled(true);
-        //             // return;
-        //         }
-        //     });
-        //     return;
-        // }
-        
-        // if (mainPlugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
-        //     // Annuler l'événement en attendant la vérification
-        //     // event.setCancelled(true);
-            
-        //     // Créer une clé pour identifier cette transaction
-        //     String transactionKey = player.getUniqueId() + ":" + shopID + ":" + itemID + ":" + (isBuy ? "buy" : "sell");
-            
-        //     // Stocker des informations de transaction pour utilisation ultérieure
-        //     TransactionInfo transactionInfo = new TransactionInfo(player, item, event.getShopAction(), amount);
-        //     pendingLimitChecks.put(transactionKey, transactionInfo);
-            
-        //     // Vérifier directement en BDD sans utiliser de cache
-        //     mainPlugin.getTransactionLimiter().canPerformTransaction(player, shopID, itemID, isBuy, amount).thenAcceptAsync(canPerform -> {
-        //         if (Boolean.TRUE.equals(canPerform)) {
-        //             // Transaction autorisée
-        //             // mainPlugin.getLogger().info("Transaction autorisée pour " + player.getName() + " sur " + shopID + ":" + itemID);
-        //             Bukkit.getScheduler().runTask(mainPlugin, () -> {
-        //                 pendingLimitChecks.remove(transactionKey);
-        //                 // Traiter la transaction normalement
-        //                 // event.setCancelled(false); // Annuler l'annulation de l'événement
-        //                 // mainPlugin.getLogger().info("État de l'événement : " + event.isCancelled());
-        //                 processRegularTransaction(event, player, item, amount, shopID, itemID, itemStack, isBuy);
-        //                 // mainPlugin.getLogger().info("État de l'événement : " + event.isCancelled());
-        //             });
-        //         } else {
-        //             // Limite atteinte, afficher message d'erreur
-        //             // Si la transaction n'est pas autorisée, annuler l'événement
-        //             Bukkit.getScheduler().runTask(mainPlugin, () -> {
-        //                 event.setCancelled(true);
-        //                 handleLimitExceeded(player, shopID, itemID, isBuy, event);
-        //                 pendingLimitChecks.remove(transactionKey);
-        //             });
-        //         }
-        //     });
-        //     // IMPORTANT: Annuler temporairement l'événement, il sera rétabli si la vérification réussit
-        //     // event.setCancelled(true);
-        //     return;
-        // }
-        // if (mainPlugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
-        //     // // Annuler l'événement en attendant la vérification
-        //     // event.setCancelled(true);
-            
-        //     // Créer une clé pour identifier cette transaction
-        //     String transactionKey = player.getUniqueId() + ":" + shopID + ":" + itemID + ":" + (isBuy ? "buy" : "sell");
-            
-        //     // Stocker des informations de transaction pour utilisation ultérieure
-        //     TransactionInfo transactionInfo = new TransactionInfo(player, item, event.getShopAction(), amount);
-        //     pendingLimitChecks.put(transactionKey, transactionInfo);
-
-        //     // final AtomicBoolean isCancelled = new AtomicBoolean(false);
-            
-        //     // Vérifier directement en BDD sans utiliser de cache
-        //     mainPlugin.getTransactionLimiter().canPerformTransaction(player, shopID, itemID, isBuy, amount).thenAccept(canPerform -> {
-        //         Bukkit.getScheduler().runTask(mainPlugin, () -> {
-        //             if (Boolean.FALSE.equals(canPerform)) {
-        //                 // event.setCancelled(true);
-        //                 handleLimitExceeded(player, shopID, itemID, isBuy, event);
-        //             }
-        //             pendingLimitChecks.remove(transactionKey);
-        //         });
-        //     });
-        //     mainPlugin.getLogger().info("Etat de l'événement isCancelled ? : " + event.isCancelled());
-        //     // mainPlugin.getLogger().info(pendingLimitChecks.get(transactionKey).toString());
-        //     // event.setCancelled(false);
-        //     if (event.isCancelled()) {
-        //         // // Annuler l'événement si la limite est atteinte
-        //         // event.setCancelled(true);
-        //         return;
-        //     }
-        // }
         if (mainPlugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
-            // mainPlugin.getServer().getScheduler().runTaskAsynchronously(mainPlugin, () -> {
-            //     try {
-            //         boolean canPerform = mainPlugin.getTransactionLimiter().canPerformTransaction(player, shopID, itemID, isBuy, amount).get();
-            //         if (!canPerform) {
-            //             // event.setCancelled(true);
-            //             handleLimitExceeded(player, shopID, itemID, isBuy, event);
-            //             return;
-            //         }
-            //     } catch (InterruptedException | ExecutionException e) {
-            //         // Gérer l'exception si nécessaire
-            //         e.printStackTrace();
-            //     }
-            // });
             boolean canPerform = mainPlugin.getTransactionLimiter().canPerformTransactionSync(player, shopID, itemID, isBuy, amount);
             if (!canPerform) {
                 // event.setCancelled(true);
@@ -297,47 +147,6 @@ public class DynaShopListener implements Listener {
             }
         }
 
-        // // Vérifier le mode RECIPE et s'il y a des ingrédients en mode STOCK
-        // if (shopConfigManager.getTypeDynaShop(shopID, itemID) == DynaShopType.RECIPE) {
-        //     // Vérifier si tous les ingrédients sont en stock
-        //     boolean allIngredientsInStock = true;
-        //     for (ItemStack ingredient : price.getIngredients()) {
-        //         if (!DynaShopPlugin.getInstance().getPriceStock().canBuy(shopID, ingredient.getType().name(), ingredient.getAmount())) {
-        //             allIngredientsInStock = false;
-        //             break;
-        //         }
-        //     }
-        //     if (!allIngredientsInStock) {
-        //         event.setCancelled(true);
-        //         if (event.getPlayer() != null) {
-        //             event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.mainPlugin.getLangConfig().getMsgOutOfStock()));
-        //         }
-        //         return;
-        //     }
-        // }
-        // // Vérifier le mode RECIPE et s'il y a des ingrédients en mode STOCK
-        // if (shopConfigManager.getTypeDynaShop(shopID, itemID) == DynaShopType.RECIPE) {
-        //     // Vérifier si tous les ingrédients sont en stock
-        //     boolean allIngredientsInStock = true;
-        //     List<ItemStack> ingredients = priceRecipe.getIngredients(shopID, itemID, itemStack);
-        //     ingredients = priceRecipe.consolidateIngredients(ingredients);
-        //     for (ItemStack ingredient : ingredients) {
-        //         // Vérifier si cet ingrédient est en mode STOCK
-        //         DynaShopType ingredientType = priceRecipe.getIngredientType(ingredient);
-        //         if (ingredientType == DynaShopType.STOCK && !DynaShopPlugin.getInstance().getPriceStock().canBuy(shopID, ingredient.getType().name(), ingredient.getAmount())) {
-        //             allIngredientsInStock = false;
-        //             break;
-        //         }
-        //     }
-        //     if (!allIngredientsInStock) {
-        //         event.setCancelled(true);
-        //         if (event.getPlayer() != null) {
-        //             event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.mainPlugin.getLangConfig().getMsgOutOfStock()));
-        //             // event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.mainPlugin.getLangConfig().getMsgRecipeOutOfStock()));
-        //         }
-        //         return;
-        //     }
-        // }
         // Vérifier le mode RECIPE et s'il y a des ingrédients en mode STOCK
         if (shopConfigManager.getTypeDynaShop(shopID, itemID) == DynaShopType.RECIPE) {
             int stockAmount = priceRecipe.calculateStock(shopID, itemID, itemStack, new ArrayList<>());
@@ -584,20 +393,6 @@ public class DynaShopListener implements Listener {
         }
 
         DynaShopType type = shopConfigManager.getTypeDynaShop(shopID, itemID);
-        // switch (type) {
-        //     case DYNAMIC -> {
-        //         handleDynamicPrice(price, action, amount); // Gérer les prix dynamiques
-        //     }
-        //     case RECIPE -> {
-        //         handleRecipePrice(price, shopID, itemID, itemStack, amount, action); // Gérer les prix basés sur les recettes
-        //     }
-        //     case STOCK -> {
-        //         handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
-        //     }
-        //     default -> {
-        //         mainPlugin.getLogger().warning("Type de gestion inconnu pour l'item " + itemID + " dans le shop " + shopID);
-        //     }
-        // }
         if (type == DynaShopType.DYNAMIC) {
             handleDynamicPrice(price, action, amount); // Gérer les prix dynamiques
         } else if (type == DynaShopType.RECIPE || price.isFromRecipe()) {
@@ -699,94 +494,19 @@ public class DynaShopListener implements Listener {
         // Déterminer le type de l'item
         DynaShopType type = shopConfigManager.getTypeDynaShop(shopID, itemID);
         
-        // // Traiter les prix basés sur les recettes
-        // if (type == DynaShopType.RECIPE) {
-        //     // Vérifier si les prix sont en cache
-        //     double buyPrice = DynaShopPlugin.getInstance().getCachedRecipePrice(shopID, itemID, "buyPrice");
-        //     double sellPrice = DynaShopPlugin.getInstance().getCachedRecipePrice(shopID, itemID, "sellPrice");
-            
-        //     // Si les prix ne sont pas en cache, les calculer
-        //     if (buyPrice < 0 || sellPrice < 0) {
-        //         // Utiliser les calculs synchrones pour l'initialisation
-        //         buyPrice = priceRecipe.calculatePrice(shopID, itemID, itemStack, "buyPrice", new ArrayList<>());
-        //         sellPrice = priceRecipe.calculatePrice(shopID, itemID, itemStack, "sellPrice", new ArrayList<>());
-                
-        //         // Mettre en cache les résultats calculés
-        //         DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyPrice", buyPrice);
-        //         DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellPrice", sellPrice);
-                
-        //         // Planifier un calcul asynchrone pour mettre à jour le cache
-        //         priceRecipe.calculatePriceAsync(shopID, itemID, itemStack, "buyPrice", newPrice -> {
-        //             DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyPrice", newPrice);
-        //         });
-                
-        //         priceRecipe.calculatePriceAsync(shopID, itemID, itemStack, "sellPrice", newPrice -> {
-        //             DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellPrice", newPrice);
-        //         });
-        //     }
-            
-        //     // Calculer ou récupérer les valeurs min/max
-        //     double minBuy, maxBuy, minSell, maxSell;
-            
-        //     // Vérifier si les bornes sont en cache
-        //     double cachedMinBuy = DynaShopPlugin.getInstance().getCachedRecipePrice(shopID, itemID, "buyDynamic.min");
-        //     double cachedMaxBuy = DynaShopPlugin.getInstance().getCachedRecipePrice(shopID, itemID, "buyDynamic.max");
-        //     double cachedMinSell = DynaShopPlugin.getInstance().getCachedRecipePrice(shopID, itemID, "sellDynamic.min");
-        //     double cachedMaxSell = DynaShopPlugin.getInstance().getCachedRecipePrice(shopID, itemID, "sellDynamic.max");
-            
-        //     if (cachedMinBuy >= 0) {
-        //         minBuy = cachedMinBuy;
-        //     } else {
-        //         minBuy = priceData.minBuy.orElse(buyPrice * 0.5); // Valeur par défaut
-        //         // Calculer la valeur en arrière-plan et mettre à jour le cache
-        //         priceRecipe.calculatePriceAsync(shopID, itemID, itemStack, "buyDynamic.min", newPrice -> {
-        //             DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyDynamic.min", newPrice);
-        //         });
-        //     }
-            
-        //     if (cachedMaxBuy >= 0) {
-        //         maxBuy = cachedMaxBuy;
-        //     } else {
-        //         maxBuy = priceData.maxBuy.orElse(buyPrice * 2.0); // Valeur par défaut
-        //         // Calculer la valeur en arrière-plan et mettre à jour le cache
-        //         priceRecipe.calculatePriceAsync(shopID, itemID, itemStack, "buyDynamic.max", newPrice -> {
-        //             DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyDynamic.max", newPrice);
-        //         });
-        //     }
-            
-        //     if (cachedMinSell >= 0) {
-        //         minSell = cachedMinSell;
-        //     } else {
-        //         minSell = priceData.minSell.orElse(sellPrice * 0.5); // Valeur par défaut
-        //         // Calculer la valeur en arrière-plan et mettre à jour le cache
-        //         priceRecipe.calculatePriceAsync(shopID, itemID, itemStack, "sellDynamic.min", newPrice -> {
-        //             DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellDynamic.min", newPrice);
-        //         });
-        //     }
-            
-        //     if (cachedMaxSell >= 0) {
-        //         maxSell = cachedMaxSell;
-        //     } else {
-        //         maxSell = priceData.maxSell.orElse(sellPrice * 2.0); // Valeur par défaut
-        //         // Calculer la valeur en arrière-plan et mettre à jour le cache
-        //         priceRecipe.calculatePriceAsync(shopID, itemID, itemStack, "sellDynamic.max", newPrice -> {
-        //             DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellDynamic.max", newPrice);
-        //         });
-        //     }
-            
-        //     DynamicPrice recipePrice = new DynamicPrice(buyPrice, sellPrice, minBuy, maxBuy, minSell, maxSell, 1.0, 1.0, 1.0, 1.0, 0, 0, 0, 1.0, 1.0);
-        //     recipePrice.setFromRecipe(true); // Marquer comme provenant d'une recette
-        //     return recipePrice;
-        // }
         // Traiter les prix basés sur les recettes
         if (type == DynaShopType.RECIPE) {
             double buyPrice = priceRecipe.calculatePrice(shopID, itemID, itemStack, "buyPrice", new ArrayList<>());
             double sellPrice = priceRecipe.calculatePrice(shopID, itemID, itemStack, "sellPrice", new ArrayList<>());
             
-            double minBuy = priceData.minBuy.orElse(buyPrice * 0.5);
-            double maxBuy = priceData.maxBuy.orElse(buyPrice * 2.0);
-            double minSell = priceData.minSell.orElse(sellPrice * 0.5);
-            double maxSell = priceData.maxSell.orElse(sellPrice * 2.0);
+            // double minBuy = priceData.minBuy.orElse(buyPrice * 0.5);
+            // double maxBuy = priceData.maxBuy.orElse(buyPrice * 2.0);
+            // double minSell = priceData.minSell.orElse(sellPrice * 0.5);
+            // double maxSell = priceData.maxSell.orElse(sellPrice * 2.0);
+            double minBuy = priceRecipe.calculatePrice(shopID, itemID, itemStack, "buyDynamic.min", new ArrayList<>());
+            double maxBuy = priceRecipe.calculatePrice(shopID, itemID, itemStack, "buyDynamic.max", new ArrayList<>());
+            double minSell = priceRecipe.calculatePrice(shopID, itemID, itemStack, "sellDynamic.min", new ArrayList<>());
+            double maxSell = priceRecipe.calculatePrice(shopID, itemID, itemStack, "sellDynamic.max", new ArrayList<>());
 
             DynamicPrice recipePrice = new DynamicPrice(buyPrice, sellPrice, minBuy, maxBuy, minSell, maxSell, 1.0, 1.0, 1.0, 1.0, 0, 0, 0, 1.0, 1.0);
             recipePrice.setFromRecipe(true); // Marquer comme provenant d'une recette
