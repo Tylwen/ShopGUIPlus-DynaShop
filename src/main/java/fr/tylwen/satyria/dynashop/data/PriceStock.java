@@ -238,6 +238,38 @@ public class PriceStock {
         price.setFromStock(true);
         return price;
     }
+
+    public DynamicPrice createStaticStockPrice(String shopID, String itemID) {
+        // double buyPrice = calculatePrice(shopID, itemID, "buyPrice");
+        // double sellPrice = calculatePrice(shopID, itemID, "sellPrice");
+        double buyPrice = plugin.getShopConfigManager().getItemValue(shopID, itemID, "buyPrice", Double.class)
+            .orElse(-1.0);
+        double sellPrice = plugin.getShopConfigManager().getItemValue(shopID, itemID, "sellPrice", Double.class)
+            .orElse(-1.0);
+        
+        Optional<Integer> stockOptional = plugin.getItemDataManager().getStock(shopID, itemID);
+        int stock = stockOptional.orElse(0);
+        
+        int minStock = plugin.getShopConfigManager()
+            .getItemValue(shopID, itemID, "stock.min", Integer.class)
+            .orElse(dataConfig.getStockMin());
+        
+        int maxStock = plugin.getShopConfigManager()
+            .getItemValue(shopID, itemID, "stock.max", Integer.class)
+            .orElse(dataConfig.getStockMax());
+        
+        DynamicPrice price = new DynamicPrice(
+            buyPrice, sellPrice,
+            buyPrice, buyPrice,
+            sellPrice, sellPrice,
+            1.0, 1.0, 1.0, 1.0,
+            stock, minStock, maxStock,
+            dataConfig.getStockBuyModifier(), dataConfig.getStockSellModifier()
+        );
+        
+        price.setFromStock(true);
+        return price;
+    }
     
     // Méthodes pour la gestion du cache
     private boolean isCacheValid(String key) {

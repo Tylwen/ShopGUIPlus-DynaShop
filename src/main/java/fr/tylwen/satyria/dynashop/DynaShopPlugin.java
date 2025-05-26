@@ -10,7 +10,7 @@ package fr.tylwen.satyria.dynashop;
 
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.event.HandlerList;
+// import org.bukkit.event.HandlerList;
 // import org.bukkit.configuration.ConfigurationSection;
 // import org.bukkit.configuration.file.YamlConfiguration;
 // import org.bukkit.event.EventHandler;
@@ -58,8 +58,8 @@ import net.brcdev.shopgui.ShopGuiPlusApi;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+// import java.util.Map;
+// import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;

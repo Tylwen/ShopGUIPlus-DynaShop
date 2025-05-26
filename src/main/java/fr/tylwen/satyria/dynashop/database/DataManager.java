@@ -416,10 +416,10 @@ public class DataManager {
                     double sellPrice = rs.getDouble("sellPrice");
                     int stock = rs.getInt("stock");
                     
-                    // Log pour vérifier si nous récupérons bien des données
-                    if (rowCount[0] <= 5 || rowCount[0] % 100 == 0) {
-                        // plugin.getLogger().info("Trouvé en base: " + shopId + ":" + itemId + " - Buy: " + buyPrice + ", Sell: " + sellPrice + ", Stock: " + stock);
-                    }
+                    // // Log pour vérifier si nous récupérons bien des données
+                    // if (rowCount[0] <= 5 || rowCount[0] % 100 == 0) {
+                    //     // plugin.getLogger().info("Trouvé en base: " + shopId + ":" + itemId + " - Buy: " + buyPrice + ", Sell: " + sellPrice + ", Stock: " + stock);
+                    // }
                     
                     try {
                         // Vérifier si ShopGuiPlusApi est initialisé

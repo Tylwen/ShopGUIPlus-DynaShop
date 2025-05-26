@@ -268,9 +268,8 @@ public class ShopConfigManager {
             return;
         }
 
-        if (!itemSec.isConfigurationSection("buyDynamic") && !itemSec.isConfigurationSection("sellDynamic")) {
+        if (!itemSec.isConfigurationSection("buyDynamic") && !itemSec.isConfigurationSection("sellDynamic") && getTypeDynaShop(shop.getId(), item.getId()) != DynaShopType.STATIC_STOCK) {
             if (DynaShopPlugin.getInstance().getItemDataManager().itemExists(shop.getId(), item.getId())) {
-            // if (DynaShopPlugin.getInstance().getItemDataManager().itemHasPrice(shop.getId(), item.getId())) {
                 DynaShopPlugin.getInstance().getItemDataManager().deleteItem(shop.getId(), item.getId());
             }
             priceMap.remove(item);

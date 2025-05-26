@@ -404,12 +404,8 @@ public class ShopItemPlaceholderListener implements Listener {
                 //     skipLine = true;
                 // }
                 // Vérifier les placeholders de stock - Ajouter une vérification du mode STOCK
-                if ((line.contains("%dynashop_current_stock%") || 
-                    line.contains("%dynashop_current_maxstock%") ||
-                    line.contains("%dynashop_current_stock_ratio%") || 
-                    line.contains("%dynashop_current_colored_stock_ratio%")) && 
-                    (!Boolean.parseBoolean(prices.get("is_stock_mode")) || 
-                    prices.get("stock").equals("N/A"))) {
+                if ((line.contains("%dynashop_current_stock%") || line.contains("%dynashop_current_maxstock%") || line.contains("%dynashop_current_stock_ratio%") || line.contains("%dynashop_current_colored_stock_ratio%")) && 
+                    ((!Boolean.parseBoolean(prices.get("is_stock_mode")) && !Boolean.parseBoolean(prices.get("is_static_stock_mode"))) || prices.get("stock").equals("N/A"))) {
                     skipLine = true;
                 }
                 
@@ -430,25 +426,26 @@ public class ShopItemPlaceholderListener implements Listener {
                 }
             }
             
-            // Traiter les autres placeholders via PlaceholderAPI
-            if (!skipLine && line.contains("%")) {
-                line = PlaceholderAPI.setPlaceholders(player, line);
-            }
-            // // Traiter les autres placeholders via PlaceholderAPI (seulement si disponible)
+            // // Traiter les autres placeholders via PlaceholderAPI
             // if (!skipLine && line.contains("%")) {
-            //     if (plugin.getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            //         try {
-            //             line = PlaceholderAPI.setPlaceholders(player, line);
-            //         } catch (Throwable t) {
-            //             // Ignorer les erreurs de PlaceholderAPI et conserver le texte original
-            //             // plugin.getLogger().warning("Erreur lors de l'utilisation de PlaceholderAPI: " + t.getMessage());
-            //         }
-            //     } else {
-            //         // Si PlaceholderAPI n'est pas disponible, laisser les placeholders tels quels
-            //         // ou les remplacer par un texte par défaut
-            //         // line = line.replaceAll("%\\w+_\\w+%", "[placeholder]");
-            //     }
+            //     line = PlaceholderAPI.setPlaceholders(player, line);
             // }
+            // Traiter les autres placeholders via PlaceholderAPI (seulement si disponible)
+            if (!skipLine && line.contains("%")) {
+                if (plugin.getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+                    try {
+                        line = PlaceholderAPI.setPlaceholders(player, line);
+                    } catch (Throwable t) {
+                        // Ignorer les erreurs de PlaceholderAPI et conserver le texte original
+                        // plugin.getLogger().warning("Erreur lors de l'utilisation de PlaceholderAPI: " + t.getMessage());
+                    }
+                } else {
+                    // Si PlaceholderAPI n'est pas disponible, laisser les placeholders tels quels
+                    // ou les remplacer par un texte par défaut
+                    // line = line.replaceAll("%\\w+_\\w+%", "[placeholder]");
+                    // skipLine = true; // Ignorer la ligne si PlaceholderAPI n'est pas disponible
+                }
+            }
 
             // Ajouter la ligne uniquement si elle ne doit pas être ignorée
             if (!skipLine) {
@@ -511,6 +508,10 @@ public class ShopItemPlaceholderListener implements Listener {
         // Déterminer si l'item est en mode STOCK
         boolean isStockMode = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.STOCK;
         prices.put("is_stock_mode", String.valueOf(isStockMode));
+        
+        // Déterminer si l'item est en mode STATIC_STOCK
+        boolean isStaticStockMode = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.STATIC_STOCK;
+        prices.put("is_static_stock_mode", String.valueOf(isStaticStockMode));
 
         // Déterminer si l'item est en mode RECIPE
         boolean isRecipeMode = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.RECIPE;
@@ -533,7 +534,7 @@ public class ShopItemPlaceholderListener implements Listener {
         prices.put("sell_max", sellMaxPrice);
         
         // Si l'item n'est pas en mode STOCK, ne pas afficher les informations de stock
-        if (!isStockMode) {
+        if (!isStockMode && !isStaticStockMode) {
             prices.put("stock", "N/A");
             prices.put("stock_max", "N/A");
             prices.put("base_stock", "N/A");
