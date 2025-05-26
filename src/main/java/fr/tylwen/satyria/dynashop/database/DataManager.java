@@ -55,7 +55,7 @@ public class DataManager {
             
             // Configuration commune
             config.setMaximumPoolSize(10);
-            config.setMinimumIdle(1);
+            config.setMinimumIdle(5);
             config.setConnectionTimeout(30000);
             config.setIdleTimeout(60000);
             config.setMaxLifetime(1800000);

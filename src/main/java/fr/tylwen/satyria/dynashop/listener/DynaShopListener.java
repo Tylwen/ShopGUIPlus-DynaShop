@@ -4,6 +4,7 @@ import java.time.Duration;
 // import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 // import java.util.Map;
 // import java.util.Map;
 // import java.security.cert.PKIXRevocationChecker.Option;
@@ -16,6 +17,7 @@ import java.util.Optional;
 // import java.util.concurrent.ExecutionException;
 // import java.util.concurrent.atomic.AtomicBoolean;
 // import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentHashMap;
 
 // import javax.swing.text.StyledEditorKit.BoldAction;
 
@@ -72,6 +74,10 @@ public class DynaShopListener implements Listener {
     // private final Map<UUID, Pair<String, String>> openShopMap = new ConcurrentHashMap<>();
     // Puis remplacer toutes les occurrences de Pair par SimpleEntry
     // private final Map<UUID, SimpleEntry<String, String>> openShopMap = new ConcurrentHashMap<>();
+    
+    private final Map<String, DynamicPrice> priceCache = new ConcurrentHashMap<>();
+    private final Map<String, Long> cacheTimes = new ConcurrentHashMap<>();
+    private static final long CACHE_DURATION = 30000; // 30 secondes de durée de cache
 
     public DynaShopListener(DynaShopPlugin mainPlugin) {
         this.mainPlugin = mainPlugin;
@@ -536,18 +542,29 @@ public class DynaShopListener implements Listener {
     // }
 
     public DynamicPrice getOrLoadPrice(String shopID, String itemID, ItemStack itemStack) {
-        // // Vérifier d'abord dans le cache pour les prix de recette
-        // String cacheKeyBuy = shopID + ":" + itemID + ":buyPrice";
-        // String cacheKeySell = shopID + ":" + itemID + ":sellPrice";
+        // Cache en mémoire pour éviter les calculs répétitifs
+        // Clé de cache unique pour cet item
+        String cacheKey = shopID + ":" + itemID;
+
+        // Vérifier si l'item est déjà en cache
+        DynamicPrice cachedPrice = priceCache.get(cacheKey);
+        if (cachedPrice != null && (System.currentTimeMillis() - cacheTimes.get(cacheKey) < CACHE_DURATION)) {
+            // mainPlugin.getLogger().info("Prix récupéré depuis le cache pour " + itemID + " dans le shop " + shopID);
+            // mainPlugin.getLogger().info("Prix récupéré depuis le cache pour " + itemID + " dans le shop " + shopID + ": " + cachedPrice);
+            return cachedPrice;
+        }
         
-        // Charger les prix depuis la base de données
-        Optional<DynamicPrice> priceFromDatabase = DynaShopPlugin.getInstance().getItemDataManager().getItemValues(shopID, itemID);
+        // // Charger les prix depuis la base de données
+        // Optional<DynamicPrice> priceFromDatabase = DynaShopPlugin.getInstance().getItemDataManager().getItemValues(shopID, itemID);
     
-        // Charger les données supplémentaires depuis les fichiers de configuration
-        ItemPriceData priceData = shopConfigManager.getItemAllValues(shopID, itemID);
+        // // Charger les données supplémentaires depuis les fichiers de configuration
+        // ItemPriceData priceData = shopConfigManager.getItemAllValues(shopID, itemID);
         
         // Déterminer le type de l'item
         DynaShopType type = shopConfigManager.getTypeDynaShop(shopID, itemID);
+        
+        // Traitement selon le type
+        DynamicPrice price = null;
         
         // Traiter les prix basés sur les recettes
         if (type == DynaShopType.RECIPE) {
@@ -706,87 +723,159 @@ public class DynaShopListener implements Listener {
                 result.getBuyPrice(), result.getSellPrice(),
                 result.getMinBuyPrice(), result.getMaxBuyPrice(), 
                 result.getMinSellPrice(), result.getMaxSellPrice(),
-                1.0, 1.0, 1.0, 1.0, 
-                result.getStock(), 0, result.getMaxStock(), 
+                1.0, 1.0, 1.0, 1.0,
+                result.getStock(), result.getMinStock(), result.getMaxStock(),
                 1.0, 1.0
             );
             
             recipePrice.setFromRecipe(true);
             return recipePrice;
-        }
-    
-        
-        if (type == DynaShopType.STOCK) {
-            return DynaShopPlugin.getInstance().getPriceStock().createStockPrice(shopID, itemID);
+        } else if (type == DynaShopType.STOCK) {
+            // return DynaShopPlugin.getInstance().getPriceStock().createStockPrice(shopID, itemID);
+            price = DynaShopPlugin.getInstance().getPriceStock().createStockPrice(shopID, itemID);
             // price.setFromStock(true);
-        }
-
-        if (type == DynaShopType.STATIC_STOCK) {
+        } else if (type == DynaShopType.STATIC_STOCK) {
             // return DynaShopPlugin.getInstance().getPriceStock().createStaticStockPrice(shopID, itemID);
             // price.setFromStaticStock(true);
-            return DynaShopPlugin.getInstance().getPriceStock().createStaticStockPrice(shopID, itemID);
-        }
+            // return DynaShopPlugin.getInstance().getPriceStock().createStaticStockPrice(shopID, itemID);
+            price = DynaShopPlugin.getInstance().getPriceStock().createStaticStockPrice(shopID, itemID);
+        } else if (type == DynaShopType.DYNAMIC) {
+            // Charger les prix depuis la base de données
+            Optional<DynamicPrice> priceFromDatabase = DynaShopPlugin.getInstance().getItemDataManager().getItemValues(shopID, itemID);
         
-        // Si aucune donnée n'est trouvée dans la base de données ou les fichiers de configuration, retourner null
-        if (priceFromDatabase.isEmpty() && (priceData.buyPrice.isEmpty() || priceData.sellPrice.isEmpty())) {
-            return null;
-        }
-        
-        // Fusionner les données
-        double buyPrice = priceFromDatabase.map(DynamicPrice::getBuyPrice).orElse(priceData.buyPrice.orElse(-1.0));
-        double sellPrice = priceFromDatabase.map(DynamicPrice::getSellPrice).orElse(priceData.sellPrice.orElse(-1.0));
-    
-        double minBuy = priceData.minBuy.orElse(buyPrice);
-        double maxBuy = priceData.maxBuy.orElse(buyPrice);
-        double minSell = priceData.minSell.orElse(sellPrice);
-        double maxSell = priceData.maxSell.orElse(sellPrice);
-    
-        double growthBuy = priceData.growthBuy.orElseGet(() -> {
-            boolean hasBuyDynamic = shopConfigManager.hasSection(shopID, itemID, "buyDynamic");
-            return hasBuyDynamic ? dataConfig.getBuyGrowthRate() : 1.0; // Valeur par défaut pour growthBuy
-        });
-    
-        double decayBuy = priceData.decayBuy.orElseGet(() -> {
-            boolean hasBuyDynamic = shopConfigManager.hasSection(shopID, itemID, "buyDynamic");
-            return hasBuyDynamic ? dataConfig.getBuyDecayRate() : 1.0; // Valeur par défaut pour decayBuy
-        });
-    
-        double growthSell = priceData.growthSell.orElseGet(() -> {
-            boolean hasSellDynamic = shopConfigManager.hasSection(shopID, itemID, "sellDynamic");
-            return hasSellDynamic ? dataConfig.getSellGrowthRate() : 1.0; // Valeur par défaut pour growthSell
-        });
-    
-        double decaySell = priceData.decaySell.orElseGet(() -> {
-            boolean hasSellDynamic = shopConfigManager.hasSection(shopID, itemID, "sellDynamic");
-            return hasSellDynamic ? dataConfig.getSellDecayRate() : 1.0; // Valeur par défaut pour decaySell
-        });
-    
-        int stock = priceFromDatabase.map(DynamicPrice::getStock).orElse(priceData.stock.orElse(0));
+            // Charger les données supplémentaires depuis les fichiers de configuration
+            ItemPriceData priceData = shopConfigManager.getItemAllValues(shopID, itemID);
 
-        int minStock = priceData.minStock.orElseGet(() -> {
-            boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-            return hasStock ? dataConfig.getStockMin() : 0; // Valeur par défaut pour minStock
-        });
+            // Si aucune donnée n'est trouvée dans la base de données ou les fichiers de configuration, retourner null
+            if (priceFromDatabase.isEmpty() && (priceData.buyPrice.isEmpty() || priceData.sellPrice.isEmpty())) {
+                return null;
+            }
+            
+            // Fusionner les données
+            double buyPrice = priceFromDatabase.map(DynamicPrice::getBuyPrice).orElse(priceData.buyPrice.orElse(-1.0));
+            double sellPrice = priceFromDatabase.map(DynamicPrice::getSellPrice).orElse(priceData.sellPrice.orElse(-1.0));
+        
+            double minBuy = priceData.minBuy.orElse(buyPrice);
+            double maxBuy = priceData.maxBuy.orElse(buyPrice);
+            double minSell = priceData.minSell.orElse(sellPrice);
+            double maxSell = priceData.maxSell.orElse(sellPrice);
+        
+            double growthBuy = priceData.growthBuy.orElseGet(() -> {
+                boolean hasBuyDynamic = shopConfigManager.hasSection(shopID, itemID, "buyDynamic");
+                return hasBuyDynamic ? dataConfig.getBuyGrowthRate() : 1.0; // Valeur par défaut pour growthBuy
+            });
+        
+            double decayBuy = priceData.decayBuy.orElseGet(() -> {
+                boolean hasBuyDynamic = shopConfigManager.hasSection(shopID, itemID, "buyDynamic");
+                return hasBuyDynamic ? dataConfig.getBuyDecayRate() : 1.0; // Valeur par défaut pour decayBuy
+            });
+        
+            double growthSell = priceData.growthSell.orElseGet(() -> {
+                boolean hasSellDynamic = shopConfigManager.hasSection(shopID, itemID, "sellDynamic");
+                return hasSellDynamic ? dataConfig.getSellGrowthRate() : 1.0; // Valeur par défaut pour growthSell
+            });
+        
+            double decaySell = priceData.decaySell.orElseGet(() -> {
+                boolean hasSellDynamic = shopConfigManager.hasSection(shopID, itemID, "sellDynamic");
+                return hasSellDynamic ? dataConfig.getSellDecayRate() : 1.0; // Valeur par défaut pour decaySell
+            });
+        
+            int stock = priceFromDatabase.map(DynamicPrice::getStock).orElse(priceData.stock.orElse(0));
+
+            int minStock = priceData.minStock.orElseGet(() -> {
+                boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
+                return hasStock ? dataConfig.getStockMin() : 0; // Valeur par défaut pour minStock
+            });
+        
+            int maxStock = priceData.maxStock.orElseGet(() -> {
+                boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
+                return hasStock ? dataConfig.getStockMax() : Integer.MAX_VALUE; // Valeur par défaut pour maxStock
+            });
+        
+            double stockBuyModifier = priceData.stockBuyModifier.orElseGet(() -> {
+                boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
+                return hasStock ? dataConfig.getStockBuyModifier() : 1.0; // Valeur par défaut pour stockBuyModifier
+            });
+        
+            double stockSellModifier = priceData.stockSellModifier.orElseGet(() -> {
+                boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
+                return hasStock ? dataConfig.getStockSellModifier() : 1.0; // Valeur par défaut pour stockSellModifier
+            });
+
+            // Créer l'objet DynamicPrice avec les valeurs fusionnées
+            price = new DynamicPrice(buyPrice, sellPrice, minBuy, maxBuy, minSell, maxSell, 
+                                     growthBuy, decayBuy, growthSell, decaySell, 
+                                     stock, minStock, maxStock, stockBuyModifier, stockSellModifier);
+        // } else {
+        //     price 
+        }
+        
+        // // Si aucune donnée n'est trouvée dans la base de données ou les fichiers de configuration, retourner null
+        // if (priceFromDatabase.isEmpty() && (priceData.buyPrice.isEmpty() || priceData.sellPrice.isEmpty())) {
+        //     return null;
+        // }
+        
+        // // Fusionner les données
+        // double buyPrice = priceFromDatabase.map(DynamicPrice::getBuyPrice).orElse(priceData.buyPrice.orElse(-1.0));
+        // double sellPrice = priceFromDatabase.map(DynamicPrice::getSellPrice).orElse(priceData.sellPrice.orElse(-1.0));
     
-        int maxStock = priceData.maxStock.orElseGet(() -> {
-            boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-            return hasStock ? dataConfig.getStockMax() : Integer.MAX_VALUE; // Valeur par défaut pour maxStock
-        });
+        // double minBuy = priceData.minBuy.orElse(buyPrice);
+        // double maxBuy = priceData.maxBuy.orElse(buyPrice);
+        // double minSell = priceData.minSell.orElse(sellPrice);
+        // double maxSell = priceData.maxSell.orElse(sellPrice);
     
-        double stockBuyModifier = priceData.stockBuyModifier.orElseGet(() -> {
-            boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-            return hasStock ? dataConfig.getStockBuyModifier() : 1.0; // Valeur par défaut pour stockBuyModifier
-        });
+        // double growthBuy = priceData.growthBuy.orElseGet(() -> {
+        //     boolean hasBuyDynamic = shopConfigManager.hasSection(shopID, itemID, "buyDynamic");
+        //     return hasBuyDynamic ? dataConfig.getBuyGrowthRate() : 1.0; // Valeur par défaut pour growthBuy
+        // });
     
-        double stockSellModifier = priceData.stockSellModifier.orElseGet(() -> {
-            boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-            return hasStock ? dataConfig.getStockSellModifier() : 1.0; // Valeur par défaut pour stockSellModifier
-        });
+        // double decayBuy = priceData.decayBuy.orElseGet(() -> {
+        //     boolean hasBuyDynamic = shopConfigManager.hasSection(shopID, itemID, "buyDynamic");
+        //     return hasBuyDynamic ? dataConfig.getBuyDecayRate() : 1.0; // Valeur par défaut pour decayBuy
+        // });
     
-        return new DynamicPrice(buyPrice, sellPrice, minBuy, maxBuy, minSell, maxSell, growthBuy, decayBuy, growthSell, decaySell, stock, minStock, maxStock, stockBuyModifier, stockSellModifier);
+        // double growthSell = priceData.growthSell.orElseGet(() -> {
+        //     boolean hasSellDynamic = shopConfigManager.hasSection(shopID, itemID, "sellDynamic");
+        //     return hasSellDynamic ? dataConfig.getSellGrowthRate() : 1.0; // Valeur par défaut pour growthSell
+        // });
+    
+        // double decaySell = priceData.decaySell.orElseGet(() -> {
+        //     boolean hasSellDynamic = shopConfigManager.hasSection(shopID, itemID, "sellDynamic");
+        //     return hasSellDynamic ? dataConfig.getSellDecayRate() : 1.0; // Valeur par défaut pour decaySell
+        // });
+    
+        // int stock = priceFromDatabase.map(DynamicPrice::getStock).orElse(priceData.stock.orElse(0));
+
+        // int minStock = priceData.minStock.orElseGet(() -> {
+        //     boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
+        //     return hasStock ? dataConfig.getStockMin() : 0; // Valeur par défaut pour minStock
+        // });
+    
+        // int maxStock = priceData.maxStock.orElseGet(() -> {
+        //     boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
+        //     return hasStock ? dataConfig.getStockMax() : Integer.MAX_VALUE; // Valeur par défaut pour maxStock
+        // });
+    
+        // double stockBuyModifier = priceData.stockBuyModifier.orElseGet(() -> {
+        //     boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
+        //     return hasStock ? dataConfig.getStockBuyModifier() : 1.0; // Valeur par défaut pour stockBuyModifier
+        // });
+    
+        // double stockSellModifier = priceData.stockSellModifier.orElseGet(() -> {
+        //     boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
+        //     return hasStock ? dataConfig.getStockSellModifier() : 1.0; // Valeur par défaut pour stockSellModifier
+        // });
+        
+        // Mettre en cache le résultat
+        if (price != null) {
+            priceCache.put(cacheKey, price);
+            cacheTimes.put(cacheKey, System.currentTimeMillis());
+        }
+    
+        // return new DynamicPrice(buyPrice, sellPrice, minBuy, maxBuy, minSell, maxSell, growthBuy, decayBuy, growthSell, decaySell, stock, minStock, maxStock, stockBuyModifier, stockSellModifier);
         // DynamicPrice price = new DynamicPrice(buyPrice, sellPrice, minBuy, maxBuy, minSell, maxSell, growthBuy, decayBuy, growthSell, decaySell, stock, minStock, maxStock, stockBuyModifier, stockSellModifier);
         
-        // return price;
+        return price;
     }
 
     /**

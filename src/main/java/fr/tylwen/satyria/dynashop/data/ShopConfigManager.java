@@ -796,29 +796,119 @@ public class ShopConfigManager {
     //     }
     //     return Optional.empty();
     // }
+    // public ItemPriceData getItemAllValues(String shopID, String itemID) {
+    //     ItemPriceData itemPriceData = new ItemPriceData();
+
+    //     itemPriceData.buyPrice = getItemValue(shopID, itemID, "buyPrice", Double.class);
+    //     itemPriceData.sellPrice = getItemValue(shopID, itemID, "sellPrice", Double.class);
+
+    //     itemPriceData.minBuy = getItemValue(shopID, itemID, "buyDynamic.min", Double.class);
+    //     itemPriceData.maxBuy = getItemValue(shopID, itemID, "buyDynamic.max", Double.class);
+    //     itemPriceData.minSell = getItemValue(shopID, itemID, "sellDynamic.min", Double.class);
+    //     itemPriceData.maxSell = getItemValue(shopID, itemID, "sellDynamic.max", Double.class);
+
+    //     itemPriceData.growthBuy = getItemValue(shopID, itemID, "buyDynamic.growth", Double.class);
+    //     itemPriceData.decayBuy = getItemValue(shopID, itemID, "buyDynamic.decay", Double.class);
+    //     itemPriceData.growthSell = getItemValue(shopID, itemID, "sellDynamic.growth", Double.class);
+    //     itemPriceData.decaySell = getItemValue(shopID, itemID, "sellDynamic.decay", Double.class);
+
+    //     itemPriceData.stock = getItemValue(shopID, itemID, "stock.base", Integer.class);
+    //     itemPriceData.minStock = getItemValue(shopID, itemID, "stock.min", Integer.class);
+    //     itemPriceData.maxStock = getItemValue(shopID, itemID, "stock.max", Integer.class);
+    //     itemPriceData.stockBuyModifier = getItemValue(shopID, itemID, "stock.buyModifier", Double.class);
+    //     itemPriceData.stockSellModifier = getItemValue(shopID, itemID, "stock.sellModifier", Double.class);
+
+    //     return itemPriceData;
+    // }
     public ItemPriceData getItemAllValues(String shopID, String itemID) {
         ItemPriceData itemPriceData = new ItemPriceData();
-
-        itemPriceData.buyPrice = getItemValue(shopID, itemID, "buyPrice", Double.class);
-        itemPriceData.sellPrice = getItemValue(shopID, itemID, "sellPrice", Double.class);
-
-        itemPriceData.minBuy = getItemValue(shopID, itemID, "buyDynamic.min", Double.class);
-        itemPriceData.maxBuy = getItemValue(shopID, itemID, "buyDynamic.max", Double.class);
-        itemPriceData.minSell = getItemValue(shopID, itemID, "sellDynamic.min", Double.class);
-        itemPriceData.maxSell = getItemValue(shopID, itemID, "sellDynamic.max", Double.class);
-
-        itemPriceData.growthBuy = getItemValue(shopID, itemID, "buyDynamic.growth", Double.class);
-        itemPriceData.decayBuy = getItemValue(shopID, itemID, "buyDynamic.decay", Double.class);
-        itemPriceData.growthSell = getItemValue(shopID, itemID, "sellDynamic.growth", Double.class);
-        itemPriceData.decaySell = getItemValue(shopID, itemID, "sellDynamic.decay", Double.class);
-
-        itemPriceData.stock = getItemValue(shopID, itemID, "stock.base", Integer.class);
-        itemPriceData.minStock = getItemValue(shopID, itemID, "stock.min", Integer.class);
-        itemPriceData.maxStock = getItemValue(shopID, itemID, "stock.max", Integer.class);
-        itemPriceData.stockBuyModifier = getItemValue(shopID, itemID, "stock.buyModifier", Double.class);
-        itemPriceData.stockSellModifier = getItemValue(shopID, itemID, "stock.sellModifier", Double.class);
-
+        
+        // Récupérer la section de l'item directement (une seule navigation)
+        String cacheKey = shopID + ":" + itemID;
+        ConfigurationSection itemSection = sectionCache.computeIfAbsent(cacheKey, k -> {
+            YamlConfiguration config = getOrUpdateShopConfig(shopID);
+            
+            // Naviguer jusqu'à la section shop
+            ConfigurationSection shopSection = config.getConfigurationSection(shopID);
+            if (shopSection == null) {
+                shopSection = findSectionIgnoreCase(config, shopID);
+                if (shopSection == null) return null;
+            }
+            
+            // Naviguer jusqu'à la section items
+            ConfigurationSection itemsSection = shopSection.getConfigurationSection("items");
+            if (itemsSection == null) {
+                itemsSection = findSectionIgnoreCase(shopSection, "items");
+                if (itemsSection == null) return null;
+            }
+            
+            // Naviguer jusqu'à l'item spécifique
+            ConfigurationSection section = itemsSection.getConfigurationSection(itemID);
+            if (section == null) {
+                section = findSectionIgnoreCase(itemsSection, itemID);
+            }
+            
+            return section;
+        });
+        
+        if (itemSection == null) {
+            return itemPriceData; // Retourner des données vides
+        }
+        
+        // Extraire les valeurs directes
+        itemPriceData.buyPrice = getOptionalDouble(itemSection, "buyPrice");
+        itemPriceData.sellPrice = getOptionalDouble(itemSection, "sellPrice");
+        
+        // Section buyDynamic
+        ConfigurationSection buyDynamic = findSectionIgnoreCase(itemSection, "buyDynamic");
+        if (buyDynamic != null) {
+            itemPriceData.minBuy = getOptionalDouble(buyDynamic, "min");
+            itemPriceData.maxBuy = getOptionalDouble(buyDynamic, "max");
+            itemPriceData.growthBuy = getOptionalDouble(buyDynamic, "growth");
+            itemPriceData.decayBuy = getOptionalDouble(buyDynamic, "decay");
+        }
+        
+        // Section sellDynamic
+        ConfigurationSection sellDynamic = findSectionIgnoreCase(itemSection, "sellDynamic");
+        if (sellDynamic != null) {
+            itemPriceData.minSell = getOptionalDouble(sellDynamic, "min");
+            itemPriceData.maxSell = getOptionalDouble(sellDynamic, "max");
+            itemPriceData.growthSell = getOptionalDouble(sellDynamic, "growth");
+            itemPriceData.decaySell = getOptionalDouble(sellDynamic, "decay");
+        }
+        
+        // Section stock
+        ConfigurationSection stock = findSectionIgnoreCase(itemSection, "stock");
+        if (stock != null) {
+            itemPriceData.stock = getOptionalInt(stock, "base");
+            itemPriceData.minStock = getOptionalInt(stock, "min");
+            itemPriceData.maxStock = getOptionalInt(stock, "max");
+            itemPriceData.stockBuyModifier = getOptionalDouble(stock, "buyModifier");
+            itemPriceData.stockSellModifier = getOptionalDouble(stock, "sellModifier");
+        }
+        
         return itemPriceData;
+    }
+
+    // Méthodes auxiliaires pour l'extraction des valeurs
+    private Optional<Double> getOptionalDouble(ConfigurationSection section, String key) {
+        if (section == null) return Optional.empty();
+        
+        String actualKey = findKeyIgnoreCase(section, key);
+        if (actualKey == null) return Optional.empty();
+        
+        double value = section.getDouble(actualKey, -1.0);
+        return value >= 0 ? Optional.of(value) : Optional.empty();
+    }
+
+    private Optional<Integer> getOptionalInt(ConfigurationSection section, String key) {
+        if (section == null) return Optional.empty();
+        
+        String actualKey = findKeyIgnoreCase(section, key);
+        if (actualKey == null) return Optional.empty();
+        
+        int value = section.getInt(actualKey, -1);
+        return value >= 0 ? Optional.of(value) : Optional.empty();
     }
 
     // public ItemStack getItemStack(String shopID, String itemID) {

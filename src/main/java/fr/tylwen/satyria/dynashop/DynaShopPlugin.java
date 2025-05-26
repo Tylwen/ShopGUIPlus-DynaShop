@@ -445,7 +445,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     public void cacheRecipePrice(String shopID, String itemID, String priceType, double price) {
         recipeCacheManager.cacheRecipePrice(shopID, itemID, priceType, price);
     }
-    public void cacheRecipeStock(String shopID, String itemID, String type, double stock) {
+    public void cacheRecipeStock(String shopID, String itemID, String type, int stock) {
         recipeCacheManager.cacheRecipeStock(shopID, itemID, type, stock);
     }
 

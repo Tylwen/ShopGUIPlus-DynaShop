@@ -104,11 +104,6 @@ public class ShopItemPlaceholderListener implements Listener {
                 }
             }
         }
-
-        // // Ajouter à la liste des inventaires à rafraîchir
-        // openInventories.put(player.getUniqueId(), new InventoryRefreshData(shopId, event.getView()));
-        // Enregistrer la session dans le ShopRefreshManager
-        // plugin.getShopRefreshManager().registerSession(player, fullShopId, page);
         
         // final String finalShopId = shopId;
         // plugin.getServer().getScheduler().runTaskLaterAsynchronously(plugin, () -> {
@@ -118,7 +113,6 @@ public class ShopItemPlaceholderListener implements Listener {
         updateShopInventory(player, view, shopId, page, originalLores);
         
         // Démarrer l'actualisation continue
-        // plugin.getLogger().info("Démarrage de l'actualisation continue pour le shop " + shopId + " à la page " + page + " pour le joueur " + player.getName());
         startContinuousRefresh(player, view, shopId, page, originalLores);
     }
 
@@ -205,7 +199,6 @@ public class ShopItemPlaceholderListener implements Listener {
                 // Temps d'attente entre les actualisations (en ms)
                 // long refreshInterval = 5000; // 5 secondes
                 long refreshInterval = 1000; // 1 seconde
-                // plugin.getLogger().info("Démarrage de la tâche de rafraîchissement pour " + player.getName() + " avec ID " + refreshId);
 
                 while (
                     player.isOnline() && 
@@ -215,7 +208,6 @@ public class ShopItemPlaceholderListener implements Listener {
                 ) {
                     // Attendre l'intervalle configuré
                     Thread.sleep(refreshInterval);
-                    // plugin.getLogger().info("Rafraîchissement de l'inventaire pour " + player.getName() + " avec ID " + refreshId);
                     
                     // Vérifier à nouveau que le joueur est toujours en ligne et que l'inventaire est ouvert
                     if (!player.isOnline() || player.getOpenInventory() == null) {
@@ -233,7 +225,6 @@ public class ShopItemPlaceholderListener implements Listener {
                 // La tâche a été interrompue, probablement lors de l'arrêt du serveur
             } finally {
                 // Nettoyer
-                // plugin.getLogger().info("Arrêt de la tâche de rafraîchissement pour " + player.getName() + " avec ID " + refreshId);
                 playerRefreshTasks.remove(player.getUniqueId());
             }
         });
@@ -265,7 +256,6 @@ public class ShopItemPlaceholderListener implements Listener {
                     
                     // Ne traiter que les slots qui avaient des placeholders originaux
                     if (!originalLores.containsKey(slot)) {
-                        // plugin.getLogger().info("Aucun placeholder trouvé pour le slot " + slot + " dans l'inventaire de " + player.getName());
                         continue;
                     }
                     
@@ -280,9 +270,6 @@ public class ShopItemPlaceholderListener implements Listener {
                             if (item == null || !item.hasItemMeta()) {
                                 return;
                             }
-                            
-                            // ItemMeta meta = item.getItemMeta();
-                            // List<String> lore = meta.getLore();
 
                             // IMPORTANT: Utiliser le lore original pour la détection des placeholders
                             List<String> originalLore = originalLores.get(slot);

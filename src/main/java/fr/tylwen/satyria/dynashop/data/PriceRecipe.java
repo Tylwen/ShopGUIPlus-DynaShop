@@ -30,9 +30,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 public class PriceRecipe {
     private final FileConfiguration config;
@@ -42,6 +44,11 @@ public class PriceRecipe {
     private final long CACHE_DURATION = 20L * 60L * 5L; // 5 minutes
     // private final long CACHE_DURATION = 20L; // 1 seconde
     private final Map<String, Long> cacheTimestamps = new HashMap<>();
+
+    private final ExecutorService highPriorityExecutor;
+    private final Map<String, Integer> itemAccessCounter = new ConcurrentHashMap<>();
+    private final List<String> popularItems = new ArrayList<>();
+    private static final int POPULAR_THRESHOLD = 10;
     
     // Limiter la profondeur de récursion pour éviter les boucles infinies
     // private static final int MAX_RECURSION_DEPTH = 5;
@@ -57,6 +64,17 @@ public class PriceRecipe {
             thread.setDaemon(true);
             return thread;
         });
+        
+        // Créer un pool de threads prioritaire pour les items populaires
+        this.highPriorityExecutor = Executors.newFixedThreadPool(1, r -> {
+            Thread thread = new Thread(r, "High-Priority-Calculator");
+            thread.setDaemon(true);
+            thread.setPriority(Thread.MAX_PRIORITY);
+            return thread;
+        });
+        
+        // Charger les items populaires depuis la configuration
+        this.loadPopularItems();
     }
 
     /**
@@ -70,6 +88,7 @@ public class PriceRecipe {
         private double minSellPrice;
         private double maxSellPrice;
         private int stock;
+        private int minStock;
         private int maxStock;
         
         // Constructeur, getters et setters...
@@ -77,7 +96,7 @@ public class PriceRecipe {
         public RecipeCalculationResult(double buyPrice, double sellPrice, 
                                     double minBuyPrice, double maxBuyPrice,
                                     double minSellPrice, double maxSellPrice,
-                                    int stock, int maxStock) {
+                                    int stock, int minStock, int maxStock) {
             this.buyPrice = buyPrice;
             this.sellPrice = sellPrice;
             this.minBuyPrice = minBuyPrice;
@@ -85,6 +104,7 @@ public class PriceRecipe {
             this.minSellPrice = minSellPrice;
             this.maxSellPrice = maxSellPrice;
             this.stock = stock;
+            this.minStock = minStock;
             this.maxStock = maxStock;
         }
         
@@ -96,17 +116,206 @@ public class PriceRecipe {
         public double getMinSellPrice() { return minSellPrice; }
         public double getMaxSellPrice() { return maxSellPrice; }
         public int getStock() { return stock; }
+        public int getMinStock() { return minStock; }
         public int getMaxStock() { return maxStock; }
     }
 
-    /**
-     * Calcule toutes les valeurs importantes pour une recette en une seule passe
-     * Cette méthode remplace les multiples appels séparés à calculatePrice, calculateStock, etc.
-     */
-    // public RecipeCalculationResult calculateRecipeValues(String shopID, String itemID, ItemStack item) {
-    public RecipeCalculationResult calculateRecipeValues(String shopID, String itemID, ItemStack item, List<String> visitedItems) {
-        // List<String> visitedItems = new ArrayList<>();
+    // /**
+    //  * Calcule toutes les valeurs importantes pour une recette en une seule passe
+    //  * Cette méthode remplace les multiples appels séparés à calculatePrice, calculateStock, etc.
+    //  */
+    // // public RecipeCalculationResult calculateRecipeValues(String shopID, String itemID, ItemStack item) {
+    // public RecipeCalculationResult calculateRecipeValues(String shopID, String itemID, ItemStack item, List<String> visitedItems) {
+    //     // List<String> visitedItems = new ArrayList<>();
         
+    //     // Récupérer tous les ingrédients une seule fois
+    //     List<ItemStack> ingredients = getIngredients(shopID, itemID, item);
+    //     ingredients = consolidateIngredients(ingredients);
+        
+    //     // Variables pour le calcul
+    //     double basePrice = 0.0;
+    //     double baseSellPrice = 0.0;
+    //     double baseMinBuyPrice = 0.0;
+    //     double baseMaxBuyPrice = 0.0;
+    //     double baseMinSellPrice = 0.0;
+    //     double baseMaxSellPrice = 0.0;
+    //     int minAvailableStock = Integer.MAX_VALUE;
+    //     int totalMinStock = 0;
+    //     int totalMaxStock = 0;
+        
+    //     // Parcourir les ingrédients une seule fois
+    //     for (ItemStack ingredient : ingredients) {
+    //         if (ingredient == null || ingredient.getType() == Material.AIR) {
+    //             continue;
+    //         }
+            
+    //         // Récupérer toutes les données de l'ingrédient en une fois
+    //         String ingredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
+    //         String ingredientShopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
+            
+    //         // Éviter les boucles infinies
+    //         if (visitedItems.contains(ingredientID)) {
+    //             continue;
+    //         }
+    //         visitedItems.add(ingredientID);
+            
+    //         // Obtenir le type de l'ingrédient
+    //         DynaShopType ingredientType = getIngredientType(ingredient);
+            
+    //         // Selon le type de l'ingrédient, obtenir les valeurs
+    //         double ingredientBuyPrice = 0.0;
+    //         double ingredientSellPrice = 0.0;
+    //         double ingredientMinBuyPrice = 0.0;
+    //         double ingredientMaxBuyPrice = 0.0;
+    //         double ingredientMinSellPrice = 0.0;
+    //         double ingredientMaxSellPrice = 0.0;
+    //         int ingredientStock = 0;
+    //         int ingredientMinStock = 0;
+    //         int ingredientMaxStock = 0;
+            
+    //         if (ingredientType == DynaShopType.STOCK) {
+    //             // Pour les ingrédients en mode STOCK
+    //             ingredientBuyPrice = DynaShopPlugin.getInstance().getPriceStock().calculatePrice(ingredientShopID, ingredientID, "buyPrice");
+    //             ingredientSellPrice = DynaShopPlugin.getInstance().getPriceStock().calculatePrice(ingredientShopID, ingredientID, "sellPrice");
+                
+    //             // Récupérer les bornes depuis la configuration
+    //             ingredientMinBuyPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                 .getItemValue(ingredientShopID, ingredientID, "buyDynamic.min", Double.class)
+    //                 .orElse(ingredientBuyPrice * 0.5);
+                    
+    //             ingredientMaxBuyPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                 .getItemValue(ingredientShopID, ingredientID, "buyDynamic.max", Double.class)
+    //                 .orElse(ingredientBuyPrice * 2.0);
+                    
+    //             ingredientMinSellPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                 .getItemValue(ingredientShopID, ingredientID, "sellDynamic.min", Double.class)
+    //                 .orElse(ingredientSellPrice * 0.5);
+                    
+    //             ingredientMaxSellPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                 .getItemValue(ingredientShopID, ingredientID, "sellDynamic.max", Double.class)
+    //                 .orElse(ingredientSellPrice * 2.0);
+                
+    //             // Récupérer le stock actuel et maximum
+    //             ingredientStock = DynaShopPlugin.getInstance().getItemDataManager().getStock(ingredientShopID, ingredientID).orElse(0);
+    //             ingredientMinStock = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                 .getItemValue(ingredientShopID, ingredientID, "stock.min", Integer.class).orElse(0);
+    //             ingredientMaxStock = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                 .getItemValue(ingredientShopID, ingredientID, "stock.max", Integer.class).orElse(0);
+    //         } else if (ingredientType == DynaShopType.RECIPE) {
+    //             // Pour les ingrédients eux-mêmes basés sur des recettes, calculer récursivement
+    //             ItemStack ingredientItemStack = ShopGuiPlusApi.getShop(ingredientShopID).getShopItem(ingredientID).getItem();
+    //             if (ingredientItemStack != null) {
+    //                 List<String> newVisitedItems = new ArrayList<>(visitedItems);
+    //                 // RecipeCalculationResult ingredientResult = calculateRecipeValues(ingredientShopID, ingredientID, ingredientItemStack);
+    //                 RecipeCalculationResult ingredientResult = calculateRecipeValues(ingredientShopID, ingredientID, ingredientItemStack, newVisitedItems);
+                    
+    //                 ingredientBuyPrice = ingredientResult.getBuyPrice();
+    //                 ingredientSellPrice = ingredientResult.getSellPrice();
+    //                 ingredientMinBuyPrice = ingredientResult.getMinBuyPrice();
+    //                 ingredientMaxBuyPrice = ingredientResult.getMaxBuyPrice();
+    //                 ingredientMinSellPrice = ingredientResult.getMinSellPrice();
+    //                 ingredientMaxSellPrice = ingredientResult.getMaxSellPrice();
+    //                 ingredientStock = ingredientResult.getStock();
+    //                 ingredientMinStock = ingredientResult.getMinStock();
+    //                 ingredientMaxStock = ingredientResult.getMaxStock();
+    //             }
+    //         } else {
+    //             // Pour les autres types d'ingrédients (DYNAMIC, etc.)
+    //             ingredientBuyPrice = DynaShopPlugin.getInstance().getItemDataManager()
+    //                 .getBuyPrice(ingredientShopID, ingredientID)
+    //                 .orElse(DynaShopPlugin.getInstance().getShopConfigManager()
+    //                     .getItemValue(ingredientShopID, ingredientID, "buyPrice", Double.class)
+    //                     .orElse(10.0));
+                        
+    //             ingredientSellPrice = DynaShopPlugin.getInstance().getItemDataManager()
+    //                 .getSellPrice(ingredientShopID, ingredientID)
+    //                 .orElse(DynaShopPlugin.getInstance().getShopConfigManager()
+    //                     .getItemValue(ingredientShopID, ingredientID, "sellPrice", Double.class)
+    //                     .orElse(8.0));
+                        
+    //             // Récupérer les bornes depuis la configuration
+    //             ingredientMinBuyPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                 .getItemValue(ingredientShopID, ingredientID, "buyDynamic.min", Double.class)
+    //                 .orElse(ingredientBuyPrice * 0.5);
+                    
+    //             ingredientMaxBuyPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                 .getItemValue(ingredientShopID, ingredientID, "buyDynamic.max", Double.class)
+    //                 .orElse(ingredientBuyPrice * 2.0);
+                    
+    //             ingredientMinSellPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                 .getItemValue(ingredientShopID, ingredientID, "sellDynamic.min", Double.class)
+    //                 .orElse(ingredientSellPrice * 0.5);
+                    
+    //             ingredientMaxSellPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                 .getItemValue(ingredientShopID, ingredientID, "sellDynamic.max", Double.class)
+    //                 .orElse(ingredientSellPrice * 2.0);
+    //         }
+            
+    //         // Calculer la contribution de cet ingrédient aux différentes valeurs
+    //         int amount = ingredient.getAmount();
+    //         basePrice += ingredientBuyPrice * amount;
+    //         baseSellPrice += ingredientSellPrice * amount;
+    //         baseMinBuyPrice += ingredientMinBuyPrice * amount;
+    //         baseMaxBuyPrice += ingredientMaxBuyPrice * amount;
+    //         baseMinSellPrice += ingredientMinSellPrice * amount;
+    //         baseMaxSellPrice += ingredientMaxSellPrice * amount;
+            
+    //         // Calcul du stock disponible pour cet ingrédient
+    //         int availableForCrafting = ingredientStock / amount;
+    //         minAvailableStock = Math.min(minAvailableStock, availableForCrafting);
+
+    //         // Stock minimum
+    //         int minAvailableForCrafting = ingredientMinStock / amount;
+    //         totalMinStock += minAvailableForCrafting;
+
+    //         // Stock maximum
+    //         int maxAvailableForCrafting = ingredientMaxStock / amount;
+    //         totalMaxStock += maxAvailableForCrafting;
+            
+    //         // Optimisation: sortir tôt si on trouve un stock zéro
+    //         if (minAvailableStock == 0) break;
+    //     }
+        
+    //     // Appliquer le modificateur de recette
+    //     double modifier = getRecipeModifier(item);
+    //     double finalBuyPrice = basePrice * modifier;
+    //     double finalSellPrice = baseSellPrice * modifier;
+    //     double finalMinBuyPrice = baseMinBuyPrice * modifier;
+    //     double finalMaxBuyPrice = baseMaxBuyPrice * modifier;
+    //     double finalMinSellPrice = baseMinSellPrice * modifier;
+    //     double finalMaxSellPrice = baseMaxSellPrice * modifier;
+        
+    //     // Vérifier que le prix de vente n'est pas supérieur au prix d'achat
+    //     if (finalSellPrice > finalBuyPrice - DynamicPrice.MIN_MARGIN) {
+    //         finalSellPrice = finalBuyPrice - DynamicPrice.MIN_MARGIN;
+    //     }
+        
+    //     // Vérifier que les bornes sont respectées
+    //     finalBuyPrice = Math.max(finalMinBuyPrice, Math.min(finalBuyPrice, finalMaxBuyPrice));
+    //     finalSellPrice = Math.max(finalMinSellPrice, Math.min(finalSellPrice, finalMaxSellPrice));
+        
+    //     // Ajuster le stock maximum et actuel
+    //     int finalStock = (minAvailableStock == Integer.MAX_VALUE) ? 0 : minAvailableStock;
+        
+    //     // Mettre en cache tous les résultats
+    //     DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyPrice", finalBuyPrice);
+    //     DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellPrice", finalSellPrice);
+    //     DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyDynamic.min", finalMinBuyPrice);
+    //     DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyDynamic.max", finalMaxBuyPrice);
+    //     DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellDynamic.min", finalMinSellPrice);
+    //     DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellDynamic.max", finalMaxSellPrice);
+    //     DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "stock", finalStock);
+    //     DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "minstock", totalMinStock);
+    //     DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "maxstock", totalMaxStock);
+        
+    //     return new RecipeCalculationResult(
+    //         finalBuyPrice, finalSellPrice,
+    //         finalMinBuyPrice, finalMaxBuyPrice,
+    //         finalMinSellPrice, finalMaxSellPrice,
+    //         finalStock, totalMinStock, totalMaxStock
+    //     );
+    // }
+    public RecipeCalculationResult calculateRecipeValues(String shopID, String itemID, ItemStack item, List<String> visitedItems) {
         // Récupérer tous les ingrédients une seule fois
         List<ItemStack> ingredients = getIngredients(shopID, itemID, item);
         ingredients = consolidateIngredients(ingredients);
@@ -119,6 +328,7 @@ public class PriceRecipe {
         double baseMinSellPrice = 0.0;
         double baseMaxSellPrice = 0.0;
         int minAvailableStock = Integer.MAX_VALUE;
+        int totalMinStock = 0;
         int totalMaxStock = 0;
         
         // Parcourir les ingrédients une seule fois
@@ -137,93 +347,22 @@ public class PriceRecipe {
             }
             visitedItems.add(ingredientID);
             
-            // Obtenir le type de l'ingrédient
-            DynaShopType ingredientType = getIngredientType(ingredient);
+            // // Obtenir le type de l'ingrédient
+            // DynaShopType ingredientType = getIngredientType(ingredient);
             
-            // Selon le type de l'ingrédient, obtenir les valeurs
-            double ingredientBuyPrice = 0.0;
-            double ingredientSellPrice = 0.0;
-            double ingredientMinBuyPrice = 0.0;
-            double ingredientMaxBuyPrice = 0.0;
-            double ingredientMinSellPrice = 0.0;
-            double ingredientMaxSellPrice = 0.0;
-            int ingredientStock = 0;
-            int ingredientMaxStock = 0;
-            
-            if (ingredientType == DynaShopType.STOCK) {
-                // Pour les ingrédients en mode STOCK
-                ingredientBuyPrice = DynaShopPlugin.getInstance().getPriceStock().calculatePrice(ingredientShopID, ingredientID, "buyPrice");
-                ingredientSellPrice = DynaShopPlugin.getInstance().getPriceStock().calculatePrice(ingredientShopID, ingredientID, "sellPrice");
+            DynamicPrice ingredientPrice = DynaShopPlugin.getInstance().getDynaShopListener()
+                .getOrLoadPrice(ingredientShopID, ingredientID, ingredient);
                 
-                // Récupérer les bornes depuis la configuration
-                ingredientMinBuyPrice = DynaShopPlugin.getInstance().getShopConfigManager()
-                    .getItemValue(ingredientShopID, ingredientID, "buyDynamic.min", Double.class)
-                    .orElse(ingredientBuyPrice * 0.5);
-                    
-                ingredientMaxBuyPrice = DynaShopPlugin.getInstance().getShopConfigManager()
-                    .getItemValue(ingredientShopID, ingredientID, "buyDynamic.max", Double.class)
-                    .orElse(ingredientBuyPrice * 2.0);
-                    
-                ingredientMinSellPrice = DynaShopPlugin.getInstance().getShopConfigManager()
-                    .getItemValue(ingredientShopID, ingredientID, "sellDynamic.min", Double.class)
-                    .orElse(ingredientSellPrice * 0.5);
-                    
-                ingredientMaxSellPrice = DynaShopPlugin.getInstance().getShopConfigManager()
-                    .getItemValue(ingredientShopID, ingredientID, "sellDynamic.max", Double.class)
-                    .orElse(ingredientSellPrice * 2.0);
-                
-                // Récupérer le stock actuel et maximum
-                ingredientStock = DynaShopPlugin.getInstance().getItemDataManager().getStock(ingredientShopID, ingredientID).orElse(0);
-                ingredientMaxStock = DynaShopPlugin.getInstance().getShopConfigManager()
-                    .getItemValue(ingredientShopID, ingredientID, "stock.max", Integer.class).orElse(0);
-            } else if (ingredientType == DynaShopType.RECIPE) {
-                // Pour les ingrédients eux-mêmes basés sur des recettes, calculer récursivement
-                ItemStack ingredientItemStack = ShopGuiPlusApi.getShop(ingredientShopID).getShopItem(ingredientID).getItem();
-                if (ingredientItemStack != null) {
-                    List<String> newVisitedItems = new ArrayList<>(visitedItems);
-                    // RecipeCalculationResult ingredientResult = calculateRecipeValues(ingredientShopID, ingredientID, ingredientItemStack);
-                    RecipeCalculationResult ingredientResult = calculateRecipeValues(ingredientShopID, ingredientID, ingredientItemStack, newVisitedItems);
-                    
-                    ingredientBuyPrice = ingredientResult.getBuyPrice();
-                    ingredientSellPrice = ingredientResult.getSellPrice();
-                    ingredientMinBuyPrice = ingredientResult.getMinBuyPrice();
-                    ingredientMaxBuyPrice = ingredientResult.getMaxBuyPrice();
-                    ingredientMinSellPrice = ingredientResult.getMinSellPrice();
-                    ingredientMaxSellPrice = ingredientResult.getMaxSellPrice();
-                    ingredientStock = ingredientResult.getStock();
-                    ingredientMaxStock = ingredientResult.getMaxStock();
-                }
-            } else {
-                // Pour les autres types d'ingrédients (DYNAMIC, etc.)
-                ingredientBuyPrice = DynaShopPlugin.getInstance().getItemDataManager()
-                    .getBuyPrice(ingredientShopID, ingredientID)
-                    .orElse(DynaShopPlugin.getInstance().getShopConfigManager()
-                        .getItemValue(ingredientShopID, ingredientID, "buyPrice", Double.class)
-                        .orElse(10.0));
-                        
-                ingredientSellPrice = DynaShopPlugin.getInstance().getItemDataManager()
-                    .getSellPrice(ingredientShopID, ingredientID)
-                    .orElse(DynaShopPlugin.getInstance().getShopConfigManager()
-                        .getItemValue(ingredientShopID, ingredientID, "sellPrice", Double.class)
-                        .orElse(8.0));
-                        
-                // Récupérer les bornes depuis la configuration
-                ingredientMinBuyPrice = DynaShopPlugin.getInstance().getShopConfigManager()
-                    .getItemValue(ingredientShopID, ingredientID, "buyDynamic.min", Double.class)
-                    .orElse(ingredientBuyPrice * 0.5);
-                    
-                ingredientMaxBuyPrice = DynaShopPlugin.getInstance().getShopConfigManager()
-                    .getItemValue(ingredientShopID, ingredientID, "buyDynamic.max", Double.class)
-                    .orElse(ingredientBuyPrice * 2.0);
-                    
-                ingredientMinSellPrice = DynaShopPlugin.getInstance().getShopConfigManager()
-                    .getItemValue(ingredientShopID, ingredientID, "sellDynamic.min", Double.class)
-                    .orElse(ingredientSellPrice * 0.5);
-                    
-                ingredientMaxSellPrice = DynaShopPlugin.getInstance().getShopConfigManager()
-                    .getItemValue(ingredientShopID, ingredientID, "sellDynamic.max", Double.class)
-                    .orElse(ingredientSellPrice * 2.0);
-            }
+            // Utiliser les valeurs récupérées
+            double ingredientBuyPrice = ingredientPrice.getBuyPrice();
+            double ingredientSellPrice = ingredientPrice.getSellPrice();
+            double ingredientMinBuyPrice = ingredientPrice.getMinBuyPrice();
+            double ingredientMaxBuyPrice = ingredientPrice.getMaxBuyPrice();
+            double ingredientMinSellPrice = ingredientPrice.getMinSellPrice();
+            double ingredientMaxSellPrice = ingredientPrice.getMaxSellPrice();
+            int ingredientStock = ingredientPrice.getStock();
+            int ingredientMinStock = ingredientPrice.getMinStock();
+            int ingredientMaxStock = ingredientPrice.getMaxStock();
             
             // Calculer la contribution de cet ingrédient aux différentes valeurs
             int amount = ingredient.getAmount();
@@ -237,7 +376,11 @@ public class PriceRecipe {
             // Calcul du stock disponible pour cet ingrédient
             int availableForCrafting = ingredientStock / amount;
             minAvailableStock = Math.min(minAvailableStock, availableForCrafting);
-            
+
+            // Stock minimum
+            int minAvailableForCrafting = ingredientMinStock / amount;
+            totalMinStock += minAvailableForCrafting;
+
             // Stock maximum
             int maxAvailableForCrafting = ingredientMaxStock / amount;
             totalMaxStock += maxAvailableForCrafting;
@@ -275,15 +418,31 @@ public class PriceRecipe {
         DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellDynamic.min", finalMinSellPrice);
         DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellDynamic.max", finalMaxSellPrice);
         DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "stock", finalStock);
+        DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "minstock", totalMinStock);
         DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "maxstock", totalMaxStock);
         
         return new RecipeCalculationResult(
             finalBuyPrice, finalSellPrice,
             finalMinBuyPrice, finalMaxBuyPrice,
             finalMinSellPrice, finalMaxSellPrice,
-            finalStock, totalMaxStock
+            finalStock, totalMinStock, totalMaxStock
         );
     }
+    // // Méthode synchrone qui attend le résultat du calcul asynchrone
+    // public RecipeCalculationResult calculateRecipeValues(String shopID, String itemID, ItemStack item, List<String> visitedItems) {
+    //     try {
+    //         return calculateRecipeValuesAsync(shopID, itemID, item, visitedItems).get();
+    //     } catch (Exception e) {
+    //         DynaShopPlugin.getInstance().getLogger().severe("Erreur lors du calcul des valeurs de recette: " + e.getMessage());
+    //         // Retourner des valeurs par défaut en cas d'erreur
+    //         return new RecipeCalculationResult(
+    //             10.0, 8.0,  // prix par défaut
+    //             5.0, 20.0,  // bornes d'achat par défaut
+    //             4.0, 16.0,  // bornes de vente par défaut
+    //             0, 0, 1000  // stock par défaut
+    //         );
+    //     }
+    // }
 
     /**
      * Version asynchrone pour calculer toutes les valeurs de recette en une fois
@@ -296,7 +455,7 @@ public class PriceRecipe {
                 DynaShopPlugin.getInstance().getLogger().warning("Erreur lors du calcul des valeurs pour " 
                     + shopID + ":" + itemID + ": " + e.getMessage());
                 // Valeurs par défaut en cas d'erreur
-                return new RecipeCalculationResult(10.0, 8.0, 5.0, 20.0, 4.0, 16.0, 0, 0);
+                return new RecipeCalculationResult(10.0, 8.0, 5.0, 20.0, 4.0, 16.0, 0, 0, 0);
             }
         }, recipeExecutor).thenAcceptAsync(result -> {
             Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> {
@@ -308,18 +467,231 @@ public class PriceRecipe {
             });
         });
     }
+
+    // /**
+    //  * Calcule toutes les valeurs importantes pour une recette en une seule passe de manière asynchrone
+    //  */
+    // public CompletableFuture<RecipeCalculationResult> calculateRecipeValuesAsync(String shopID, String itemID, ItemStack item, List<String> visitedItems) {
+    //     CompletableFuture<RecipeCalculationResult> future = new CompletableFuture<>();
+        
+    //     // Exécuter les calculs dans une tâche asynchrone
+    //     Bukkit.getScheduler().runTaskAsynchronously(DynaShopPlugin.getInstance(), () -> {
+    //         try {
+    //             // Récupérer les ingrédients
+    //             List<ItemStack> ingredients = getIngredients(shopID, itemID, item);
+    //             ingredients = consolidateIngredients(ingredients);
+                
+    //             // Variables pour le calcul
+    //             double basePrice = 0.0;
+    //             double baseSellPrice = 0.0;
+    //             double baseMinBuyPrice = 0.0;
+    //             double baseMaxBuyPrice = 0.0;
+    //             double baseMinSellPrice = 0.0;
+    //             double baseMaxSellPrice = 0.0;
+    //             int minAvailableStock = Integer.MAX_VALUE;
+    //             int totalMinStock = 0;
+    //             int totalMaxStock = 0;
+                
+    //             // Parcourir les ingrédients de manière synchrone dans cette tâche asynchrone
+    //             for (ItemStack ingredient : ingredients) {
+    //                 if (ingredient == null || ingredient.getType() == Material.AIR) {
+    //                     continue;
+    //                 }
+                    
+    //                 // Récupérer les données de l'ingrédient
+    //                 String ingredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
+    //                 String ingredientShopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
+                    
+    //                 // Éviter les boucles infinies
+    //                 if (visitedItems.contains(ingredientID)) {
+    //                     continue;
+    //                 }
+    //                 visitedItems.add(ingredientID);
+                    
+    //                 // Obtenir le type de l'ingrédient
+    //                 DynaShopType ingredientType = getIngredientType(ingredient);
+                    
+    //                 // Variables pour stocker les valeurs de l'ingrédient
+    //                 double ingredientBuyPrice = 0.0;
+    //                 double ingredientSellPrice = 0.0;
+    //                 double ingredientMinBuyPrice = 0.0;
+    //                 double ingredientMaxBuyPrice = 0.0;
+    //                 double ingredientMinSellPrice = 0.0;
+    //                 double ingredientMaxSellPrice = 0.0;
+    //                 int ingredientStock = 0;
+    //                 int ingredientMinStock = 0;
+    //                 int ingredientMaxStock = 0;
+                    
+    //                 // Calculer les valeurs selon le type d'ingrédient
+    //                 if (ingredientType == DynaShopType.STOCK) {
+    //                     // Code pour les ingrédients en mode STOCK
+    //                     ingredientBuyPrice = DynaShopPlugin.getInstance().getPriceStock().calculatePrice(ingredientShopID, ingredientID, "buyPrice");
+    //                     ingredientSellPrice = DynaShopPlugin.getInstance().getPriceStock().calculatePrice(ingredientShopID, ingredientID, "sellPrice");
+                        
+    //                     // Récupérer les bornes
+    //                     ingredientMinBuyPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                         .getItemValue(ingredientShopID, ingredientID, "buyDynamic.min", Double.class)
+    //                         .orElse(ingredientBuyPrice * 0.5);
+    //                     ingredientMaxBuyPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                         .getItemValue(ingredientShopID, ingredientID, "buyDynamic.max", Double.class)
+    //                         .orElse(ingredientBuyPrice * 2.0);
+    //                     ingredientMinSellPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                         .getItemValue(ingredientShopID, ingredientID, "sellDynamic.min", Double.class)
+    //                         .orElse(ingredientSellPrice * 0.5);
+    //                     ingredientMaxSellPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                         .getItemValue(ingredientShopID, ingredientID, "sellDynamic.max", Double.class)
+    //                         .orElse(ingredientSellPrice * 2.0);
+                            
+    //                     // Récupérer le stock actuel et maximum
+    //                     ingredientStock = DynaShopPlugin.getInstance().getItemDataManager().getStock(ingredientShopID, ingredientID).orElse(0);
+    //                     ingredientMinStock = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                         .getItemValue(ingredientShopID, ingredientID, "stock.min", Integer.class).orElse(0);
+    //                     ingredientMaxStock = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                         .getItemValue(ingredientShopID, ingredientID, "stock.max", Integer.class).orElse(0);
+    //                 } else if (ingredientType == DynaShopType.RECIPE) {
+    //                     // Code pour les ingrédients basés sur des recettes
+    //                     ItemStack ingredientItemStack = ShopGuiPlusApi.getShop(ingredientShopID).getShopItem(ingredientID).getItem();
+    //                     if (ingredientItemStack != null) {
+    //                         List<String> newVisitedItems = new ArrayList<>(visitedItems);
+    //                         RecipeCalculationResult ingredientResult = calculateRecipeValues(ingredientShopID, ingredientID, ingredientItemStack, newVisitedItems);
+                            
+    //                         ingredientBuyPrice = ingredientResult.getBuyPrice();
+    //                         ingredientSellPrice = ingredientResult.getSellPrice();
+    //                         ingredientMinBuyPrice = ingredientResult.getMinBuyPrice();
+    //                         ingredientMaxBuyPrice = ingredientResult.getMaxBuyPrice();
+    //                         ingredientMinSellPrice = ingredientResult.getMinSellPrice();
+    //                         ingredientMaxSellPrice = ingredientResult.getMaxSellPrice();
+    //                         ingredientStock = ingredientResult.getStock();
+    //                         ingredientMinStock = ingredientResult.getMinStock();
+    //                         ingredientMaxStock = ingredientResult.getMaxStock();
+    //                     }
+    //                 } else {
+    //                     // Pour les autres types d'ingrédients (DYNAMIC, etc.)
+    //                     ingredientBuyPrice = DynaShopPlugin.getInstance().getItemDataManager()
+    //                         .getBuyPrice(ingredientShopID, ingredientID)
+    //                         .orElse(DynaShopPlugin.getInstance().getShopConfigManager()
+    //                             .getItemValue(ingredientShopID, ingredientID, "buyPrice", Double.class)
+    //                             .orElse(10.0));
+                                
+    //                     ingredientSellPrice = DynaShopPlugin.getInstance().getItemDataManager()
+    //                         .getSellPrice(ingredientShopID, ingredientID)
+    //                         .orElse(DynaShopPlugin.getInstance().getShopConfigManager()
+    //                             .getItemValue(ingredientShopID, ingredientID, "sellPrice", Double.class)
+    //                             .orElse(8.0));
+                                
+    //                     // Récupérer les bornes depuis la configuration
+    //                     ingredientMinBuyPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                         .getItemValue(ingredientShopID, ingredientID, "buyDynamic.min", Double.class)
+    //                         .orElse(ingredientBuyPrice * 0.5);
+                            
+    //                     ingredientMaxBuyPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                         .getItemValue(ingredientShopID, ingredientID, "buyDynamic.max", Double.class)
+    //                         .orElse(ingredientBuyPrice * 2.0);
+                            
+    //                     ingredientMinSellPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                         .getItemValue(ingredientShopID, ingredientID, "sellDynamic.min", Double.class)
+    //                         .orElse(ingredientSellPrice * 0.5);
+                            
+    //                     ingredientMaxSellPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //                         .getItemValue(ingredientShopID, ingredientID, "sellDynamic.max", Double.class)
+    //                         .orElse(ingredientSellPrice * 2.0);
+    //                 }
+                    
+    //                 // Ajouter la contribution de cet ingrédient aux totaux
+    //                 int amount = ingredient.getAmount();
+    //                 basePrice += ingredientBuyPrice * amount;
+    //                 baseSellPrice += ingredientSellPrice * amount;
+    //                 baseMinBuyPrice += ingredientMinBuyPrice * amount;
+    //                 baseMaxBuyPrice += ingredientMaxBuyPrice * amount;
+    //                 baseMinSellPrice += ingredientMinSellPrice * amount;
+    //                 baseMaxSellPrice += ingredientMaxSellPrice * amount;
+                    
+    //                 // Calcul du stock
+    //                 int availableForCrafting = ingredientStock / amount;
+    //                 minAvailableStock = Math.min(minAvailableStock, availableForCrafting);
+
+    //                 // Stock minimum
+    //                 int minAvailableForCrafting = ingredientMinStock / amount;
+    //                 totalMinStock += minAvailableForCrafting;
+
+    //                 // Stock maximum
+    //                 int maxAvailableForCrafting = ingredientMaxStock / amount;
+    //                 totalMaxStock += maxAvailableForCrafting;
+                    
+    //                 // Sortir tôt si stock zéro
+    //                 if (minAvailableStock == 0) break;
+    //             }
+                
+    //             // Finaliser les calculs
+    //             double modifier = getRecipeModifier(item);
+    //             double finalBuyPrice = basePrice * modifier;
+    //             double finalSellPrice = baseSellPrice * modifier;
+    //             double finalMinBuyPrice = baseMinBuyPrice * modifier;
+    //             double finalMaxBuyPrice = baseMaxBuyPrice * modifier;
+    //             double finalMinSellPrice = baseMinSellPrice * modifier;
+    //             double finalMaxSellPrice = baseMaxSellPrice * modifier;
+        
+    //             // Vérifier que le prix de vente n'est pas supérieur au prix d'achat
+    //             if (finalSellPrice > finalBuyPrice - DynamicPrice.MIN_MARGIN) {
+    //                 finalSellPrice = finalBuyPrice - DynamicPrice.MIN_MARGIN;
+    //             }
+                
+    //             // Vérifier que les bornes sont respectées
+    //             finalBuyPrice = Math.max(finalMinBuyPrice, Math.min(finalBuyPrice, finalMaxBuyPrice));
+    //             finalSellPrice = Math.max(finalMinSellPrice, Math.min(finalSellPrice, finalMaxSellPrice));
+                
+    //             // Ajuster le stock maximum et actuel
+    //             int finalStock = (minAvailableStock == Integer.MAX_VALUE) ? 0 : minAvailableStock;
+                
+    //             // Créer le résultat
+    //             RecipeCalculationResult result = new RecipeCalculationResult(
+    //                 finalBuyPrice, finalSellPrice,
+    //                 finalMinBuyPrice, finalMaxBuyPrice,
+    //                 finalMinSellPrice, finalMaxSellPrice,
+    //                 finalStock, totalMinStock, totalMaxStock
+    //             );
+                
+    //             // Mettre en cache les résultats et compléter le future
+    //             cacheResults(shopID, itemID, result);
+    //             future.complete(result);
+                
+    //         } catch (Exception e) {
+    //             future.completeExceptionally(e);
+    //         }
+    //     });
+        
+    //     return future;
+    // }
     
+    // // Méthode utilitaire pour mettre en cache les résultats
+    // private void cacheResults(String shopID, String itemID, RecipeCalculationResult result) {
+    //     DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyPrice", result.getBuyPrice());
+    //     DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellPrice", result.getSellPrice());
+    //     DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyDynamic.min", result.getMinBuyPrice());
+    //     DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyDynamic.max", result.getMaxBuyPrice());
+    //     DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellDynamic.min", result.getMinSellPrice());
+    //     DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellDynamic.max", result.getMaxSellPrice());
+    //     DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "stock", result.getStock());
+    //     DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "minstock", result.getMinStock());
+    //     DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "maxstock", result.getMaxStock());
+    // }
+
     /**
      * Nettoie les ressources lors de la fermeture du plugin
      */
     public void shutdown() {
         recipeExecutor.shutdown();
+        highPriorityExecutor.shutdown();
         try {
             if (!recipeExecutor.awaitTermination(500, TimeUnit.MILLISECONDS)) {
                 recipeExecutor.shutdownNow();
             }
+            if (!highPriorityExecutor.awaitTermination(500, TimeUnit.MILLISECONDS)) {
+                highPriorityExecutor.shutdownNow();
+            }
         } catch (InterruptedException e) {
             recipeExecutor.shutdownNow();
+            highPriorityExecutor.shutdownNow();
         }
     }
     
@@ -500,11 +872,37 @@ public class PriceRecipe {
     //         // }
     //     });
     // }
+    // /**
+    //  * Version entièrement asynchrone du calcul de prix
+    //  */
+    // public void calculatePriceAsync(String shopID, String itemID, ItemStack item, String typePrice, Consumer<Double> callback) {
+    //     CompletableFuture.supplyAsync(() -> {
+    //         try {
+    //             List<String> visitedItems = new ArrayList<>();
+    //             return calculatePrice(shopID, itemID, item, typePrice, visitedItems);
+    //         } catch (Exception e) {
+    //             DynaShopPlugin.getInstance().getLogger().warning("Erreur lors du calcul du prix pour " + shopID + ":" + itemID + ": " + e.getMessage());
+    //             return 10.0; // Valeur par défaut en cas d'erreur
+    //         }
+    //     }, recipeExecutor).thenAcceptAsync(price -> {
+    //         Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> {
+    //             try {
+    //                 callback.accept(price);
+    //             } catch (Exception e) {
+    //                 DynaShopPlugin.getInstance().getLogger().warning("Erreur dans le callback de prix: " + e.getMessage());
+    //             }
+    //         });
+    //     });
+    // }
     /**
-     * Version entièrement asynchrone du calcul de prix
+     * Version entièrement asynchrone du calcul de prix avec priorisation
      */
     public void calculatePriceAsync(String shopID, String itemID, ItemStack item, String typePrice, Consumer<Double> callback) {
-        CompletableFuture.supplyAsync(() -> {
+        // Vérifier si c'est un item populaire ou fréquemment consulté
+        boolean isHighPriority = isPopularItem(shopID, itemID);
+        
+        // Définir le fournisseur de calcul
+        Supplier<Double> priceCalculator = () -> {
             try {
                 List<String> visitedItems = new ArrayList<>();
                 return calculatePrice(shopID, itemID, item, typePrice, visitedItems);
@@ -512,15 +910,21 @@ public class PriceRecipe {
                 DynaShopPlugin.getInstance().getLogger().warning("Erreur lors du calcul du prix pour " + shopID + ":" + itemID + ": " + e.getMessage());
                 return 10.0; // Valeur par défaut en cas d'erreur
             }
-        }, recipeExecutor).thenAcceptAsync(price -> {
-            Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> {
-                try {
-                    callback.accept(price);
-                } catch (Exception e) {
-                    DynaShopPlugin.getInstance().getLogger().warning("Erreur dans le callback de prix: " + e.getMessage());
-                }
+        };
+        
+        // Ajuster la priorité d'exécution
+        ExecutorService executor = isHighPriority ? highPriorityExecutor : recipeExecutor;
+        
+        CompletableFuture.supplyAsync(priceCalculator, executor)
+            .thenAcceptAsync(price -> {
+                Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> {
+                    try {
+                        callback.accept(price);
+                    } catch (Exception e) {
+                        DynaShopPlugin.getInstance().getLogger().warning("Erreur dans le callback de prix: " + e.getMessage());
+                    }
+                });
             });
-        });
     }
 
     // public double calculateDecay(String shopID, String itemID, ItemStack item, String typePrice, List<String> visitedItems) {
@@ -951,5 +1355,44 @@ public class PriceRecipe {
     //     // Récupérer le stock maximum de l'item
     //     return DynaShopPlugin.getInstance().getShopConfigManager().getItemValue(shopID, itemID, "stock.max", Integer.class).orElse(1000);
     // }
+
+    /**
+     * Détermine si un item est considéré comme populaire ou fréquemment consulté
+     * @param shopID L'ID du shop
+     * @param itemID L'ID de l'item
+     * @return true si l'item est populaire, false sinon
+     */
+    public boolean isPopularItem(String shopID, String itemID) {
+        String key = shopID + ":" + itemID;
+        
+        // Vérifier d'abord si l'item est dans la liste prédéfinie des items populaires
+        if (popularItems.contains(key)) {
+            return true;
+        }
+        
+        // Vérifier ensuite si l'item a été fréquemment consulté
+        int accessCount = itemAccessCounter.getOrDefault(key, 0);
+        
+        // Incrémenter le compteur d'accès
+        itemAccessCounter.put(key, accessCount + 1);
+        
+        // Si l'item devient populaire, l'ajouter à la liste
+        if (accessCount + 1 >= POPULAR_THRESHOLD && !popularItems.contains(key)) {
+            popularItems.add(key);
+            return true;
+        }
+        
+        return accessCount >= POPULAR_THRESHOLD;
+    }
+
+    /**
+     * Charge la liste des items populaires depuis la configuration
+     */
+    private void loadPopularItems() {
+        List<String> configPopularItems = config.getStringList("popular-items");
+        if (configPopularItems != null && !configPopularItems.isEmpty()) {
+            popularItems.addAll(configPopularItems);
+        }
+    }
     
 }

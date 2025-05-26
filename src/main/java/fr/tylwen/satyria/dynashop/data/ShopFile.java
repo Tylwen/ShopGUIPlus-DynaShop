@@ -7,6 +7,7 @@ import java.util.Map;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+// import net.brcdev.shopgui.ShopGuiPlusApi;
 
 public class ShopFile {
     private static final Map<String, File> shopIDToFile = new HashMap<>();
@@ -102,4 +103,18 @@ public class ShopFile {
     public static String[] getAllShopIDs() {
         return shopIDToFile.keySet().toArray(new String[0]);
     }
+
+    // public static YamlConfiguration getShopConfig(String shopID) {
+    //     // File file = getFileByShopID(shopID);
+    //     // if (file != null && file.exists()) {
+    //     //     return YamlConfiguration.loadConfiguration(file);
+    //     // }
+    //     // return null;
+    //     ShopGuiPlusApi.getPlugin().getConfigShops().getConfig().getConfigurationSection(shopID);
+    //     File file = getFileByShopID(shopID);
+    //     if (file != null && file.exists()) {
+    //         return YamlConfiguration.loadConfiguration(file);
+    //     }
+    //     return null;
+    // }
 }
