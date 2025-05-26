@@ -6,8 +6,9 @@ version: 1.0.6
 description: Plugin de gestion de boutique dynamique pour Minecraft
 api-version: '1.13'
 depend: [ ShopGUIPlus, Vault ]
+# depend: [ ShopGUIPlus, Vault, PlaceholderAPI ]
 softdepend: [ PlaceholderAPI ]
-loadbefore: [ ShopGUIPlus ]
+# loadbefore: [ ShopGUIPlus ]
 
 commands:
 #   shop:

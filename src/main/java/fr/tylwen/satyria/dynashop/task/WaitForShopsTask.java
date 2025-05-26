@@ -52,8 +52,13 @@ public class WaitForShopsTask implements Runnable {
 
     @Override
     public void run() {
-        ShopManager manager = ShopGuiPlusApi.getPlugin().getShopManager();
         try {
+            // Vérifier d'abord si ShopGUIPlus est correctement initialisé
+            if (ShopGuiPlusApi.getPlugin() == null) {
+                plugin.getLogger().severe("ShopGUIPlus is not initialized. Try again in 5 seconds...");
+                return; // Arrêter l'exécution si ShopGUIPlus n'est pas prêt
+            }
+            ShopManager manager = ShopGuiPlusApi.getPlugin().getShopManager();
             if (manager.getShops().isEmpty()) {
                 plugin.getLogger().info("Shops are not loaded yet. Try again in 5 seconds...");
                 return; // Les shops ne sont pas encore prêts

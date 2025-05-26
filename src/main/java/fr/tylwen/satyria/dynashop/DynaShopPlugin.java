@@ -28,6 +28,7 @@ import fr.tylwen.satyria.dynashop.data.CustomRecipeManager;
 // import fr.tylwen.satyria.dynashop.data.DynamicPrice;
 import fr.tylwen.satyria.dynashop.data.PriceRecipe;
 import fr.tylwen.satyria.dynashop.data.PriceStock;
+import fr.tylwen.satyria.dynashop.data.RecipeCacheManager;
 // import fr.tylwen.satyria.dynashop.config.Config;
 // import fr.tylwen.satyria.dynashop.config.Lang;
 // import fr.tylwen.satyria.dynashop.config.Settings;
@@ -48,6 +49,7 @@ import fr.tylwen.satyria.dynashop.listener.ShopItemPlaceholderListener;
 // import fr.tylwen.satyria.dynashop.task.ReloadDatabaseTask;
 // import fr.tylwen.satyria.dynashop.task.DynamicPricesTask;
 import fr.tylwen.satyria.dynashop.task.WaitForShopsTask;
+import fr.tylwen.satyria.dynashop.utils.PriceFormatter;
 // import net.brcdev.shopgui.ShopGuiPlugin;
 // import net.brcdev.shopgui.ShopGuiPlugin;
 import net.brcdev.shopgui.ShopGuiPlusApi;
@@ -89,15 +91,12 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private TransactionLimiter transactionLimiter;
     // private ShopRefreshManager shopRefreshManager;
     // private ItemPacketInterceptor packetInterceptor;
+    private PriceFormatter priceFormatter;
 
     private int dynamicPricesTaskId;
     private int waitForShopsTaskId;
 
-    private final Map<String, Double> recipePriceCache = new ConcurrentHashMap<>();
-    private final Map<String, Integer> priceStockCache = new ConcurrentHashMap<>();
-    // private final long RECIPE_CACHE_DURATION = 600000; // 10 minutes
-    private final long RECIPE_CACHE_DURATION = 20L * 60L * 15L; // 10 minutes in ticks
-    private final Map<String, Long> recipeCacheTimestamps = new ConcurrentHashMap<>();
+    private RecipeCacheManager recipeCacheManager;
 
     // public DynaShopPlugin() {
     //     this.config = new CommentedConfiguration();
@@ -122,6 +121,10 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     }
     public YamlConfiguration getConfigLang() {
         return this.configLang;
+    }
+    
+    public PriceFormatter getPriceFormatter() {
+        return priceFormatter;
     }
 
     public DataManager getDataManager() {
@@ -244,7 +247,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         // ExecutorService sharedExecutor = Executors.newFixedThreadPool(3);
         // Planification des tâches
         // getServer().getScheduler().runTaskTimerAsynchronously(this, new ReloadDatabaseTask(this), 0L, 20L * 60L * 10L); // Toutes les 10 minutes
-        getServer().getScheduler().runTaskTimer(this, new WaitForShopsTask(this), 0L, 20L * 5L); // Toutes les 10 secondes
+        getServer().getScheduler().runTaskTimer(this, new WaitForShopsTask(this), 0L, 20L * 5L); // Toutes les 5 secondes
         // getServer().getScheduler().runTaskTimerAsynchronously(this, new SavePricesTask(this), 20L * 60L * 5L, 20L * 60L * 5L); // Toutes les 5 minutes
         // Modifier cette ligne
         // getServer().getScheduler().runTaskTimerAsynchronously(this, new DynamicPricesTask(this), 0L, 20L * 60L * 1L);
@@ -288,10 +291,8 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
 
         // Ajouter une tâche de nettoyage du cache
         Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
-            long currentTime = System.currentTimeMillis();
-            recipePriceCache.entrySet().removeIf(entry -> 
-                currentTime - recipeCacheTimestamps.getOrDefault(entry.getKey(), 0L) > RECIPE_CACHE_DURATION);
-        }, 20L * 60L * 15L, 20L * 60L * 15L); // Nettoyage toutes les 5 minutes
+            recipeCacheManager.cleanup();
+        }, 20L * 60L * 15L, 20L * 60L * 15L); // Nettoyage toutes les 15 minutes
 
         // // Planifier le nettoyage des transactions périmées (toutes les heures)
         // getServer().getScheduler().runTaskTimerAsynchronously(this, 
@@ -322,6 +323,8 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         this.itemDataManager = new ItemDataManager(this.dataManager);
         this.batchDatabaseUpdater = new BatchDatabaseUpdater(this);
         this.transactionLimiter = new TransactionLimiter(this);
+        this.recipeCacheManager = new RecipeCacheManager(15 * 60 * 1000L); // 15 minutes en ms
+        this.priceFormatter = new PriceFormatter(this);
         // this.shopRefreshManager = new ShopRefreshManager(this);
         // preloadPopularItems();
     }
@@ -378,6 +381,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         // if (dynaShopListener != null) {
         //     // HandlerList.unregisterAll(dynaShopListener);
         // }
+        this.dynaShopListener = null;
 
         // if (packetInterceptor != null) {
         //     // packetInterceptor.clearCache();
@@ -424,29 +428,14 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     }
 
     public double getCachedRecipePrice(String shopID, String itemID, String priceType) {
-        String cacheKey = shopID + ":" + itemID + ":" + priceType;
-        
-        if (recipePriceCache.containsKey(cacheKey) && 
-            System.currentTimeMillis() - recipeCacheTimestamps.getOrDefault(cacheKey, 0L) < RECIPE_CACHE_DURATION) {
-            return recipePriceCache.get(cacheKey);
-        }
-        
-        return -1.0; // Indique que le prix n'est pas en cache
+        return recipeCacheManager.getCachedRecipePrice(shopID, itemID, priceType);
     }
     // public double getCachedRecipePrice(String shopID, String itemID, String priceType) {
     //     String cacheKey = shopID + ":" + itemID + ":" + priceType;
     //     return recipePriceCache.getOrDefault(cacheKey, -1.0); // Retourne -1.0 si le prix n'est pas en cache
     // }
     public int getCachedRecipeStock(String shopID, String itemID, String priceType) {
-        String cacheKey = shopID + ":" + itemID + ":" + priceType;
-        
-        // Vérifier si le stock est en cache et si le cache n'est pas expiré
-        if (priceStockCache.containsKey(cacheKey) &&
-            System.currentTimeMillis() - recipeCacheTimestamps.getOrDefault(cacheKey, 0L) < RECIPE_CACHE_DURATION) {
-            return priceStockCache.get(cacheKey);
-        }
-        
-        return -1; // Indique que le stock n'est pas en cache
+        return recipeCacheManager.getCachedRecipeStock(shopID, itemID, priceType);
     }
     // public int getCachedRecipeStock(String shopID, String itemID, String priceType) {
     //     String cacheKey = shopID + ":" + itemID + ":" + priceType;
@@ -454,14 +443,10 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     // }
     
     public void cacheRecipePrice(String shopID, String itemID, String priceType, double price) {
-        String cacheKey = shopID + ":" + itemID + ":" + priceType;
-        recipePriceCache.put(cacheKey, price);
-        recipeCacheTimestamps.put(cacheKey, System.currentTimeMillis());
+        recipeCacheManager.cacheRecipePrice(shopID, itemID, priceType, price);
     }
     public void cacheRecipeStock(String shopID, String itemID, String type, double stock) {
-        String cacheKey = shopID + ":" + itemID + ":" + type;
-        priceStockCache.put(cacheKey, (int) stock);
-        recipeCacheTimestamps.put(cacheKey, System.currentTimeMillis());
+        recipeCacheManager.cacheRecipeStock(shopID, itemID, type, stock);
     }
 
     public void preloadPopularItems() {
@@ -502,4 +487,4 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         // Arrêter proprement le pool après les précalculs
         precalcExecutor.shutdown();
     }
-} 
+}

@@ -10,9 +10,9 @@
 	<version>1.0.6</version>
 
 	<properties>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<maven.compiler.source>17</maven.compiler.source>
-		<maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
 	</properties>
 
     <build>
@@ -32,6 +32,29 @@
                     <source>21</source>
                     <target>21</target>
                 </configuration>
+            </plugin>
+            <!-- Ajouter le plugin Shade -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <relocations>
+                                <relocation>
+                                    <pattern>com.zaxxer.hikari</pattern>
+                                    <shadedPattern>fr.tylwen.satyria.dynashop.libs.hikari</shadedPattern>
+                                </relocation>
+                            </relocations>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
@@ -62,6 +85,7 @@
             <groupId>com.github.brcdev-minecraft</groupId>
 	        <artifactId>shopgui-api</artifactId>
             <version>3.0.0</version>
+            <scope>provided</scope> <!-- Changez en "provided" -->
         </dependency>
 		<dependency>
 			<groupId>me.clip</groupId>

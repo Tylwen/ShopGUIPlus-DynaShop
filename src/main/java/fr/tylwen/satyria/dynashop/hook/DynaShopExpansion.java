@@ -218,216 +218,216 @@ public class DynaShopExpansion extends PlaceholderExpansion {
     //             return "Type inconnu";
     //     }
     // }
-    /**
-     * Obtient le prix selon le type spécifié.
-     */
-    public String getPriceByType(String shopID, String itemID, String priceType) {
-        // Vérifier d'abord si "useRecipe" est activé
-        // boolean useRecipe = shopConfigManager.getItemValue(shopID, itemID, "useRecipe", Boolean.class).orElse(false);
-        boolean useRecipe = shopConfigManager.getTypeDynaShop(shopID, itemID).orElse(DynaShopType.NONE) == DynaShopType.RECIPE;
-        ItemStack itemStack = null;
+    // /**
+    //  * Obtient le prix selon le type spécifié.
+    //  */
+    // public String getPriceByType(String shopID, String itemID, String priceType) {
+    //     // Vérifier d'abord si "useRecipe" est activé
+    //     // boolean useRecipe = shopConfigManager.getItemValue(shopID, itemID, "useRecipe", Boolean.class).orElse(false);
+    //     boolean useRecipe = shopConfigManager.getTypeDynaShop(shopID, itemID).orElse(DynaShopType.NONE) == DynaShopType.RECIPE;
+    //     ItemStack itemStack = null;
         
-        if (useRecipe) {
-            itemStack = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem();
-            if (itemStack == null) {
-                return "N/A";
-            }
-        }
+    //     if (useRecipe) {
+    //         itemStack = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem();
+    //         if (itemStack == null) {
+    //             return "N/A";
+    //         }
+    //     }
         
-        switch (priceType) {
-            case "buy":
-                if (useRecipe && itemStack != null) {
-                    double recipeBuyPrice = priceRecipe.calculateBuyPrice(shopID, itemID, itemStack, new ArrayList<>());
-                    // return String.format("%.3f", recipeBuyPrice);
-                    // return String.valueOf(recipeBuyPrice);
-                    // return String.format("%." + maximumFractionDigits + "f", recipeBuyPrice);
-                    return formatPrice(recipeBuyPrice);
-                }
-                // return this.itemDataManager.getBuyPrice(shopID, itemID)
-                //     .or(() -> shopConfigManager.getItemValue(shopID, itemID, "buyPrice", Double.class))
-                //     .map(price -> String.format("%.3f", price))
-                //     .orElse("N/A");
+    //     switch (priceType) {
+    //         case "buy":
+    //             if (useRecipe && itemStack != null) {
+    //                 double recipeBuyPrice = priceRecipe.calculateBuyPrice(shopID, itemID, itemStack, new ArrayList<>());
+    //                 // return String.format("%.3f", recipeBuyPrice);
+    //                 // return String.valueOf(recipeBuyPrice);
+    //                 // return String.format("%." + maximumFractionDigits + "f", recipeBuyPrice);
+    //                 return formatPrice(recipeBuyPrice);
+    //             }
+    //             // return this.itemDataManager.getBuyPrice(shopID, itemID)
+    //             //     .or(() -> shopConfigManager.getItemValue(shopID, itemID, "buyPrice", Double.class))
+    //             //     .map(price -> String.format("%.3f", price))
+    //             //     .orElse("N/A");
 
-                // Priorité à la base de données
-                Optional<Double> buyPrice = this.itemDataManager.getBuyPrice(shopID, itemID);
-                if (buyPrice.isPresent()) {
-                    // return String.format("%.3f", buyPrice.get());
-                    return formatPrice(buyPrice.get());
-                }
+    //             // Priorité à la base de données
+    //             Optional<Double> buyPrice = this.itemDataManager.getBuyPrice(shopID, itemID);
+    //             if (buyPrice.isPresent()) {
+    //                 // return String.format("%.3f", buyPrice.get());
+    //                 return formatPrice(buyPrice.get());
+    //             }
 
-                // Fallback sur les fichiers de configuration
-                Optional<Double> configBuyPrice = shopConfigManager.getItemValue(shopID, itemID, "buyPrice", Double.class);
-                if (configBuyPrice.isPresent()) {
-                    // return String.format("%.3f", configBuyPrice.get());
-                    return formatPrice(configBuyPrice.get());
-                }
+    //             // Fallback sur les fichiers de configuration
+    //             Optional<Double> configBuyPrice = shopConfigManager.getItemValue(shopID, itemID, "buyPrice", Double.class);
+    //             if (configBuyPrice.isPresent()) {
+    //                 // return String.format("%.3f", configBuyPrice.get());
+    //                 return formatPrice(configBuyPrice.get());
+    //             }
 
-                return "N/A";
+    //             return "N/A";
                     
-            case "sell":
-                if (useRecipe && itemStack != null) {
-                    double recipeSellPrice = priceRecipe.calculateSellPrice(shopID, itemID, itemStack, new ArrayList<>());
-                    // return String.format("%.3f", recipeSellPrice);
-                    return formatPrice(recipeSellPrice);
-                }
-                // return this.itemDataManager.getSellPrice(shopID, itemID)
-                //     .or(() -> shopConfigManager.getItemValue(shopID, itemID, "sellPrice", Double.class))
-                //     .map(price -> String.format("%.3f", price))
-                //     .orElse("N/A");
+    //         case "sell":
+    //             if (useRecipe && itemStack != null) {
+    //                 double recipeSellPrice = priceRecipe.calculateSellPrice(shopID, itemID, itemStack, new ArrayList<>());
+    //                 // return String.format("%.3f", recipeSellPrice);
+    //                 return formatPrice(recipeSellPrice);
+    //             }
+    //             // return this.itemDataManager.getSellPrice(shopID, itemID)
+    //             //     .or(() -> shopConfigManager.getItemValue(shopID, itemID, "sellPrice", Double.class))
+    //             //     .map(price -> String.format("%.3f", price))
+    //             //     .orElse("N/A");
                 
-                // Priorité à la base de données
-                Optional<Double> sellPrice = this.itemDataManager.getSellPrice(shopID, itemID);
-                if (sellPrice.isPresent()) {
-                    // return String.format("%.3f", sellPrice.get());
-                    return formatPrice(sellPrice.get());
-                }
+    //             // Priorité à la base de données
+    //             Optional<Double> sellPrice = this.itemDataManager.getSellPrice(shopID, itemID);
+    //             if (sellPrice.isPresent()) {
+    //                 // return String.format("%.3f", sellPrice.get());
+    //                 return formatPrice(sellPrice.get());
+    //             }
 
-                // Fallback sur les fichiers de configuration
-                Optional<Double> configSellPrice = shopConfigManager.getItemValue(shopID, itemID, "sellPrice", Double.class);
-                if (configSellPrice.isPresent()) {
-                    // return String.format("%.3f", configSellPrice.get());
-                    return formatPrice(configSellPrice.get());
-                }
+    //             // Fallback sur les fichiers de configuration
+    //             Optional<Double> configSellPrice = shopConfigManager.getItemValue(shopID, itemID, "sellPrice", Double.class);
+    //             if (configSellPrice.isPresent()) {
+    //                 // return String.format("%.3f", configSellPrice.get());
+    //                 return formatPrice(configSellPrice.get());
+    //             }
 
-                return "N/A";
+    //             return "N/A";
             
-            case "buy_min":
-                if (useRecipe && itemStack != null) {
-                    // Utiliser la valeur en cache si disponible
-                    double cachedMin = mainPlugin.getCachedRecipePrice(shopID, itemID, "buyDynamic.min");
-                    if (cachedMin >= 0) {
-                        // return String.format("%.3f", cachedMin);
-                        return formatPrice(cachedMin);
-                    }
-                }
-                // return shopConfigManager.getItemValue(shopID, itemID, "buyDynamic.min", Double.class)
-                //     .map(price -> String.format("%.3f", price))
-                //     .orElse("N/A");
+    //         case "buy_min":
+    //             if (useRecipe && itemStack != null) {
+    //                 // Utiliser la valeur en cache si disponible
+    //                 double cachedMin = mainPlugin.getCachedRecipePrice(shopID, itemID, "buyDynamic.min");
+    //                 if (cachedMin >= 0) {
+    //                     // return String.format("%.3f", cachedMin);
+    //                     return formatPrice(cachedMin);
+    //                 }
+    //             }
+    //             // return shopConfigManager.getItemValue(shopID, itemID, "buyDynamic.min", Double.class)
+    //             //     .map(price -> String.format("%.3f", price))
+    //             //     .orElse("N/A");
 
-                Optional<Double> minBuyPrice = shopConfigManager.getItemValue(shopID, itemID, "buyDynamic.min", Double.class);
-                if (minBuyPrice.isPresent()) {
-                    // return String.format("%.3f", minBuyPrice.get());
-                    return formatPrice(minBuyPrice.get());
-                }
-                return "N/A";
+    //             Optional<Double> minBuyPrice = shopConfigManager.getItemValue(shopID, itemID, "buyDynamic.min", Double.class);
+    //             if (minBuyPrice.isPresent()) {
+    //                 // return String.format("%.3f", minBuyPrice.get());
+    //                 return formatPrice(minBuyPrice.get());
+    //             }
+    //             return "N/A";
                     
-            case "buy_max":
-                if (useRecipe && itemStack != null) {
-                    double cachedMax = mainPlugin.getCachedRecipePrice(shopID, itemID, "buyDynamic.max");
-                    if (cachedMax >= 0) {
-                        // return String.format("%.3f", cachedMax);
-                        return formatPrice(cachedMax);
-                    }
-                }
-                // return shopConfigManager.getItemValue(shopID, itemID, "buyDynamic.max", Double.class)
-                //     .map(price -> String.format("%.3f", price))
-                //     .orElse("N/A");
-                Optional<Double> maxBuyPrice = shopConfigManager.getItemValue(shopID, itemID, "buyDynamic.max", Double.class);
-                if (maxBuyPrice.isPresent()) {
-                    // return String.format("%.3f", maxBuyPrice.get());
-                    return formatPrice(maxBuyPrice.get());
-                }
-                return "N/A";
+    //         case "buy_max":
+    //             if (useRecipe && itemStack != null) {
+    //                 double cachedMax = mainPlugin.getCachedRecipePrice(shopID, itemID, "buyDynamic.max");
+    //                 if (cachedMax >= 0) {
+    //                     // return String.format("%.3f", cachedMax);
+    //                     return formatPrice(cachedMax);
+    //                 }
+    //             }
+    //             // return shopConfigManager.getItemValue(shopID, itemID, "buyDynamic.max", Double.class)
+    //             //     .map(price -> String.format("%.3f", price))
+    //             //     .orElse("N/A");
+    //             Optional<Double> maxBuyPrice = shopConfigManager.getItemValue(shopID, itemID, "buyDynamic.max", Double.class);
+    //             if (maxBuyPrice.isPresent()) {
+    //                 // return String.format("%.3f", maxBuyPrice.get());
+    //                 return formatPrice(maxBuyPrice.get());
+    //             }
+    //             return "N/A";
                     
-            case "sell_min":
-                if (useRecipe && itemStack != null) {
-                    double cachedMin = mainPlugin.getCachedRecipePrice(shopID, itemID, "sellDynamic.min");
-                    if (cachedMin >= 0) {
-                        // return String.format("%.3f", cachedMin);
-                        return formatPrice(cachedMin);
-                    }
-                }
-                // return shopConfigManager.getItemValue(shopID, itemID, "sellDynamic.min", Double.class)
-                //     .map(price -> String.format("%.3f", price))
-                //     .orElse("N/A");
-                Optional<Double> minSellPrice = shopConfigManager.getItemValue(shopID, itemID, "sellDynamic.min", Double.class);
-                if (minSellPrice.isPresent()) {
-                    // return String.format("%.3f", minSellPrice.get());
-                    return formatPrice(minSellPrice.get());
-                }
-                return "N/A";
+    //         case "sell_min":
+    //             if (useRecipe && itemStack != null) {
+    //                 double cachedMin = mainPlugin.getCachedRecipePrice(shopID, itemID, "sellDynamic.min");
+    //                 if (cachedMin >= 0) {
+    //                     // return String.format("%.3f", cachedMin);
+    //                     return formatPrice(cachedMin);
+    //                 }
+    //             }
+    //             // return shopConfigManager.getItemValue(shopID, itemID, "sellDynamic.min", Double.class)
+    //             //     .map(price -> String.format("%.3f", price))
+    //             //     .orElse("N/A");
+    //             Optional<Double> minSellPrice = shopConfigManager.getItemValue(shopID, itemID, "sellDynamic.min", Double.class);
+    //             if (minSellPrice.isPresent()) {
+    //                 // return String.format("%.3f", minSellPrice.get());
+    //                 return formatPrice(minSellPrice.get());
+    //             }
+    //             return "N/A";
                     
-            case "sell_max":
-                if (useRecipe && itemStack != null) {
-                    double cachedMax = mainPlugin.getCachedRecipePrice(shopID, itemID, "sellDynamic.max");
-                    if (cachedMax >= 0) {
-                        // return String.format("%.3f", cachedMax);
-                        return formatPrice(cachedMax);
-                    }
-                }
-                // return shopConfigManager.getItemValue(shopID, itemID, "sellDynamic.max", Double.class)
-                //     .map(price -> String.format("%.3f", price))
-                //     .orElse("N/A");
-                Optional<Double> maxSellPrice = shopConfigManager.getItemValue(shopID, itemID, "sellDynamic.max", Double.class);
-                if (maxSellPrice.isPresent()) {
-                    // return String.format("%.3f", maxSellPrice.get());
-                    return formatPrice(maxSellPrice.get());
-                }
-                return "N/A";
+    //         case "sell_max":
+    //             if (useRecipe && itemStack != null) {
+    //                 double cachedMax = mainPlugin.getCachedRecipePrice(shopID, itemID, "sellDynamic.max");
+    //                 if (cachedMax >= 0) {
+    //                     // return String.format("%.3f", cachedMax);
+    //                     return formatPrice(cachedMax);
+    //                 }
+    //             }
+    //             // return shopConfigManager.getItemValue(shopID, itemID, "sellDynamic.max", Double.class)
+    //             //     .map(price -> String.format("%.3f", price))
+    //             //     .orElse("N/A");
+    //             Optional<Double> maxSellPrice = shopConfigManager.getItemValue(shopID, itemID, "sellDynamic.max", Double.class);
+    //             if (maxSellPrice.isPresent()) {
+    //                 // return String.format("%.3f", maxSellPrice.get());
+    //                 return formatPrice(maxSellPrice.get());
+    //             }
+    //             return "N/A";
                 
-            default:
-                return "Type inconnu";
-        }
-    }
+    //         default:
+    //             return "Type inconnu";
+    //     }
+    // }
 
-    public String getStockByType(String shopID, String itemID, String stockType) {
-        // // Vérifier d'abord si "useRecipe" est activé
-        // boolean useRecipe = shopConfigManager.getTypeDynaShop(shopID, itemID).orElse(DynaShopType.NONE) == DynaShopType.RECIPE;
-        // ItemStack itemStack = null;
+    // public String getStockByType(String shopID, String itemID, String stockType) {
+    //     // // Vérifier d'abord si "useRecipe" est activé
+    //     // boolean useRecipe = shopConfigManager.getTypeDynaShop(shopID, itemID).orElse(DynaShopType.NONE) == DynaShopType.RECIPE;
+    //     // ItemStack itemStack = null;
         
-        // if (useRecipe) {
-        //     itemStack = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem();
-        //     if (itemStack == null) {
-        //         return "N/A";
-        //     }
-        // }
+    //     // if (useRecipe) {
+    //     //     itemStack = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem();
+    //     //     if (itemStack == null) {
+    //     //         return "N/A";
+    //     //     }
+    //     // }
         
-        switch (stockType) {
-            case "stock":
-                // if (useRecipe && itemStack != null) {
-                //     // Utiliser la valeur en cache si disponible
-                //     double cachedStock = mainPlugin.getCachedRecipePrice(shopID, itemID, "stock");
-                //     if (cachedStock >= 0) {
-                //         return String.valueOf((int) cachedStock);
-                //     }
-                // }
-                Optional<Integer> stock = this.itemDataManager.getStock(shopID, itemID);
-                if (stock.isPresent()) {
-                    return String.valueOf(stock.get());
-                }
-                Optional<Integer> configStock = shopConfigManager.getItemValue(shopID, itemID, "stock.base", Integer.class);
-                if (configStock.isPresent()) {
-                    return String.valueOf(configStock.get());
-                }
-                return "N/A";
-            case "stock_min":
-                // if (useRecipe && itemStack != null) {
-                //     double cachedMinStock = mainPlugin.getCachedRecipePrice(shopID, itemID, "stock.min");
-                //     if (cachedMinStock >= 0) {
-                //         return String.valueOf((int) cachedMinStock);
-                //     }
-                // }
-                Optional<Integer> minStock = shopConfigManager.getItemValue(shopID, itemID, "stock.min", Integer.class);
-                if (minStock.isPresent()) {
-                    return String.valueOf(minStock.get());
-                }
-                return "N/A";
-            case "stock_max":
-                // if (useRecipe && itemStack != null) {
-                //     double cachedMaxStock = mainPlugin.getCachedRecipePrice(shopID, itemID, "stock.max");
-                //     if (cachedMaxStock >= 0) {
-                //         return String.valueOf((int) cachedMaxStock);
-                //     }
-                // }
-                Optional<Integer> maxStock = shopConfigManager.getItemValue(shopID, itemID, "stock.max", Integer.class);
-                if (maxStock.isPresent()) {
-                    return String.valueOf(maxStock.get());
-                }
-                return "N/A";
-            default:
-                return "Type inconnu";
-        }
-    }
+    //     switch (stockType) {
+    //         case "stock":
+    //             // if (useRecipe && itemStack != null) {
+    //             //     // Utiliser la valeur en cache si disponible
+    //             //     double cachedStock = mainPlugin.getCachedRecipePrice(shopID, itemID, "stock");
+    //             //     if (cachedStock >= 0) {
+    //             //         return String.valueOf((int) cachedStock);
+    //             //     }
+    //             // }
+    //             Optional<Integer> stock = this.itemDataManager.getStock(shopID, itemID);
+    //             if (stock.isPresent()) {
+    //                 return String.valueOf(stock.get());
+    //             }
+    //             Optional<Integer> configStock = shopConfigManager.getItemValue(shopID, itemID, "stock.base", Integer.class);
+    //             if (configStock.isPresent()) {
+    //                 return String.valueOf(configStock.get());
+    //             }
+    //             return "N/A";
+    //         case "stock_min":
+    //             // if (useRecipe && itemStack != null) {
+    //             //     double cachedMinStock = mainPlugin.getCachedRecipePrice(shopID, itemID, "stock.min");
+    //             //     if (cachedMinStock >= 0) {
+    //             //         return String.valueOf((int) cachedMinStock);
+    //             //     }
+    //             // }
+    //             Optional<Integer> minStock = shopConfigManager.getItemValue(shopID, itemID, "stock.min", Integer.class);
+    //             if (minStock.isPresent()) {
+    //                 return String.valueOf(minStock.get());
+    //             }
+    //             return "N/A";
+    //         case "stock_max":
+    //             // if (useRecipe && itemStack != null) {
+    //             //     double cachedMaxStock = mainPlugin.getCachedRecipePrice(shopID, itemID, "stock.max");
+    //             //     if (cachedMaxStock >= 0) {
+    //             //         return String.valueOf((int) cachedMaxStock);
+    //             //     }
+    //             // }
+    //             Optional<Integer> maxStock = shopConfigManager.getItemValue(shopID, itemID, "stock.max", Integer.class);
+    //             if (maxStock.isPresent()) {
+    //                 return String.valueOf(maxStock.get());
+    //             }
+    //             return "N/A";
+    //         default:
+    //             return "Type inconnu";
+    //     }
+    // }
 
     /**
      * Récupère tous les prix et valeurs pour un item spécifique en UNE SEULE opération de base de données.
@@ -461,12 +461,12 @@ public class DynaShopExpansion extends PlaceholderExpansion {
         double maxSell = configData.maxSell.orElse(sellPrice * 2.0);
         
         // Formatter toutes les valeurs en texte
-        values.put("buy", formatPrice(buyPrice));
-        values.put("sell", formatPrice(sellPrice));
-        values.put("buy_min", formatPrice(minBuy));
-        values.put("buy_max", formatPrice(maxBuy));
-        values.put("sell_min", formatPrice(minSell));
-        values.put("sell_max", formatPrice(maxSell));
+        values.put("buy", mainPlugin.getPriceFormatter().formatPrice(buyPrice));
+        values.put("sell", mainPlugin.getPriceFormatter().formatPrice(sellPrice));
+        values.put("buy_min", mainPlugin.getPriceFormatter().formatPrice(minBuy));
+        values.put("buy_max", mainPlugin.getPriceFormatter().formatPrice(maxBuy));
+        values.put("sell_min", mainPlugin.getPriceFormatter().formatPrice(minSell));
+        values.put("sell_max", mainPlugin.getPriceFormatter().formatPrice(maxSell));
         
         // Valeurs pour "N/A" ou zéro
         if (buyPrice <= 0.001) values.put("buy", "N/A");
@@ -479,63 +479,63 @@ public class DynaShopExpansion extends PlaceholderExpansion {
         return values;
     }
 
-    /**
-    * Formate un prix en respectant les paramètres de configuration de ShopGUI+
-    * @param price Le prix à formater
-    * @param maxFractionDigits Nombre maximum de chiffres après la virgule
-    * @return Le prix formaté sous forme de chaîne
-    */
-    public String formatPrice(double price) {
-        // Récupérer les séparateurs depuis la configuration
-        int maximumFractionDigits = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("numberFormat.maximumFractionDigits", 8);
-        String decimalSeparator = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getString("numberFormat.decimalSeparator", ".");
-        String groupingSeparator = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getString("numberFormat.groupingSeparator", ",");
-        int minimumFractionDigits = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("numberFormat.minimumFractionDigits", 0);
-        boolean hideFraction = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getBoolean("numberFormat.hideFraction", true);
+    // /**
+    // * Formate un prix en respectant les paramètres de configuration de ShopGUI+
+    // * @param price Le prix à formater
+    // * @param maxFractionDigits Nombre maximum de chiffres après la virgule
+    // * @return Le prix formaté sous forme de chaîne
+    // */
+    // public String formatPrice(double price) {
+    //     // Récupérer les séparateurs depuis la configuration
+    //     int maximumFractionDigits = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("numberFormat.maximumFractionDigits", 8);
+    //     String decimalSeparator = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getString("numberFormat.decimalSeparator", ".");
+    //     String groupingSeparator = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getString("numberFormat.groupingSeparator", ",");
+    //     int minimumFractionDigits = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("numberFormat.minimumFractionDigits", 0);
+    //     boolean hideFraction = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getBoolean("numberFormat.hideFraction", true);
         
-        // Vérifier si le nombre est un entier et si hideFraction est activé
-        boolean isInteger = (price == Math.floor(price)) && !Double.isInfinite(price);
+    //     // Vérifier si le nombre est un entier et si hideFraction est activé
+    //     boolean isInteger = (price == Math.floor(price)) && !Double.isInfinite(price);
         
-        // Configurer les symboles de formatage
-        DecimalFormatSymbols symbols = new DecimalFormatSymbols();
-        symbols.setDecimalSeparator(decimalSeparator.charAt(0));
-        symbols.setGroupingSeparator(groupingSeparator.charAt(0));
+    //     // Configurer les symboles de formatage
+    //     DecimalFormatSymbols symbols = new DecimalFormatSymbols();
+    //     symbols.setDecimalSeparator(decimalSeparator.charAt(0));
+    //     symbols.setGroupingSeparator(groupingSeparator.charAt(0));
         
-        // Créer un format adapté
-        DecimalFormat df;
+    //     // Créer un format adapté
+    //     DecimalFormat df;
         
-        if (hideFraction && isInteger) {
-            // Aucune décimale pour les entiers quand hideFraction est activé
-            df = new DecimalFormat("#,##0", symbols);
-            df.setMinimumFractionDigits(0);
-            df.setMaximumFractionDigits(0);
-        } else {
-            // Pattern normal pour les nombres avec décimales
-            df = new DecimalFormat("#,##0.#", symbols);
-            df.setMaximumFractionDigits(maximumFractionDigits);
-            df.setMinimumFractionDigits(minimumFractionDigits);
-        }
+    //     if (hideFraction && isInteger) {
+    //         // Aucune décimale pour les entiers quand hideFraction est activé
+    //         df = new DecimalFormat("#,##0", symbols);
+    //         df.setMinimumFractionDigits(0);
+    //         df.setMaximumFractionDigits(0);
+    //     } else {
+    //         // Pattern normal pour les nombres avec décimales
+    //         df = new DecimalFormat("#,##0.#", symbols);
+    //         df.setMaximumFractionDigits(maximumFractionDigits);
+    //         df.setMinimumFractionDigits(minimumFractionDigits);
+    //     }
         
-        // Activer le regroupement des chiffres
-        df.setGroupingUsed(true);
+    //     // Activer le regroupement des chiffres
+    //     df.setGroupingUsed(true);
         
-        return df.format(price);
-    }
+    //     return df.format(price);
+    // }
 
-    public String formatStock(int stock) {
-        // Récupérer les séparateurs depuis la configuration
-        String groupingSeparator = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getString("numberFormat.groupingSeparator", ",");
+    // public String formatStock(int stock) {
+    //     // Récupérer les séparateurs depuis la configuration
+    //     String groupingSeparator = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getString("numberFormat.groupingSeparator", ",");
         
-        // Configurer les symboles de formatage
-        DecimalFormatSymbols symbols = new DecimalFormatSymbols();
-        symbols.setGroupingSeparator(groupingSeparator.charAt(0));
+    //     // Configurer les symboles de formatage
+    //     DecimalFormatSymbols symbols = new DecimalFormatSymbols();
+    //     symbols.setGroupingSeparator(groupingSeparator.charAt(0));
         
-        // Créer un format adapté pour les entiers
-        DecimalFormat df = new DecimalFormat("#,##0", symbols);
-        df.setGroupingUsed(true);
+    //     // Créer un format adapté pour les entiers
+    //     DecimalFormat df = new DecimalFormat("#,##0", symbols);
+    //     df.setGroupingUsed(true);
         
-        return df.format(stock);
-    }
+    //     return df.format(stock);
+    // }
     
     public String onRequest(OfflinePlayer player, String identifier) {
         // %dynashop_current_buy%
@@ -548,10 +548,10 @@ public class DynaShopExpansion extends PlaceholderExpansion {
 
             if (shopId != null && itemId != null) {
                 // Récupérer le prix actuel
-                String buyPrice = getPriceByType(shopId, itemId, "buy");
-                String buyMinPrice = getPriceByType(shopId, itemId, "buy_min");
-                String buyMaxPrice = getPriceByType(shopId, itemId, "buy_max");
-                
+                String buyPrice = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy");
+                String buyMinPrice = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_min");
+                String buyMaxPrice = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_max");
+
                 if (buyPrice != null && buyMinPrice != null && buyMaxPrice != null) {
                     return String.format("%s (%s - %s)", buyPrice, buyMinPrice, buyMaxPrice);
                 } else if (buyPrice != null) {
@@ -580,7 +580,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             
             if (shopId != null && itemId != null) {
                 // Récupérer le prix actuel
-                String price = getPriceByType(shopId, itemId, "buy");
+                String price = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy");
                 return price != null ? price : "N/A"; // Si le prix est null, retourner "N/A"
             }
             
@@ -603,7 +603,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             
             if (shopId != null && itemId != null) {
                 // Récupérer le prix actuel
-                String price = getPriceByType(shopId, itemId, "buy_min");
+                String price = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_min");
                 return price != null ? price : "N/A"; // Si le prix est null, retourner "N/A"
             }
             
@@ -626,7 +626,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             
             if (shopId != null && itemId != null) {
                 // Récupérer le prix actuel
-                String price = getPriceByType(shopId, itemId, "buy_max");
+                String price = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_max");
                 return price != null ? price : "N/A"; // Si le prix est null, retourner "N/A"
             }
             
@@ -643,9 +643,9 @@ public class DynaShopExpansion extends PlaceholderExpansion {
 
             if (shopId != null && itemId != null) {
                 // Récupérer le prix actuel
-                String sellPrice = getPriceByType(shopId, itemId, "sell");
-                String sellMinPrice = getPriceByType(shopId, itemId, "sell_min");
-                String sellMaxPrice = getPriceByType(shopId, itemId, "sell_max");
+                String sellPrice = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell");
+                String sellMinPrice = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_min");
+                String sellMaxPrice = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_max");
 
                 if (sellPrice != null && sellMinPrice != null && sellMaxPrice != null) {
                     return String.format("%s (%s - %s)", sellPrice, sellMinPrice, sellMaxPrice);
@@ -673,7 +673,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             
             if (shopId != null && itemId != null) {
                 // Récupérer le prix actuel
-                String price = getPriceByType(shopId, itemId, "sell");
+                String price = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell");
                 return price != null ? price : "N/A"; // Si le prix est null, retourner "N/A"
             }
 
@@ -696,7 +696,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             
             if (shopId != null && itemId != null) {
                 // Récupérer le prix actuel
-                String price = getPriceByType(shopId, itemId, "sell_min");
+                String price = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_min");
                 return price != null ? price : "N/A"; // Si le prix est null, retourner "N/A"
             }
             
@@ -719,7 +719,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             
             if (shopId != null && itemId != null) {
                 // Récupérer le prix actuel
-                String price = getPriceByType(shopId, itemId, "sell_max");
+                String price = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_max");
                 return price != null ? price : "N/A"; // Si le prix est null, retourner "N/A"
             }
             

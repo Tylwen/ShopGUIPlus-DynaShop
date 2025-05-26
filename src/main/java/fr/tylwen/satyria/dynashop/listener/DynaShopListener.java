@@ -369,7 +369,7 @@ public class DynaShopListener implements Listener {
         final boolean isBuy = action == ShopAction.BUY;
 
         Bukkit.getScheduler().runTaskAsynchronously(mainPlugin, () -> {
-            processTransactionAsync(shopID, itemID, itemStack, amount, action, resultPrice);
+            processTransactionAsync(shopID, itemID, itemStack, amount, action);
         });
         
         // Enregistrer la transaction si l'item a des limites
@@ -378,7 +378,7 @@ public class DynaShopListener implements Listener {
         }
     }
     
-    private void processTransactionAsync(String shopID, String itemID, ItemStack itemStack, int amount, ShopAction action, double resultPrice) {
+    private void processTransactionAsync(String shopID, String itemID, ItemStack itemStack, int amount, ShopAction action) {
         // if (!shopConfigManager.hasDynaShopSection(shopID, itemID)) {
         if (!shopConfigManager.getItemValue(shopID, itemID, "typeDynaShop", String.class).isPresent()) {
             // mainPlugin.warning(itemID + " : Pas de section DynaShop dans le shop " + shopID);
@@ -705,7 +705,7 @@ public class DynaShopListener implements Listener {
             
             // Créer l'objet DynamicPrice avec les valeurs calculées
             DynamicPrice recipePrice = new DynamicPrice(
-                result.getBuyPrice(), result.getSellPrice(), 
+                result.getBuyPrice(), result.getSellPrice(),
                 result.getMinBuyPrice(), result.getMaxBuyPrice(), 
                 result.getMinSellPrice(), result.getMaxSellPrice(),
                 1.0, 1.0, 1.0, 1.0, 

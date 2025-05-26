@@ -20,9 +20,11 @@ e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynas
 e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynashop\data\ShopFile.java
 e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynashop\data\CustomRecipeManager.java
 e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynashop\hook\ShopGUIPlusHook.java
+e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynashop\utils\PriceFormatter.java
 e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynashop\data\DynamicPrice.java
 e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynashop\limit\TransactionLimiter.java
 e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynashop\command\LimitResetCommand.java
 e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynashop\utils\FileUtils.java
+e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynashop\data\RecipeCacheManager.java
 e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynashop\database\DataManager.java
 e:\_SATYRIA_SERVER\Plugins\VS_DynaShopGUI+\src\main\java\fr\tylwen\satyria\dynashop\data\PriceStock.java

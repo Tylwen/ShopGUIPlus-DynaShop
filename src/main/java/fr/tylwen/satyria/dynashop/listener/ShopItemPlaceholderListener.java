@@ -434,6 +434,21 @@ public class ShopItemPlaceholderListener implements Listener {
             if (!skipLine && line.contains("%")) {
                 line = PlaceholderAPI.setPlaceholders(player, line);
             }
+            // // Traiter les autres placeholders via PlaceholderAPI (seulement si disponible)
+            // if (!skipLine && line.contains("%")) {
+            //     if (plugin.getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            //         try {
+            //             line = PlaceholderAPI.setPlaceholders(player, line);
+            //         } catch (Throwable t) {
+            //             // Ignorer les erreurs de PlaceholderAPI et conserver le texte original
+            //             // plugin.getLogger().warning("Erreur lors de l'utilisation de PlaceholderAPI: " + t.getMessage());
+            //         }
+            //     } else {
+            //         // Si PlaceholderAPI n'est pas disponible, laisser les placeholders tels quels
+            //         // ou les remplacer par un texte par défaut
+            //         // line = line.replaceAll("%\\w+_\\w+%", "[placeholder]");
+            //     }
+            // }
 
             // Ajouter la ligne uniquement si elle ne doit pas être ignorée
             if (!skipLine) {
@@ -478,19 +493,19 @@ public class ShopItemPlaceholderListener implements Listener {
 
         DynamicPrice price = DynaShopPlugin.getInstance().getDynaShopListener().getOrLoadPrice(shopId, itemId, itemStack);
         if (price != null) {
-            buyPrice = plugin.getPlaceholderExpansion().formatPrice(price.getBuyPrice());
-            sellPrice = plugin.getPlaceholderExpansion().formatPrice(price.getSellPrice());
-            buyMinPrice = plugin.getPlaceholderExpansion().formatPrice(price.getMinBuyPrice());
-            buyMaxPrice = plugin.getPlaceholderExpansion().formatPrice(price.getMaxBuyPrice());
-            sellMinPrice = plugin.getPlaceholderExpansion().formatPrice(price.getMinSellPrice());
-            sellMaxPrice = plugin.getPlaceholderExpansion().formatPrice(price.getMaxSellPrice());
+            buyPrice = plugin.getPriceFormatter().formatPrice(price.getBuyPrice());
+            sellPrice = plugin.getPriceFormatter().formatPrice(price.getSellPrice());
+            buyMinPrice = plugin.getPriceFormatter().formatPrice(price.getMinBuyPrice());
+            buyMaxPrice = plugin.getPriceFormatter().formatPrice(price.getMaxBuyPrice());
+            sellMinPrice = plugin.getPriceFormatter().formatPrice(price.getMinSellPrice());
+            sellMaxPrice = plugin.getPriceFormatter().formatPrice(price.getMaxSellPrice());
         } else {
-            buyPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy");
-            sellPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell");
-            buyMinPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy_min");
-            buyMaxPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy_max");
-            sellMinPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell_min");
-            sellMaxPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell_max");
+            buyPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy");
+            sellPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell");
+            buyMinPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_min");
+            buyMaxPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_max");
+            sellMinPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_min");
+            sellMaxPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_max");
         }
 
         // Déterminer si l'item est en mode STOCK
@@ -525,43 +540,43 @@ public class ShopItemPlaceholderListener implements Listener {
             prices.put("colored_stock_ratio", "N/A");
         } else {
             // // // Ajouter les informations de stock
-            // String currentStock = plugin.getPlaceholderExpansion().getStockByType(shopId, itemId, "stock");
-            // String maxStock = plugin.getPlaceholderExpansion().getStockByType(shopId, itemId, "stock_max");
-            // // String currentStock = plugin.getPlaceholderExpansion().formatStock(price.getCurrentStock());
+            // String currentStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock");
+            // String maxStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock_max");
+            // // String currentStock = plugin.getPriceFormatter().formatStock(price.getCurrentStock());
             // // if (currentStock.equals("0")) {
             // //     currentStock = "N/A"; // Si le stock est 0, on le remplace par N/A
             // // }
 
             // // plugin.getLogger().info("Current stock for " + itemId + ": " + price.getStock() + 
             // //     ", Max stock: " + price.getMaxStock() + 
-            // //     ", Formatted current stock: " + plugin.getPlaceholderExpansion().formatStock(price.getStock()) +
-            // //     ", Formatted max stock: " + plugin.getPlaceholderExpansion().formatStock(price.getMaxStock()));
+            // //     ", Formatted current stock: " + plugin.getPriceFormatter().formatStock(price.getStock()) +
+            // //     ", Formatted max stock: " + plugin.getPriceFormatter().formatStock(price.getMaxStock()));
 
-            // // String maxStock = plugin.getPlaceholderExpansion().formatStock(price.getMaxStock());
+            // // String maxStock = plugin.getPriceFormatter().formatStock(price.getMaxStock());
             // // if (maxStock.equals("0")) {
             // //     maxStock = "N/A"; // Si le stock est 0, on le remplace par N/A
             // // }
             String currentStock, maxStock, fCurrentStock, fMaxStock;
             if (price != null) {
                 currentStock = String.valueOf(price.getStock());
-                fCurrentStock = plugin.getPlaceholderExpansion().formatStock(price.getStock());
+                fCurrentStock = plugin.getPriceFormatter().formatStock(price.getStock());
                 // if (currentStock.equals("0")) {
                 //     currentStock = "N/A"; // Si le stock est 0, on le remplace par N/A
                 // }
                 maxStock = String.valueOf(price.getMaxStock());
-                fMaxStock = plugin.getPlaceholderExpansion().formatStock(price.getMaxStock());
+                fMaxStock = plugin.getPriceFormatter().formatStock(price.getMaxStock());
                 // if (maxStock.equals("0")) {
                 //     maxStock = "N/A"; // Si le stock est 0, on le remplace par N/A
                 // }
                 // plugin.getLogger().info("Current stock for " + itemId + ": " + price.getStock() + 
                 //     ", Max stock: " + price.getMaxStock() + 
-                //     ", Formatted current stock: " + plugin.getPlaceholderExpansion().formatStock(price.getStock()) +
-                //     ", Formatted max stock: " + plugin.getPlaceholderExpansion().formatStock(price.getMaxStock()));
+                //     ", Formatted current stock: " + plugin.getPriceFormatter().formatStock(price.getStock()) +
+                //     ", Formatted max stock: " + plugin.getPriceFormatter().formatStock(price.getMaxStock()));
             } else {
-                currentStock = plugin.getPlaceholderExpansion().getStockByType(shopId, itemId, "stock");
-                fCurrentStock = plugin.getPlaceholderExpansion().formatStock(Integer.parseInt(currentStock));
-                maxStock = plugin.getPlaceholderExpansion().getStockByType(shopId, itemId, "stock_max");
-                fMaxStock = plugin.getPlaceholderExpansion().formatStock(Integer.parseInt(maxStock));
+                currentStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock");
+                fCurrentStock = plugin.getPriceFormatter().formatStock(Integer.parseInt(currentStock));
+                maxStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock_max");
+                fMaxStock = plugin.getPriceFormatter().formatStock(Integer.parseInt(maxStock));
             }
 
             prices.put("stock", fCurrentStock);
