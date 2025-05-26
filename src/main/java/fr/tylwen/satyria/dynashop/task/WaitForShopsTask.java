@@ -34,6 +34,8 @@
 // }
 package fr.tylwen.satyria.dynashop.task;
 
+import org.bukkit.scheduler.BukkitTask;
+
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
 import net.brcdev.shopgui.ShopGuiPlusApi;
@@ -44,6 +46,7 @@ public class WaitForShopsTask implements Runnable {
     private final DynaShopPlugin plugin;
     private boolean isTasksInitialized = false;
     private final DataConfig dataConfig;
+    private int taskId = -1; // Stocker l'ID ici
 
     public WaitForShopsTask(DynaShopPlugin plugin) {
         this.plugin = plugin;
@@ -53,6 +56,15 @@ public class WaitForShopsTask implements Runnable {
     @Override
     public void run() {
         try {
+            // Si c'est la première exécution, essayer de récupérer notre propre ID
+            if (taskId == -1) {
+                for (BukkitTask task : plugin.getServer().getScheduler().getPendingTasks()) {
+                    if (task.getOwner() == plugin && task.getTaskId() == task.getTaskId()) {
+                        taskId = task.getTaskId();
+                        break;
+                    }
+                }
+            }
             // Vérifier d'abord si ShopGUIPlus est correctement initialisé
             if (ShopGuiPlusApi.getPlugin() == null) {
                 plugin.getLogger().severe("ShopGUIPlus is not initialized. Try again in 5 seconds...");
@@ -76,9 +88,14 @@ public class WaitForShopsTask implements Runnable {
                 isTasksInitialized = true;
                 
                 plugin.getLogger().info("Shops loaded successfully! All dependent tasks have been started.");
+                // Annuler cette tâche une fois que tout est initialisé
+                if (taskId != -1) {
+                    plugin.getServer().getScheduler().cancelTask(taskId);
+                    // plugin.getLogger().info("WaitForShopsTask cancelled successfully (ID: " + taskId + ")");
+                }
             }
             
-            // Ne pas annuler cette tâche si elle est encore nécessaire pour d'autres vérifications
+            // // Ne pas annuler cette tâche si elle est encore nécessaire pour d'autres vérifications
             // plugin.getServer().getScheduler().cancelTask(plugin.getWaitForShopsTaskId());
         } catch (ShopsNotLoadedException e) {
             plugin.getLogger().info("Shops are not loaded yet. Try again in 5 seconds...");

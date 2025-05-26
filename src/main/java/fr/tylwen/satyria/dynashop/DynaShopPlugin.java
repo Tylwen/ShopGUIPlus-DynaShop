@@ -180,6 +180,11 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         return this.waitForShopsTaskId;
     }
     
+    // Méthode setter à ajouter
+    public void setWaitForShopsTaskId(int taskId) {
+        this.waitForShopsTaskId = taskId;
+    }
+    
     // Getter pour l'expansion PlaceholderAPI
     public DynaShopExpansion getPlaceholderExpansion() {
         return placeholderExpansion;
@@ -247,7 +252,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         // ExecutorService sharedExecutor = Executors.newFixedThreadPool(3);
         // Planification des tâches
         // getServer().getScheduler().runTaskTimerAsynchronously(this, new ReloadDatabaseTask(this), 0L, 20L * 60L * 10L); // Toutes les 10 minutes
-        getServer().getScheduler().runTaskTimer(this, new WaitForShopsTask(this), 0L, 20L * 5L); // Toutes les 5 secondes
+        this.waitForShopsTaskId = getServer().getScheduler().runTaskTimer(this, new WaitForShopsTask(this), 0L, 20L * 5L).getTaskId(); // Toutes les 5 secondes
         // getServer().getScheduler().runTaskTimerAsynchronously(this, new SavePricesTask(this), 20L * 60L * 5L, 20L * 60L * 5L); // Toutes les 5 minutes
         // Modifier cette ligne
         // getServer().getScheduler().runTaskTimerAsynchronously(this, new DynamicPricesTask(this), 0L, 20L * 60L * 1L);

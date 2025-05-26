@@ -38,6 +38,7 @@ import org.bukkit.event.Listener;
 // import org.bukkit.inventory.Inventory;
 // import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
+import org.checkerframework.checker.units.qual.m;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.data.DynamicPrice;
@@ -54,6 +55,7 @@ import net.brcdev.shopgui.event.ShopPreTransactionEvent;
 // import net.brcdev.shopgui.gui.gui.OpenGui;
 // import net.brcdev.shopgui.player.PlayerData;
 import net.brcdev.shopgui.shop.item.ShopItem;
+import net.brcdev.shopgui.shop.Shop;
 // import net.md_5.bungee.api.ChatColor;
 // import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.ShopManager.ShopAction;
@@ -739,7 +741,9 @@ public class DynaShopListener implements Listener {
             // price.setFromStaticStock(true);
             // return DynaShopPlugin.getInstance().getPriceStock().createStaticStockPrice(shopID, itemID);
             price = DynaShopPlugin.getInstance().getPriceStock().createStaticStockPrice(shopID, itemID);
-        } else if (type == DynaShopType.DYNAMIC) {
+            // mainPlugin.getLogger().info("Static stock price created for " + itemID + " in shop " + shopID);
+        // } else if (type == DynaShopType.DYNAMIC) {
+        } else {
             // Charger les prix depuis la base de données
             Optional<DynamicPrice> priceFromDatabase = DynaShopPlugin.getInstance().getItemDataManager().getItemValues(shopID, itemID);
         
@@ -913,8 +917,54 @@ public class DynaShopListener implements Listener {
             //     mainPlugin.getLogger().info("Ingrédient trouvé : " + ingredient.getType() + " x " + ingredient.getAmount());
             }
 
-            String ingredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId(); // Utiliser l'ID de l'item dans le shop
-            String shopIngredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId(); // Utiliser l'ID du shop de l'item
+            // String ingredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId(); // Utiliser l'ID de l'item dans le shop
+            // String shopIngredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId(); // Utiliser l'ID du shop de l'item
+            String shopIngredientID = null;
+            String ingredientID = null;
+
+            try {
+                // Shop shop = ShopGuiPlusApi.getShop(shopID);
+                // ShopItem shopItem = shop.getShopItem(itemID);
+                // if (shopItem != null) {
+                //     ingredientID = shopItem.getId();
+                //     ingredientShopID = shop.getId();
+                // }
+                // ingredientShopID = shop.getId();
+                // ingredientID = shop.getShopItem(itemID).getId();
+                
+                // if (ingredientID == null) {
+                //     ingredientShopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
+                //     ingredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
+                // }
+                // D'abord, essayer de trouver l'ingrédient dans le shop courant
+                Shop currentShop = ShopGuiPlusApi.getShop(shopID);
+                for (ShopItem item2 : currentShop.getShopItems()) {
+                    if (item2.getItem().getType() == ingredient.getType()) {
+                        ingredientID = item2.getId();
+                        shopIngredientID = shopID;
+                        break;
+                    }
+                }
+                
+                // Si non trouvé dans le shop courant, chercher dans tous les shops
+                if (ingredientID == null) {
+                    ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(ingredient);
+                    if (shopItem != null) {
+                        ingredientID = shopItem.getId();
+                        shopIngredientID = shopItem.getShop().getId();
+                    }
+                }
+            } catch (Exception e) {
+                shopIngredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
+                ingredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
+            }
+
+            if (ingredientID == null || shopIngredientID == null) {
+                DynaShopPlugin.getInstance().getLogger().warning("ID ou ShopID manquant pour l'ingrédient " + ingredient);
+                continue; // Passer à l'ingrédient suivant si l'ID est manquant
+            // } else {
+            //     DynaShopPlugin.getInstance().getLogger().info("Ingrédient trouvé : " + ingredientID + " dans le shop " + shopIngredientID);
+            }
 
             // Récupérer le type de l'ingrédient
             DynaShopType ingredientType = DynaShopPlugin.getInstance().getShopConfigManager().getTypeDynaShop(shopIngredientID, ingredientID);
@@ -930,7 +980,7 @@ public class DynaShopListener implements Listener {
 
 
                 // Selon le type d'ingrédient, traiter différemment
-                if (ingredientType == DynaShopType.STOCK) {
+                if (ingredientType == DynaShopType.STOCK || ingredientType == DynaShopType.STATIC_STOCK) {
                     // mainPlugin.getLogger().info("Ingrédient " + ingredientID + " est en mode STOCK");
                     
                     if (isGrowth) {
