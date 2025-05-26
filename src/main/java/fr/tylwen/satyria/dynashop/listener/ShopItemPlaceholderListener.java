@@ -1,17 +1,12 @@
 package fr.tylwen.satyria.dynashop.listener;
 
 import org.bukkit.ChatColor;
-// import org.bukkit.ChatColor;
-// import org.bukkit.Material;
-// import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-// import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
-// import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitTask;
@@ -20,13 +15,9 @@ import org.bukkit.inventory.InventoryView;
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.data.DynamicPrice;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
-// import fr.tylwen.satyria.dynashop.data.DynamicPrice;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.ShopGuiPlusApi;
-// import net.brcdev.shopgui.exception.player.PlayerDataNotLoadedException;
-// import net.brcdev.shopgui.gui.gui.OpenGui;
-// import net.brcdev.shopgui.shop.item.ShopItem;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
@@ -43,8 +34,6 @@ public class ShopItemPlaceholderListener implements Listener {
     // Map pour stocker le shop actuellement ouvert par chaque joueur
     private final Map<UUID, SimpleEntry<String, String>> openShopMap = new ConcurrentHashMap<>();
 
-    // Stockage des inventaires à actualiser
-    // private final Map<UUID, InventoryRefreshData> openInventories = new ConcurrentHashMap<>();
     private BukkitTask refreshTask;
 
     private final Map<String, Map<String, String>> globalPriceCache = new ConcurrentHashMap<>();
@@ -59,15 +48,15 @@ public class ShopItemPlaceholderListener implements Listener {
         // startRefreshScheduler();
     }
 
-    /**
-     * Met à jour les informations de l'item actuel pour un joueur.
-     * Cette méthode est utilisée par l'ItemProvider pour maintenir la cohérence entre l'affichage et les données internes.
-     */
-    public void updateCurrentItem(Player player, String shopId, String itemId) {
-        if (player == null || shopId == null) return;
+    // /**
+    //  * Met à jour les informations de l'item actuel pour un joueur.
+    //  * Cette méthode est utilisée par l'ItemProvider pour maintenir la cohérence entre l'affichage et les données internes.
+    //  */
+    // public void updateCurrentItem(Player player, String shopId, String itemId) {
+    //     if (player == null || shopId == null) return;
         
-        openShopMap.put(player.getUniqueId(), new SimpleEntry<>(shopId, itemId));
-    }
+    //     openShopMap.put(player.getUniqueId(), new SimpleEntry<>(shopId, itemId));
+    // }
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onInventoryOpen(InventoryOpenEvent event) {
@@ -140,27 +129,10 @@ public class ShopItemPlaceholderListener implements Listener {
             
         Player player = (Player) event.getPlayer();
         
-        // // Supprimer de la liste des rafraîchissements
-        // openInventories.remove(player.getUniqueId());
-        
-        // // Vérifier si le joueur était dans un inventaire de shop
-        // SimpleEntry<String, String> shopData = openShopMap.get(player.getUniqueId());
-        // if (shopData != null) {
-        //     // Logs pour le débogage
-        //     // plugin.getLogger().info("Fermeture du shop pour " + player.getName() + ": " + shopData.getKey() + (shopData.getValue() != null ? ", dernier item consulté: " + shopData.getValue() : ""));
-            
-        //     // Nettoyer les données associées au joueur
-        //     openShopMap.remove(player.getUniqueId());
-        // }
-        
         // Arrêter la tâche de refresh
         playerRefreshTasks.remove(player.getUniqueId());
         
-        // // Désenregistrer du ShopRefreshManager
-        // plugin.getShopRefreshManager().unregisterSession(player);
-        
         // Nettoyer les autres maps
-        // openInventories.remove(player.getUniqueId());
         openShopMap.remove(player.getUniqueId());
     }
 
@@ -219,150 +191,6 @@ public class ShopItemPlaceholderListener implements Listener {
         return null;
     }
 
-    // @EventHandler(priority = EventPriority.MONITOR)
-    // public void onInventoryClick(InventoryClickEvent event) {
-    //     if (!(event.getWhoClicked() instanceof Player))
-    //         return;
-            
-    //     Player player = (Player) event.getWhoClicked();
-        
-    //     // Ne traiter que les clics dans les shops
-    //     SimpleEntry<String, String> shopData = openShopMap.get(player.getUniqueId());
-    //     if (shopData == null)
-    //         return;
-        
-    //     // Vérifier si c'est un clic qui pourrait déclencher un achat/vente
-    //     // Par exemple, sur certains boutons d'achat ou de vente
-    //     // Cela dépend beaucoup de la configuration de ShopGUI+
-        
-    //     // Planifier une mise à jour différée après le clic
-    //     plugin.getServer().getScheduler().runTaskLaterAsynchronously(plugin, () -> {
-    //         if (player.getOpenInventory() != null) {
-    //             String shopId = shopData.getKey();
-    //             updateShopInventory(player, player.getOpenInventory(), shopId);
-    //         }
-    //     }, 2L); // Plus long délai (2 ticks) pour laisser le temps aux transactions de se terminer
-    // }
-
-    // private void updateShopInventory(Player player, InventoryView view, String shopId) {
-    //     if (view == null || view.getTopInventory() == null) return;
-        
-    //     try {
-    //         String fullShopId = determineShopId(view);
-    //         int pageValue = 1;
-    //         String shopIdValue = shopId;
-            
-    //         if (fullShopId != null && fullShopId.contains("#")) {
-    //             String[] parts = fullShopId.split("#");
-    //             pageValue = Integer.parseInt(parts[1]);
-    //             shopIdValue = parts[0];
-    //         }
-            
-    //         // Capturer les valeurs finales pour utilisation dans les lambdas
-    //         final int finalPage = pageValue;
-    //         final String finalShopId = shopIdValue;
-    //         if (finalShopId == null) return;
-    //         String currencyPrefix = ShopGuiPlusApi.getPlugin().getEconomyManager().getEconomyProvider(ShopGuiPlusApi.getShop(finalShopId).getEconomyType()).getCurrencyPrefix();
-    //         String currencySuffix = ShopGuiPlusApi.getPlugin().getEconomyManager().getEconomyProvider(ShopGuiPlusApi.getShop(finalShopId).getEconomyType()).getCurrencySuffix();
-            
-    //         // Cache global des prix pour cette mise à jour spécifique
-    //         Map<String, Map<String, String>> priceCache = new HashMap<>();
-            
-    //         // Traitement par lots - mettre à jour 9 items à la fois
-    //         for (int batchStart = 0; batchStart < view.getTopInventory().getSize(); batchStart += 9) {
-    //             final int start = batchStart;
-    //             plugin.getServer().getScheduler().runTaskLaterAsynchronously(plugin, () -> {
-    //             // plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-    //                 for (int i = start; i < Math.min(start + 9, view.getTopInventory().getSize()); i++) {
-    //                     ItemStack item = view.getTopInventory().getItem(i);
-    //                     if (item != null && item.hasItemMeta() && item.getItemMeta().hasLore()) {
-    //                         ItemMeta meta = item.getItemMeta();
-    //                         List<String> lore = meta.getLore();
-                            
-    //                         if (!containsDynaShopPlaceholder(lore)) {
-    //                             continue;
-    //                         }
-                            
-    //                         String itemId = null;
-    //                         try {
-    //                             itemId = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(finalShopId).getShopItem(finalPage, i).getId();
-    //                             if (itemId == null) {
-    //                                 continue;
-    //                             }
-
-    //                             // Mettre en cache les valeurs de prix pour cet item
-    //                             // if (!priceCache.containsKey(itemId)) {
-                                
-    //                                 // Traitement des prix
-    //                                 Map<String, String> itemPrices = new HashMap<>();
-                                    
-    //                                 // Prix de base
-    //                                 String buyPrice = plugin.getPlaceholderExpansion().getPriceByType(finalShopId, itemId, "buy");
-    //                                 String sellPrice = plugin.getPlaceholderExpansion().getPriceByType(finalShopId, itemId, "sell");
-                                    
-    //                                 // Prix min/max
-    //                                 String buyMinPrice = plugin.getPlaceholderExpansion().getPriceByType(finalShopId, itemId, "buy_min");
-    //                                 String buyMaxPrice = plugin.getPlaceholderExpansion().getPriceByType(finalShopId, itemId, "buy_max");
-    //                                 String sellMinPrice = plugin.getPlaceholderExpansion().getPriceByType(finalShopId, itemId, "sell_min");
-    //                                 String sellMaxPrice = plugin.getPlaceholderExpansion().getPriceByType(finalShopId, itemId, "sell_max");
-                                    
-    //                                 // Stocker les valeurs de base
-    //                                 itemPrices.put("buy", buyPrice);
-    //                                 itemPrices.put("sell", sellPrice);
-    //                                 itemPrices.put("buy_min", buyMinPrice);
-    //                                 itemPrices.put("buy_max", buyMaxPrice);
-    //                                 itemPrices.put("sell_min", sellMinPrice);
-    //                                 itemPrices.put("sell_max", sellMaxPrice);
-                                    
-    //                                 // Format pour le prix d'achat
-    //                                 if (!buyMinPrice.equals("N/A") && !buyMaxPrice.equals("N/A")) {
-    //                                     itemPrices.put("base_buy", String.format(
-    //                                         currencyPrefix + "%s" + currencySuffix + " §7(%s - %s) ", 
-    //                                         buyPrice, buyMinPrice, buyMaxPrice
-    //                                     ));
-    //                                 } else {
-    //                                     itemPrices.put("base_buy", currencyPrefix + buyPrice + currencySuffix);
-    //                                 }
-                                    
-    //                                 // Format pour le prix de vente
-    //                                 if (!sellMinPrice.equals("N/A") && !sellMaxPrice.equals("N/A")) {
-    //                                     itemPrices.put("base_sell", String.format(
-    //                                         currencyPrefix + "%s" + currencySuffix + " §7(%s - %s) ", 
-    //                                         sellPrice, sellMinPrice, sellMaxPrice
-    //                                     ));
-    //                                 } else {
-    //                                     itemPrices.put("base_sell", currencyPrefix + sellPrice + currencySuffix);
-    //                                 }
-    //                                 priceCache.put(itemId, itemPrices);
-    //                             // }
-                                
-    //                             List<String> newLore = replacePlaceholders(lore, priceCache.get(itemId), player);
-    //                             meta.setLore(newLore);
-    //                             item.setItemMeta(meta);
-
-    //                             player.updateInventory();
-                                
-    //                             // // Mettre à jour l'UI sur le thread principal
-    //                             // final ItemStack finalItem = item;
-    //                             // final int finalSlot = i;
-    //                             // plugin.getServer().getScheduler().runTask(plugin, () -> {
-    //                             //     if (player.getOpenInventory() != null && player.getOpenInventory().equals(view)) {
-    //                             //         view.getTopInventory().setItem(finalSlot, finalItem);
-    //                             //     }
-    //                             // });
-
-    //                         } catch (Exception e) {
-    //                             // Ignorer cet item en cas d'erreur
-    //                         }
-    //                     }
-    //                 }
-    //             }, (start / 9) * 1L); // 1 tick de délai pour chaque lot
-    //             // });
-    //         }
-    //     } catch (Exception e) {
-    //         plugin.getLogger().warning("Erreur lors de la mise à jour de l'inventaire: " + e.getMessage());
-    //     }
-    // }
     private void startContinuousRefresh(Player player, InventoryView view, String shopId, int page, Map<Integer, List<String>> originalLores) {
         // ID unique pour cette session de refresh
         final UUID refreshId = UUID.randomUUID();
@@ -412,10 +240,7 @@ public class ShopItemPlaceholderListener implements Listener {
     }
 
     private void updateShopInventory(Player player, InventoryView view, String shopId, int page, Map<Integer, List<String>> originalLores) {
-        if (view == null || view.getTopInventory() == null) {
-            // plugin.getLogger().warning("Tentative de mise à jour d'un inventaire invalide pour le joueur " + player.getName());
-            return;
-        }
+        if (view == null || view.getTopInventory() == null) { return; }
 
         try {
             // Déterminer l'ID du shop et la page
@@ -429,38 +254,12 @@ public class ShopItemPlaceholderListener implements Listener {
                 return;
             }
 
-            // // IMPORTANT: Stocker les lores originaux avant de les modifier
-            // Map<Integer, List<String>> originalLores = new HashMap<>();
-            
-            // // IMPORTANT: Pré-traitement pour masquer les placeholders pendant le chargement
-            // for (int slot = 0; slot < view.getTopInventory().getSize(); slot++) {
-            //     ItemStack item = view.getTopInventory().getItem(slot);
-            //     if (item != null && item.hasItemMeta() && item.getItemMeta().hasLore()) {
-            //         ItemMeta meta = item.getItemMeta();
-            //         List<String> lore = meta.getLore();
-                    
-            //         if (containsDynaShopPlaceholder(lore)) {
-            //             // CRUCIAL: Stocker le lore original avant de le modifier
-            //             originalLores.put(slot, new ArrayList<>(lore));
-
-            //             // Pré-remplacer les placeholders pour éviter de les voir bruts
-            //             List<String> tempLore = preProcessPlaceholders(lore);
-            //             meta.setLore(tempLore);
-            //             item.setItemMeta(meta);
-            //         }
-            //     }
-            // }
-            
-            // // Obtenir les informations de devise une seule fois
-            // String currencyPrefix = ShopGuiPlusApi.getPlugin().getEconomyManager().getEconomyProvider(ShopGuiPlusApi.getShop(finalShopId).getEconomyType()).getCurrencyPrefix();
-            // String currencySuffix = ShopGuiPlusApi.getPlugin().getEconomyManager().getEconomyProvider(ShopGuiPlusApi.getShop(finalShopId).getEconomyType()).getCurrencySuffix();
-
             // Cache global des prix
             Map<String, Map<String, String>> priceCache = new HashMap<>();
             
             // Traiter chaque item individuellement avec un délai minimal entre chaque
-            // plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
-            plugin.getServer().getScheduler().runTask(plugin, () -> {
+            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            // plugin.getServer().getScheduler().runTask(plugin, () -> {
                 for (int i = 0; i < view.getTopInventory().getSize(); i++) {
                     final int slot = i;
                     
@@ -472,9 +271,8 @@ public class ShopItemPlaceholderListener implements Listener {
                     
                     // Délai progressif très léger (1 tick par tranche de 5 slots)
                     long delay = slot / 5;
-                    
+
                     // plugin.getServer().getScheduler().runTaskLaterAsynchronously(plugin, () -> {
-                    // plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
                     plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
                         try {
                             ItemStack item = view.getTopInventory().getItem(slot);
@@ -681,29 +479,11 @@ public class ShopItemPlaceholderListener implements Listener {
         DynamicPrice price = DynaShopPlugin.getInstance().getDynaShopListener().getOrLoadPrice(shopId, itemId, itemStack);
         if (price != null) {
             buyPrice = plugin.getPlaceholderExpansion().formatPrice(price.getBuyPrice());
-            // if (buyPrice.equals("0.0")) {
-            //     buyPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy"); // Si le prix est 0, on le remplace par la valeur de base
-            // }
             sellPrice = plugin.getPlaceholderExpansion().formatPrice(price.getSellPrice());
-            // if (sellPrice.equals("0.0")) {
-            //     sellPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell"); // Si le prix est 0, on le remplace par la valeur de base
-            // }
             buyMinPrice = plugin.getPlaceholderExpansion().formatPrice(price.getMinBuyPrice());
-            // if (buyMinPrice.equals("0.0")) {
-            //     buyMinPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy_min"); // Si le prix est 0, on le remplace par la valeur de base
-            // }
             buyMaxPrice = plugin.getPlaceholderExpansion().formatPrice(price.getMaxBuyPrice());
-            // if (buyMaxPrice.equals("0.0")) {
-            //     buyMaxPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy_max"); // Si le prix est 0, on le remplace par la valeur de base
-            // }
             sellMinPrice = plugin.getPlaceholderExpansion().formatPrice(price.getMinSellPrice());
-            // if (sellMinPrice.equals("0.0")) {
-            //     sellMinPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell_min"); // Si le prix est 0, on le remplace par la valeur de base
-            // }
             sellMaxPrice = plugin.getPlaceholderExpansion().formatPrice(price.getMaxSellPrice());
-            // if (sellMaxPrice.equals("0.0")) {
-            //     sellMaxPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell_max"); // Si le prix est 0, on le remplace par la valeur de base
-            // }
         } else {
             buyPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy");
             sellPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell");
@@ -716,38 +496,18 @@ public class ShopItemPlaceholderListener implements Listener {
         // Déterminer si l'item est en mode STOCK
         boolean isStockMode = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.STOCK;
         prices.put("is_stock_mode", String.valueOf(isStockMode));
-        
-        // // Calcul des prix
-        // String buyPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy");
-        // String sellPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell");
-        // String buyMinPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy_min");
-        // String buyMaxPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy_max");
-        // String sellMinPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell_min");
-        // String sellMaxPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell_max");
-        // String buyPrice = plugin.getPlaceholderExpansion().formatPrice(price.getBuyPrice());
-        // // if (buyPrice.equals("0.0")) {
-        // //     buyPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy"); // Si le prix est 0, on le remplace par la valeur de base
-        // // }
-        // String sellPrice = plugin.getPlaceholderExpansion().formatPrice(price.getSellPrice());
-        // // if (sellPrice.equals("0.0")) {
-        // //     sellPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell"); // Si le prix est 0, on le remplace par la valeur de base
-        // // }
-        // String buyMinPrice = plugin.getPlaceholderExpansion().formatPrice(price.getMinBuyPrice());
-        // // if (buyMinPrice.equals("0.0")) {
-        // //     buyMinPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy_min"); // Si le prix est 0, on le remplace par la valeur de base
-        // // }
-        // String buyMaxPrice = plugin.getPlaceholderExpansion().formatPrice(price.getMaxBuyPrice());
-        // // if (buyMaxPrice.equals("0.0")) {
-        // //     buyMaxPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "buy_max"); // Si le prix est 0, on le remplace par la valeur de base
-        // // }
-        // String sellMinPrice = plugin.getPlaceholderExpansion().formatPrice(price.getMinSellPrice());
-        // // if (sellMinPrice.equals("0.0")) {
-        // //     sellMinPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell_min"); // Si le prix est 0, on le remplace par la valeur de base
-        // // }
-        // String sellMaxPrice = plugin.getPlaceholderExpansion().formatPrice(price.getMaxSellPrice());
-        // // if (sellMaxPrice.equals("0.0")) {
-        // //     sellMaxPrice = plugin.getPlaceholderExpansion().getPriceByType(shopId, itemId, "sell_max"); // Si le prix est 0, on le remplace par la valeur de base
-        // // }
+
+        // Déterminer si l'item est en mode RECIPE
+        boolean isRecipeMode = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.RECIPE;
+        prices.put("is_recipe_mode", String.valueOf(isRecipeMode));
+        if (isRecipeMode) {
+            // Si l'item est en mode RECIPE, et que un des prix est en mode STOCK, on affiche le stock
+            boolean hasMaxStock = DynaShopPlugin.getInstance().getPriceRecipe().calculateMaxStock(shopId, itemId, itemStack, new ArrayList<>()) > 0;
+            if (hasMaxStock) {
+                isStockMode = true; // Forcer le mode STOCK si maxStock > 0
+                prices.put("is_stock_mode", String.valueOf(isStockMode));
+            }
+        }
 
         // Stocker les valeurs
         prices.put("buy", buyPrice);
@@ -764,35 +524,63 @@ public class ShopItemPlaceholderListener implements Listener {
             prices.put("base_stock", "N/A");
             prices.put("colored_stock_ratio", "N/A");
         } else {
-            // // Ajouter les informations de stock
-            String currentStock = plugin.getPlaceholderExpansion().getStockByType(shopId, itemId, "stock");
-            String maxStock = plugin.getPlaceholderExpansion().getStockByType(shopId, itemId, "stock_max");
-            // String currentStock = plugin.getPlaceholderExpansion().formatStock(price.getCurrentStock());
-            // if (currentStock.equals("0")) {
-            //     currentStock = "N/A"; // Si le stock est 0, on le remplace par N/A
-            // }
+            // // // Ajouter les informations de stock
+            // String currentStock = plugin.getPlaceholderExpansion().getStockByType(shopId, itemId, "stock");
+            // String maxStock = plugin.getPlaceholderExpansion().getStockByType(shopId, itemId, "stock_max");
+            // // String currentStock = plugin.getPlaceholderExpansion().formatStock(price.getCurrentStock());
+            // // if (currentStock.equals("0")) {
+            // //     currentStock = "N/A"; // Si le stock est 0, on le remplace par N/A
+            // // }
 
-            // String maxStock = plugin.getPlaceholderExpansion().formatStock(price.getMaxStock());
-            // if (maxStock.equals("0")) {
-            //     maxStock = "N/A"; // Si le stock est 0, on le remplace par N/A
-            // }
+            // // plugin.getLogger().info("Current stock for " + itemId + ": " + price.getStock() + 
+            // //     ", Max stock: " + price.getMaxStock() + 
+            // //     ", Formatted current stock: " + plugin.getPlaceholderExpansion().formatStock(price.getStock()) +
+            // //     ", Formatted max stock: " + plugin.getPlaceholderExpansion().formatStock(price.getMaxStock()));
 
-            prices.put("stock", currentStock);
-            prices.put("stock_max", maxStock);
-            
+            // // String maxStock = plugin.getPlaceholderExpansion().formatStock(price.getMaxStock());
+            // // if (maxStock.equals("0")) {
+            // //     maxStock = "N/A"; // Si le stock est 0, on le remplace par N/A
+            // // }
+            String currentStock, maxStock, fCurrentStock, fMaxStock;
+            if (price != null) {
+                currentStock = String.valueOf(price.getStock());
+                fCurrentStock = plugin.getPlaceholderExpansion().formatStock(price.getStock());
+                // if (currentStock.equals("0")) {
+                //     currentStock = "N/A"; // Si le stock est 0, on le remplace par N/A
+                // }
+                maxStock = String.valueOf(price.getMaxStock());
+                fMaxStock = plugin.getPlaceholderExpansion().formatStock(price.getMaxStock());
+                // if (maxStock.equals("0")) {
+                //     maxStock = "N/A"; // Si le stock est 0, on le remplace par N/A
+                // }
+                // plugin.getLogger().info("Current stock for " + itemId + ": " + price.getStock() + 
+                //     ", Max stock: " + price.getMaxStock() + 
+                //     ", Formatted current stock: " + plugin.getPlaceholderExpansion().formatStock(price.getStock()) +
+                //     ", Formatted max stock: " + plugin.getPlaceholderExpansion().formatStock(price.getMaxStock()));
+            } else {
+                currentStock = plugin.getPlaceholderExpansion().getStockByType(shopId, itemId, "stock");
+                fCurrentStock = plugin.getPlaceholderExpansion().formatStock(Integer.parseInt(currentStock));
+                maxStock = plugin.getPlaceholderExpansion().getStockByType(shopId, itemId, "stock_max");
+                fMaxStock = plugin.getPlaceholderExpansion().formatStock(Integer.parseInt(maxStock));
+            }
+
+            prices.put("stock", fCurrentStock);
+            prices.put("stock_max", fMaxStock);
+
             // Format pour le stock
             if (currentStock.equals("N/A") || currentStock.equals("0")) {
-                prices.put("base_stock", ChatColor.translateAlternateColorCodes('&', "&cOut of stock"));
-                prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', "&cOut of stock"));
+                // prices.put("base_stock", ChatColor.translateAlternateColorCodes('&', "&cOut of stock"));
+                prices.put("base_stock", ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getPlaceholderOutOfStock()));
+                prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getPlaceholderOutOfStock()));
             } else {
-                prices.put("base_stock", String.format("%s/%s", currentStock, maxStock));
+                prices.put("base_stock", String.format("%s/%s", fCurrentStock, fMaxStock));
 
                 // Format avec couleurs selon le niveau de stock
                 int current = Integer.parseInt(currentStock);
                 int max = Integer.parseInt(maxStock);
                 String colorCode = (current < max * 0.25) ? "&c" : (current < max * 0.5) ? "&e" : "&a";
                 prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 
-                    String.format("%s%s&7/%s", colorCode, currentStock, maxStock)));
+                    String.format("%s%s&7/%s", colorCode, fCurrentStock, fMaxStock)));
             }
         }
         
@@ -876,41 +664,6 @@ public class ShopItemPlaceholderListener implements Listener {
         }
         return processed;
     }
-
-    // // Classe pour stocker les données de l'inventaire
-    // private static class InventoryRefreshData {
-    //     final String shopId;
-    //     final InventoryView view;
-        
-    //     public InventoryRefreshData(String shopId, InventoryView view) {
-    //         this.shopId = shopId;
-    //         this.view = view;
-    //     }
-    // }
-
-    // private void startRefreshScheduler() {
-    //     // Annuler toute tâche existante
-    //     if (refreshTask != null) {
-    //         refreshTask.cancel();
-    //     }
-        
-    //     // Créer une nouvelle tâche qui s'exécute toutes les 10 secondes (200 ticks)
-    //     refreshTask = plugin.getServer().getScheduler().runTaskTimerAsynchronously(plugin, () -> {
-    //         // Pour chaque inventaire ouvert, effectuer une mise à jour
-    //         for (Map.Entry<UUID, InventoryRefreshData> entry : openInventories.entrySet()) {
-    //             UUID playerId = entry.getKey();
-    //             InventoryRefreshData data = entry.getValue();
-                
-    //             Player player = plugin.getServer().getPlayer(playerId);
-    //             if (player != null && player.isOnline()) {
-    //                 updateShopInventory(player, data.view, data.shopId);
-    //             } else {
-    //                 // Supprimer si le joueur est déconnecté
-    //                 openInventories.remove(playerId);
-    //             }
-    //         }
-    //     }, 200L, 200L); // Délai initial: 200 ticks, puis répéter toutes les 200 ticks
-    // }
 
     public void shutdown() {
         if (refreshTask != null) {

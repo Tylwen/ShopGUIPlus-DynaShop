@@ -19,8 +19,6 @@ import org.bukkit.inventory.ItemStack;
 // import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import com.comphenix.protocol.wrappers.EnumWrappers.Hand;
-
 import fr.tylwen.satyria.dynashop.command.DynaShopCommand;
 import fr.tylwen.satyria.dynashop.command.LimitResetCommand;
 import fr.tylwen.satyria.dynashop.command.ReloadCommand;
@@ -96,6 +94,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private int waitForShopsTaskId;
 
     private final Map<String, Double> recipePriceCache = new ConcurrentHashMap<>();
+    private final Map<String, Integer> priceStockCache = new ConcurrentHashMap<>();
     // private final long RECIPE_CACHE_DURATION = 600000; // 10 minutes
     private final long RECIPE_CACHE_DURATION = 20L * 60L * 15L; // 10 minutes in ticks
     private final Map<String, Long> recipeCacheTimestamps = new ConcurrentHashMap<>();
@@ -434,10 +433,34 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         
         return -1.0; // Indique que le prix n'est pas en cache
     }
+    // public double getCachedRecipePrice(String shopID, String itemID, String priceType) {
+    //     String cacheKey = shopID + ":" + itemID + ":" + priceType;
+    //     return recipePriceCache.getOrDefault(cacheKey, -1.0); // Retourne -1.0 si le prix n'est pas en cache
+    // }
+    public int getCachedRecipeStock(String shopID, String itemID, String priceType) {
+        String cacheKey = shopID + ":" + itemID + ":" + priceType;
+        
+        // Vérifier si le stock est en cache et si le cache n'est pas expiré
+        if (priceStockCache.containsKey(cacheKey) &&
+            System.currentTimeMillis() - recipeCacheTimestamps.getOrDefault(cacheKey, 0L) < RECIPE_CACHE_DURATION) {
+            return priceStockCache.get(cacheKey);
+        }
+        
+        return -1; // Indique que le stock n'est pas en cache
+    }
+    // public int getCachedRecipeStock(String shopID, String itemID, String priceType) {
+    //     String cacheKey = shopID + ":" + itemID + ":" + priceType;
+    //     return priceStockCache.getOrDefault(cacheKey, -1); // Retourne -1 si le stock n'est pas en cache
+    // }
     
     public void cacheRecipePrice(String shopID, String itemID, String priceType, double price) {
         String cacheKey = shopID + ":" + itemID + ":" + priceType;
         recipePriceCache.put(cacheKey, price);
+        recipeCacheTimestamps.put(cacheKey, System.currentTimeMillis());
+    }
+    public void cacheRecipeStock(String shopID, String itemID, String type, double stock) {
+        String cacheKey = shopID + ":" + itemID + ":" + type;
+        priceStockCache.put(cacheKey, (int) stock);
         recipeCacheTimestamps.put(cacheKey, System.currentTimeMillis());
     }
 

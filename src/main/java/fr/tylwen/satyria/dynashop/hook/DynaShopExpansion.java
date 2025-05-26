@@ -521,6 +521,21 @@ public class DynaShopExpansion extends PlaceholderExpansion {
         
         return df.format(price);
     }
+
+    public String formatStock(int stock) {
+        // Récupérer les séparateurs depuis la configuration
+        String groupingSeparator = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getString("numberFormat.groupingSeparator", ",");
+        
+        // Configurer les symboles de formatage
+        DecimalFormatSymbols symbols = new DecimalFormatSymbols();
+        symbols.setGroupingSeparator(groupingSeparator.charAt(0));
+        
+        // Créer un format adapté pour les entiers
+        DecimalFormat df = new DecimalFormat("#,##0", symbols);
+        df.setGroupingUsed(true);
+        
+        return df.format(stock);
+    }
     
     public String onRequest(OfflinePlayer player, String identifier) {
         // %dynashop_current_buy%

@@ -29,18 +29,298 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class PriceRecipe {
     private final FileConfiguration config;
     
     // Ajouter ces champs à la classe PriceRecipe
     private final Map<String, List<ItemStack>> ingredientsCache = new HashMap<>();
-    // private final long CACHE_DURATION = 20L * 60L * 5L; // 5 minutes
-    private final long CACHE_DURATION = 20L; // 1 seconde
+    private final long CACHE_DURATION = 20L * 60L * 5L; // 5 minutes
+    // private final long CACHE_DURATION = 20L; // 1 seconde
     private final Map<String, Long> cacheTimestamps = new HashMap<>();
+    
+    // Limiter la profondeur de récursion pour éviter les boucles infinies
+    // private static final int MAX_RECURSION_DEPTH = 5;
+    // Pool de threads limité pour les calculs asynchrones
+    private final ExecutorService recipeExecutor;
 
     public PriceRecipe(FileConfiguration config) {
         this.config = config;
+        
+        // Créer un pool de threads dédié et limité pour les calculs de recettes
+        this.recipeExecutor = Executors.newFixedThreadPool(2, r -> {
+            Thread thread = new Thread(r, "Recipe-Calculator");
+            thread.setDaemon(true);
+            return thread;
+        });
+    }
+
+    /**
+     * Classe représentant le résultat complet d'un calcul de recette
+     */
+    public class RecipeCalculationResult {
+        private double buyPrice;
+        private double sellPrice;
+        private double minBuyPrice;
+        private double maxBuyPrice;
+        private double minSellPrice;
+        private double maxSellPrice;
+        private int stock;
+        private int maxStock;
+        
+        // Constructeur, getters et setters...
+        
+        public RecipeCalculationResult(double buyPrice, double sellPrice, 
+                                    double minBuyPrice, double maxBuyPrice,
+                                    double minSellPrice, double maxSellPrice,
+                                    int stock, int maxStock) {
+            this.buyPrice = buyPrice;
+            this.sellPrice = sellPrice;
+            this.minBuyPrice = minBuyPrice;
+            this.maxBuyPrice = maxBuyPrice;
+            this.minSellPrice = minSellPrice;
+            this.maxSellPrice = maxSellPrice;
+            this.stock = stock;
+            this.maxStock = maxStock;
+        }
+        
+        // Getters...
+        public double getBuyPrice() { return buyPrice; }
+        public double getSellPrice() { return sellPrice; }
+        public double getMinBuyPrice() { return minBuyPrice; }
+        public double getMaxBuyPrice() { return maxBuyPrice; }
+        public double getMinSellPrice() { return minSellPrice; }
+        public double getMaxSellPrice() { return maxSellPrice; }
+        public int getStock() { return stock; }
+        public int getMaxStock() { return maxStock; }
+    }
+
+    /**
+     * Calcule toutes les valeurs importantes pour une recette en une seule passe
+     * Cette méthode remplace les multiples appels séparés à calculatePrice, calculateStock, etc.
+     */
+    // public RecipeCalculationResult calculateRecipeValues(String shopID, String itemID, ItemStack item) {
+    public RecipeCalculationResult calculateRecipeValues(String shopID, String itemID, ItemStack item, List<String> visitedItems) {
+        // List<String> visitedItems = new ArrayList<>();
+        
+        // Récupérer tous les ingrédients une seule fois
+        List<ItemStack> ingredients = getIngredients(shopID, itemID, item);
+        ingredients = consolidateIngredients(ingredients);
+        
+        // Variables pour le calcul
+        double basePrice = 0.0;
+        double baseSellPrice = 0.0;
+        double baseMinBuyPrice = 0.0;
+        double baseMaxBuyPrice = 0.0;
+        double baseMinSellPrice = 0.0;
+        double baseMaxSellPrice = 0.0;
+        int minAvailableStock = Integer.MAX_VALUE;
+        int totalMaxStock = 0;
+        
+        // Parcourir les ingrédients une seule fois
+        for (ItemStack ingredient : ingredients) {
+            if (ingredient == null || ingredient.getType() == Material.AIR) {
+                continue;
+            }
+            
+            // Récupérer toutes les données de l'ingrédient en une fois
+            String ingredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
+            String ingredientShopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
+            
+            // Éviter les boucles infinies
+            if (visitedItems.contains(ingredientID)) {
+                continue;
+            }
+            visitedItems.add(ingredientID);
+            
+            // Obtenir le type de l'ingrédient
+            DynaShopType ingredientType = getIngredientType(ingredient);
+            
+            // Selon le type de l'ingrédient, obtenir les valeurs
+            double ingredientBuyPrice = 0.0;
+            double ingredientSellPrice = 0.0;
+            double ingredientMinBuyPrice = 0.0;
+            double ingredientMaxBuyPrice = 0.0;
+            double ingredientMinSellPrice = 0.0;
+            double ingredientMaxSellPrice = 0.0;
+            int ingredientStock = 0;
+            int ingredientMaxStock = 0;
+            
+            if (ingredientType == DynaShopType.STOCK) {
+                // Pour les ingrédients en mode STOCK
+                ingredientBuyPrice = DynaShopPlugin.getInstance().getPriceStock().calculatePrice(ingredientShopID, ingredientID, "buyPrice");
+                ingredientSellPrice = DynaShopPlugin.getInstance().getPriceStock().calculatePrice(ingredientShopID, ingredientID, "sellPrice");
+                
+                // Récupérer les bornes depuis la configuration
+                ingredientMinBuyPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+                    .getItemValue(ingredientShopID, ingredientID, "buyDynamic.min", Double.class)
+                    .orElse(ingredientBuyPrice * 0.5);
+                    
+                ingredientMaxBuyPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+                    .getItemValue(ingredientShopID, ingredientID, "buyDynamic.max", Double.class)
+                    .orElse(ingredientBuyPrice * 2.0);
+                    
+                ingredientMinSellPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+                    .getItemValue(ingredientShopID, ingredientID, "sellDynamic.min", Double.class)
+                    .orElse(ingredientSellPrice * 0.5);
+                    
+                ingredientMaxSellPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+                    .getItemValue(ingredientShopID, ingredientID, "sellDynamic.max", Double.class)
+                    .orElse(ingredientSellPrice * 2.0);
+                
+                // Récupérer le stock actuel et maximum
+                ingredientStock = DynaShopPlugin.getInstance().getItemDataManager().getStock(ingredientShopID, ingredientID).orElse(0);
+                ingredientMaxStock = DynaShopPlugin.getInstance().getShopConfigManager()
+                    .getItemValue(ingredientShopID, ingredientID, "stock.max", Integer.class).orElse(0);
+            } else if (ingredientType == DynaShopType.RECIPE) {
+                // Pour les ingrédients eux-mêmes basés sur des recettes, calculer récursivement
+                ItemStack ingredientItemStack = ShopGuiPlusApi.getShop(ingredientShopID).getShopItem(ingredientID).getItem();
+                if (ingredientItemStack != null) {
+                    List<String> newVisitedItems = new ArrayList<>(visitedItems);
+                    // RecipeCalculationResult ingredientResult = calculateRecipeValues(ingredientShopID, ingredientID, ingredientItemStack);
+                    RecipeCalculationResult ingredientResult = calculateRecipeValues(ingredientShopID, ingredientID, ingredientItemStack, newVisitedItems);
+                    
+                    ingredientBuyPrice = ingredientResult.getBuyPrice();
+                    ingredientSellPrice = ingredientResult.getSellPrice();
+                    ingredientMinBuyPrice = ingredientResult.getMinBuyPrice();
+                    ingredientMaxBuyPrice = ingredientResult.getMaxBuyPrice();
+                    ingredientMinSellPrice = ingredientResult.getMinSellPrice();
+                    ingredientMaxSellPrice = ingredientResult.getMaxSellPrice();
+                    ingredientStock = ingredientResult.getStock();
+                    ingredientMaxStock = ingredientResult.getMaxStock();
+                }
+            } else {
+                // Pour les autres types d'ingrédients (DYNAMIC, etc.)
+                ingredientBuyPrice = DynaShopPlugin.getInstance().getItemDataManager()
+                    .getBuyPrice(ingredientShopID, ingredientID)
+                    .orElse(DynaShopPlugin.getInstance().getShopConfigManager()
+                        .getItemValue(ingredientShopID, ingredientID, "buyPrice", Double.class)
+                        .orElse(10.0));
+                        
+                ingredientSellPrice = DynaShopPlugin.getInstance().getItemDataManager()
+                    .getSellPrice(ingredientShopID, ingredientID)
+                    .orElse(DynaShopPlugin.getInstance().getShopConfigManager()
+                        .getItemValue(ingredientShopID, ingredientID, "sellPrice", Double.class)
+                        .orElse(8.0));
+                        
+                // Récupérer les bornes depuis la configuration
+                ingredientMinBuyPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+                    .getItemValue(ingredientShopID, ingredientID, "buyDynamic.min", Double.class)
+                    .orElse(ingredientBuyPrice * 0.5);
+                    
+                ingredientMaxBuyPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+                    .getItemValue(ingredientShopID, ingredientID, "buyDynamic.max", Double.class)
+                    .orElse(ingredientBuyPrice * 2.0);
+                    
+                ingredientMinSellPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+                    .getItemValue(ingredientShopID, ingredientID, "sellDynamic.min", Double.class)
+                    .orElse(ingredientSellPrice * 0.5);
+                    
+                ingredientMaxSellPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+                    .getItemValue(ingredientShopID, ingredientID, "sellDynamic.max", Double.class)
+                    .orElse(ingredientSellPrice * 2.0);
+            }
+            
+            // Calculer la contribution de cet ingrédient aux différentes valeurs
+            int amount = ingredient.getAmount();
+            basePrice += ingredientBuyPrice * amount;
+            baseSellPrice += ingredientSellPrice * amount;
+            baseMinBuyPrice += ingredientMinBuyPrice * amount;
+            baseMaxBuyPrice += ingredientMaxBuyPrice * amount;
+            baseMinSellPrice += ingredientMinSellPrice * amount;
+            baseMaxSellPrice += ingredientMaxSellPrice * amount;
+            
+            // Calcul du stock disponible pour cet ingrédient
+            int availableForCrafting = ingredientStock / amount;
+            minAvailableStock = Math.min(minAvailableStock, availableForCrafting);
+            
+            // Stock maximum
+            int maxAvailableForCrafting = ingredientMaxStock / amount;
+            totalMaxStock += maxAvailableForCrafting;
+            
+            // Optimisation: sortir tôt si on trouve un stock zéro
+            if (minAvailableStock == 0) break;
+        }
+        
+        // Appliquer le modificateur de recette
+        double modifier = getRecipeModifier(item);
+        double finalBuyPrice = basePrice * modifier;
+        double finalSellPrice = baseSellPrice * modifier;
+        double finalMinBuyPrice = baseMinBuyPrice * modifier;
+        double finalMaxBuyPrice = baseMaxBuyPrice * modifier;
+        double finalMinSellPrice = baseMinSellPrice * modifier;
+        double finalMaxSellPrice = baseMaxSellPrice * modifier;
+        
+        // Vérifier que le prix de vente n'est pas supérieur au prix d'achat
+        if (finalSellPrice > finalBuyPrice - DynamicPrice.MIN_MARGIN) {
+            finalSellPrice = finalBuyPrice - DynamicPrice.MIN_MARGIN;
+        }
+        
+        // Vérifier que les bornes sont respectées
+        finalBuyPrice = Math.max(finalMinBuyPrice, Math.min(finalBuyPrice, finalMaxBuyPrice));
+        finalSellPrice = Math.max(finalMinSellPrice, Math.min(finalSellPrice, finalMaxSellPrice));
+        
+        // Ajuster le stock maximum et actuel
+        int finalStock = (minAvailableStock == Integer.MAX_VALUE) ? 0 : minAvailableStock;
+        
+        // Mettre en cache tous les résultats
+        DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyPrice", finalBuyPrice);
+        DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellPrice", finalSellPrice);
+        DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyDynamic.min", finalMinBuyPrice);
+        DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyDynamic.max", finalMaxBuyPrice);
+        DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellDynamic.min", finalMinSellPrice);
+        DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellDynamic.max", finalMaxSellPrice);
+        DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "stock", finalStock);
+        DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "maxstock", totalMaxStock);
+        
+        return new RecipeCalculationResult(
+            finalBuyPrice, finalSellPrice,
+            finalMinBuyPrice, finalMaxBuyPrice,
+            finalMinSellPrice, finalMaxSellPrice,
+            finalStock, totalMaxStock
+        );
+    }
+
+    /**
+     * Version asynchrone pour calculer toutes les valeurs de recette en une fois
+     */
+    public void calculateRecipeValuesAsync(String shopID, String itemID, ItemStack item, Consumer<RecipeCalculationResult> callback) {
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                return calculateRecipeValues(shopID, itemID, item, new ArrayList<>());
+            } catch (Exception e) {
+                DynaShopPlugin.getInstance().getLogger().warning("Erreur lors du calcul des valeurs pour " 
+                    + shopID + ":" + itemID + ": " + e.getMessage());
+                // Valeurs par défaut en cas d'erreur
+                return new RecipeCalculationResult(10.0, 8.0, 5.0, 20.0, 4.0, 16.0, 0, 0);
+            }
+        }, recipeExecutor).thenAcceptAsync(result -> {
+            Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> {
+                try {
+                    callback.accept(result);
+                } catch (Exception e) {
+                    DynaShopPlugin.getInstance().getLogger().warning("Erreur dans le callback: " + e.getMessage());
+                }
+            });
+        });
+    }
+    
+    /**
+     * Nettoie les ressources lors de la fermeture du plugin
+     */
+    public void shutdown() {
+        recipeExecutor.shutdown();
+        try {
+            if (!recipeExecutor.awaitTermination(500, TimeUnit.MILLISECONDS)) {
+                recipeExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            recipeExecutor.shutdownNow();
+        }
     }
     
     // public enum RecipeType {
@@ -61,6 +341,11 @@ public class PriceRecipe {
     }
 
     public double calculatePrice(String shopID, String itemID, ItemStack item, String typePrice, List<String> visitedItems) {
+        // // Protection contre les récursions trop profondes
+        // if (visitedItems.size() > MAX_RECURSION_DEPTH) {
+        //     return 10.0; // Valeur par défaut
+        // }
+
         List<ItemStack> ingredients = getIngredients(shopID, itemID, item);
         ingredients = consolidateIngredients(ingredients);
         double basePrice = 0.0;
@@ -70,7 +355,9 @@ public class PriceRecipe {
             if (ingredient == null || ingredient.getType() == Material.AIR) {
                 continue; // Ignorer les ingrédients invalides
             }
-            double ingredientPrice = getIngredientPrice(ingredient, typePrice, visitedItems);
+            // Copier la liste des items visités pour éviter les modifications dans la récursion
+            List<String> newVisitedItems = new ArrayList<>(visitedItems);
+            double ingredientPrice = getIngredientPrice(ingredient, typePrice, newVisitedItems);
             basePrice += ingredientPrice * ingredient.getAmount(); // Multiplier par la quantité de l'ingrédient
         }
 
@@ -79,21 +366,76 @@ public class PriceRecipe {
         return basePrice * modifier;
     }
 
+    // public int calculateStock(String shopID, String itemID, ItemStack item, List<String> visitedItems) {
+    //     List<ItemStack> ingredients = getIngredients(shopID, itemID, item);
+    //     ingredients = consolidateIngredients(ingredients);
+    //     int totalStock = 0;
+    //     // Calculer le stock total en fonction des ingrédients
+    //     for (ItemStack ingredient : ingredients) {
+    //         if (ingredient == null || ingredient.getType() == Material.AIR) {
+    //             continue; // Ignorer les ingrédients invalides
+    //         }
+    //         List<String> newVisitedItems = new ArrayList<>(visitedItems);
+    //         int ingredientStock = getIngredientStock(ingredient, newVisitedItems);
+    //         // totalStock += ingredientStock * ingredient.getAmount(); // Multiplier par la quantité de l'ingrédient
+    //         totalStock += ingredientStock / ingredient.getAmount(); // Diviser par la quantité de l'ingrédient
+    //         // totalStock += ingredientStock; // Ajouter le stock de l'ingrédient
+    //     }
+    //     return totalStock;
+    // }
     public int calculateStock(String shopID, String itemID, ItemStack item, List<String> visitedItems) {
         List<ItemStack> ingredients = getIngredients(shopID, itemID, item);
         ingredients = consolidateIngredients(ingredients);
-        int totalStock = 0;
-        // Calculer le stock total en fonction des ingrédients
+
+        int minAvailableStock = Integer.MAX_VALUE;
         for (ItemStack ingredient : ingredients) {
-            if (ingredient == null || ingredient.getType() == Material.AIR) {
-                continue; // Ignorer les ingrédients invalides
+            if (ingredient == null || ingredient.getType() == Material.AIR) { continue; }
+
+            List<String> newVisitedItems = new ArrayList<>(visitedItems);
+            int ingredientStock = getIngredientStock(ingredient, newVisitedItems);
+            int availableForCrafting = ingredientStock / ingredient.getAmount();
+            minAvailableStock = Math.min(minAvailableStock, availableForCrafting);
+
+            if (minAvailableStock == 0) {
+                break; // Pas besoin de continuer si le stock minimum est atteint
             }
-            int ingredientStock = getIngredientStock(ingredient, visitedItems);
-            // totalStock += ingredientStock * ingredient.getAmount(); // Multiplier par la quantité de l'ingrédient
-            totalStock += ingredientStock / ingredient.getAmount(); // Diviser par la quantité de l'ingrédient
-            // totalStock += ingredientStock; // Ajouter le stock de l'ingrédient
         }
-        return totalStock;
+
+        return (minAvailableStock == Integer.MAX_VALUE) ? 0 : minAvailableStock;
+    }
+
+    // public void calculateStockAsync(String shopID, String itemID, ItemStack item, Consumer<Integer> callback) {
+    //     // Exécuter le calcul de stock coûteux dans un thread séparé
+    //     Bukkit.getScheduler().runTaskAsynchronously(DynaShopPlugin.getInstance(), () -> {
+    //         List<String> visitedItems = new ArrayList<>();
+    //         int stock = calculateStock(shopID, itemID, item, visitedItems);
+
+    //         DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "stock", stock);
+    //         // Revenir au thread principal pour mettre à jour le stock
+    //         Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> callback.accept(stock));
+    //     });
+    // }
+    /**
+     * Version entièrement asynchrone du calcul de stock
+     */
+    public void calculateStockAsync(String shopID, String itemID, ItemStack item, Consumer<Integer> callback) {
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                List<String> visitedItems = new ArrayList<>();
+                return calculateStock(shopID, itemID, item, visitedItems);
+            } catch (Exception e) {
+                DynaShopPlugin.getInstance().getLogger().warning("Erreur lors du calcul du stock pour " + shopID + ":" + itemID + ": " + e.getMessage());
+                return 0;
+            }
+        }, recipeExecutor).thenAcceptAsync(stock -> {
+            Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> {
+                try {
+                    callback.accept(stock);
+                } catch (Exception e) {
+                    DynaShopPlugin.getInstance().getLogger().warning("Erreur dans le callback de stock: " + e.getMessage());
+                }
+            });
+        });
     }
 
     public int calculateMaxStock(String shopID, String itemID, ItemStack item, List<String> visitedItems) {
@@ -113,49 +455,71 @@ public class PriceRecipe {
         return maxStock;
     }
 
+    // public void calculatePriceAsync(String shopID, String itemID, ItemStack item, String typePrice, Consumer<Double> callback) {
+    //     // Exécuter le calcul de prix coûteux dans un thread séparé
+    //     Bukkit.getScheduler().runTaskAsynchronously(DynaShopPlugin.getInstance(), () -> {
+    //         List<String> visitedItems = new ArrayList<>();
+    //         double price = calculatePrice(shopID, itemID, item, typePrice, visitedItems);
+            
+    //         // Cacher le prix calculé
+    //         DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, typePrice, price);
+            
+    //         // Revenir au thread principal pour exécuter le callback
+    //         Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> callback.accept(price));
+    //         // try {
+    //         //     // Forcer l'obtention d'une nouvelle connexion à la base de données pour cette opération asynchrone
+    //         //     DynaShopPlugin.getInstance().getDataManager().reloadDatabaseConnection();
+                
+    //         //     List<String> visitedItems = new ArrayList<>();
+    //         //     double price = calculatePrice(shopID, itemID, item, typePrice, visitedItems);
+                
+    //         //     // Cacher le prix calculé
+    //         //     DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, typePrice, price);
+                
+    //         //     // Revenir au thread principal pour exécuter le callback
+    //         //     Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> {
+    //         //         try {
+    //         //             callback.accept(price);
+    //         //         } catch (Exception e) {
+    //         //             DynaShopPlugin.getInstance().getLogger().severe("Erreur dans le callback: " + e.getMessage());
+    //         //             e.printStackTrace();
+    //         //         }
+    //         //     });
+    //         // } catch (Exception e) {
+    //         //     DynaShopPlugin.getInstance().getLogger().severe("Erreur lors du calcul asynchrone du prix: " + e.getMessage());
+    //         //     e.printStackTrace();
+                
+    //         //     // Revenir au thread principal avec une valeur par défaut
+    //         //     Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> {
+    //         //         try {
+    //         //             callback.accept(10.0); // Valeur par défaut en cas d'erreur
+    //         //         } catch (Exception ex) {
+    //         //             DynaShopPlugin.getInstance().getLogger().severe("Erreur dans le callback d'erreur: " + ex.getMessage());
+    //         //         }
+    //         //     });
+    //         // }
+    //     });
+    // }
+    /**
+     * Version entièrement asynchrone du calcul de prix
+     */
     public void calculatePriceAsync(String shopID, String itemID, ItemStack item, String typePrice, Consumer<Double> callback) {
-        // Exécuter le calcul de prix coûteux dans un thread séparé
-        Bukkit.getScheduler().runTaskAsynchronously(DynaShopPlugin.getInstance(), () -> {
-            List<String> visitedItems = new ArrayList<>();
-            double price = calculatePrice(shopID, itemID, item, typePrice, visitedItems);
-            
-            // Cacher le prix calculé
-            DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, typePrice, price);
-            
-            // Revenir au thread principal pour exécuter le callback
-            Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> callback.accept(price));
-            // try {
-            //     // Forcer l'obtention d'une nouvelle connexion à la base de données pour cette opération asynchrone
-            //     DynaShopPlugin.getInstance().getDataManager().reloadDatabaseConnection();
-                
-            //     List<String> visitedItems = new ArrayList<>();
-            //     double price = calculatePrice(shopID, itemID, item, typePrice, visitedItems);
-                
-            //     // Cacher le prix calculé
-            //     DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, typePrice, price);
-                
-            //     // Revenir au thread principal pour exécuter le callback
-            //     Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> {
-            //         try {
-            //             callback.accept(price);
-            //         } catch (Exception e) {
-            //             DynaShopPlugin.getInstance().getLogger().severe("Erreur dans le callback: " + e.getMessage());
-            //             e.printStackTrace();
-            //         }
-            //     });
-            // } catch (Exception e) {
-            //     DynaShopPlugin.getInstance().getLogger().severe("Erreur lors du calcul asynchrone du prix: " + e.getMessage());
-            //     e.printStackTrace();
-                
-            //     // Revenir au thread principal avec une valeur par défaut
-            //     Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> {
-            //         try {
-            //             callback.accept(10.0); // Valeur par défaut en cas d'erreur
-            //         } catch (Exception ex) {
-            //             DynaShopPlugin.getInstance().getLogger().severe("Erreur dans le callback d'erreur: " + ex.getMessage());
-            //         }
-            //     });
-            // }
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                List<String> visitedItems = new ArrayList<>();
+                return calculatePrice(shopID, itemID, item, typePrice, visitedItems);
+            } catch (Exception e) {
+                DynaShopPlugin.getInstance().getLogger().warning("Erreur lors du calcul du prix pour " + shopID + ":" + itemID + ": " + e.getMessage());
+                return 10.0; // Valeur par défaut en cas d'erreur
+            }
+        }, recipeExecutor).thenAcceptAsync(price -> {
+            Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> {
+                try {
+                    callback.accept(price);
+                } catch (Exception e) {
+                    DynaShopPlugin.getInstance().getLogger().warning("Erreur dans le callback de prix: " + e.getMessage());
+                }
+            });
         });
     }
 
@@ -215,6 +579,7 @@ public class PriceRecipe {
 
     //     return ingredients;
     // }
+    
     public List<ItemStack> getIngredients(String shopID, String itemID, ItemStack item) {
         List<ItemStack> ingredients = new ArrayList<>();
         RecipeType typeRecipe = DynaShopPlugin.getInstance().getShopConfigManager().getTypeRecipe(shopID, itemID);

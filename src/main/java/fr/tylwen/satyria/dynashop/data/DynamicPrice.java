@@ -5,7 +5,7 @@ import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 public class DynamicPrice {
 
     private double buyPrice, sellPrice;
-    private final double minBuy, maxBuy, minSell, maxSell;
+    private double minBuy, maxBuy, minSell, maxSell;
     private final double growthBuy, decayBuy, growthSell, decaySell;
     static final double MIN_MARGIN = 0.01; // Marge minimale entre buyPrice et sellPrice
     private boolean isFromRecipe;
@@ -216,6 +216,42 @@ public class DynamicPrice {
     }
     public void setSellPrice(double sellPrice) {
         this.sellPrice = Math.max(minSell, Math.min(sellPrice, maxSell));
+    }
+    public void setMinBuyPrice(double minBuy) {
+        // if (minBuy > maxBuy) {
+        //     throw new IllegalArgumentException("minBuy ne peut pas être supérieur à maxBuy");
+        // }
+        this.minBuy = minBuy;
+        // if (buyPrice < minBuy) {
+        //     buyPrice = minBuy;
+        // }
+    }
+    public void setMaxBuyPrice(double maxBuy) {
+        // if (maxBuy < minBuy) {
+        //     throw new IllegalArgumentException("maxBuy ne peut pas être inférieur à minBuy");
+        // }
+        this.maxBuy = maxBuy;
+        // if (buyPrice > maxBuy) {
+        //     buyPrice = maxBuy;
+        // }
+    }
+    public void setMinSellPrice(double minSell) {
+        // if (minSell > maxSell) {
+        //     throw new IllegalArgumentException("minSell ne peut pas être supérieur à maxSell");
+        // }
+        this.minSell = minSell;
+        // if (sellPrice < minSell) {
+        //     sellPrice = minSell;
+        // }
+    }
+    public void setMaxSellPrice(double maxSell) {
+        // if (maxSell < minSell) {
+        //     throw new IllegalArgumentException("maxSell ne peut pas être inférieur à minSell");
+        // }
+        this.maxSell = maxSell;
+        // if (sellPrice > maxSell) {
+        //     sellPrice = maxSell;
+        // }
     }
 
     // — Getters —
