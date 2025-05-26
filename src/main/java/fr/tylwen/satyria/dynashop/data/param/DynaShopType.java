@@ -5,7 +5,8 @@ public enum DynaShopType {
     DYNAMIC,    // Dynamique (prix évolutif)
     RECIPE,     // Basé sur une recette
     STOCK,       // Basé sur le stock
-    STATIC_STOCK // Basé sur le stock statique
+    STATIC_STOCK, // Basé sur le stock statique
+    UNKNOWN      // Type inconnu
 ;
 
     public DynaShopType orElse(DynaShopType other) {

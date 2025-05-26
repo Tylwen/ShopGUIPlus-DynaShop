@@ -10,6 +10,7 @@ package fr.tylwen.satyria.dynashop;
 
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.event.HandlerList;
 // import org.bukkit.event.HandlerList;
 // import org.bukkit.configuration.ConfigurationSection;
 // import org.bukkit.configuration.file.YamlConfiguration;
@@ -383,10 +384,10 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
             batchDatabaseUpdater.shutdown();
         }
 
-        // if (dynaShopListener != null) {
-        //     // HandlerList.unregisterAll(dynaShopListener);
-        // }
-        this.dynaShopListener = null;
+        if (dynaShopListener != null) {
+            HandlerList.unregisterAll(this.dynaShopListener);
+        }
+        // this.dynaShopListener = null;
 
         // if (packetInterceptor != null) {
         //     // packetInterceptor.clearCache();

@@ -339,57 +339,64 @@ public class PriceRecipe {
                 continue;
             }
             
-            // // Récupérer toutes les données de l'ingrédient en une fois
-            // String ingredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
-            // String ingredientShopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
-            String ingredientShopID = null;
-            String ingredientID = null;
+            // // // Récupérer toutes les données de l'ingrédient en une fois
+            // // String ingredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
+            // // String ingredientShopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
+            // String ingredientShopID = null;
+            // String ingredientID = null;
 
-            try {
-                // Shop shop = ShopGuiPlusApi.getShop(shopID);
-                // ShopItem shopItem = shop.getShopItem(itemID);
-                // if (shopItem != null) {
-                //     ingredientID = shopItem.getId();
-                //     ingredientShopID = shop.getId();
-                // }
-                // ingredientShopID = shop.getId();
-                // ingredientID = shop.getShopItem(itemID).getId();
+            // try {
+            //     // Shop shop = ShopGuiPlusApi.getShop(shopID);
+            //     // ShopItem shopItem = shop.getShopItem(itemID);
+            //     // if (shopItem != null) {
+            //     //     ingredientID = shopItem.getId();
+            //     //     ingredientShopID = shop.getId();
+            //     // }
+            //     // ingredientShopID = shop.getId();
+            //     // ingredientID = shop.getShopItem(itemID).getId();
                 
-                // if (ingredientID == null) {
-                //     ingredientShopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
-                //     ingredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
-                // }
-                // D'abord, essayer de trouver l'ingrédient dans le shop courant
-                Shop currentShop = ShopGuiPlusApi.getShop(shopID);
-                for (ShopItem item2 : currentShop.getShopItems()) {
-                    if (item2.getItem().getType() == ingredient.getType()) {
-                        ingredientID = item2.getId();
-                        ingredientShopID = shopID;
-                        break;
-                    }
-                }
+            //     // if (ingredientID == null) {
+            //     //     ingredientShopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
+            //     //     ingredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
+            //     // }
+            //     // D'abord, essayer de trouver l'ingrédient dans le shop courant
+            //     Shop currentShop = ShopGuiPlusApi.getShop(shopID);
+            //     for (ShopItem item2 : currentShop.getShopItems()) {
+            //         if (item2.getItem().getType() == ingredient.getType()) {
+            //             ingredientID = item2.getId();
+            //             ingredientShopID = shopID;
+            //             break;
+            //         }
+            //     }
                 
-                // Si non trouvé dans le shop courant, chercher dans tous les shops
-                if (ingredientID == null) {
-                    ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(ingredient);
-                    if (shopItem != null) {
-                        ingredientID = shopItem.getId();
-                        ingredientShopID = shopItem.getShop().getId();
-                    }
-                }
-            } catch (Exception e) {
-                ingredientShopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
-                ingredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
-            }
+            //     // Si non trouvé dans le shop courant, chercher dans tous les shops
+            //     if (ingredientID == null) {
+            //         ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(ingredient);
+            //         if (shopItem != null) {
+            //             ingredientID = shopItem.getId();
+            //             ingredientShopID = shopItem.getShop().getId();
+            //         }
+            //     }
+            // } catch (Exception e) {
+            //     ingredientShopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
+            //     ingredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
+            // }
 
-            if (ingredientID == null || ingredientShopID == null) {
+            // if (ingredientID == null || ingredientShopID == null) {
+            //     DynaShopPlugin.getInstance().getLogger().warning("ID ou ShopID manquant pour l'ingrédient " + ingredient);
+            //     continue; // Passer à l'ingrédient suivant si l'ID est manquant
+            // // } else {
+            // //     DynaShopPlugin.getInstance().getLogger().info("ID de l'ingrédient: " + ingredientID + ", ShopID: " + ingredientShopID);
+            // //     // DynaShopPlugin.getInstance().getLogger().info("Ingrédient: " + ingredient);
+            // //     // DynaShopPlugin.getInstance().getLogger().info("ItemStack: " + item);
+            // }
+            FoundItem foundItem = findItemInShops(shopID, ingredient);
+            if (!foundItem.isFound()) {
                 DynaShopPlugin.getInstance().getLogger().warning("ID ou ShopID manquant pour l'ingrédient " + ingredient);
                 continue; // Passer à l'ingrédient suivant si l'ID est manquant
-            // } else {
-            //     DynaShopPlugin.getInstance().getLogger().info("ID de l'ingrédient: " + ingredientID + ", ShopID: " + ingredientShopID);
-            //     // DynaShopPlugin.getInstance().getLogger().info("Ingrédient: " + ingredient);
-            //     // DynaShopPlugin.getInstance().getLogger().info("ItemStack: " + item);
             }
+            String ingredientID = foundItem.getItemID();
+            String ingredientShopID = foundItem.getShopID();
 
             // Éviter les boucles infinies
             if (visitedItems.contains(ingredientID)) {
@@ -1154,154 +1161,175 @@ public class PriceRecipe {
         return ingredients;
     }
 
-    private double getIngredientPrice(String shopID, ItemStack ingredient, String typePrice, List<String> visitedItems) {
-        // String itemID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
-        // String shopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
-        String ingredientID = null;
-        String ingredientShopID = null;
-        try {
-            Shop currentShop = ShopGuiPlusApi.getShop(shopID);
-            for (ShopItem item2 : currentShop.getShopItems()) {
-                if (item2.getItem().getType() == ingredient.getType()) {
-                    ingredientID = item2.getId();
-                    ingredientShopID = currentShop.getId();
-                    break;
-                }
-            }
-            
-            // Si non trouvé dans le shop courant, chercher dans tous les shops
-            if (ingredientID == null) {
-                ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(ingredient);
-                if (shopItem != null) {
-                    ingredientID = shopItem.getId();
-                    ingredientShopID = shopItem.getShop().getId();
-                }
-            }
-        } catch (Exception e) {
-            ingredientShopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
-            ingredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
-        }
+    // private double getIngredientPrice(String shopID, ItemStack ingredient, String typePrice, List<String> visitedItems) {
+    //     // String itemID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
+    //     // String shopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
+    //     FoundItem foundItem = findItemInShops(shopID, ingredient);
+    //     if (!foundItem.isFound()) {
+    //         DynaShopPlugin.getInstance().getLogger().warning("Impossible de trouver l'ingrédient " + ingredient + " dans le shop " + shopID);
+    //         return 0; // Retourner 0 si l'ingrédient n'est pas trouvé
+    //     }
 
-        if (ingredientID == null || ingredientShopID == null) {
-            DynaShopPlugin.getInstance().getLogger().warning("ID ou ShopID manquant pour l'ingrédient " + ingredient);
-            return 0; // Passer à l'ingrédient suivant si l'ID est manquant
+    //     String ingredientID = foundItem.getItemID();
+    //     String ingredientShopID = foundItem.getShopID();
+
+    //     // Vérifier si l'item a déjà été visité
+    //     if (visitedItems.contains(ingredientID)) {
+    //         // DynaShopPlugin.getInstance().getLogger().warning("Boucle détectée pour l'item : " + ingredientID);
+    //         return 0.0; // Retourner 0 pour éviter une boucle infinie
+    //     }
+
+    //     // Ajouter l'item à la liste des visités
+    //     visitedItems.add(ingredientID);
+
+    //     // // 1. Vérifier le cache si disponible
+    //     // Double cachedPrice = checkCache(shopID, itemID, typePrice);
+    //     // if (cachedPrice != null) {
+    //     //     return cachedPrice;
+    //     // }
+    
+    //     // Vérifier le type d'item
+    //     DynaShopType itemType = DynaShopPlugin.getInstance().getShopConfigManager().getTypeDynaShop(ingredientShopID, ingredientID);
+
+    //     // // Si l'ingrédient est un item avec stock, prendre en compte sa valeur de stock
+    //     // if (itemType == DynaShopType.STOCK) {
+    //     //     DynaShopPlugin.getInstance().getLogger().info("Calcul du prix de l'ingrédient " + itemID + " avec stock.");
+    //     //     // Récupérer la valeur de stock actuelle
+    //     //     Optional<Integer> stockOptional = DynaShopPlugin.getInstance().getItemDataManager().getStock(shopID, itemID);
+    //     //     if (stockOptional.isPresent()) {
+    //     //         DynaShopPlugin.getInstance().getLogger().info("Stock de l'ingrédient " + itemID + ": " + stockOptional.get());
+    //     //         int stock = stockOptional.get();
+                
+    //     //         // Récupérer les bornes de stock
+    //     //         int minStock = DynaShopPlugin.getInstance().getShopConfigManager()
+    //     //             .getItemValue(shopID, itemID, "stock.min", Integer.class).orElse(0);
+    //     //         int maxStock = DynaShopPlugin.getInstance().getShopConfigManager()
+    //     //             .getItemValue(shopID, itemID, "stock.max", Integer.class).orElse(1000);
+                
+    //     //         // Récupérer le prix de base
+    //     //         Optional<Double> basePrice;
+    //     //         if (typePrice.equals("buyPrice")) {
+    //     //             DynaShopPlugin.getInstance().getLogger().info("Calcul du prix d'achat de l'ingrédient " + itemID + " avec stock.");
+    //     //             basePrice = DynaShopPlugin.getInstance().getItemDataManager().getBuyPrice(shopID, itemID);
+    //     //             if (basePrice.isEmpty()) {
+    //     //                 DynaShopPlugin.getInstance().getLogger().info("Prix d'achat non trouvé dans la base de données, vérification de la configuration.");
+    //     //                 basePrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //     //                     .getItemValue(shopID, itemID, "buyPrice", Double.class);
+    //     //             }
+    //     //         } else { // sellPrice
+    //     //             DynaShopPlugin.getInstance().getLogger().info("Calcul du prix de vente de l'ingrédient " + itemID + " avec stock.");
+    //     //             basePrice = DynaShopPlugin.getInstance().getItemDataManager().getSellPrice(shopID, itemID);
+    //     //             if (basePrice.isEmpty()) {
+    //     //                 DynaShopPlugin.getInstance().getLogger().info("Prix de vente non trouvé dans la base de données, vérification de la configuration.");
+    //     //                 basePrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //     //                     .getItemValue(shopID, itemID, "sellPrice", Double.class);
+    //     //             }
+    //     //         }
+                
+    //     //         if (basePrice.isPresent()) {
+    //     //             DynaShopPlugin.getInstance().getLogger().info("Prix de base de l'ingrédient " + itemID + ": " + basePrice.get());
+    //     //             // Calculer le ratio de stock (entre 0 et 1)
+    //     //             double stockRatio = Math.max(0.0, Math.min(1.0, (double)(stock - minStock) / (maxStock - minStock)));
+                    
+    //     //             // Récupérer les bornes de prix
+    //     //             double minPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //     //                 .getItemValue(shopID, itemID, typePrice.replace("Price", "Dynamic.min"), Double.class)
+    //     //                 .orElse(basePrice.get() * 0.5);
+    //     //             double maxPrice = DynaShopPlugin.getInstance().getShopConfigManager()
+    //     //                 .getItemValue(shopID, itemID, typePrice.replace("Price", "Dynamic.max"), Double.class)
+    //     //                 .orElse(basePrice.get() * 2.0);
+                    
+    //     //             // Même formule que dans adjustPricesBasedOnStock
+    //     //             double price = maxPrice - (maxPrice - minPrice) * stockRatio;
+                    
+    //     //             DynaShopPlugin.getInstance().getLogger().info("Prix de l'ingrédient " + itemID + " ajusté par stock: " + price + " (stock: " + stock + ")");
+    //     //             return price;
+    //     //         }
+    //     //     }
+    //     // }
+        
+    //     // Si l'ingrédient est un item avec stock, utiliser PriceStock
+    //     if (itemType == DynaShopType.STOCK) {
+    //         return DynaShopPlugin.getInstance().getPriceStock().calculatePrice(ingredientShopID, ingredientID, typePrice);
+    //     }
+        
+    //     // Pour les items en mode RECIPE
+    //     if (itemType == DynaShopType.RECIPE) {
+    //         ItemStack itemStack = ShopGuiPlusApi.getShop(ingredientShopID).getShopItem(ingredientID).getItem();
+    //         if (itemStack != null) {
+    //             // Calculer le prix via la recette de l'ingrédient
+    //             return calculatePrice(ingredientShopID, ingredientID, itemStack, typePrice, visitedItems);
+    //         }
+    //     }
+
+    //     // Pour les autres types d'items, continuer avec la logique existante
+    //     Optional<Double> price = Optional.empty();
+
+    //     // Récupérer le prix d'achat depuis la base de données
+    //     if (!typePrice.contains(".")) {
+    //         price = DynaShopPlugin.getInstance().getItemDataManager().getPrice(ingredientShopID, ingredientID, typePrice);
+    //     // } else {
+    //     //     DynaShopPlugin.getInstance().getLogger().warning("Le type de prix " + typePrice + " n'est pas valide pour l'item " + itemID);
+    //     }
+    
+    //     // Si le prix n'est pas trouvé dans la base de données, chercher dans les fichiers de configuration
+    //     if (price.isEmpty()) {
+    //         price = DynaShopPlugin.getInstance().getShopConfigManager().getItemValue(ingredientShopID, ingredientID, typePrice, Double.class);
+    //     }
+
+    //     // Si aucun prix n'est trouvé, vérifier si l'item a une recette
+    //     if (price.isEmpty()) {
+    //         ItemStack itemStack = ShopGuiPlusApi.getShop(ingredientShopID).getShopItem(ingredientID).getItem();
+    //         if (itemStack != null) {
+    //             // Calculer le prix via la recette de l'ingrédient
+    //             return calculatePrice(ingredientShopID, ingredientID, itemStack, typePrice, visitedItems);
+    //         }
+    //     }
+    
+    //     // Retourner le prix trouvé ou une valeur par défaut
+    //     return price.orElse(10.0); // 10.0 est une valeur par défaut si aucun prix n'est trouvé
+    // }
+    private double getIngredientPrice(String shopID, ItemStack ingredient, String typePrice, List<String> visitedItems) {
+        // Trouver l'item dans les shops
+        FoundItem foundItem = findItemInShops(shopID, ingredient);
+        if (!foundItem.isFound()) {
+            DynaShopPlugin.getInstance().getLogger().warning("Impossible de trouver l'ingrédient " + ingredient + " dans le shop " + shopID);
+            return 0; // Retourner 0 si l'ingrédient n'est pas trouvé
         }
         
-        // Vérifier si l'item a déjà été visité
+        String ingredientID = foundItem.getItemID();
+        String ingredientShopID = foundItem.getShopID();
+        
+        // Vérifier si l'item a déjà été visité pour éviter les boucles infinies
         if (visitedItems.contains(ingredientID)) {
-            // DynaShopPlugin.getInstance().getLogger().warning("Boucle détectée pour l'item : " + ingredientID);
             return 0.0; // Retourner 0 pour éviter une boucle infinie
         }
-
-        // Ajouter l'item à la liste des visités
         visitedItems.add(ingredientID);
-
-        // // 1. Vérifier le cache si disponible
-        // Double cachedPrice = checkCache(shopID, itemID, typePrice);
-        // if (cachedPrice != null) {
-        //     return cachedPrice;
-        // }
-    
-        // Vérifier le type d'item
-        DynaShopType itemType = DynaShopPlugin.getInstance().getShopConfigManager().getTypeDynaShop(ingredientShopID, ingredientID);
-
-        // // Si l'ingrédient est un item avec stock, prendre en compte sa valeur de stock
-        // if (itemType == DynaShopType.STOCK) {
-        //     DynaShopPlugin.getInstance().getLogger().info("Calcul du prix de l'ingrédient " + itemID + " avec stock.");
-        //     // Récupérer la valeur de stock actuelle
-        //     Optional<Integer> stockOptional = DynaShopPlugin.getInstance().getItemDataManager().getStock(shopID, itemID);
-        //     if (stockOptional.isPresent()) {
-        //         DynaShopPlugin.getInstance().getLogger().info("Stock de l'ingrédient " + itemID + ": " + stockOptional.get());
-        //         int stock = stockOptional.get();
-                
-        //         // Récupérer les bornes de stock
-        //         int minStock = DynaShopPlugin.getInstance().getShopConfigManager()
-        //             .getItemValue(shopID, itemID, "stock.min", Integer.class).orElse(0);
-        //         int maxStock = DynaShopPlugin.getInstance().getShopConfigManager()
-        //             .getItemValue(shopID, itemID, "stock.max", Integer.class).orElse(1000);
-                
-        //         // Récupérer le prix de base
-        //         Optional<Double> basePrice;
-        //         if (typePrice.equals("buyPrice")) {
-        //             DynaShopPlugin.getInstance().getLogger().info("Calcul du prix d'achat de l'ingrédient " + itemID + " avec stock.");
-        //             basePrice = DynaShopPlugin.getInstance().getItemDataManager().getBuyPrice(shopID, itemID);
-        //             if (basePrice.isEmpty()) {
-        //                 DynaShopPlugin.getInstance().getLogger().info("Prix d'achat non trouvé dans la base de données, vérification de la configuration.");
-        //                 basePrice = DynaShopPlugin.getInstance().getShopConfigManager()
-        //                     .getItemValue(shopID, itemID, "buyPrice", Double.class);
-        //             }
-        //         } else { // sellPrice
-        //             DynaShopPlugin.getInstance().getLogger().info("Calcul du prix de vente de l'ingrédient " + itemID + " avec stock.");
-        //             basePrice = DynaShopPlugin.getInstance().getItemDataManager().getSellPrice(shopID, itemID);
-        //             if (basePrice.isEmpty()) {
-        //                 DynaShopPlugin.getInstance().getLogger().info("Prix de vente non trouvé dans la base de données, vérification de la configuration.");
-        //                 basePrice = DynaShopPlugin.getInstance().getShopConfigManager()
-        //                     .getItemValue(shopID, itemID, "sellPrice", Double.class);
-        //             }
-        //         }
-                
-        //         if (basePrice.isPresent()) {
-        //             DynaShopPlugin.getInstance().getLogger().info("Prix de base de l'ingrédient " + itemID + ": " + basePrice.get());
-        //             // Calculer le ratio de stock (entre 0 et 1)
-        //             double stockRatio = Math.max(0.0, Math.min(1.0, (double)(stock - minStock) / (maxStock - minStock)));
-                    
-        //             // Récupérer les bornes de prix
-        //             double minPrice = DynaShopPlugin.getInstance().getShopConfigManager()
-        //                 .getItemValue(shopID, itemID, typePrice.replace("Price", "Dynamic.min"), Double.class)
-        //                 .orElse(basePrice.get() * 0.5);
-        //             double maxPrice = DynaShopPlugin.getInstance().getShopConfigManager()
-        //                 .getItemValue(shopID, itemID, typePrice.replace("Price", "Dynamic.max"), Double.class)
-        //                 .orElse(basePrice.get() * 2.0);
-                    
-        //             // Même formule que dans adjustPricesBasedOnStock
-        //             double price = maxPrice - (maxPrice - minPrice) * stockRatio;
-                    
-        //             DynaShopPlugin.getInstance().getLogger().info("Prix de l'ingrédient " + itemID + " ajusté par stock: " + price + " (stock: " + stock + ")");
-        //             return price;
-        //         }
-        //     }
-        // }
         
-        // Si l'ingrédient est un item avec stock, utiliser PriceStock
-        if (itemType == DynaShopType.STOCK) {
-            return DynaShopPlugin.getInstance().getPriceStock().calculatePrice(ingredientShopID, ingredientID, typePrice);
+        // Utiliser getOrLoadPrice pour obtenir toutes les informations de prix
+        DynamicPrice price = DynaShopPlugin.getInstance().getDynaShopListener()
+            .getOrLoadPrice(ingredientShopID, ingredientID, ingredient);
+        
+        if (price == null) {
+            return 10.0; // Valeur par défaut en cas d'erreur
         }
         
-        // Pour les items en mode RECIPE
-        if (itemType == DynaShopType.RECIPE) {
-            ItemStack itemStack = ShopGuiPlusApi.getShop(ingredientShopID).getShopItem(ingredientID).getItem();
-            if (itemStack != null) {
-                // Calculer le prix via la recette de l'ingrédient
-                return calculatePrice(ingredientShopID, ingredientID, itemStack, typePrice, visitedItems);
-            }
+        // Retourner le prix demandé selon le type
+        if (typePrice.equals("buyPrice")) {
+            return price.getBuyPrice();
+        } else if (typePrice.equals("sellPrice")) {
+            return price.getSellPrice();
+        } else if (typePrice.equals("buyDynamic.min")) {
+            return price.getMinBuyPrice();
+        } else if (typePrice.equals("buyDynamic.max")) {
+            return price.getMaxBuyPrice();
+        } else if (typePrice.equals("sellDynamic.min")) {
+            return price.getMinSellPrice();
+        } else if (typePrice.equals("sellDynamic.max")) {
+            return price.getMaxSellPrice();
         }
-
-        // Pour les autres types d'items, continuer avec la logique existante
-        Optional<Double> price = Optional.empty();
-
-        // Récupérer le prix d'achat depuis la base de données
-        if (!typePrice.contains(".")) {
-            price = DynaShopPlugin.getInstance().getItemDataManager().getPrice(ingredientShopID, ingredientID, typePrice);
-        // } else {
-        //     DynaShopPlugin.getInstance().getLogger().warning("Le type de prix " + typePrice + " n'est pas valide pour l'item " + itemID);
-        }
-    
-        // Si le prix n'est pas trouvé dans la base de données, chercher dans les fichiers de configuration
-        if (price.isEmpty()) {
-            price = DynaShopPlugin.getInstance().getShopConfigManager().getItemValue(ingredientShopID, ingredientID, typePrice, Double.class);
-        }
-
-        // Si aucun prix n'est trouvé, vérifier si l'item a une recette
-        if (price.isEmpty()) {
-            ItemStack itemStack = ShopGuiPlusApi.getShop(ingredientShopID).getShopItem(ingredientID).getItem();
-            if (itemStack != null) {
-                // Calculer le prix via la recette de l'ingrédient
-                return calculatePrice(ingredientShopID, ingredientID, itemStack, typePrice, visitedItems);
-            }
-        }
-    
-        // Retourner le prix trouvé ou une valeur par défaut
-        return price.orElse(10.0); // 10.0 est une valeur par défaut si aucun prix n'est trouvé
+        
+        return 10.0; // Valeur par défaut si le type de prix n'est pas reconnu
     }
 
     // // Méthodes auxiliaires extraites:
@@ -1365,35 +1393,13 @@ public class PriceRecipe {
         // Récupérer l'ID de l'item dans le shop
         // String itemID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
         // String shopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
-        String ingredientID = null;
-        String ingredientShopID = null;
-        try {
-            Shop currentShop = ShopGuiPlusApi.getShop(shopID);
-            for (ShopItem item2 : currentShop.getShopItems()) {
-                if (item2.getItem().getType() == ingredient.getType()) {
-                    ingredientID = item2.getId();
-                    ingredientShopID = currentShop.getId();
-                    break;
-                }
-            }
-            
-            // Si non trouvé dans le shop courant, chercher dans tous les shops
-            if (ingredientID == null) {
-                ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(ingredient);
-                if (shopItem != null) {
-                    ingredientID = shopItem.getId();
-                    ingredientShopID = shopItem.getShop().getId();
-                }
-            }
-        } catch (Exception e) {
-            ingredientShopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
-            ingredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
+        FoundItem foundItem = findItemInShops(shopID, ingredient);
+        if (!foundItem.isFound()) {
+            DynaShopPlugin.getInstance().getLogger().warning("Impossible de trouver l'ingrédient " + ingredient + " dans le shop " + shopID);
+            return 0; // Retourner 0 si l'ingrédient n'est pas trouvé
         }
-
-        if (ingredientID == null || ingredientShopID == null) {
-            DynaShopPlugin.getInstance().getLogger().warning("ID ou ShopID manquant pour l'ingrédient " + ingredient);
-            return 0; // Passer à l'ingrédient suivant si l'ID est manquant
-        }
+        String ingredientID = foundItem.getItemID();
+        String ingredientShopID = foundItem.getShopID();
 
         // Vérifier si l'item a déjà été visité
         if (visitedItems.contains(ingredientID)) {
@@ -1415,35 +1421,13 @@ public class PriceRecipe {
         // Récupérer l'ID de l'item dans le shop
         // String itemID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
         // String shopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
-        String ingredientID = null;
-        String ingredientShopID = null;
-        try {
-            Shop currentShop = ShopGuiPlusApi.getShop(shopID);
-            for (ShopItem item2 : currentShop.getShopItems()) {
-                if (item2.getItem().getType() == ingredient.getType()) {
-                    ingredientID = item2.getId();
-                    ingredientShopID = currentShop.getId();
-                    break;
-                }
-            }
-            
-            // Si non trouvé dans le shop courant, chercher dans tous les shops
-            if (ingredientID == null) {
-                ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(ingredient);
-                if (shopItem != null) {
-                    ingredientID = shopItem.getId();
-                    ingredientShopID = shopItem.getShop().getId();
-                }
-            }
-        } catch (Exception e) {
-            ingredientShopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
-            ingredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
+        FoundItem foundItem = findItemInShops(shopID, ingredient);
+        if (!foundItem.isFound()) {
+            DynaShopPlugin.getInstance().getLogger().warning("Impossible de trouver l'ingrédient " + ingredient + " dans le shop " + shopID);
+            return 0; // Retourner 0 si l'ingrédient n'est pas trouvé
         }
-
-        if (ingredientID == null || ingredientShopID == null) {
-            DynaShopPlugin.getInstance().getLogger().warning("ID ou ShopID manquant pour l'ingrédient " + ingredient);
-            return 0; // Passer à l'ingrédient suivant si l'ID est manquant
-        }
+        String ingredientID = foundItem.getItemID();
+        String ingredientShopID = foundItem.getShopID();
 
         // Vérifier si l'item a déjà été visité
         if (visitedItems.contains(ingredientID)) {
@@ -1478,35 +1462,13 @@ public class PriceRecipe {
         // Récupérer l'ID de l'item dans le shop
         // String itemID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
         // String shopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
-        String ingredientID = null;
-        String ingredientShopID = null;
-        try {
-            Shop currentShop = ShopGuiPlusApi.getShop(shopID);
-            for (ShopItem item2 : currentShop.getShopItems()) {
-                if (item2.getItem().getType() == ingredient.getType()) {
-                    ingredientID = item2.getId();
-                    ingredientShopID = currentShop.getId();
-                    break;
-                }
-            }
-            
-            // Si non trouvé dans le shop courant, chercher dans tous les shops
-            if (ingredientID == null) {
-                ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(ingredient);
-                if (shopItem != null) {
-                    ingredientID = shopItem.getId();
-                    ingredientShopID = shopItem.getShop().getId();
-                }
-            }
-        } catch (Exception e) {
-            ingredientShopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
-            ingredientID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getId();
+        FoundItem foundItem = findItemInShops(shopID, ingredient);
+        if (!foundItem.isFound()) {
+            DynaShopPlugin.getInstance().getLogger().warning("Impossible de trouver l'ingrédient " + ingredient + " dans le shop " + shopID);
+            return DynaShopType.UNKNOWN; // Retourner un type inconnu si l'ingrédient n'est pas trouvé
         }
-
-        if (ingredientID == null || ingredientShopID == null) {
-            DynaShopPlugin.getInstance().getLogger().warning("ID ou ShopID manquant pour l'ingrédient " + ingredient);
-            return DynaShopType.NONE; // Passer à l'ingrédient suivant si l'ID est manquant
-        }
+        String ingredientID = foundItem.getItemID();
+        String ingredientShopID = foundItem.getShopID();
         
         // Récupérer le type d'item depuis la configuration
         return DynaShopPlugin.getInstance().getShopConfigManager().getTypeDynaShop(ingredientShopID, ingredientID);
