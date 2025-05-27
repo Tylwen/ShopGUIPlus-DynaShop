@@ -46,25 +46,31 @@ public class WaitForShopsTask implements Runnable {
     private final DynaShopPlugin plugin;
     private boolean isTasksInitialized = false;
     private final DataConfig dataConfig;
-    private int taskId = -1; // Stocker l'ID ici
+    // private int taskId = -1; // Stocker l'ID ici
+    private BukkitTask selfTask; // Référence directe à la tâche
 
     public WaitForShopsTask(DynaShopPlugin plugin) {
         this.plugin = plugin;
         this.dataConfig = plugin.getDataConfig();
     }
+    
+    // Méthode pour définir la référence à la tâche
+    public void setSelfTask(BukkitTask task) {
+        this.selfTask = task;
+    }
 
     @Override
     public void run() {
         try {
-            // Si c'est la première exécution, essayer de récupérer notre propre ID
-            if (taskId == -1) {
-                for (BukkitTask task : plugin.getServer().getScheduler().getPendingTasks()) {
-                    if (task.getOwner() == plugin && task.getTaskId() == task.getTaskId()) {
-                        taskId = task.getTaskId();
-                        break;
-                    }
-                }
-            }
+            // // Si c'est la première exécution, essayer de récupérer notre propre ID
+            // if (taskId == -1) {
+            //     for (BukkitTask task : plugin.getServer().getScheduler().getPendingTasks()) {
+            //         if (task.getOwner() == plugin && task.getTaskId() == task.getTaskId()) {
+            //             taskId = task.getTaskId();
+            //             break;
+            //         }
+            //     }
+            // }
             // Vérifier d'abord si ShopGUIPlus est correctement initialisé
             if (ShopGuiPlusApi.getPlugin() == null) {
                 plugin.getLogger().severe("ShopGUIPlus is not initialized. Try again in 5 seconds...");
@@ -88,10 +94,18 @@ public class WaitForShopsTask implements Runnable {
                 isTasksInitialized = true;
                 
                 plugin.getLogger().info("Shops loaded successfully! All dependent tasks have been started.");
-                // Annuler cette tâche une fois que tout est initialisé
-                if (taskId != -1) {
-                    plugin.getServer().getScheduler().cancelTask(taskId);
-                    // plugin.getLogger().info("WaitForShopsTask cancelled successfully (ID: " + taskId + ")");
+                // // Annuler cette tâche une fois que tout est initialisé
+                // if (taskId != -1) {
+                //     plugin.getServer().getScheduler().cancelTask(taskId);
+                //     // plugin.getLogger().info("WaitForShopsTask cancelled successfully (ID: " + taskId + ")");
+                // }
+                
+                // Annuler la tâche en utilisant la référence directe
+                if (selfTask != null) {
+                    selfTask.cancel();
+                    plugin.getLogger().info("WaitForShopsTask cancelled successfully");
+                } else {
+                    plugin.getLogger().warning("Could not cancel WaitForShopsTask: reference is null");
                 }
             }
             

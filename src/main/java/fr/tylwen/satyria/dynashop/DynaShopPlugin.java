@@ -1,5 +1,8 @@
 package fr.tylwen.satyria.dynashop;
 
+import org.bstats.bukkit.Metrics;
+import org.bstats.charts.DrilldownPie;
+
 // import net.brcdev.shopgui.ShopGuiPlusApi;
 // import net.brcdev.shopgui.config.Lang;
 // import net.brcdev.shopgui.event.ShopPreTransactionEvent;
@@ -19,6 +22,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
 // import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 
 import fr.tylwen.satyria.dynashop.command.DynaShopCommand;
 import fr.tylwen.satyria.dynashop.command.LimitResetCommand;
@@ -34,6 +38,7 @@ import fr.tylwen.satyria.dynashop.data.RecipeCacheManager;
 // import fr.tylwen.satyria.dynashop.config.Lang;
 // import fr.tylwen.satyria.dynashop.config.Settings;
 import fr.tylwen.satyria.dynashop.data.ShopConfigManager;
+import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.database.BatchDatabaseUpdater;
 import fr.tylwen.satyria.dynashop.database.DataManager;
 import fr.tylwen.satyria.dynashop.database.ItemDataManager;
@@ -59,11 +64,14 @@ import net.brcdev.shopgui.ShopGuiPlusApi;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 // import java.util.Map;
 // import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 
 // import javax.xml.crypto.Data;
@@ -221,6 +229,73 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         init();
         // load();
         hookIntoShopGUIPlus();
+
+        Metrics metrics = new Metrics(this, 25992); // 25992 est l'ID de DynaShop dans bStats
+        // Ajout d'un nouveau DrilldownPie pour les types d'items
+        metrics.addCustomChart(new DrilldownPie("type_dynashop_used", () -> {
+            Map<String, Map<String, Integer>> map = new HashMap<>();
+            Map<String, Integer> typesMap = new HashMap<>();
+            
+            // Compter chaque type d'item
+            try {
+                int countStock = 0;
+                int countRecipe = 0;
+                int countDynamic = 0;
+                int countStaticStock = 0;
+                int countNone = 0;
+                
+                // Parcourir tous les shops disponibles
+                for (String shopId : ShopGuiPlusApi.getPlugin().getShopManager().getShops().stream()
+                        .map(shop -> shop.getId())
+                        .collect(Collectors.toList())) {
+                    
+                    // Parcourir tous les items dans ce shop
+                    for (net.brcdev.shopgui.shop.item.ShopItem shopItem : 
+                            ShopGuiPlusApi.getShop(shopId).getShopItems()) {
+                        
+                        // Obtenir le type de l'item
+                        DynaShopType type = shopConfigManager.getTypeDynaShop(shopId, shopItem.getId());
+                        
+                        // Incrémenter le compteur approprié
+                        switch (type) {
+                            case STOCK:
+                                countStock++;
+                                break;
+                            case RECIPE:
+                                countRecipe++;
+                                break;
+                            case DYNAMIC:
+                                countDynamic++;
+                                break;
+                            case STATIC_STOCK:
+                                countStaticStock++;
+                                break;
+                            case NONE:
+                            default:
+                                countNone++;
+                                break;
+                        }
+                    }
+                }
+                
+                // Ajouter les résultats à la map
+                if (countStock > 0) typesMap.put("STOCK", countStock);
+                if (countRecipe > 0) typesMap.put("RECIPE", countRecipe);
+                if (countDynamic > 0) typesMap.put("DYNAMIC", countDynamic);
+                if (countStaticStock > 0) typesMap.put("STATIC_STOCK", countStaticStock);
+                if (countNone > 0) typesMap.put("NONE", countNone);
+                
+            } catch (Exception e) {
+                // En cas d'erreur, ajouter une entrée d'erreur
+                typesMap.put("Error", 1);
+                getLogger().warning("Erreur lors de la collecte des statistiques : " + e.getMessage());
+            }
+            
+            // Créer la structure finale du DrilldownPie
+            map.put("Item Types", typesMap);
+            return map;
+        }));
+
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             // new DynaShopExpansion(this.itemDataManager, this.shopConfigManager, this.priceRecipe).register();
             // new DynaShopExpansion(this).register();
@@ -253,7 +328,10 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         // ExecutorService sharedExecutor = Executors.newFixedThreadPool(3);
         // Planification des tâches
         // getServer().getScheduler().runTaskTimerAsynchronously(this, new ReloadDatabaseTask(this), 0L, 20L * 60L * 10L); // Toutes les 10 minutes
-        this.waitForShopsTaskId = getServer().getScheduler().runTaskTimer(this, new WaitForShopsTask(this), 0L, 20L * 5L).getTaskId(); // Toutes les 5 secondes
+        // this.waitForShopsTaskId = getServer().getScheduler().runTaskTimer(this, new WaitForShopsTask(this), 0L, 20L * 5L).getTaskId(); // Toutes les 5 secondes
+        WaitForShopsTask waitTask = new WaitForShopsTask(this);
+        BukkitTask task = getServer().getScheduler().runTaskTimer(this, waitTask, 0L, 20L * 5L);
+        waitTask.setSelfTask(task);
         // getServer().getScheduler().runTaskTimerAsynchronously(this, new SavePricesTask(this), 20L * 60L * 5L, 20L * 60L * 5L); // Toutes les 5 minutes
         // Modifier cette ligne
         // getServer().getScheduler().runTaskTimerAsynchronously(this, new DynamicPricesTask(this), 0L, 20L * 60L * 1L);
