@@ -103,7 +103,7 @@ public class WaitForShopsTask implements Runnable {
                 // Annuler la tâche en utilisant la référence directe
                 if (selfTask != null) {
                     selfTask.cancel();
-                    plugin.getLogger().info("WaitForShopsTask cancelled successfully");
+                    // plugin.getLogger().info("WaitForShopsTask cancelled successfully");
                 } else {
                     plugin.getLogger().warning("Could not cancel WaitForShopsTask: reference is null");
                 }
@@ -139,5 +139,6 @@ public class WaitForShopsTask implements Runnable {
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, plugin::preloadPopularItems);
         
         // Autres tâches dépendantes...
+        plugin.getServer().getScheduler().runTask(plugin, plugin::setupMetrics);
     }
 }
