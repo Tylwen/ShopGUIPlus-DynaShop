@@ -384,441 +384,105 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         // Initialiser bStats pour la collecte de statistiques
         Metrics metrics = new Metrics(this, 25992); // 25992 est l'ID de DynaShop dans bStats
 
-        metrics.addCustomChart(new AdvancedPie("type_dynashop_used_2", () -> {
-            Map<String, Integer> map = new HashMap<>();
-            // Compter chaque type d'item
-            try {
-                for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
-                    for (ShopItem item : shop.getShopItems()) {
-                        DynaShopType type = shopConfigManager.getTypeDynaShop(shop.getId(), item.getId());
-                        String typeName = type.name();
-                        map.put(typeName, map.getOrDefault(typeName, 0) + 1);
-                    }
-                }
-            } catch (Exception e) {
-                getLogger().warning("Erreur lors de la collecte des statistiques : " + e.getMessage());
-            }
-            return map;
-        }));
+        // Map en cache pour stocker les résultats
+        final Map<String, Integer> cachedStatsMap = new HashMap<>();
+        // Timestamp de la dernière mise à jour
+        final long[] lastUpdate = {0L};
+        // Période de mise à jour en millisecondes (15 minutes)
+        final long updatePeriod = 15 * 60 * 1000;
 
-        // // Ajouter des graphiques personnalisés si nécessaire
-        // // metrics.addCustomChart(new SimplePie("example_chart", () -> "example_value"));
-        // // Ajout d'un nouveau DrilldownPie pour les types d'items
-        // metrics.addCustomChart(new DrilldownPie("type_dynashop_used", () -> {
-        //     Map<String, Map<String, Integer>> map = new HashMap<>();
-        //     Map<String, Integer> typesMap = new HashMap<>();
-            
-        //     // Compter chaque type d'item
-        //     try {
-        //         int countStock = 0;
-        //         int countRecipe = 0;
-        //         int countDynamic = 0;
-        //         int countStaticStock = 0;
-        //         int countNone = 0;
-                
-        //         // Parcourir tous les shops disponibles
-        //         for (String shopId : ShopGuiPlusApi.getPlugin().getShopManager().getShops().stream()
-        //                 .map(Shop::getId).toList()) {
-        //                 // .collect(Collectors.toList())) {
-                    
-        //             // Parcourir tous les items dans ce shop
-        //             for (ShopItem shopItem : ShopGuiPlusApi.getShop(shopId).getShopItems()) {
-                        
-        //                 // Obtenir le type de l'item
-        //                 DynaShopType type = shopConfigManager.getTypeDynaShop(shopId, shopItem.getId());
-                        
-        //                 // Incrémenter le compteur approprié
-        //                 switch (type) {
-        //                     case STOCK:
-        //                         countStock++;
-        //                         break;
-        //                     case RECIPE:
-        //                         countRecipe++;
-        //                         break;
-        //                     case DYNAMIC:
-        //                         countDynamic++;
-        //                         break;
-        //                     case STATIC_STOCK:
-        //                         countStaticStock++;
-        //                         break;
-        //                     case NONE:
-        //                     default:
-        //                         countNone++;
-        //                         break;
-        //                 }
-        //             }
-        //         }
-                
-        //         // Ajouter les résultats à la map
-        //         if (countStock > 0) typesMap.put("STOCK", countStock);
-        //         if (countRecipe > 0) typesMap.put("RECIPE", countRecipe);
-        //         if (countDynamic > 0) typesMap.put("DYNAMIC", countDynamic);
-        //         if (countStaticStock > 0) typesMap.put("STATIC_STOCK", countStaticStock);
-        //         if (countNone > 0) typesMap.put("NONE", countNone);
-                
-        //     } catch (Exception e) {
-        //         // En cas d'erreur, ajouter une entrée d'erreur
-        //         typesMap.put("Error", 1);
-        //         getLogger().warning("Erreur lors de la collecte des statistiques : " + e.getMessage());
-        //     }
-            
-        //     // // Créer la structure finale du DrilldownPie
-        //     // map.put("Item Types", typesMap);
-        //     return map;
-        // }));
-        // // Ajouter un graphique DrilldownPie pour les types d'items
-        // metrics.addCustomChart(new DrilldownPie("type_dynashop_used", () -> {
-        //     Map<String, Map<String, Integer>> map = new HashMap<>();
-        //     Map<String, Integer> entry = new HashMap<>();
-            
-        //     for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
-        //         for (ShopItem item : shop.getShopItems()) {
-        //             DynaShopType type = shopConfigManager.getTypeDynaShop(shop.getId(), item.getId());
-        //             String typeName = type.name();
-                    
-        //             // Incrémenter le compteur pour ce type
-        //             entry.put(typeName, entry.getOrDefault(typeName, 0) + 1);
-        //         }
-        //     }
-        //     map.put("Item Types", entry);
-        //     return map;
-        // }));
-
-        // Ajouter un graphique DrilldownPie pour les types d'items
-        metrics.addCustomChart(new DrilldownPie("type_dynashop_used", () -> {
-            Map<String, Map<String, Integer>> map = new HashMap<>();
-            Map<String, Integer> entry = new HashMap<>();
-            
-            for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
-                for (ShopItem item : shop.getShopItems()) {
-                    DynaShopType type = shopConfigManager.getTypeDynaShop(shop.getId(), item.getId());
-                    String typeName = type.name();
-                    
-                    // Incrémenter le compteur pour ce type
-                    entry.put(typeName, entry.getOrDefault(typeName, 0) + 1);
-                    // Ajouter l'entrée au map
-                    switch (type) {
-                      case DynaShopType.STOCK -> {
-                          map.putIfAbsent("Stock items", new HashMap<>());
-                          map.get("Stock items").put(typeName, entry.get(typeName));
-                      }
-                      case DynaShopType.STATIC_STOCK -> {
-                          map.putIfAbsent("Static stock items", new HashMap<>());
-                          map.get("Static stock items").put(typeName, entry.get(typeName));
-                      }
-                      case DynaShopType.RECIPE -> {
-                          map.putIfAbsent("Recipe items", new HashMap<>());
-                          map.get("Recipe items").put(typeName, entry.get(typeName));
-                      }
-                      case DynaShopType.DYNAMIC -> {
-                          map.putIfAbsent("Dynamic items", new HashMap<>());
-                          map.get("Dynamic items").put(typeName, entry.get(typeName));
-                      }
-                      default -> {
-                          map.putIfAbsent("Other items", new HashMap<>());
-                          map.get("Other items").put(typeName, entry.get(typeName));
-                      }
-                    }
-                }
-            }
-            // map.put("Item Types", entry);
-            return map;
-        }));
-        // // Ajouter un graphique DrilldownPie pour les types d'items
-        // metrics.addCustomChart(new DrilldownPie("type_dynashop_used", () -> {
-        //     Map<String, Integer> map = new HashMap<>();
-
-        //     for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
-        //         for (ShopItem item : shop.getShopItems()) {
-        //             DynaShopType type = shopConfigManager.getTypeDynaShop(shop.getId(), item.getId());
-        //             String typeName = type.name();
-                    
-        //             // Incrémenter le compteur pour ce type
-        //             map.put(typeName, map.getOrDefault(typeName, 0) + 1);
-        //             switch (type) {
-        //                 case STOCK -> map.put("Stock items", map.getOrDefault("Stock items", 0) + 1);
-        //                 case STATIC_STOCK -> map.put("Static stock items", map.getOrDefault("Static stock items", 0) + 1);
-        //                 case RECIPE -> map.put("Recipe items", map.getOrDefault("Recipe items", 0) + 1);
-        //                 case DYNAMIC -> map.put("Dynamic items", map.getOrDefault("Dynamic items", 0) + 1);
-        //                 default -> map.put("Other items", map.getOrDefault("Other items", 0) + 1);
-        //             }
-        //         }
-        //     }
-        //     // map.put("Item Types", entry);
-        //     return new HashMap<>(Map.of("Item Types", map));
-        // }));
-
-
-        // // Ajouter un graphique DrilldownPie pour les types d'items
-        // metrics.addCustomChart(new DrilldownPie("type_dynashop_used", () -> {
-        //     Map<String, Map<String, Integer>> map = new HashMap<>();
-        //     Map<String, Integer> entry = new HashMap<>();
-            
-        //     for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
-        //         for (ShopItem item : shop.getShopItems()) {
-        //             DynaShopType type = shopConfigManager.getTypeDynaShop(shop.getId(), item.getId());
-        //             String typeName = type.name();
-                    
-        //             switch (type) {
-        //                 case STOCK:
-        //                     entry.put("Stock items", entry.getOrDefault("Stock items", 0) + 1);
-        //                     break;
-        //                 case STATIC_STOCK:
-        //                     entry.put("Static stock items", entry.getOrDefault("Static stock items", 0) + 1);
-        //                     break;
-        //                 case RECIPE:
-        //                     entry.put("Recipe items", entry.getOrDefault("Recipe items", 0) + 1);
-        //                     break;
-        //                 case DYNAMIC:
-        //                     entry.put("Dynamic items", entry.getOrDefault("Dynamic items", 0) + 1);
-        //                     break;
-        //                 default:
-        //                     entry.put("Other items", entry.getOrDefault("Other items", 0) + 1);
-        //                     break;
-        //             }
-        //         }
-        //     }
-        //     map.put("Item Types", entry);
-        //     return map;
-        // }));
-        // // Cache pour les statistiques avec une durée de validité
-        // final long[] lastCalculationTime = {0};
-        // final Map<String, Map<String, Integer>> cachedStats = new HashMap<>();
-        // final long CACHE_DURATION = 3 * 60 * 60 * 1000; // 3 heures en millisecondes
-
-        // metrics.addCustomChart(new DrilldownPie("type_dynashop_used", () -> {
-        //     // Vérifier si le cache est valide
-        //     long currentTime = System.currentTimeMillis();
-        //     if (cachedStats.isEmpty() || currentTime - lastCalculationTime[0] > CACHE_DURATION) {
-        //         // Mettre à jour le cache en arrière-plan pour ne pas bloquer la requête
-        //         getServer().getScheduler().runTaskAsynchronously(this, () -> {
-        //             try {
-        //                 Map<String, Map<String, Integer>> newStats = new HashMap<>();
-        //                 Map<String, Integer> typesMap = new HashMap<>();
-                        
-        //                 // Regrouper par catégories de types
-        //                 int totalStock = 0;
-        //                 int totalStaticStock = 0;
-        //                 int totalRecipe = 0;
-        //                 int totalDynamic = 0;
-        //                 int totalOther = 0;
-                        
-        //                 // Parcourir tous les shops
-        //                 for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
-        //                     for (ShopItem item : shop.getShopItems()) {
-        //                         try {
-        //                             DynaShopType type = shopConfigManager.getTypeDynaShop(shop.getId(), item.getId());
-                                    
-        //                             // Compter chaque type spécifique d'abord
-        //                             String typeName = type.name();
-        //                             typesMap.put(typeName, typesMap.getOrDefault(typeName, 0) + 1);
-                                    
-        //                             // Puis compter par catégorie
-        //                             switch (type) {
-        //                                 case STOCK:
-        //                                     totalStock++;
-        //                                     break;
-        //                                 case STATIC_STOCK:
-        //                                     totalStaticStock++;
-        //                                     break;
-        //                                 case RECIPE:
-        //                                     totalRecipe++;
-        //                                     break;
-        //                                 case DYNAMIC:
-        //                                     totalDynamic++;
-        //                                     break;
-        //                                 default:
-        //                                     totalOther++;
-        //                                     break;
-        //                             }
-        //                         } catch (Exception e) {
-        //                             // Ignorer les items individuels qui causent des erreurs
-        //                         }
-        //                     }
-        //                 }
-                        
-        //                 // Ajouter des catégories regroupées
-        //                 if (totalStock > 0) {
-        //                     Map<String, Integer> stockEntry = new HashMap<>();
-        //                     stockEntry.put("Stock items", totalStock);
-        //                     newStats.put("Stock-based", stockEntry);
-        //                 }
-
-        //                 if (totalStaticStock > 0) {
-        //                     Map<String, Integer> staticStockEntry = new HashMap<>();
-        //                     staticStockEntry.put("Static stock items", totalStaticStock);
-        //                     newStats.put("Static stock-based", staticStockEntry);
-        //                 }
-                        
-        //                 if (totalRecipe > 0) {
-        //                     Map<String, Integer> recipeEntry = new HashMap<>();
-        //                     recipeEntry.put("Recipe items", totalRecipe);
-        //                     newStats.put("Recipe-based", recipeEntry);
-        //                 }
-                        
-        //                 if (totalDynamic > 0) {
-        //                     Map<String, Integer> dynamicEntry = new HashMap<>();
-        //                     dynamicEntry.put("Dynamic items", totalDynamic);
-        //                     newStats.put("Dynamic", dynamicEntry);
-        //                 }
-                        
-        //                 if (totalOther > 0) {
-        //                     Map<String, Integer> otherEntry = new HashMap<>();
-        //                     otherEntry.put("Other items", totalOther);
-        //                     newStats.put("Other", otherEntry);
-        //                 }
-                        
-        //                 // Mettre à jour le cache de manière thread-safe
-        //                 synchronized (cachedStats) {
-        //                     cachedStats.clear();
-        //                     cachedStats.putAll(newStats);
-        //                     lastCalculationTime[0] = System.currentTimeMillis();
-        //                 }
-                        
-        //                 getLogger().info("Statistiques bStats mises à jour (types d'items)");
-                        
-        //             } catch (Exception e) {
-        //                 getLogger().warning("Erreur lors de la collecte des statistiques bStats: " + e.getMessage());
-        //             }
-        //         });
-        //     }
-            
-        //     // Retourner le cache actuel (même s'il est en cours de mise à jour)
-        //     synchronized (cachedStats) {
-        //         getLogger().info("Statistiques bStats renvoyées depuis le cache (types d'items)");
-        //         // getLogger().info("Statistiques bStats renvoyées depuis le cache (types d'items): " + cachedStats);
-        //         return new HashMap<>(cachedStats);
-        //     }
-        // }));
-        // // Collecter les statistiques initiales de manière synchrone au démarrage
-        // Map<String, Map<String, Integer>> initialStats = collectItemTypeStats();
-        
-        // // Variables pour le cache
-        // final Map<String, Map<String, Integer>> cachedStats = new HashMap<>(initialStats);
-        // final long[] lastCalculationTime = {System.currentTimeMillis()};
-        // final long CACHE_DURATION = 3 * 60 * 60 * 1000; // 3 heures
-        
-        // // Programmer une mise à jour régulière du cache 
-        // getServer().getScheduler().runTaskTimerAsynchronously(this, () -> {
-        //     try {
-        //         Map<String, Map<String, Integer>> newStats = collectItemTypeStats();
-        //         synchronized (cachedStats) {
-        //             cachedStats.clear();
-        //             cachedStats.putAll(newStats);
-        //             lastCalculationTime[0] = System.currentTimeMillis();
-        //         }
-        //         getLogger().info("Mise à jour périodique des statistiques bStats effectuée");
-        //     } catch (Exception e) {
-        //         getLogger().warning("Erreur lors de la mise à jour périodique des stats: " + e.getMessage());
-        //     }
-        // }, 20L * 60L * 5L, 20L * 60L * 180L); // Premier update après 5 minutes, puis toutes les 3h
-
-        // // Ajouter le DrilldownPie avec des données toujours disponibles
-        // metrics.addCustomChart(new DrilldownPie("type_dynashop_used", () -> {
-        //     synchronized (cachedStats) {
-        //         // Même si le cache est vide, on renvoie au moins une entrée
-        //         if (cachedStats.isEmpty()) {
-        //             Map<String, Map<String, Integer>> defaultMap = new HashMap<>();
-        //             Map<String, Integer> innerMap = new HashMap<>();
-        //             innerMap.put("Unknown items", 1);
-        //             defaultMap.put("Unknown", innerMap);
-        //             return defaultMap;
-        //         }
-        //         return new HashMap<>(cachedStats);
-        //     }
-        // }));
-    }
-    
-    /**
-     * Collecte les statistiques sur les types d'items dans le format attendu par bStats
-     */
-    private Map<String, Map<String, Integer>> collectItemTypeStats() {
-        Map<String, Map<String, Integer>> result = new HashMap<>();
-        
-        try {
-            // Compteurs
-            int totalStock = 0;
-            int totalStaticStock = 0;
-            int totalRecipe = 0;
-            int totalDynamic = 0;
-            int totalOther = 0;
-            
-            // Parcourir tous les shops
-            for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
-                for (ShopItem item : shop.getShopItems()) {
+        metrics.addCustomChart(new AdvancedPie("type_dynashop_used", () -> {
+            // Vérifier si une mise à jour du cache est nécessaire
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastUpdate[0] > updatePeriod || cachedStatsMap.isEmpty()) {
+                // Mettre à jour le cache de manière asynchrone
+                getServer().getScheduler().runTaskAsynchronously(this, () -> {
+                    Map<String, Integer> newMap = new HashMap<>();
                     try {
-                        DynaShopType type = shopConfigManager.getTypeDynaShop(shop.getId(), item.getId());
+                        for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
+                            for (ShopItem item : shop.getShopItems()) {
+                                DynaShopType type = shopConfigManager.getTypeDynaShop(shop.getId(), item.getId());
+                                String typeName = type.name();
+                                newMap.put(typeName, newMap.getOrDefault(typeName, 0) + 1);
+                            }
+                        }
                         
-                        // Compter par catégorie
-                        switch (type) {
-                            case STOCK:
-                                totalStock++;
-                                break;
-                            case STATIC_STOCK:
-                                totalStaticStock++;
-                                break;
-                            case RECIPE:
-                                totalRecipe++;
-                                break;
-                            case DYNAMIC:
-                                totalDynamic++;
-                                break;
-                            default:
-                                totalOther++;
+                        // Mettre à jour le cache de manière thread-safe
+                        synchronized (cachedStatsMap) {
+                            cachedStatsMap.clear();
+                            cachedStatsMap.putAll(newMap);
+                            lastUpdate[0] = currentTime;
                         }
                     } catch (Exception e) {
-                        // Ignorer les items qui causent des erreurs
+                        // getLogger().warning("Erreur lors de la collecte des statistiques : " + e.getMessage());
                     }
-                }
+                });
             }
-            
-            // Création des structures dans le format exact attendu par bStats
-            if (totalStock > 0) {
-                Map<String, Integer> innerMap = new HashMap<>();
-                innerMap.put("Stock items", totalStock);
-                result.put("Stock-based", innerMap);
-            }
-            
-            if (totalStaticStock > 0) {
-                Map<String, Integer> innerMap = new HashMap<>();
-                innerMap.put("Static stock items", totalStaticStock);
-                result.put("Static-stock", innerMap);
-            }
-            
-            if (totalRecipe > 0) {
-                Map<String, Integer> innerMap = new HashMap<>();
-                innerMap.put("Recipe items", totalRecipe);
-                result.put("Recipe-based", innerMap);
-            }
-            
-            if (totalDynamic > 0) {
-                Map<String, Integer> innerMap = new HashMap<>();
-                innerMap.put("Dynamic items", totalDynamic);
-                result.put("Dynamic", innerMap);
-            }
-            
-            if (totalOther > 0) {
-                Map<String, Integer> innerMap = new HashMap<>();
-                innerMap.put("Other items", totalOther);
-                result.put("Other", innerMap);
-            }
-            
-            // Pour être sûr d'avoir toujours quelque chose à renvoyer
-            if (result.isEmpty()) {
-                Map<String, Integer> innerMap = new HashMap<>();
-                // innerMap.put("Plugin active", 1);
-                // result.put("Status", innerMap);
-                innerMap.put("Unknown items", 1);
-                result.put("Unknown", innerMap);
-            }
-        } catch (Exception e) {
-            getLogger().warning("Erreur lors de la collecte des stats: " + e.getMessage());
-            Map<String, Integer> errorMap = new HashMap<>();
-            errorMap.put("Error occurred", 1);
-            result.put("Error", errorMap);
-        }
         
-        return result;
+            // Retourner une copie du cache actuel
+            synchronized (cachedStatsMap) {
+                return new HashMap<>(cachedStatsMap);
+                // return cachedStatsMap;
+            }
+        }));
+
+        // metrics.addCustomChart(new AdvancedPie("type_dynashop_used", () -> {
+        //     Map<String, Integer> map = new HashMap<>();
+        //     // Compter chaque type d'item
+        //     try {
+        //         for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
+        //             for (ShopItem item : shop.getShopItems()) {
+        //                 DynaShopType type = shopConfigManager.getTypeDynaShop(shop.getId(), item.getId());
+        //                 String typeName = type.name();
+        //                 map.put(typeName, map.getOrDefault(typeName, 0) + 1);
+        //             }
+        //         }
+        //     } catch (Exception e) {
+        //         getLogger().warning("Erreur lors de la collecte des statistiques : " + e.getMessage());
+        //     }
+        //     return map;
+        // }));
+
+    //     // Ajouter un graphique DrilldownPie pour les types d'items
+    //     metrics.addCustomChart(new DrilldownPie("type_dynashop_used", () -> {
+    //         Map<String, Map<String, Integer>> map = new HashMap<>();
+    //         Map<String, Integer> entry = new HashMap<>();
+            
+    //         for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
+    //             for (ShopItem item : shop.getShopItems()) {
+    //                 DynaShopType type = shopConfigManager.getTypeDynaShop(shop.getId(), item.getId());
+    //                 String typeName = type.name();
+                    
+    //                 // Incrémenter le compteur pour ce type
+    //                 entry.put(typeName, entry.getOrDefault(typeName, 0) + 1);
+    //                 // Ajouter l'entrée au map
+    //                 switch (type) {
+    //                   case DynaShopType.STOCK -> {
+    //                       map.putIfAbsent("Stock items", new HashMap<>());
+    //                       map.get("Stock items").put(typeName, entry.get(typeName));
+    //                   }
+    //                   case DynaShopType.STATIC_STOCK -> {
+    //                       map.putIfAbsent("Static stock items", new HashMap<>());
+    //                       map.get("Static stock items").put(typeName, entry.get(typeName));
+    //                   }
+    //                   case DynaShopType.RECIPE -> {
+    //                       map.putIfAbsent("Recipe items", new HashMap<>());
+    //                       map.get("Recipe items").put(typeName, entry.get(typeName));
+    //                   }
+    //                   case DynaShopType.DYNAMIC -> {
+    //                       map.putIfAbsent("Dynamic items", new HashMap<>());
+    //                       map.get("Dynamic items").put(typeName, entry.get(typeName));
+    //                   }
+    //                   default -> {
+    //                       map.putIfAbsent("Other items", new HashMap<>());
+    //                       map.get("Other items").put(typeName, entry.get(typeName));
+    //                   }
+    //                 }
+    //             }
+    //         }
+    //         // map.put("Item Types", entry);
+    //         return map;
+    //     }));
     }
 
     @Override
@@ -939,7 +603,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
                             cacheRecipePrice(shopID, itemID, "buyPrice", buyPrice);
                             cacheRecipePrice(shopID, itemID, "sellPrice", sellPrice);
                             
-                            logger.info("Precalculated prices for " + shopID + ":" + itemID + " - Buy: " + buyPrice + ", Sell: " + sellPrice);
+                            // logger.info("Precalculated prices for " + shopID + ":" + itemID + " - Buy: " + buyPrice + ", Sell: " + sellPrice);
                         }
                     } catch (Exception e) {
                         logger.warning("Erreur lors du précalcul des prix pour " + shopID + ":" + itemID + ": " + e.getMessage());
