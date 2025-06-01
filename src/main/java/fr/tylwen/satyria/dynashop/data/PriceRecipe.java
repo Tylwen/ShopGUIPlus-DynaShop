@@ -26,6 +26,7 @@ import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.item.ShopItem;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 // import java.util.HashMap;
 import java.util.List;
@@ -687,6 +688,7 @@ public class PriceRecipe {
 
     //     return ingredients;
     // }
+    
     public List<ItemStack> getIngredients(String shopID, String itemID, ItemStack item) {
         List<ItemStack> ingredients = new ArrayList<>();
         String cacheKey = shopID + ":" + itemID;
@@ -704,10 +706,11 @@ public class PriceRecipe {
             // Lire directement les ingrédients depuis la configuration
             ConfigurationSection recipeSection = DynaShopPlugin.getInstance().getShopConfigManager().getSection(shopID, itemID, "recipe");
             if (recipeSection != null) {
-                String type = recipeSection.getString("type", "NONE").toUpperCase();
-                DynaShopPlugin.getInstance().getLogger().info("Type de recette: " + type);
-                
-                if (type.equals("SHAPED")) {
+                // String type = recipeSection.getString("type", "NONE").toUpperCase();
+                RecipeType typeRecipe = RecipeType.fromString(recipeSection.getString("type", "NONE").toUpperCase());
+                DynaShopPlugin.getInstance().getLogger().info("Type de recette: " + typeRecipe);
+
+                if (typeRecipe == RecipeType.SHAPED) {
                     // Charger le pattern et compter les occurrences de chaque symbole
                     List<String> pattern = recipeSection.getStringList("pattern");
                     Map<Character, Integer> symbolCounts = new HashMap<>();
@@ -786,7 +789,7 @@ public class PriceRecipe {
                             }
                         }
                     }
-                } else if (type.equals("SHAPELESS")) {
+                } else if (typeRecipe == RecipeType.SHAPELESS) {
                     // Pour les recettes shapeless, on ne change pas la logique actuelle
                     ConfigurationSection ingredientsSection = recipeSection.getConfigurationSection("ingredients");
                     if (ingredientsSection != null) {
@@ -828,7 +831,7 @@ public class PriceRecipe {
                             }
                         }
                     }
-                } else if (type.equals("FURNACE")) {
+                } else if (typeRecipe == RecipeType.FURNACE) {
                     ConfigurationSection inputSection = recipeSection.getConfigurationSection("input");
                     if (inputSection != null) {
                         String itemRef = inputSection.getString("item");
