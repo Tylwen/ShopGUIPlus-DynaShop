@@ -46,6 +46,7 @@ import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.data.DynamicPrice;
 import fr.tylwen.satyria.dynashop.data.ItemPriceData;
 import fr.tylwen.satyria.dynashop.data.PriceRecipe;
+import fr.tylwen.satyria.dynashop.data.PriceRecipe.FoundItem;
 import fr.tylwen.satyria.dynashop.data.PriceRecipe.RecipeCalculationResult;
 import fr.tylwen.satyria.dynashop.data.ShopConfigManager;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
@@ -1046,224 +1047,309 @@ public class DynaShopListener implements Listener {
     //         }
     //     }
     // }
+    // private void applyGrowthOrDecayToIngredients(String shopID, String itemID, ItemStack itemStack, int amount, boolean isGrowth, List<String> visitedItems, int depth) {
+    //     // Limiter la profondeur de récursion
+    //     if (depth > 5) {
+    //         return;
+    //     }
+
+    //     // Vérifier si l'item a déjà été visité pour éviter les boucles infinies
+    //     if (visitedItems.contains(itemID)) {
+    //         return;
+    //     }
+    //     visitedItems.add(itemID);
+
+    //     // Vérifier si la recette est définie dans la configuration
+    //     if (!DynaShopPlugin.getInstance().getShopConfigManager().hasRecipePattern(shopID, itemID)) {
+    //         return; // Sortir si pas de recette définie
+    //     }
+        
+    //     // Récupérer directement les ingrédients depuis la configuration
+    //     ConfigurationSection recipeSection = DynaShopPlugin.getInstance().getShopConfigManager().getSection(shopID, itemID, "recipe");
+    //     if (recipeSection == null) {
+    //         return;
+    //     }
+        
+    //     // Traiter selon le type de recette
+    //     // String recipeType = recipeSection.getString("type", "").toUpperCase();
+    //     RecipeType typeRecipe = RecipeType.fromString(recipeSection.getString("type", "NONE").toUpperCase());
+        
+    //     // Liste pour stocker les informations des ingrédients (Shop:ID et quantité)
+    //     List<Map.Entry<String, Integer>> ingredientInfos = new ArrayList<>();
+        
+    //     // if (recipeType.equals("SHAPED") || recipeType.equals("SHAPELESS")) {
+    //     //     // Récupérer la section des ingrédients
+    //     //     ConfigurationSection ingredientsSection = recipeSection.getConfigurationSection("ingredients");
+    //     //     if (ingredientsSection == null) {
+    //     //         return;
+    //     //     }
+            
+    //     //     // Parcourir tous les ingrédients définis
+    //     //     for (String key : ingredientsSection.getKeys(false)) {
+    //     //         ConfigurationSection ingredientSection = ingredientsSection.getConfigurationSection(key);
+    //     //         if (ingredientSection == null) continue;
+                
+    //     //         String itemRef = ingredientSection.getString("item");
+    //     //         if (itemRef == null || !itemRef.contains(":")) continue;
+                
+    //     //         String[] parts = itemRef.split(":");
+    //     //         if (parts.length != 2) continue;
+                
+    //     //         String ingredientShopID = parts[0];
+    //     //         String ingredientID = parts[1];
+    //     //         int quantity = ingredientSection.getInt("quantity", 1);
+                
+    //     //         // Stocker les informations de l'ingrédient
+    //     //         ingredientInfos.add(Map.entry(ingredientShopID + ":" + ingredientID, quantity));
+    //     //     }
+    //     // } else if (recipeType.equals("FURNACE")) {
+    //     //     // Récupérer l'ingrédient d'entrée pour les recettes de four
+    //     //     ConfigurationSection inputSection = recipeSection.getConfigurationSection("input");
+    //     //     if (inputSection == null) return;
+            
+    //     //     String itemRef = inputSection.getString("item");
+    //     //     if (itemRef != null && itemRef.contains(":")) {
+    //     //         String[] parts = itemRef.split(":");
+    //     //         if (parts.length == 2) {
+    //     //             String ingredientShopID = parts[0];
+    //     //             String ingredientID = parts[1];
+    //     //             int quantity = inputSection.getInt("quantity", 1);
+                    
+    //     //             ingredientInfos.add(Map.entry(ingredientShopID + ":" + ingredientID, quantity));
+    //     //         }
+    //     //     }
+    //     // }
+    //     if (typeRecipe == RecipeType.SHAPED) {
+    //         // Charger le pattern et compter les occurrences de chaque symbole
+    //         List<String> pattern = recipeSection.getStringList("pattern");
+    //         Map<Character, Integer> symbolCounts = new HashMap<>();
+            
+    //         // Compter les occurrences de chaque symbole dans le pattern
+    //         for (String row : pattern) {
+    //             for (char c : row.toCharArray()) {
+    //                 if (c != ' ') {
+    //                     symbolCounts.put(c, symbolCounts.getOrDefault(c, 0) + 1);
+    //                 }
+    //             }
+    //         }
+
+    //         ConfigurationSection ingredientsSection = recipeSection.getConfigurationSection("ingredients");
+    //         if (ingredientsSection == null) {
+    //             return; // Sortir si pas de section d'ingrédients
+    //         }
+    //         for (String key : ingredientsSection.getKeys(false)) {
+    //             try {
+    //                 if (key.length() != 1) continue; // Ignorer les clés vides ou trop courtes
+    //                 char symbol = key.charAt(0);
+    //                 int occurrences = symbolCounts.getOrDefault(symbol, 0);
+    //                 if (occurrences == 0) continue; // Ignorer les symboles non présents dans le pattern
+
+    //                 ConfigurationSection ingredientSection = ingredientsSection.getConfigurationSection(key);
+    //                 if (ingredientSection == null) continue;
+
+    //                 String itemRef = ingredientSection.getString("item");
+    //                 if (itemRef == null || !itemRef.contains(":")) continue;
+
+    //                 String[] parts = itemRef.split(":");
+    //                 if (parts.length != 2) continue;
+
+    //                 String ingredientShopID = parts[0];
+    //                 String ingredientItemID = parts[1];
+    //                 int baseQuantity = ingredientSection.getInt("quantity", 1);
+
+    //                 // Vérifier si le symbole est dans le pattern
+    //                 // char symbol = key.charAt(0);
+    //                 if (symbolCounts.containsKey(symbol)) {
+    //                     // Stocker les informations de l'ingrédient
+    //                     ingredientInfos.add(Map.entry(ingredientShopID + ":" + ingredientItemID, baseQuantity * occurrences));
+    //                 }
+    //             } catch (Exception e) {
+    //                 DynaShopPlugin.getInstance().getLogger().warning("Erreur lors du traitement de l'ingrédient " + key + " dans la recette " + itemID + ": " + e.getMessage());
+    //             }
+    //         }
+    //     } else if (typeRecipe == RecipeType.SHAPELESS) {
+    //         // Récupérer la section des ingrédients
+    //         ConfigurationSection ingredientsSection = recipeSection.getConfigurationSection("ingredients");
+    //         if (ingredientsSection == null) {
+    //             return; // Sortir si pas de section d'ingrédients
+    //         }
+            
+    //         // Parcourir tous les ingrédients définis
+    //         for (String key : ingredientsSection.getKeys(false)) {
+    //             try {
+    //                 ConfigurationSection ingredientSection = ingredientsSection.getConfigurationSection(key);
+    //                 if (ingredientSection == null) continue;
+
+    //                 String itemRef = ingredientSection.getString("item");
+    //                 if (itemRef == null || !itemRef.contains(":")) continue;
+
+    //                 String[] parts = itemRef.split(":");
+    //                 if (parts.length != 2) continue;
+
+    //                 String ingredientShopID = parts[0];
+    //                 String ingredientItemID = parts[1];
+    //                 int quantity = ingredientSection.getInt("quantity", 1);
+
+    //                 // Stocker les informations de l'ingrédient
+    //                 ingredientInfos.add(Map.entry(ingredientShopID + ":" + ingredientItemID, quantity));
+    //             } catch (Exception e) {
+    //                 DynaShopPlugin.getInstance().getLogger().warning("Erreur lors du traitement de l'ingrédient " + key + " dans la recette " + itemID + ": " + e.getMessage());
+    //             }
+    //         }
+    //     } else if (typeRecipe == RecipeType.FURNACE) {
+    //         // Récupérer l'ingrédient d'entrée pour les recettes de four
+    //         ConfigurationSection inputSection = recipeSection.getConfigurationSection("input");
+    //         if (inputSection == null) return;
+            
+    //         String itemRef = inputSection.getString("item");
+    //         if (itemRef != null && itemRef.contains(":")) {
+    //             String[] parts = itemRef.split(":");
+    //             if (parts.length == 2) {
+    //                 String ingredientShopID = parts[0];
+    //                 String ingredientItemID = parts[1];
+    //                 int quantity = inputSection.getInt("quantity", 1);
+                    
+    //                 ingredientInfos.add(Map.entry(ingredientShopID + ":" + ingredientItemID, quantity));
+    //             }
+    //         }
+    //     }
+        
+    //     // Traiter chaque ingrédient
+    //     for (Map.Entry<String, Integer> entry : ingredientInfos) {
+    //         String[] parts = entry.getKey().split(":");
+    //         String ingredientShopID = parts[0];
+    //         String ingredientID = parts[1];
+    //         int ingredientQuantity = entry.getValue() * amount;
+    //         DynaShopPlugin.getInstance().getLogger().info("Ingrédient trouvé : " + ingredientID + " dans le shop " + ingredientShopID + " avec quantité " + ingredientQuantity);
+            
+    //         // Récupérer le type de l'ingrédient
+    //         DynaShopType ingredientType = DynaShopPlugin.getInstance().getShopConfigManager().getTypeDynaShop(ingredientShopID, ingredientID);
+            
+    //         // Récupérer le prix dynamique de l'ingrédient
+    //         DynamicPrice ingredientPrice = getOrLoadPrice(ingredientShopID, ingredientID, null); // null car nous n'avons pas besoin de l'ItemStack ici
+            
+    //         if (ingredientPrice != null) {
+    //             // Traiter selon le type d'ingrédient
+    //             if (ingredientType == DynaShopType.STOCK || ingredientType == DynaShopType.STATIC_STOCK) {
+    //                 if (isGrowth) {
+    //                     // Achat: diminuer le stock des ingrédients
+    //                     DynaShopPlugin.getInstance().getPriceStock().processBuyTransaction(ingredientShopID, ingredientID, ingredientQuantity);
+    //                 } else {
+    //                     // Vente: augmenter le stock des ingrédients
+    //                     DynaShopPlugin.getInstance().getPriceStock().processSellTransaction(ingredientShopID, ingredientID, ingredientQuantity);
+    //                 }
+                    
+    //                 // Mettre à jour l'objet ingredientPrice avec les nouvelles valeurs
+    //                 double newBuyPrice = DynaShopPlugin.getInstance().getPriceStock().calculatePrice(ingredientShopID, ingredientID, "buyPrice");
+    //                 double newSellPrice = DynaShopPlugin.getInstance().getPriceStock().calculatePrice(ingredientShopID, ingredientID, "sellPrice");
+                    
+    //                 ingredientPrice.setBuyPrice(newBuyPrice);
+    //                 ingredientPrice.setSellPrice(newSellPrice);
+    //                 ingredientPrice.setStock(DynaShopPlugin.getInstance().getItemDataManager().getStock(ingredientShopID, ingredientID).orElse(0));
+    //             } else {
+    //                 // Pour les autres types, appliquer growth/decay
+    //                 if (isGrowth) {
+    //                     ingredientPrice.applyGrowth(ingredientQuantity);
+    //                 } else {
+    //                     ingredientPrice.applyDecay(ingredientQuantity);
+    //                 }
+    //             }
+                
+    //             // Sauvegarder ou continuer la récursion
+    //             if (!ingredientPrice.isFromRecipe()) {
+    //                 DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice);
+    //             } else {
+    //                 // Créer un ItemStack fictif pour la récursion
+    //                 ItemStack dummyItem = new ItemStack(Material.STONE);
+    //                 applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, dummyItem, ingredientQuantity, isGrowth, visitedItems, depth + 1);
+    //             }
+    //         }
+    //     }
+    // }
+
     private void applyGrowthOrDecayToIngredients(String shopID, String itemID, ItemStack itemStack, int amount, boolean isGrowth, List<String> visitedItems, int depth) {
         // Limiter la profondeur de récursion
-        if (depth > 5) {
-            return;
-        }
+        if (depth > 5) return;
 
-        // Vérifier si l'item a déjà été visité pour éviter les boucles infinies
-        if (visitedItems.contains(itemID)) {
-            return;
-        }
-        visitedItems.add(itemID);
+        // Éviter les boucles infinies
+        String itemKey = shopID + ":" + itemID;
+        if (visitedItems.contains(itemKey)) return;
+        visitedItems.add(itemKey);
 
-        // Vérifier si la recette est définie dans la configuration
-        if (!DynaShopPlugin.getInstance().getShopConfigManager().hasRecipePattern(shopID, itemID)) {
-            return; // Sortir si pas de recette définie
-        }
-        
-        // Récupérer directement les ingrédients depuis la configuration
-        ConfigurationSection recipeSection = DynaShopPlugin.getInstance().getShopConfigManager().getSection(shopID, itemID, "recipe");
-        if (recipeSection == null) {
-            return;
-        }
-        
-        // Traiter selon le type de recette
-        // String recipeType = recipeSection.getString("type", "").toUpperCase();
-        RecipeType typeRecipe = RecipeType.fromString(recipeSection.getString("type", "NONE").toUpperCase());
-        
-        // Liste pour stocker les informations des ingrédients (Shop:ID et quantité)
-        List<Map.Entry<String, Integer>> ingredientInfos = new ArrayList<>();
-        
-        // if (recipeType.equals("SHAPED") || recipeType.equals("SHAPELESS")) {
-        //     // Récupérer la section des ingrédients
-        //     ConfigurationSection ingredientsSection = recipeSection.getConfigurationSection("ingredients");
-        //     if (ingredientsSection == null) {
-        //         return;
-        //     }
-            
-        //     // Parcourir tous les ingrédients définis
-        //     for (String key : ingredientsSection.getKeys(false)) {
-        //         ConfigurationSection ingredientSection = ingredientsSection.getConfigurationSection(key);
-        //         if (ingredientSection == null) continue;
-                
-        //         String itemRef = ingredientSection.getString("item");
-        //         if (itemRef == null || !itemRef.contains(":")) continue;
-                
-        //         String[] parts = itemRef.split(":");
-        //         if (parts.length != 2) continue;
-                
-        //         String ingredientShopID = parts[0];
-        //         String ingredientID = parts[1];
-        //         int quantity = ingredientSection.getInt("quantity", 1);
-                
-        //         // Stocker les informations de l'ingrédient
-        //         ingredientInfos.add(Map.entry(ingredientShopID + ":" + ingredientID, quantity));
-        //     }
-        // } else if (recipeType.equals("FURNACE")) {
-        //     // Récupérer l'ingrédient d'entrée pour les recettes de four
-        //     ConfigurationSection inputSection = recipeSection.getConfigurationSection("input");
-        //     if (inputSection == null) return;
-            
-        //     String itemRef = inputSection.getString("item");
-        //     if (itemRef != null && itemRef.contains(":")) {
-        //         String[] parts = itemRef.split(":");
-        //         if (parts.length == 2) {
-        //             String ingredientShopID = parts[0];
-        //             String ingredientID = parts[1];
-        //             int quantity = inputSection.getInt("quantity", 1);
-                    
-        //             ingredientInfos.add(Map.entry(ingredientShopID + ":" + ingredientID, quantity));
-        //         }
-        //     }
-        // }
-        if (typeRecipe == RecipeType.SHAPED) {
-            // Charger le pattern et compter les occurrences de chaque symbole
-            List<String> pattern = recipeSection.getStringList("pattern");
-            Map<Character, Integer> symbolCounts = new HashMap<>();
-            
-            // Compter les occurrences de chaque symbole dans le pattern
-            for (String row : pattern) {
-                for (char c : row.toCharArray()) {
-                    if (c != ' ') {
-                        symbolCounts.put(c, symbolCounts.getOrDefault(c, 0) + 1);
-                    }
-                }
-            }
+        // Récupérer directement les ingrédients depuis PriceRecipe
+        List<ItemStack> ingredients = DynaShopPlugin.getInstance().getPriceRecipe().getIngredients(shopID, itemID, itemStack);
 
-            ConfigurationSection ingredientsSection = recipeSection.getConfigurationSection("ingredients");
-            if (ingredientsSection == null) {
-                return; // Sortir si pas de section d'ingrédients
-            }
-            for (String key : ingredientsSection.getKeys(false)) {
-                try {
-                    if (key.length() != 1) continue; // Ignorer les clés vides ou trop courtes
-                    char symbol = key.charAt(0);
-                    int occurrences = symbolCounts.getOrDefault(symbol, 0);
-                    if (occurrences == 0) continue; // Ignorer les symboles non présents dans le pattern
-
-                    ConfigurationSection ingredientSection = ingredientsSection.getConfigurationSection(key);
-                    if (ingredientSection == null) continue;
-
-                    String itemRef = ingredientSection.getString("item");
-                    if (itemRef == null || !itemRef.contains(":")) continue;
-
-                    String[] parts = itemRef.split(":");
-                    if (parts.length != 2) continue;
-
-                    String ingredientShopID = parts[0];
-                    String ingredientItemID = parts[1];
-                    int baseQuantity = ingredientSection.getInt("quantity", 1);
-
-                    // Vérifier si le symbole est dans le pattern
-                    // char symbol = key.charAt(0);
-                    if (symbolCounts.containsKey(symbol)) {
-                        // Stocker les informations de l'ingrédient
-                        ingredientInfos.add(Map.entry(ingredientShopID + ":" + ingredientItemID, baseQuantity * occurrences));
-                    }
-                } catch (Exception e) {
-                    DynaShopPlugin.getInstance().getLogger().warning("Erreur lors du traitement de l'ingrédient " + key + " dans la recette " + itemID + ": " + e.getMessage());
-                }
-            }
-        } else if (typeRecipe == RecipeType.SHAPELESS) {
-            // Récupérer la section des ingrédients
-            ConfigurationSection ingredientsSection = recipeSection.getConfigurationSection("ingredients");
-            if (ingredientsSection == null) {
-                return; // Sortir si pas de section d'ingrédients
-            }
-            
-            // Parcourir tous les ingrédients définis
-            for (String key : ingredientsSection.getKeys(false)) {
-                try {
-                    ConfigurationSection ingredientSection = ingredientsSection.getConfigurationSection(key);
-                    if (ingredientSection == null) continue;
-
-                    String itemRef = ingredientSection.getString("item");
-                    if (itemRef == null || !itemRef.contains(":")) continue;
-
-                    String[] parts = itemRef.split(":");
-                    if (parts.length != 2) continue;
-
-                    String ingredientShopID = parts[0];
-                    String ingredientItemID = parts[1];
-                    int quantity = ingredientSection.getInt("quantity", 1);
-
-                    // Stocker les informations de l'ingrédient
-                    ingredientInfos.add(Map.entry(ingredientShopID + ":" + ingredientItemID, quantity));
-                } catch (Exception e) {
-                    DynaShopPlugin.getInstance().getLogger().warning("Erreur lors du traitement de l'ingrédient " + key + " dans la recette " + itemID + ": " + e.getMessage());
-                }
-            }
-        } else if (typeRecipe == RecipeType.FURNACE) {
-            // Récupérer l'ingrédient d'entrée pour les recettes de four
-            ConfigurationSection inputSection = recipeSection.getConfigurationSection("input");
-            if (inputSection == null) return;
-            
-            String itemRef = inputSection.getString("item");
-            if (itemRef != null && itemRef.contains(":")) {
-                String[] parts = itemRef.split(":");
-                if (parts.length == 2) {
-                    String ingredientShopID = parts[0];
-                    String ingredientItemID = parts[1];
-                    int quantity = inputSection.getInt("quantity", 1);
-                    
-                    ingredientInfos.add(Map.entry(ingredientShopID + ":" + ingredientItemID, quantity));
-                }
-            }
-        }
-        
         // Traiter chaque ingrédient
-        for (Map.Entry<String, Integer> entry : ingredientInfos) {
-            String[] parts = entry.getKey().split(":");
-            String ingredientShopID = parts[0];
-            String ingredientID = parts[1];
-            int ingredientQuantity = entry.getValue() * amount;
-            DynaShopPlugin.getInstance().getLogger().info("Ingrédient trouvé : " + ingredientID + " dans le shop " + ingredientShopID + " avec quantité " + ingredientQuantity);
-            
-            // Récupérer le type de l'ingrédient
+        for (ItemStack ingredient : ingredients) {
+            if (ingredient == null || ingredient.getType() == Material.AIR) continue;
+
+            // Rechercher l'ID du shop et de l'item pour cet ingrédient
+            // ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(ingredient);
+            // if (shopItem == null) continue;
+
+            // String ingredientShopID = shopItem.getShop().getId();
+            // String ingredientID = shopItem.getId();
+
+            FoundItem foundItem = DynaShopPlugin.getInstance().getPriceRecipe().findItemInShops(shopID, ingredient);
+            if (!foundItem.isFound()) continue;
+
+            String ingredientShopID = foundItem.getShopID();
+            String ingredientID = foundItem.getItemID();
+            int ingredientQuantity = ingredient.getAmount() * amount;
+
+            // Récupérer le type de l'ingrédient et son prix dynamique
             DynaShopType ingredientType = DynaShopPlugin.getInstance().getShopConfigManager().getTypeDynaShop(ingredientShopID, ingredientID);
+            DynamicPrice ingredientPrice = getOrLoadPrice(ingredientShopID, ingredientID, null);
             
-            // Récupérer le prix dynamique de l'ingrédient
-            DynamicPrice ingredientPrice = getOrLoadPrice(ingredientShopID, ingredientID, null); // null car nous n'avons pas besoin de l'ItemStack ici
+            if (ingredientPrice == null) continue;
+
+            // Traiter selon le type d'ingrédient
+            processIngredient(ingredientShopID, ingredientID, ingredientPrice, ingredientType, ingredientQuantity, isGrowth);
             
-            if (ingredientPrice != null) {
-                // Traiter selon le type d'ingrédient
-                if (ingredientType == DynaShopType.STOCK || ingredientType == DynaShopType.STATIC_STOCK) {
-                    if (isGrowth) {
-                        // Achat: diminuer le stock des ingrédients
-                        DynaShopPlugin.getInstance().getPriceStock().processBuyTransaction(ingredientShopID, ingredientID, ingredientQuantity);
-                    } else {
-                        // Vente: augmenter le stock des ingrédients
-                        DynaShopPlugin.getInstance().getPriceStock().processSellTransaction(ingredientShopID, ingredientID, ingredientQuantity);
-                    }
-                    
-                    // Mettre à jour l'objet ingredientPrice avec les nouvelles valeurs
-                    double newBuyPrice = DynaShopPlugin.getInstance().getPriceStock().calculatePrice(ingredientShopID, ingredientID, "buyPrice");
-                    double newSellPrice = DynaShopPlugin.getInstance().getPriceStock().calculatePrice(ingredientShopID, ingredientID, "sellPrice");
-                    
-                    ingredientPrice.setBuyPrice(newBuyPrice);
-                    ingredientPrice.setSellPrice(newSellPrice);
-                    ingredientPrice.setStock(DynaShopPlugin.getInstance().getItemDataManager().getStock(ingredientShopID, ingredientID).orElse(0));
-                } else {
-                    // Pour les autres types, appliquer growth/decay
-                    if (isGrowth) {
-                        ingredientPrice.applyGrowth(ingredientQuantity);
-                    } else {
-                        ingredientPrice.applyDecay(ingredientQuantity);
-                    }
-                }
-                
-                // Sauvegarder ou continuer la récursion
-                if (!ingredientPrice.isFromRecipe()) {
-                    DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice);
-                } else {
-                    // Créer un ItemStack fictif pour la récursion
-                    ItemStack dummyItem = new ItemStack(Material.STONE);
-                    applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, dummyItem, ingredientQuantity, isGrowth, visitedItems, depth + 1);
-                }
+            // Continuer la récursion ou sauvegarder les modifications
+            if (ingredientPrice.isFromRecipe()) {
+                applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, ingredient, ingredientQuantity, isGrowth, visitedItems, depth + 1);
+            } else {
+                DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice);
             }
         }
+    }
+
+    /**
+     * Traite un ingrédient selon son type
+     */
+    private void processIngredient(String shopID, String itemID, DynamicPrice price, DynaShopType type, int quantity, boolean isGrowth) {
+        if (type == DynaShopType.STOCK || type == DynaShopType.STATIC_STOCK) {
+            if (isGrowth) {
+                // Achat: diminuer le stock des ingrédients
+                DynaShopPlugin.getInstance().getPriceStock().processBuyTransaction(shopID, itemID, quantity);
+            } else {
+                // Vente: augmenter le stock des ingrédients
+                DynaShopPlugin.getInstance().getPriceStock().processSellTransaction(shopID, itemID, quantity);
+            }
+            
+            // Mettre à jour l'objet price
+            updatePriceFromStock(shopID, itemID, price);
+        } else {
+            // Pour les types non-stock, appliquer growth/decay directement
+            if (isGrowth) {
+                price.applyGrowth(quantity);
+            } else {
+                price.applyDecay(quantity);
+            }
+        }
+    }
+
+    /**
+     * Met à jour un prix dynamique avec les valeurs actuelles du stock
+     */
+    private void updatePriceFromStock(String shopID, String itemID, DynamicPrice price) {
+        double newBuyPrice = DynaShopPlugin.getInstance().getPriceStock().calculatePrice(shopID, itemID, "buyPrice");
+        double newSellPrice = DynaShopPlugin.getInstance().getPriceStock().calculatePrice(shopID, itemID, "sellPrice");
+        
+        price.setBuyPrice(newBuyPrice);
+        price.setSellPrice(newSellPrice);
+        price.setStock(DynaShopPlugin.getInstance().getItemDataManager().getStock(shopID, itemID).orElse(0));
     }
 
     // // Méthode utilitaire pour formater le temps
