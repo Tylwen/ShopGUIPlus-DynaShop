@@ -1,5 +1,6 @@
 package fr.tylwen.satyria.dynashop.data;
 
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 // import org.bukkit.plugin.Plugin;
@@ -268,14 +269,15 @@ public class ShopConfigManager {
             return;
         }
 
-        if (!itemSec.isConfigurationSection("buyDynamic") && !itemSec.isConfigurationSection("sellDynamic") && getTypeDynaShop(shop.getId(), item.getId()) != DynaShopType.STATIC_STOCK) {
+        // if ((!itemSec.isConfigurationSection("buyDynamic") || !itemSec.isConfigurationSection("sellDynamic")) && getTypeDynaShop(shop.getId(), item.getId()) != DynaShopType.STATIC_STOCK) {
+        if ((!itemSec.isConfigurationSection("buyDynamic") && !itemSec.isConfigurationSection("sellDynamic")) && getTypeDynaShop(shop.getId(), item.getId()) != DynaShopType.STATIC_STOCK) {
             if (DynaShopPlugin.getInstance().getItemDataManager().itemExists(shop.getId(), item.getId())) {
                 DynaShopPlugin.getInstance().getItemDataManager().deleteItem(shop.getId(), item.getId());
             }
             priceMap.remove(item);
             return;
         }
-    
+
         DynamicPrice price = createDynamicPrice(itemSec);
         priceMap.put(item, price);
 
@@ -285,9 +287,26 @@ public class ShopConfigManager {
         //     DynaShopPlugin.getInstance().getLogger().info("Recette ajoutée pour l'item " + key + " dans le shop " + shop.getId());
         // });
     
-        if (!DynaShopPlugin.getInstance().getItemDataManager().itemHasPrice(shop.getId(), item.getId())) {
-            DynaShopPlugin.getInstance().getItemDataManager().savePrice(shop.getId(), item.getId(), price.getBuyPrice(), price.getSellPrice());
-        }
+        // if (!DynaShopPlugin.getInstance().getItemDataManager().itemHasPrice(shop.getId(), item.getId())) {
+        //     DynaShopPlugin.getInstance().getLogger().info("Adding new item price for " + item.getId() + " in shop " + shop.getId());
+        //     DynaShopPlugin.getInstance().getItemDataManager().savePrice(shop.getId(), item.getId(), price.getBuyPrice(), price.getSellPrice());
+        // }
+        Bukkit.getScheduler().runTaskAsynchronously(DynaShopPlugin.getInstance(), () -> {
+            if (!DynaShopPlugin.getInstance().getItemDataManager().itemHasPrice(shop.getId(), item.getId())) {
+                // DynaShopPlugin.getInstance().getItemDataManager().createItem(shop.getId(), item.getId());
+                DynaShopPlugin.getInstance().getLogger().info("Adding new item price for " + item.getId() + " in shop " + shop.getId());
+                // DynaShopPlugin.getInstance().getItemDataManager().savePrice(shop.getId(), item.getId(), price.getBuyPrice(), price.getSellPrice());
+                if (price.getBuyPrice() > 0) {
+                    DynaShopPlugin.getInstance().getDataManager().insertBuyPrice(shop.getId(), item.getId(), price.getBuyPrice());
+                }
+                if (price.getSellPrice() > 0) {
+                    DynaShopPlugin.getInstance().getDataManager().insertSellPrice(shop.getId(), item.getId(), price.getSellPrice());
+                }
+                if ((getTypeDynaShop(shop.getId(), item.getId()) == DynaShopType.STATIC_STOCK || getTypeDynaShop(shop.getId(), item.getId()) == DynaShopType.STOCK) && price.getStock() > 0) {
+                    DynaShopPlugin.getInstance().getDataManager().insertStock(shop.getId(), item.getId(), price.getStock());
+                }
+            }
+        });
     }
 
     /**
@@ -330,6 +349,12 @@ public class ShopConfigManager {
             buyModifier = stockSec.getDouble("buyModifier", 0.5);
             sellModifier = stockSec.getDouble("sellModifier", 2.0);
         }
+
+        // DynaShopPlugin.getInstance().getLogger().info("Creating DynamicPrice for item: " + itemSec.getCurrentPath() +
+        //     " | Buy: " + baseBuy + " (min: " + minBuy + ", max: " + maxBuy + ", growth: " + growthBuy + ", decay: " + decayBuy +
+        //     ") | Sell: " + baseSell + " (min: " + minSell + ", max: " + maxSell + ", growth: " + growthSell + ", decay: " + decaySell +
+        //     ") | Stock: " + stock + " (min: " + minStock + ", max: " + maxStock +
+        //     ") | BuyModifier: " + buyModifier + ", SellModifier: " + sellModifier);
     
         // return new DynamicPrice(baseBuy, baseSell, minBuy, maxBuy, minSell, maxSell, growthBuy, decayBuy, growthSell, decaySell);
         return new DynamicPrice(baseBuy, baseSell, minBuy, maxBuy, minSell, maxSell, growthBuy, decayBuy, growthSell, decaySell, stock, minStock, maxStock, buyModifier, sellModifier);
@@ -435,8 +460,18 @@ public class ShopConfigManager {
         return hasSection(shopID, itemID, "recipe.type");
     }
 
+    // public boolean hasRecipePattern(String shopID, String itemID) {
+    //     return hasSection(shopID, itemID, "recipe.pattern");
+    // }
     public boolean hasRecipePattern(String shopID, String itemID) {
-        return hasSection(shopID, itemID, "recipe.pattern");
+        YamlConfiguration config = getOrUpdateShopConfig(shopID);
+        if (config == null) return false;
+        
+        // Chemin complet vers la clé pattern
+        String path = shopID + ".items." + itemID + ".recipe.pattern";
+        
+        // Vérifier si la clé existe et contient une liste
+        return config.isList(path) && !config.getStringList(path).isEmpty();
     }
     public boolean hasRecipeIngredients(String shopID, String itemID) {
         return hasSection(shopID, itemID, "recipe.ingredients");
@@ -897,8 +932,13 @@ public class ShopConfigManager {
         String actualKey = findKeyIgnoreCase(section, key);
         if (actualKey == null) return Optional.empty();
         
-        double value = section.getDouble(actualKey, -1.0);
-        return value >= 0 ? Optional.of(value) : Optional.empty();
+        // Vérifier si la clé existe réellement dans la section
+        if (!section.contains(actualKey)) {
+            return Optional.empty();
+        }
+        
+        double value = section.getDouble(actualKey);
+        return Optional.of(value);
     }
 
     private Optional<Integer> getOptionalInt(ConfigurationSection section, String key) {
@@ -906,9 +946,14 @@ public class ShopConfigManager {
         
         String actualKey = findKeyIgnoreCase(section, key);
         if (actualKey == null) return Optional.empty();
-        
-        int value = section.getInt(actualKey, -1);
-        return value >= 0 ? Optional.of(value) : Optional.empty();
+
+        // Vérifier si la clé existe réellement dans la section
+        if (!section.contains(actualKey)) {
+            return Optional.empty();
+        }
+
+        int value = section.getInt(actualKey);
+        return Optional.of(value);
     }
 
     // public ItemStack getItemStack(String shopID, String itemID) {

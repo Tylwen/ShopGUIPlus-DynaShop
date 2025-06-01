@@ -15,6 +15,7 @@ import org.bukkit.Bukkit;
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
 import fr.tylwen.satyria.dynashop.data.DynamicPrice;
+import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import net.brcdev.shopgui.shop.item.ShopItem;
 
 /**
@@ -73,49 +74,54 @@ public class ItemDataManager {
         return dataManager.getPrices(shopID, itemID);
     }
 
+    // public void createItem(String shopID, String itemID) {
+    //     // Crée un nouvel item avec des prix par défaut
+    //     dataManager.createItem(shopID, itemID);
+    // }
+
     /**
      * Sauvegarde ou met à jour les prix d'un item.
      */
-    public void savePrice(String shopID, String itemID, double buyPrice, double sellPrice) {
-        dataManager.savePrice(shopID, itemID, buyPrice, sellPrice);
-    }
+    // public void savePrice(String shopID, String itemID, double buyPrice, double sellPrice) {
+    //     dataManager.savePrice(shopID, itemID, buyPrice, sellPrice);
+    // }
     
-    /**
-     * Sauvegarde ou met à jour les prix et le stock d'un item.
-     */
-    public void savePrice(String shopID, String itemID, double buyPrice, double sellPrice, int stock) {
-        dataManager.savePrice(shopID, itemID, buyPrice, sellPrice, stock);
-    }
+    // /**
+    //  * Sauvegarde ou met à jour les prix et le stock d'un item.
+    //  */
+    // public void savePrice(String shopID, String itemID, double buyPrice, double sellPrice, int stock) {
+    //     dataManager.savePrice(shopID, itemID, buyPrice, sellPrice, stock);
+    // }
 
-    /**
-     * Sauvegarde plusieurs prix de manière optimisée.
-     */
-    public void savePrices(Map<ShopItem, DynamicPrice> priceMap) {
-        // Utiliser le mode asynchrone pour les opérations groupées
-        dataManager.executeAsync(() -> {
-            String tablePrefix = dataConfig.getDatabaseTablePrefix();
-            String query = "REPLACE INTO " + tablePrefix + "_prices (shopID, itemID, buyPrice, sellPrice, stock) VALUES (?, ?, ?, ?, ?)";
+    // /**
+    //  * Sauvegarde plusieurs prix de manière optimisée.
+    //  */
+    // public void savePrices(Map<ShopItem, DynamicPrice> priceMap) {
+    //     // Utiliser le mode asynchrone pour les opérations groupées
+    //     dataManager.executeAsync(() -> {
+    //         String tablePrefix = dataConfig.getDatabaseTablePrefix();
+    //         String query = "REPLACE INTO " + tablePrefix + "_prices (shopID, itemID, buyPrice, sellPrice, stock) VALUES (?, ?, ?, ?, ?)";
             
-            try (Connection connection = dataManager.getConnection();
-                 PreparedStatement stmt = connection.prepareStatement(query)) {
+    //         try (Connection connection = dataManager.getConnection();
+    //              PreparedStatement stmt = connection.prepareStatement(query)) {
                 
-                for (Map.Entry<ShopItem, DynamicPrice> entry : priceMap.entrySet()) {
-                    ShopItem item = entry.getKey();
-                    DynamicPrice price = entry.getValue();
+    //             for (Map.Entry<ShopItem, DynamicPrice> entry : priceMap.entrySet()) {
+    //                 ShopItem item = entry.getKey();
+    //                 DynamicPrice price = entry.getValue();
                     
-                    stmt.setString(1, item.getShop().getId());
-                    stmt.setString(2, item.getId());
-                    stmt.setDouble(3, price.getBuyPrice());
-                    stmt.setDouble(4, price.getSellPrice());
-                    stmt.setInt(5, price.getStock());
-                    stmt.addBatch();
-                }
+    //                 stmt.setString(1, item.getShop().getId());
+    //                 stmt.setString(2, item.getId());
+    //                 stmt.setDouble(3, price.getBuyPrice());
+    //                 stmt.setDouble(4, price.getSellPrice());
+    //                 stmt.setInt(5, price.getStock());
+    //                 stmt.addBatch();
+    //             }
                 
-                int[] results = stmt.executeBatch();
-                return results.length; // Retourne le nombre d'enregistrements traités
-            }
-        });
-    }
+    //             int[] results = stmt.executeBatch();
+    //             return results.length; // Retourne le nombre d'enregistrements traités
+    //         }
+    //     });
+    // }
 
     /**
      * Sauvegarde un DynamicPrice pour un ShopItem.
@@ -169,25 +175,43 @@ public class ItemDataManager {
     }
 
     /**
-     * Met à jour le stock d'un item.
+     * Met à jour le stock d'un item en tenant compte du type DynaShop.
+     * Stocke -1 si l'item n'est pas en mode STOCK ou STATIC_STOCK.
      */
-    public void setStock(String shopID, String itemID, int stock) {
-        dataManager.setStock(shopID, itemID, stock);
+    public void insertStock(String shopID, String itemID, int stock) {
+        // Vérifier le type de l'item
+        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID);
+        
+        // // Si l'item n'est pas en mode STOCK ou STATIC_STOCK, utiliser -1
+        // if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK) {
+        //     dataManager.insertStock(shopID, itemID, -1);
+        // } else {
+        //     // dataManager.insertStock(shopID, itemID, stock);
+        //     // Pour les autres types, supprimer l'entrée si elle existe
+        //     dataManager.deleteStock(shopID, itemID);
+        // }
+        // N'insérer que les items en mode STOCK ou STATIC_STOCK
+        if (type == DynaShopType.STOCK || type == DynaShopType.STATIC_STOCK) {
+            dataManager.insertStock(shopID, itemID, stock);
+        } else {
+            // Pour les autres types, supprimer l'entrée si elle existe
+            dataManager.deleteStock(shopID, itemID);
+        }
     }
 
     /**
      * Met à jour le stock d'un ShopItem.
      */
-    public void setStock(ShopItem item, int stock) {
-        setStock(item.getShop().getId(), item.getId(), stock);
+    public void insertStock(ShopItem item, int stock) {
+        insertStock(item.getShop().getId(), item.getId(), stock);
     }
     
     /**
-     * Version asynchrone de setStock.
+     * Version asynchrone de insertStock.
      */
-    public CompletableFuture<Void> setStockAsync(String shopID, String itemID, int stock) {
+    public CompletableFuture<Void> insertStockAsync(String shopID, String itemID, int stock) {
         return dataManager.executeAsync(() -> {
-            setStock(shopID, itemID, stock);
+            insertStock(shopID, itemID, stock);
             return null;
         });
     }
@@ -195,44 +219,47 @@ public class ItemDataManager {
     /**
      * Supprime un item de la base de données.
      */
+    // public void deleteItem(String shopID, String itemID) {
+    //     String query = "DELETE FROM " + dataConfig.getDatabaseTablePrefix() + "_items WHERE shopID = ? AND itemID = ?";
+    //     dataManager.executeAsync(() -> {
+    //         try (Connection connection = dataManager.getConnection();
+    //              PreparedStatement stmt = connection.prepareStatement(query)) {
+    //             stmt.setString(1, shopID);
+    //             stmt.setString(2, itemID);
+    //             return stmt.executeUpdate();
+    //         }
+    //     });
+    // }
     public void deleteItem(String shopID, String itemID) {
-        String query = "DELETE FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ?";
-        dataManager.executeAsync(() -> {
-            try (Connection connection = dataManager.getConnection();
-                 PreparedStatement stmt = connection.prepareStatement(query)) {
-                stmt.setString(1, shopID);
-                stmt.setString(2, itemID);
-                return stmt.executeUpdate();
-            }
-        });
+        dataManager.deleteItem(shopID, itemID);
     }
 
-    /**
-     * Supprime tous les items d'un shop de la base de données.
-     */
-    public void deleteShopItems(String shopID) {
-        String query = "DELETE FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ?";
-        dataManager.executeAsync(() -> {
-            try (Connection connection = dataManager.getConnection();
-                 PreparedStatement stmt = connection.prepareStatement(query)) {
-                stmt.setString(1, shopID);
-                return stmt.executeUpdate();
-            }
-        });
-    }
+    // /**
+    //  * Supprime tous les items d'un shop de la base de données.
+    //  */
+    // public void deleteShopItems(String shopID) {
+    //     String query = "DELETE FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ?";
+    //     dataManager.executeAsync(() -> {
+    //         try (Connection connection = dataManager.getConnection();
+    //              PreparedStatement stmt = connection.prepareStatement(query)) {
+    //             stmt.setString(1, shopID);
+    //             return stmt.executeUpdate();
+    //         }
+    //     });
+    // }
 
-    /**
-     * Supprime tous les items de la base de données.
-     */
-    public void deleteAllItems() {
-        String query = "DELETE FROM " + dataConfig.getDatabaseTablePrefix() + "_prices";
-        dataManager.executeAsync(() -> {
-            try (Connection connection = dataManager.getConnection();
-                 PreparedStatement stmt = connection.prepareStatement(query)) {
-                return stmt.executeUpdate();
-            }
-        });
-    }
+    // /**
+    //  * Supprime tous les items de la base de données.
+    //  */
+    // public void deleteAllItems() {
+    //     String query = "DELETE FROM " + dataConfig.getDatabaseTablePrefix() + "_prices";
+    //     dataManager.executeAsync(() -> {
+    //         try (Connection connection = dataManager.getConnection();
+    //              PreparedStatement stmt = connection.prepareStatement(query)) {
+    //             return stmt.executeUpdate();
+    //         }
+    //     });
+    // }
 
     /**
      * Vérifie si un item existe dans la base de données.
@@ -272,7 +299,7 @@ public class ItemDataManager {
      * Méthode interne pour vérifier l'existence d'un item dans la base de données.
      */
     private boolean checkItemExistsInDatabase(String shopID, String itemID) {
-        String query = "SELECT COUNT(*) FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ?";
+        String query = "SELECT COUNT(*) FROM " + dataConfig.getDatabaseTablePrefix() + "_items WHERE shopID = ? AND itemID = ?";
         try (Connection connection = dataManager.getConnection();
             PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setString(1, shopID);
@@ -324,7 +351,7 @@ public class ItemDataManager {
      * Méthode interne pour vérifier si un item a un prix dans la base de données.
      */
     private boolean checkItemHasPriceInDatabase(String shopID, String itemID) {
-        String query = "SELECT COUNT(*) FROM " + dataConfig.getDatabaseTablePrefix() + "_prices WHERE shopID = ? AND itemID = ? AND (buyPrice > 0 OR sellPrice > 0)";
+        String query = "SELECT COUNT(*) FROM " + dataConfig.getDatabaseTablePrefix() + "_items WHERE shopID = ? AND itemID = ? AND (buyPrice > 0 OR sellPrice > 0)";
         try (Connection connection = dataManager.getConnection();
             PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setString(1, shopID);

@@ -43,10 +43,10 @@ public class DynamicPrice {
         double growthSell, double decaySell,
         int stock, int minStock, int maxStock,
         double stockBuyModifier, double stockSellModifier) {
-        if (minBuy > 0 && maxBuy > 0 && minBuy > maxBuy) {
+        if (minBuy > maxBuy) {
             throw new IllegalArgumentException("minBuy ne peut pas être supérieur à maxBuy");
         }
-        if (minSell > 0 && maxSell > 0 && minSell > maxSell) {
+        if (minSell > maxSell) {
             throw new IllegalArgumentException("minSell ne peut pas être supérieur à maxSell");
         }
         if (growthBuy <= 0 || decayBuy <= 0 || growthSell <= 0 || decaySell <= 0) {
@@ -56,46 +56,39 @@ public class DynamicPrice {
             throw new IllegalArgumentException("minStock ne peut pas être supérieur à maxStock");
         }
 
-        // Conserver -1 comme valeur spéciale
-        this.buyPrice = buyPrice;
-        this.sellPrice = sellPrice;
+        this.buyPrice = Math.max(minBuy, Math.min(buyPrice, maxBuy));
+        this.sellPrice = Math.max(minSell, Math.min(sellPrice, maxSell));
         
-        // Appliquer les limites seulement si le prix est positif
-        if (this.buyPrice > 0) {
-            this.buyPrice = Math.max(minBuy, Math.min(buyPrice, maxBuy));
+        // Vérifier que buyPrice est supérieur ou égal à sellPrice + MIN_MARGIN
+        if (buyPrice < sellPrice + MIN_MARGIN) {
+            this.buyPrice = sellPrice + MIN_MARGIN;
         }
-        if (this.sellPrice > 0) {
-            this.sellPrice = Math.max(minSell, Math.min(sellPrice, maxSell));
-        }
-        
-        // Vérifier les marges uniquement si les deux prix sont positifs
-        if (this.buyPrice > 0 && this.sellPrice > 0) {
-            // Vérifier que buyPrice est supérieur ou égal à sellPrice + MIN_MARGIN
-            if (this.buyPrice < this.sellPrice + MIN_MARGIN) {
-                this.buyPrice = this.sellPrice + MIN_MARGIN;
-            }
-            // Vérifier que sellPrice est inférieur ou égal à buyPrice - MIN_MARGIN
-            if (this.sellPrice > this.buyPrice - MIN_MARGIN) {
-                this.sellPrice = this.buyPrice - MIN_MARGIN;
-            }
+        // Vérifier que sellPrice est inférieur ou égal à buyPrice - MIN_MARGIN
+        if (sellPrice > buyPrice - MIN_MARGIN) {
+            this.sellPrice = buyPrice - MIN_MARGIN;
         }
 
-        // Initialiser le reste comme avant
+        // Initialiser les bornes
         this.minBuy = minBuy;
         this.maxBuy = maxBuy;
         this.minSell = minSell;
         this.maxSell = maxSell;
+    
+        // Initialiser les facteurs de croissance et de décroissance
         this.growthBuy = growthBuy;
         this.decayBuy = decayBuy;
         this.growthSell = growthSell;
         this.decaySell = decaySell;
+        
         this.stock = stock;
         this.minStock = minStock;
         this.maxStock = maxStock;
         this.stockBuyModifier = stockBuyModifier;
         this.stockSellModifier = stockSellModifier;
-        this.isFromRecipe = false;
-        this.isFromStock = false;
+
+        this.isFromRecipe = false; // Par défaut, pas d'origine de recette
+        this.isFromStock = false; // Par défaut, pas d'origine de stock
+        // this.isFromRecipeStock = false; // Par défaut, pas d'origine de recette de stock
     }
 
     public DynamicPrice(double buyPrice, double sellPrice) {
@@ -108,65 +101,114 @@ public class DynamicPrice {
         this(buyPrice, sellPrice, 0.0, Double.MAX_VALUE, 0.0, Double.MAX_VALUE, 1.0, 1.0, 1.0, 1.0,
             stock, 0, Integer.MAX_VALUE, 1.0, 1.0);
     }
+
+    // /** Appliqué périodiquement pour “rafraîchir” les prix */
+    // public void applyDecay() {
+    //     buyPrice  = Math.max(buyPrice * decayBuy, minBuy);
+    //     sellPrice = Math.min(sellPrice * growthSell, maxSell);
+
+    //     // Vérifier que sellPrice est inférieur ou égal à buyPrice - MIN_MARGIN
+    //     if (sellPrice > buyPrice - MIN_MARGIN) {
+    //         sellPrice = buyPrice - MIN_MARGIN;
+    //     }
+    // }
+    // public void applyDecay(int amount) {
+    //     for (int i = 1; i < amount; i++) {
+    //         applyDecay();
+    //     }
+    // }
     
     public void applyDecay(int amount) {
-        // Ne pas modifier les prix désactivés (-1)
-        if (buyPrice > 0) {
-            buyPrice = Math.max(minBuy, Math.min(buyPrice * Math.pow(decayBuy, amount), maxBuy));
-        }
-        if (sellPrice > 0) {
-            sellPrice = Math.min(maxSell, Math.max(sellPrice * Math.pow(decaySell, amount), minSell));
-        }
+        // buyPrice  = Math.max(buyPrice * Math.pow(decayBuy, amount), minBuy);
+        // sellPrice = Math.min(sellPrice * Math.pow(decaySell, amount), maxSell);
+        buyPrice  = Math.max(minBuy, Math.min(buyPrice * Math.pow(decayBuy, amount), maxBuy));
+        sellPrice = Math.min(maxSell, Math.max(sellPrice * Math.pow(decaySell, amount), minSell));
 
-        // Vérifier les marges uniquement si les deux prix sont positifs
-        if (buyPrice > 0 && sellPrice > 0) {
-            if (sellPrice > buyPrice - MIN_MARGIN) {
-                sellPrice = buyPrice - MIN_MARGIN;
-            }
-            if (buyPrice < sellPrice + MIN_MARGIN) {
-                buyPrice = sellPrice + MIN_MARGIN;
-            }
+        // Vérifier que sellPrice est inférieur ou égal à buyPrice - MIN_MARGIN
+        if (sellPrice > buyPrice - MIN_MARGIN) {
+            sellPrice = buyPrice - MIN_MARGIN;
+        }
+        // Vérifier que buyPrice est supérieur ou égal à sellPrice + MIN_MARGIN
+        if (buyPrice < sellPrice + MIN_MARGIN) {
+            buyPrice = sellPrice + MIN_MARGIN;
         }
     }
+    // public void applyDecay() {
+    //     System.out.println("Avant décroissance : buyPrice = " + buyPrice + ", decayBuy = " + decayBuy + ", minBuy = " + minBuy);
+    //     if (decayBuy < 1.0) {
+    //         buyPrice = Math.max(buyPrice * decayBuy, minBuy);
+    //     }
+    //     if (growthSell > 1.0) {
+    //         sellPrice = Math.min(sellPrice * growthSell, maxSell);
+    //     }
+    //     System.out.println("Après décroissance : buyPrice = " + buyPrice + ", sellPrice = " + sellPrice);
+    // }
+
+    // public void applyGrowth() {
+    //     buyPrice  = Math.min(buyPrice * growthBuy, maxBuy);
+    //     sellPrice = Math.max(sellPrice * decaySell, minSell);
+
+    //     // Vérifier que buyPrice est supérieur ou égal à sellPrice + MIN_MARGIN
+    //     if (buyPrice < sellPrice + MIN_MARGIN) {
+    //         buyPrice = sellPrice + MIN_MARGIN;
+    //     }
+    // }
+    // public void applyGrowth(int amount) {
+    //     for (int i = 1; i < amount; i++) {
+    //         applyGrowth();
+    //     }
+    // }
     
     public void applyGrowth(int amount) {
-        // Ne pas modifier les prix désactivés (-1)
-        if (buyPrice > 0) {
-            buyPrice = Math.min(maxBuy, Math.max(buyPrice * Math.pow(growthBuy, amount), minBuy));
-        }
-        if (sellPrice > 0) {
-            sellPrice = Math.max(minSell, Math.min(sellPrice * Math.pow(growthSell, amount), maxSell));
-        }
+        // buyPrice  = Math.min(buyPrice * Math.pow(growthBuy, amount), maxBuy);
+        buyPrice  = Math.min(maxBuy, Math.max(buyPrice * Math.pow(growthBuy, amount), minBuy));
+        // sellPrice = Math.max(sellPrice * Math.pow(growthSell, amount), minSell);
+        // this.sellPrice = Math.max(minSell, Math.min(this.sellPrice, maxSell));
+        sellPrice = Math.max(minSell, Math.min(sellPrice * Math.pow(growthSell, amount), maxSell));
 
-        // Vérifier les marges uniquement si les deux prix sont positifs
-        if (buyPrice > 0 && sellPrice > 0) {
-            if (buyPrice < sellPrice + MIN_MARGIN) {
-                buyPrice = sellPrice + MIN_MARGIN;
-            }
-            if (sellPrice > buyPrice - MIN_MARGIN) {
-                sellPrice = buyPrice - MIN_MARGIN;
-            }
+        // Vérifier que buyPrice est supérieur ou égal à sellPrice + MIN_MARGIN
+        if (buyPrice < sellPrice + MIN_MARGIN) {
+            buyPrice = sellPrice + MIN_MARGIN;
+        }
+        // Vérifier que sellPrice est inférieur ou égal à buyPrice - MIN_MARGIN
+        if (sellPrice > buyPrice - MIN_MARGIN) {
+            sellPrice = buyPrice - MIN_MARGIN;
         }
     }
+    // public void applyGrowth() {
+    //     System.out.println("Avant croissance : buyPrice = " + buyPrice + ", growthBuy = " + growthBuy + ", maxBuy = " + maxBuy);
+    //     if (growthBuy > 1.0) {
+    //         buyPrice = Math.min(buyPrice * growthBuy, maxBuy);
+    //     }
+    //     if (decaySell < 1.0) {
+    //         sellPrice = Math.max(sellPrice * decaySell, minSell);
+    //     }
+    //     System.out.println("Après croissance : buyPrice = " + buyPrice + ", sellPrice = " + sellPrice);
+    // }
+    // public void applyGrowth() {
+    //     System.out.println("Avant croissance : buyPrice = " + buyPrice + ", growthBuy = " + growthBuy + ", maxBuy = " + maxBuy);
+    //     if (buyPrice < maxBuy) {
+    //         buyPrice *= growthBuy;
+    //         if (buyPrice > maxBuy) {
+    //             buyPrice = maxBuy;
+    //         }
+    //     }
+    //     System.out.println("Après croissance : buyPrice = " + buyPrice);
+    // }
     
-    /**
-     * Applique les changements de prix d'achat seulement si le prix est positif
-     */
     public void applyBuyPriceChanges() {
-        if (buyPrice > 0) {
-            this.buyPrice *= DynaShopPlugin.getInstance().getDataConfig().getPriceDecrease();
-            this.buyPrice = Math.max(minBuy, Math.min(this.buyPrice, maxBuy));
-        }
+        // this.buyPrice *= 0.99;
+        this.buyPrice *= DynaShopPlugin.getInstance().getDataConfig().getPriceDecrease();
+        // this.buyPrice = Math.min(this.buyPrice, this.maxBuy);
+        // this.buyPrice = Math.max(this.buyPrice, this.minBuy);
+        this.buyPrice = Math.max(minBuy, Math.min(this.buyPrice, maxBuy));
     }
-    
-    /**
-     * Applique les changements de prix de vente seulement si le prix est positif
-     */
     public void applySellPriceChanges() {
-        if (sellPrice > 0) {
-            this.sellPrice *= DynaShopPlugin.getInstance().getDataConfig().getPriceIncrease();
-            this.sellPrice = Math.max(minSell, Math.min(this.sellPrice, maxSell));
-        }
+        // this.sellPrice *= 1.01;
+        this.sellPrice *= DynaShopPlugin.getInstance().getDataConfig().getPriceIncrease();
+        // this.sellPrice = Math.min(this.sellPrice, this.maxSell);
+        // this.sellPrice = Math.max(this.sellPrice, this.minSell);
+        this.sellPrice = Math.max(minSell, Math.min(this.sellPrice, maxSell));
     }
 
     public void setBuyPrice(double buyPrice) {
@@ -318,29 +360,35 @@ public class DynamicPrice {
 
 
     public void adjustPricesBasedOnStock() {
+        // Variables de débogage
+        // double oldBuyPrice = this.buyPrice;
+        // double oldSellPrice = this.sellPrice;
+        
         // Calculer le ratio de stock (entre 0 et 1)
         double stockRatio = Math.max(0.0, Math.min(1.0, (double)(stock - minStock) / (maxStock - minStock)));
         
-        // Ajuster seulement les prix positifs
-        if (buyPrice > 0) {
-            // Formule inversée : prix élevés quand stock proche de 0, prix bas quand stock proche du max
-            buyPrice = maxBuy - (maxBuy - minBuy) * stockRatio * stockBuyModifier;
+        // Formule ajustée pour le prix d'achat (diminue quand le stock augmente)
+        // buyPrice = minBuy + (maxBuy - minBuy) * (1.0 - stockRatio * stockBuyModifier);
+        // Formule inversée : prix élevés quand stock proche de 0, prix bas quand stock proche du max
+        buyPrice = maxBuy - (maxBuy - minBuy) * stockRatio * stockBuyModifier;
+        
+        // Formule ajustée pour le prix de vente (diminue quand le stock augmente)
+        // sellPrice = minSell + (maxSell - minSell) * (1.0 - stockRatio * stockSellModifier);
+        // Formule inversée : prix élevés quand stock proche de 0, prix bas quand stock proche du max
+        sellPrice = maxSell - (maxSell - minSell) * stockRatio * stockSellModifier;
+        
+        // Vérifier les bornes
+        if (buyPrice < sellPrice + MIN_MARGIN) {
+            buyPrice = sellPrice + MIN_MARGIN;
+        }
+        if (sellPrice > buyPrice - MIN_MARGIN) {
+            sellPrice = buyPrice - MIN_MARGIN;
         }
         
-        if (sellPrice > 0) {
-            // Formule inversée : prix élevés quand stock proche de 0, prix bas quand stock proche du max
-            sellPrice = maxSell - (maxSell - minSell) * stockRatio * stockSellModifier;
-        }
-        
-        // Vérifier les marges uniquement si les deux prix sont positifs
-        if (buyPrice > 0 && sellPrice > 0) {
-            if (buyPrice < sellPrice + MIN_MARGIN) {
-                buyPrice = sellPrice + MIN_MARGIN;
-            }
-            if (sellPrice > buyPrice - MIN_MARGIN) {
-                sellPrice = buyPrice - MIN_MARGIN;
-            }
-        }
+        // // Log des changements
+        // DynaShopPlugin.getInstance().getLogger().info("Stock: " + stock + "/" + maxStock + " (ratio: " + stockRatio + ")");
+        // DynaShopPlugin.getInstance().getLogger().info("Prix d'achat: " + oldBuyPrice + " -> " + buyPrice + " (mod: " + stockBuyModifier + ")");
+        // DynaShopPlugin.getInstance().getLogger().info("Prix de vente: " + oldSellPrice + " -> " + sellPrice + " (mod: " + stockSellModifier + ")");
     }
     
     public void increaseStock(int amount) {

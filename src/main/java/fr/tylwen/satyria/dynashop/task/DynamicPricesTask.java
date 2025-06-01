@@ -72,8 +72,7 @@ public class DynamicPricesTask implements Runnable {
     public void run() {
         try {
             // Vérifier que ShopGUIPlus est bien initialisé et que les shops sont chargés
-            if (ShopGuiPlusApi.getPlugin() == null || 
-                ShopGuiPlusApi.getPlugin().getShopManager() == null) {
+            if (ShopGuiPlusApi.getPlugin() == null || ShopGuiPlusApi.getPlugin().getShopManager() == null) {
                 plugin.getLogger().warning("ShopGUIPlus n'est pas encore complètement initialisé. La tâche DynamicPricesTask sera exécutée la prochaine fois.");
                 return;
             }
@@ -144,7 +143,8 @@ public class DynamicPricesTask implements Runnable {
                     
                     // Vérifier si l'item utilise le système de prix dynamique
                     if (plugin.getShopConfigManager().hasSection(shopID, itemID, "buyDynamic") && 
-                        plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID) == DynaShopType.DYNAMIC) {
+                        plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID) == DynaShopType.DYNAMIC &&
+                        oldBuyPrice > 0) {
                         
                         // Récupérer les limites min et max pour l'achat
                         double minBuy = plugin.getShopConfigManager().getItemValue(shopID, itemID, "buyDynamic.min", Double.class).orElse(0.0);
@@ -171,7 +171,8 @@ public class DynamicPricesTask implements Runnable {
                     }
                     
                     if (plugin.getShopConfigManager().hasSection(shopID, itemID, "sellDynamic") && 
-                        plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID) == DynaShopType.DYNAMIC) {
+                        plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID) == DynaShopType.DYNAMIC &&
+                        oldSellPrice > 0) {
                         
                         // Récupérer les limites min et max pour la vente
                         double minSell = plugin.getShopConfigManager().getItemValue(shopID, itemID, "sellDynamic.min", Double.class).orElse(0.0);
@@ -201,15 +202,15 @@ public class DynamicPricesTask implements Runnable {
                         // Ajouter à la liste des prix à mettre à jour
                         pricesToUpdate.put(shopID + ":" + itemID, price);
                         
-                        // Mettre à jour le prix dans l'interface de shop
-                        // Cette opération doit être faite dans le thread principal
-                        final double buyPrice = price.getBuyPrice();
-                        final double sellPrice = price.getSellPrice();
+                        // // Mettre à jour le prix dans l'interface de shop
+                        // // Cette opération doit être faite dans le thread principal
+                        // final double buyPrice = price.getBuyPrice();
+                        // final double sellPrice = price.getSellPrice();
                         
-                        Bukkit.getScheduler().runTask(plugin, () -> {
-                            item.setBuyPrice(buyPrice);
-                            item.setSellPrice(sellPrice);
-                        });
+                        // Bukkit.getScheduler().runTask(plugin, () -> {
+                        //     item.setBuyPrice(buyPrice);
+                        //     item.setSellPrice(sellPrice);
+                        // });
                     }
                 }
                 

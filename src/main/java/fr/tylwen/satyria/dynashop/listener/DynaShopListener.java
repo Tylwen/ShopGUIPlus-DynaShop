@@ -119,9 +119,9 @@ public class DynaShopListener implements Listener {
         if (!shopConfigManager.getItemValue(shopID, itemID, "typeDynaShop", String.class).isPresent()) {
             return; // Ignorer les items non configurés pour DynaShop
         }
-        if (!shopConfigManager.hasStockSection(shopID, itemID) && !shopConfigManager.hasDynamicSection(shopID, itemID) && !shopConfigManager.hasRecipeSection(shopID, itemID)) {
-            return; // Ignorer les items sans les sections requises
-        }
+        // if (!shopConfigManager.hasStockSection(shopID, itemID) && !shopConfigManager.hasDynamicSection(shopID, itemID) && !shopConfigManager.hasRecipeSection(shopID, itemID)) {
+        //     return; // Ignorer les items sans les sections requises
+        // }
 
         DynamicPrice price = getOrLoadPrice(shopID, itemID, itemStack);
         if (price == null) {
@@ -385,12 +385,12 @@ public class DynaShopListener implements Listener {
             // mainPlugin.warning(itemID + " : Pas de section DynaShop dans le shop " + shopID);
             return; // Ignorer les items non configurés pour DynaShop
         }
-        if (!shopConfigManager.hasStockSection(shopID, itemID) &&
-            !shopConfigManager.hasDynamicSection(shopID, itemID) &&
-            !shopConfigManager.hasRecipeSection(shopID, itemID)) {
-            // mainPlugin.warning(itemID + " : Pas de section dynamique, recette ou stock dans le shop " + shopID);
-            return; // Ignorer les items sans les sections requises
-        }
+        // if (!shopConfigManager.hasStockSection(shopID, itemID) &&
+        //     !shopConfigManager.hasDynamicSection(shopID, itemID) &&
+        //     !shopConfigManager.hasRecipeSection(shopID, itemID)) {
+        //     // mainPlugin.warning(itemID + " : Pas de section dynamique, recette ou stock dans le shop " + shopID);
+        //     return; // Ignorer les items sans les sections requises
+        // }
 
         DynamicPrice price = getOrLoadPrice(shopID, itemID, itemStack);
         if (price == null) {
@@ -752,12 +752,20 @@ public class DynaShopListener implements Listener {
 
             // Si aucune donnée n'est trouvée dans la base de données ou les fichiers de configuration, retourner null
             if (priceFromDatabase.isEmpty() && (priceData.buyPrice.isEmpty() || priceData.sellPrice.isEmpty())) {
+                // mainPlugin.getLogger().warning(itemID + " : Pas de prix dynamique trouvé dans le shop " + shopID);
                 return null;
             }
             
-            // Fusionner les données
-            double buyPrice = priceFromDatabase.map(DynamicPrice::getBuyPrice).orElse(priceData.buyPrice.orElse(-1.0));
-            double sellPrice = priceFromDatabase.map(DynamicPrice::getSellPrice).orElse(priceData.sellPrice.orElse(-1.0));
+            double buyPrice = -1.0; // Valeur par défaut si non spécifiée
+            double sellPrice = -1.0; // Valeur par défaut si non spécifiée
+            if (!priceData.buyPrice.isEmpty()) {
+                buyPrice = priceFromDatabase.map(DynamicPrice::getBuyPrice).orElse(priceData.buyPrice.orElse(-1.0));
+            }
+            if (!priceData.sellPrice.isEmpty()) {
+                sellPrice = priceFromDatabase.map(DynamicPrice::getSellPrice).orElse(priceData.sellPrice.orElse(-1.0));
+            }
+            // double buyPrice = priceFromDatabase.map(DynamicPrice::getBuyPrice).orElse(priceData.buyPrice.orElse(-1.0));
+            // double sellPrice = priceFromDatabase.map(DynamicPrice::getSellPrice).orElse(priceData.sellPrice.orElse(-1.0));
         
             double minBuy = priceData.minBuy.orElse(buyPrice);
             double maxBuy = priceData.maxBuy.orElse(buyPrice);

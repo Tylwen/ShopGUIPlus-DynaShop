@@ -3,6 +3,7 @@ package fr.tylwen.satyria.dynashop.data;
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
 // import org.bukkit.inventory.ItemStack;
+import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -121,14 +122,33 @@ public class PriceStock {
     /**
      * Diminue le stock d'un item.
      */
+    // public void decreaseStock(String shopID, String itemID, int amount) {
+    //     Optional<Integer> currentStock = plugin.getItemDataManager().getStock(shopID, itemID);
+    //     int minStock = plugin.getShopConfigManager()
+    //         .getItemValue(shopID, itemID, "stock.min", Integer.class)
+    //         .orElse(dataConfig.getStockMin());
+        
+    //     int newStock = Math.max(currentStock.orElse(0) - amount, minStock);
+    //     plugin.getDataManager().insertStock(shopID, itemID, newStock);
+        
+    //     // Mettre à jour les prix dans la BD
+    //     updatePricesInDatabase(shopID, itemID);
+    // }
     public void decreaseStock(String shopID, String itemID, int amount) {
+        // Vérifier si l'item est en mode STOCK ou STATIC_STOCK
+        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID);
+        if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK) {
+            // Ne rien faire si l'item n'est pas en mode stock
+            return;
+        }
+        
         Optional<Integer> currentStock = plugin.getItemDataManager().getStock(shopID, itemID);
         int minStock = plugin.getShopConfigManager()
             .getItemValue(shopID, itemID, "stock.min", Integer.class)
             .orElse(dataConfig.getStockMin());
         
         int newStock = Math.max(currentStock.orElse(0) - amount, minStock);
-        plugin.getItemDataManager().setStock(shopID, itemID, newStock);
+        plugin.getDataManager().insertStock(shopID, itemID, newStock);
         
         // Mettre à jour les prix dans la BD
         updatePricesInDatabase(shopID, itemID);
@@ -137,14 +157,33 @@ public class PriceStock {
     /**
      * Augmente le stock d'un item.
      */
+    // public void increaseStock(String shopID, String itemID, int amount) {
+    //     Optional<Integer> currentStock = plugin.getItemDataManager().getStock(shopID, itemID);
+    //     int maxStock = plugin.getShopConfigManager()
+    //         .getItemValue(shopID, itemID, "stock.max", Integer.class)
+    //         .orElse(dataConfig.getStockMax());
+        
+    //     int newStock = Math.min(currentStock.orElse(0) + amount, maxStock);
+    //     plugin.getDataManager().insertStock(shopID, itemID, newStock);
+        
+    //     // Mettre à jour les prix dans la BD
+    //     updatePricesInDatabase(shopID, itemID);
+    // }
     public void increaseStock(String shopID, String itemID, int amount) {
+        // Vérifier si l'item est en mode STOCK ou STATIC_STOCK
+        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID);
+        if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK) {
+            // Ne rien faire si l'item n'est pas en mode stock
+            return;
+        }
+        
         Optional<Integer> currentStock = plugin.getItemDataManager().getStock(shopID, itemID);
         int maxStock = plugin.getShopConfigManager()
             .getItemValue(shopID, itemID, "stock.max", Integer.class)
             .orElse(dataConfig.getStockMax());
         
         int newStock = Math.min(currentStock.orElse(0) + amount, maxStock);
-        plugin.getItemDataManager().setStock(shopID, itemID, newStock);
+        plugin.getDataManager().insertStock(shopID, itemID, newStock);
         
         // Mettre à jour les prix dans la BD
         updatePricesInDatabase(shopID, itemID);
@@ -168,7 +207,17 @@ public class PriceStock {
     /**
      * Vérifie si un achat est possible (stock suffisant).
      */
+    // public boolean canBuy(String shopID, String itemID, int amount) {
+    //     Optional<Integer> stockOptional = plugin.getItemDataManager().getStock(shopID, itemID);
+    //     return stockOptional.map(stock -> stock >= amount).orElse(true);
+    // }
     public boolean canBuy(String shopID, String itemID, int amount) {
+        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID);
+        if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK) {
+            // Si l'item n'est pas en mode stock, l'achat est toujours possible
+            return true;
+        }
+        
         Optional<Integer> stockOptional = plugin.getItemDataManager().getStock(shopID, itemID);
         return stockOptional.map(stock -> stock >= amount).orElse(true);
     }
@@ -176,7 +225,21 @@ public class PriceStock {
     /**
      * Vérifie si une vente est possible (stock pas plein).
      */
+    // public boolean canSell(String shopID, String itemID, int amount) {
+    //     Optional<Integer> stockOptional = plugin.getItemDataManager().getStock(shopID, itemID);
+    //     int maxStock = plugin.getShopConfigManager()
+    //         .getItemValue(shopID, itemID, "stock.max", Integer.class)
+    //         .orElse(dataConfig.getStockMax());
+        
+    //     return stockOptional.map(stock -> stock + amount <= maxStock).orElse(true);
+    // }
     public boolean canSell(String shopID, String itemID, int amount) {
+        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID);
+        if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK) {
+            // Si l'item n'est pas en mode stock, la vente est toujours possible
+            return true;
+        }
+        
         Optional<Integer> stockOptional = plugin.getItemDataManager().getStock(shopID, itemID);
         int maxStock = plugin.getShopConfigManager()
             .getItemValue(shopID, itemID, "stock.max", Integer.class)

@@ -30,6 +30,8 @@ import fr.tylwen.satyria.dynashop.command.LimitResetCommand;
 import fr.tylwen.satyria.dynashop.command.ReloadCommand;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
 import fr.tylwen.satyria.dynashop.config.LangConfig;
+import fr.tylwen.satyria.dynashop.data.CustomIngredientsManager;
+import fr.tylwen.satyria.dynashop.data.CustomRecipeManager;
 import fr.tylwen.satyria.dynashop.data.CustomRecipeManager;
 // import fr.tylwen.satyria.dynashop.data.DynamicPrice;
 import fr.tylwen.satyria.dynashop.data.PriceRecipe;
@@ -105,6 +107,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     // private ShopRefreshManager shopRefreshManager;
     // private ItemPacketInterceptor packetInterceptor;
     private PriceFormatter priceFormatter;
+    private CustomIngredientsManager customIngredientsManager;
 
     private int dynamicPricesTaskId;
     private int waitForShopsTaskId;
@@ -205,6 +208,10 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
 
     public TransactionLimiter getTransactionLimiter() {
         return transactionLimiter;
+    }
+
+    public CustomIngredientsManager getCustomIngredientsManager() {
+        return this.customIngredientsManager;
     }
 
     // public ShopRefreshManager getShopRefreshManager() {
@@ -337,6 +344,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private void init() {
         generateFiles();
         this.shopConfigManager = new ShopConfigManager(new File(Bukkit.getPluginManager().getPlugin("ShopGUIPlus").getDataFolder(), "shops/"));
+        this.customRecipeManager = new CustomRecipeManager(this);
         this.dynaShopListener = new DynaShopListener(this);
         this.priceRecipe = new PriceRecipe(this.configMain);
         this.dataConfig = new DataConfig(this.configMain);
@@ -348,6 +356,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         this.transactionLimiter = new TransactionLimiter(this);
         this.recipeCacheManager = new RecipeCacheManager(15 * 60 * 1000L); // 15 minutes en ms
         this.priceFormatter = new PriceFormatter(this);
+        this.customIngredientsManager = new CustomIngredientsManager();
         // this.shopRefreshManager = new ShopRefreshManager(this);
         // preloadPopularItems();
     }

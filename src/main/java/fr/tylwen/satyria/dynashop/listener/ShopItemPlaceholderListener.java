@@ -357,25 +357,41 @@ public class ShopItemPlaceholderListener implements Listener {
             // Vérifier si la ligne contient des placeholders spécifiques
             if (line.contains("%dynashop_current_")) {
                 // Vérifier les placeholders individuels
+                // if (line.contains("%dynashop_current_buyPrice%") && 
+                //     (prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0"))) {
+                //     skipLine = true;
+                // }
                 if (line.contains("%dynashop_current_buyPrice%") && 
-                    (prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0"))) {
+                    (prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0") || prices.get("buy").equals("-1"))) {
                     skipLine = true;
                 }
                 
+                // if (line.contains("%dynashop_current_sellPrice%") && 
+                //     (prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0"))) {
+                //     skipLine = true;
+                // }
                 if (line.contains("%dynashop_current_sellPrice%") && 
-                    (prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0"))) {
+                    (prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0") || prices.get("sell").equals("-1"))) {
                     skipLine = true;
                 }
                 
                 // Vérifier le placeholder composite buy
+                // if (line.contains("%dynashop_current_buy%") && 
+                //     (prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0"))) {
+                //     skipLine = true;
+                // }
                 if (line.contains("%dynashop_current_buy%") && 
-                    (prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0"))) {
+                    (prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0") || prices.get("buy").equals("-1"))) {
                     skipLine = true;
                 }
                 
                 // Vérifier le placeholder composite sell
+                // if (line.contains("%dynashop_current_sell%") && 
+                //     (prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0"))) {
+                //     skipLine = true;
+                // }
                 if (line.contains("%dynashop_current_sell%") && 
-                    (prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0"))) {
+                    (prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0") || prices.get("sell").equals("-1"))) {
                     skipLine = true;
                 }
 
@@ -527,63 +543,128 @@ public class ShopItemPlaceholderListener implements Listener {
             prices.put("base_stock", "N/A");
             prices.put("colored_stock_ratio", "N/A");
         } else {
-            // // // Ajouter les informations de stock
-            // String currentStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock");
-            // String maxStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock_max");
-            // // String currentStock = plugin.getPriceFormatter().formatStock(price.getCurrentStock());
-            // // if (currentStock.equals("0")) {
-            // //     currentStock = "N/A"; // Si le stock est 0, on le remplace par N/A
-            // // }
+            // // // // Ajouter les informations de stock
+            // // String currentStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock");
+            // // String maxStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock_max");
+            // // // String currentStock = plugin.getPriceFormatter().formatStock(price.getCurrentStock());
+            // // // if (currentStock.equals("0")) {
+            // // //     currentStock = "N/A"; // Si le stock est 0, on le remplace par N/A
+            // // // }
 
-            // // plugin.getLogger().info("Current stock for " + itemId + ": " + price.getStock() + 
-            // //     ", Max stock: " + price.getMaxStock() + 
-            // //     ", Formatted current stock: " + plugin.getPriceFormatter().formatStock(price.getStock()) +
-            // //     ", Formatted max stock: " + plugin.getPriceFormatter().formatStock(price.getMaxStock()));
+            // // // plugin.getLogger().info("Current stock for " + itemId + ": " + price.getStock() + 
+            // // //     ", Max stock: " + price.getMaxStock() + 
+            // // //     ", Formatted current stock: " + plugin.getPriceFormatter().formatStock(price.getStock()) +
+            // // //     ", Formatted max stock: " + plugin.getPriceFormatter().formatStock(price.getMaxStock()));
 
-            // // String maxStock = plugin.getPriceFormatter().formatStock(price.getMaxStock());
-            // // if (maxStock.equals("0")) {
-            // //     maxStock = "N/A"; // Si le stock est 0, on le remplace par N/A
-            // // }
+            // // // String maxStock = plugin.getPriceFormatter().formatStock(price.getMaxStock());
+            // // // if (maxStock.equals("0")) {
+            // // //     maxStock = "N/A"; // Si le stock est 0, on le remplace par N/A
+            // // // }
+            // String currentStock, maxStock, fCurrentStock, fMaxStock;
+            // if (price != null) {
+            //     currentStock = String.valueOf(price.getStock());
+            //     fCurrentStock = plugin.getPriceFormatter().formatStock(price.getStock());
+            //     // if (currentStock.equals("0")) {
+            //     //     currentStock = "N/A"; // Si le stock est 0, on le remplace par N/A
+            //     // }
+            //     maxStock = String.valueOf(price.getMaxStock());
+            //     fMaxStock = plugin.getPriceFormatter().formatStock(price.getMaxStock());
+            //     // if (maxStock.equals("0")) {
+            //     //     maxStock = "N/A"; // Si le stock est 0, on le remplace par N/A
+            //     // }
+            //     // plugin.getLogger().info("Current stock for " + itemId + ": " + price.getStock() + 
+            //     //     ", Max stock: " + price.getMaxStock() + 
+            //     //     ", Formatted current stock: " + plugin.getPriceFormatter().formatStock(price.getStock()) +
+            //     //     ", Formatted max stock: " + plugin.getPriceFormatter().formatStock(price.getMaxStock()));
+            // } else {
+            //     currentStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock");
+            //     fCurrentStock = plugin.getPriceFormatter().formatStock(Integer.parseInt(currentStock));
+            //     maxStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock_max");
+            //     fMaxStock = plugin.getPriceFormatter().formatStock(Integer.parseInt(maxStock));
+            // }
+
+            // prices.put("stock", fCurrentStock);
+            // prices.put("stock_max", fMaxStock);
+
+            // // Format pour le stock
+            // if (currentStock.equals("N/A") || currentStock.equals("0")) {
+            //     // prices.put("base_stock", ChatColor.translateAlternateColorCodes('&', "&cOut of stock"));
+            //     prices.put("base_stock", ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getPlaceholderOutOfStock()));
+            //     prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getPlaceholderOutOfStock()));
+            // } else {
+            //     prices.put("base_stock", String.format("%s/%s", fCurrentStock, fMaxStock));
+
+            //     // Format avec couleurs selon le niveau de stock
+            //     int current = Integer.parseInt(currentStock);
+            //     int max = Integer.parseInt(maxStock);
+            //     String colorCode = (current < max * 0.25) ? "&c" : (current < max * 0.5) ? "&e" : "&a";
+            //     prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 
+            //         String.format("%s%s&7/%s", colorCode, fCurrentStock, fMaxStock)));
+            // }
             String currentStock, maxStock, fCurrentStock, fMaxStock;
             if (price != null) {
-                currentStock = String.valueOf(price.getStock());
-                fCurrentStock = plugin.getPriceFormatter().formatStock(price.getStock());
-                // if (currentStock.equals("0")) {
-                //     currentStock = "N/A"; // Si le stock est 0, on le remplace par N/A
-                // }
-                maxStock = String.valueOf(price.getMaxStock());
-                fMaxStock = plugin.getPriceFormatter().formatStock(price.getMaxStock());
-                // if (maxStock.equals("0")) {
-                //     maxStock = "N/A"; // Si le stock est 0, on le remplace par N/A
-                // }
-                // plugin.getLogger().info("Current stock for " + itemId + ": " + price.getStock() + 
-                //     ", Max stock: " + price.getMaxStock() + 
-                //     ", Formatted current stock: " + plugin.getPriceFormatter().formatStock(price.getStock()) +
-                //     ", Formatted max stock: " + plugin.getPriceFormatter().formatStock(price.getMaxStock()));
+                // Vérifier si le stock est désactivé (-1)
+                if (price.getStock() < 0) {
+                    currentStock = "N/A";
+                    fCurrentStock = "N/A";
+                } else {
+                    currentStock = String.valueOf(price.getStock());
+                    fCurrentStock = plugin.getPriceFormatter().formatStock(price.getStock());
+                }
+                
+                // Vérifier si le stock max est désactivé (-1)
+                if (price.getMaxStock() < 0) {
+                    maxStock = "N/A";
+                    fMaxStock = "N/A";
+                } else {
+                    maxStock = String.valueOf(price.getMaxStock());
+                    fMaxStock = plugin.getPriceFormatter().formatStock(price.getMaxStock());
+                }
             } else {
+                // Récupération depuis les méthodes de formattage
                 currentStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock");
-                fCurrentStock = plugin.getPriceFormatter().formatStock(Integer.parseInt(currentStock));
+                // Sécuriser le parsing numérique
+                fCurrentStock = currentStock.equals("N/A") || currentStock.equals("-1") ? 
+                    "N/A" : plugin.getPriceFormatter().formatStock(Integer.parseInt(currentStock));
+                
                 maxStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock_max");
-                fMaxStock = plugin.getPriceFormatter().formatStock(Integer.parseInt(maxStock));
+                // Sécuriser le parsing numérique
+                fMaxStock = maxStock.equals("N/A") || maxStock.equals("-1") ? 
+                    "N/A" : plugin.getPriceFormatter().formatStock(Integer.parseInt(maxStock));
             }
 
             prices.put("stock", fCurrentStock);
             prices.put("stock_max", fMaxStock);
 
-            // Format pour le stock
-            if (currentStock.equals("N/A") || currentStock.equals("0")) {
-                // prices.put("base_stock", ChatColor.translateAlternateColorCodes('&', "&cOut of stock"));
+            // Format pour le stock - Ajouter vérification pour -1
+            if (currentStock.equals("N/A") || currentStock.equals("-1") || currentStock.equals("0")) {
+                // Utiliser le texte de configuration pour "épuisé"
                 prices.put("base_stock", ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getPlaceholderOutOfStock()));
                 prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getPlaceholderOutOfStock()));
             } else {
                 prices.put("base_stock", String.format("%s/%s", fCurrentStock, fMaxStock));
 
                 // Format avec couleurs selon le niveau de stock
-                int current = Integer.parseInt(currentStock);
-                int max = Integer.parseInt(maxStock);
-                String colorCode = (current < max * 0.25) ? "&c" : (current < max * 0.5) ? "&e" : "&a";
-                prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 
-                    String.format("%s%s&7/%s", colorCode, fCurrentStock, fMaxStock)));
+                try {
+                    int current = Integer.parseInt(currentStock);
+                    int max = Integer.parseInt(maxStock);
+                    
+                    // Vérifier si max est valide
+                    if (max <= 0) {
+                        // Cas où maxStock est 0 ou négatif - afficher uniquement la valeur actuelle
+                        prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 
+                            String.format("&7%s", fCurrentStock)));
+                    } else {
+                        // Calculer la couleur en fonction du ratio
+                        String colorCode = (current < max * 0.25) ? "&c" : (current < max * 0.5) ? "&e" : "&a";
+                        prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 
+                            String.format("%s%s&7/%s", colorCode, fCurrentStock, fMaxStock)));
+                    }
+                } catch (NumberFormatException e) {
+                    // En cas d'erreur de conversion, utiliser un format simplifié
+                    prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 
+                        String.format("&7%s/%s", fCurrentStock, fMaxStock)));
+                }
             }
         }
         

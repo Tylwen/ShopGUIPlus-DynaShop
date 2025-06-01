@@ -86,6 +86,7 @@ public class WaitForShopsTask implements Runnable {
             if (!isTasksInitialized) {
                 // Initialiser les prix à partir des configurations des shops
                 plugin.getShopConfigManager().initPricesFromShopConfigs();
+                plugin.getDataManager().cleanupStockTable();
                 
                 // Démarrer les tâches qui dépendent des shops
                 startDependentTasks();
