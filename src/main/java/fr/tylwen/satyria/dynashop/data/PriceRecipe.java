@@ -11,7 +11,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.ShapelessRecipe;
-import org.bukkit.inventory.meta.ItemMeta;
+// import org.bukkit.inventory.meta.ItemMeta;
 // import org.bukkit.inventory.SmokingRecipe;
 // import org.bukkit.inventory.StonecuttingRecipe;
 // import org.bukkit.inventory.CampfireRecipe;
@@ -26,7 +26,7 @@ import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.item.ShopItem;
 
 import java.util.ArrayList;
-import java.util.EnumMap;
+// import java.util.EnumMap;
 import java.util.HashMap;
 // import java.util.HashMap;
 import java.util.List;
@@ -154,7 +154,7 @@ public class PriceRecipe {
             
             FoundItem foundItem = findItemInShops(shopID, ingredient);
             if (!foundItem.isFound()) {
-                DynaShopPlugin.getInstance().getLogger().warning("ID ou ShopID manquant pour l'ingrédient " + ingredient);
+                DynaShopPlugin.getInstance().getLogger().warning("Missing ID or ShopID for ingredient " + ingredient);
                 continue; // Passer à l'ingrédient suivant si l'ID est manquant
             }
             String ingredientID = foundItem.getItemID();
@@ -171,7 +171,7 @@ public class PriceRecipe {
             
             DynamicPrice ingredientPrice = DynaShopPlugin.getInstance().getDynaShopListener().getOrLoadPrice(ingredientShopID, ingredientID, ingredient);
             if (ingredientPrice == null) {
-                DynaShopPlugin.getInstance().getLogger().warning("Prix non trouvé pour l'ingrédient " + ingredientID + " dans le shop " + ingredientShopID);
+                DynaShopPlugin.getInstance().getLogger().warning("Price not found for ingredient " + ingredientID + " in shop " + ingredientShopID);
                 continue; // Passer à l'ingrédient suivant si le prix n'est pas trouvé
             }
                 
@@ -273,7 +273,7 @@ public class PriceRecipe {
             try {
                 return calculateRecipeValues(shopID, itemID, item, new ArrayList<>());
             } catch (Exception e) {
-                DynaShopPlugin.getInstance().getLogger().warning("Erreur lors du calcul des valeurs pour " + shopID + ":" + itemID + ": " + e.getMessage());
+                DynaShopPlugin.getInstance().getLogger().warning("Error calculating values for " + shopID + ":" + itemID + ": " + e.getMessage());
                 // Valeurs par défaut en cas d'erreur
                 return new RecipeCalculationResult(10.0, 8.0, 5.0, 20.0, 4.0, 16.0, 0, 0, 0);
             }
@@ -282,7 +282,7 @@ public class PriceRecipe {
                 try {
                     callback.accept(result);
                 } catch (Exception e) {
-                    DynaShopPlugin.getInstance().getLogger().warning("Erreur dans le callback: " + e.getMessage());
+                    DynaShopPlugin.getInstance().getLogger().warning("Error in callback: " + e.getMessage());
                 }
             });
         });
@@ -416,7 +416,7 @@ public class PriceRecipe {
                 List<String> visitedItems = new ArrayList<>();
                 return calculateStock(shopID, itemID, item, visitedItems);
             } catch (Exception e) {
-                DynaShopPlugin.getInstance().getLogger().warning("Erreur lors du calcul du stock pour " + shopID + ":" + itemID + ": " + e.getMessage());
+                DynaShopPlugin.getInstance().getLogger().warning("Error calculating stock for " + shopID + ":" + itemID + ": " + e.getMessage());
                 return 0;
             }
         }, recipeExecutor).thenAcceptAsync(stock -> {
@@ -424,7 +424,7 @@ public class PriceRecipe {
                 try {
                     callback.accept(stock);
                 } catch (Exception e) {
-                    DynaShopPlugin.getInstance().getLogger().warning("Erreur dans le callback de stock: " + e.getMessage());
+                    DynaShopPlugin.getInstance().getLogger().warning("Error in stock callback: " + e.getMessage());
                 }
             });
         });
@@ -484,7 +484,7 @@ public class PriceRecipe {
                 List<String> visitedItems = new ArrayList<>();
                 return calculatePrice(shopID, itemID, item, typePrice, visitedItems);
             } catch (Exception e) {
-                DynaShopPlugin.getInstance().getLogger().warning("Erreur lors du calcul du prix pour " + shopID + ":" + itemID + ": " + e.getMessage());
+                DynaShopPlugin.getInstance().getLogger().warning("Error calculating price for " + shopID + ":" + itemID + ": " + e.getMessage());
                 return 10.0; // Valeur par défaut en cas d'erreur
             }
         };
@@ -498,7 +498,7 @@ public class PriceRecipe {
                     try {
                         callback.accept(price);
                     } catch (Exception e) {
-                        DynaShopPlugin.getInstance().getLogger().warning("Erreur dans le callback de prix: " + e.getMessage());
+                        DynaShopPlugin.getInstance().getLogger().warning("Error in price callback: " + e.getMessage());
                     }
                 });
             });
@@ -890,7 +890,7 @@ public class PriceRecipe {
 
         // Vérifier si la recette est définie
         if (!DynaShopPlugin.getInstance().getShopConfigManager().hasRecipePattern(shopID, itemID)) {
-            DynaShopPlugin.getInstance().getLogger().warning("Aucune recette définie dans la configuration pour " + shopID + ":" + itemID);
+            DynaShopPlugin.getInstance().getLogger().warning("No recipe defined in configuration for " + shopID + ":" + itemID);
             return ingredients;
         }
 
@@ -938,7 +938,7 @@ public class PriceRecipe {
             case FURNACE:
                 return loadFurnaceIngredients(recipeSection);
             default:
-                DynaShopPlugin.getInstance().getLogger().warning("Type de recette non pris en charge: " + typeRecipe);
+                DynaShopPlugin.getInstance().getLogger().warning("Unsupported recipe type: " + typeRecipe);
                 return new ArrayList<>();
         }
     }
@@ -960,7 +960,7 @@ public class PriceRecipe {
         
         for (String key : ingredientsSection.getKeys(false)) {
             if (key.length() != 1) {
-                DynaShopPlugin.getInstance().getLogger().warning("Clé d'ingrédient invalide: " + key);
+                DynaShopPlugin.getInstance().getLogger().warning("Invalid ingredient key: " + key);
                 continue;
             }
             
@@ -968,7 +968,7 @@ public class PriceRecipe {
             int occurrences = symbolCounts.getOrDefault(symbol, 0);
             
             if (occurrences == 0) {
-                DynaShopPlugin.getInstance().getLogger().warning("Symbole " + symbol + " non utilisé dans le pattern");
+                DynaShopPlugin.getInstance().getLogger().warning("Symbol " + symbol + " not used in pattern");
                 continue;
             }
             
@@ -1051,12 +1051,13 @@ public class PriceRecipe {
         try {
             String itemRef = section.getString("item");
             if (itemRef != null && itemRef.contains(":")) {
-                return loadShopItem(itemRef, section.getInt("quantity", 1));
+                // return loadShopItem(itemRef, section.getInt("quantity", 1));
+                return loadShopItem(itemRef);
             } else {
                 return loadMaterialItem(section);
             }
         } catch (Exception e) {
-            DynaShopPlugin.getInstance().getLogger().warning("Erreur lors du chargement de l'ingrédient: " + e.getMessage());
+            DynaShopPlugin.getInstance().getLogger().warning("Error loading ingredient: " + e.getMessage());
             return null;
         }
     }
@@ -1064,7 +1065,8 @@ public class PriceRecipe {
     /**
      * Charge un item depuis un shop (format "shopID:itemID")
      */
-    private ItemStack loadShopItem(String itemRef, int quantity) {
+    // private ItemStack loadShopItem(String itemRef, int quantity) {
+    private ItemStack loadShopItem(String itemRef) {
         String[] parts = itemRef.split(":");
         if (parts.length != 2) {
             return null;
@@ -1076,12 +1078,13 @@ public class PriceRecipe {
         try {
             ItemStack item = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem();
             if (item != null) {
-                item.setAmount(quantity);
-                DynaShopPlugin.getInstance().getLogger().info("Ingrédient trouvé: " + item);
+                // item.setAmount(quantity);
+                item.setAmount(1); // Pour éviter les problèmes de quantité, on fixe à 1
+                // DynaShopPlugin.getInstance().getLogger().info("Ingrédient trouvé: " + item);
                 return item;
             }
         } catch (Exception e) {
-            DynaShopPlugin.getInstance().getLogger().warning("Erreur lors de la récupération de l'ingrédient " + itemRef + ": " + e.getMessage());
+            DynaShopPlugin.getInstance().getLogger().warning("Error loading ingredient " + itemRef + ": " + e.getMessage());
         }
         
         return null;
@@ -1093,8 +1096,9 @@ public class PriceRecipe {
     private ItemStack loadMaterialItem(ConfigurationSection section) {
         Material material = Material.matchMaterial(section.getString("material", "AIR"));
         if (material != null && material != Material.AIR) {
-            ItemStack item = new ItemStack(material, section.getInt("quantity", 1));
-            DynaShopPlugin.getInstance().getLogger().info("Ingrédient matériau trouvé: " + item);
+            // ItemStack item = new ItemStack(material, section.getInt("quantity", 1));
+            ItemStack item = new ItemStack(material, 1);
+            DynaShopPlugin.getInstance().getLogger().info("Ingredient material found: " + item);
             return item;
         }
         return null;
@@ -1104,7 +1108,7 @@ public class PriceRecipe {
         // Trouver l'item dans les shops
         FoundItem foundItem = findItemInShops(shopID, ingredient);
         if (!foundItem.isFound()) {
-            DynaShopPlugin.getInstance().getLogger().warning("Impossible de trouver l'ingrédient " + ingredient + " dans le shop " + shopID);
+            DynaShopPlugin.getInstance().getLogger().warning("Unable to find ingredient " + ingredient + " in shop " + shopID);
             return 0; // Retourner 0 si l'ingrédient n'est pas trouvé
         }
         
@@ -1269,7 +1273,7 @@ public class PriceRecipe {
         // Récupérer l'ID de l'item dans le shop
         FoundItem foundItem = findItemInShops(shopID, ingredient);
         if (!foundItem.isFound()) {
-            DynaShopPlugin.getInstance().getLogger().warning("Impossible de trouver l'ingrédient " + ingredient + " dans le shop " + shopID);
+            DynaShopPlugin.getInstance().getLogger().warning("Unable to find ingredient " + ingredient + " in shop " + shopID);
             return -1; // Retourner -1 si l'ingrédient n'est pas trouvé
         }
         
@@ -1306,7 +1310,7 @@ public class PriceRecipe {
         // Récupérer l'ID de l'item dans le shop
         FoundItem foundItem = findItemInShops(shopID, ingredient);
         if (!foundItem.isFound()) {
-            DynaShopPlugin.getInstance().getLogger().warning("Impossible de trouver l'ingrédient " + ingredient + " dans le shop " + shopID);
+            DynaShopPlugin.getInstance().getLogger().warning("Unable to find ingredient " + ingredient + " in shop " + shopID);
             return -1; // Retourner -1 si l'ingrédient n'est pas trouvé
         }
         
@@ -1358,7 +1362,7 @@ public class PriceRecipe {
         // String shopID = ShopGuiPlusApi.getItemStackShopItem(ingredient).getShop().getId();
         FoundItem foundItem = findItemInShops(shopID, ingredient);
         if (!foundItem.isFound()) {
-            DynaShopPlugin.getInstance().getLogger().warning("Impossible de trouver l'ingrédient " + ingredient + " dans le shop " + shopID);
+            DynaShopPlugin.getInstance().getLogger().warning("Unable to find ingredient " + ingredient + " in shop " + shopID);
             return DynaShopType.UNKNOWN; // Retourner un type inconnu si l'ingrédient n'est pas trouvé
         }
         String ingredientID = foundItem.getItemID();
@@ -1481,7 +1485,7 @@ public class PriceRecipe {
                 }
             }
         } catch (Exception e) {
-            DynaShopPlugin.getInstance().getLogger().warning("Erreur lors de la recherche de l'ingrédient " + ingredient + ": " + e.getMessage());
+            DynaShopPlugin.getInstance().getLogger().warning("Error searching for ingredient " + ingredient + ": " + e.getMessage());
         }
         
         return new FoundItem(shopID, itemID, itemID != null && shopID != null);

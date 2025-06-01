@@ -3,7 +3,7 @@ package fr.tylwen.satyria.dynashop.listener;
 import java.time.Duration;
 // import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
-import java.util.HashMap;
+// import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 // import java.util.Map;
@@ -26,7 +26,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
-import org.bukkit.configuration.ConfigurationSection;
+// import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 // import org.bukkit.block.Block;
 // import org.bukkit.entity.Player;
@@ -40,7 +40,7 @@ import org.bukkit.event.Listener;
 // import org.bukkit.inventory.Inventory;
 // import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
-import org.checkerframework.checker.units.qual.m;
+// import org.checkerframework.checker.units.qual.m;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.data.DynamicPrice;
@@ -50,16 +50,16 @@ import fr.tylwen.satyria.dynashop.data.PriceRecipe.FoundItem;
 import fr.tylwen.satyria.dynashop.data.PriceRecipe.RecipeCalculationResult;
 import fr.tylwen.satyria.dynashop.data.ShopConfigManager;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
-import fr.tylwen.satyria.dynashop.data.param.RecipeType;
+// import fr.tylwen.satyria.dynashop.data.param.RecipeType;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
 
-import net.brcdev.shopgui.ShopGuiPlusApi;
+// import net.brcdev.shopgui.ShopGuiPlusApi;
 import net.brcdev.shopgui.event.ShopPostTransactionEvent;
 import net.brcdev.shopgui.event.ShopPreTransactionEvent;
 // import net.brcdev.shopgui.gui.gui.OpenGui;
 // import net.brcdev.shopgui.player.PlayerData;
 import net.brcdev.shopgui.shop.item.ShopItem;
-import net.brcdev.shopgui.shop.Shop;
+// import net.brcdev.shopgui.shop.Shop;
 // import net.md_5.bungee.api.ChatColor;
 // import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.ShopManager.ShopAction;
@@ -1267,49 +1267,117 @@ public class DynaShopListener implements Listener {
     //     }
     // }
 
+    // private void applyGrowthOrDecayToIngredients(String shopID, String itemID, ItemStack itemStack, int amount, boolean isGrowth, List<String> visitedItems, int depth) {
+    //     // Limiter la profondeur de récursion
+    //     if (depth > 5) return;
+
+    //     // Éviter les boucles infinies
+    //     String itemKey = shopID + ":" + itemID;
+    //     if (visitedItems.contains(itemKey)) return;
+    //     visitedItems.add(itemKey);
+
+    //     // Récupérer directement les ingrédients depuis PriceRecipe
+    //     List<ItemStack> ingredients = DynaShopPlugin.getInstance().getPriceRecipe().getIngredients(shopID, itemID, itemStack);
+
+    //     // Traiter chaque ingrédient
+    //     for (ItemStack ingredient : ingredients) {
+    //         if (ingredient == null || ingredient.getType() == Material.AIR) continue;
+
+    //         // Rechercher l'ID du shop et de l'item pour cet ingrédient
+    //         // ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(ingredient);
+    //         // if (shopItem == null) continue;
+
+    //         // String ingredientShopID = shopItem.getShop().getId();
+    //         // String ingredientID = shopItem.getId();
+
+    //         FoundItem foundItem = DynaShopPlugin.getInstance().getPriceRecipe().findItemInShops(shopID, ingredient);
+    //         if (!foundItem.isFound()) continue;
+
+    //         String ingredientShopID = foundItem.getShopID();
+    //         String ingredientID = foundItem.getItemID();
+    //         int ingredientQuantity = ingredient.getAmount() * amount;
+
+    //         // Récupérer le type de l'ingrédient et son prix dynamique
+    //         DynaShopType ingredientType = DynaShopPlugin.getInstance().getShopConfigManager().getTypeDynaShop(ingredientShopID, ingredientID);
+    //         DynamicPrice ingredientPrice = getOrLoadPrice(ingredientShopID, ingredientID, null);
+            
+    //         if (ingredientPrice == null) continue;
+
+    //         // Traiter selon le type d'ingrédient
+    //         processIngredient(ingredientShopID, ingredientID, ingredientPrice, ingredientType, ingredientQuantity, isGrowth);
+            
+    //         // Continuer la récursion ou sauvegarder les modifications
+    //         if (ingredientPrice.isFromRecipe()) {
+    //             applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, ingredient, ingredientQuantity, isGrowth, visitedItems, depth + 1);
+    //         } else {
+    //             DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice);
+    //         }
+    //     }
+    // }
+
     private void applyGrowthOrDecayToIngredients(String shopID, String itemID, ItemStack itemStack, int amount, boolean isGrowth, List<String> visitedItems, int depth) {
         // Limiter la profondeur de récursion
         if (depth > 5) return;
 
-        // Éviter les boucles infinies
+        // Éviter les boucles infinies - utiliser une clé composée
         String itemKey = shopID + ":" + itemID;
-        if (visitedItems.contains(itemKey)) return;
+        if (visitedItems.contains(itemKey)) {
+            // DynaShopPlugin.getInstance().getLogger().info("Boucle de recette détectée pour " + itemKey + ", arrêt de la récursion");
+            return;
+        }
         visitedItems.add(itemKey);
+        
+        // DynaShopPlugin.getInstance().getLogger().info("Traitement des ingrédients pour " + shopID + ":" + itemID + " (profondeur: " + depth + ")");
 
         // Récupérer directement les ingrédients depuis PriceRecipe
         List<ItemStack> ingredients = DynaShopPlugin.getInstance().getPriceRecipe().getIngredients(shopID, itemID, itemStack);
+        
+        if (ingredients.isEmpty()) {
+            // DynaShopPlugin.getInstance().getLogger().warning("Aucun ingrédient trouvé pour " + shopID + ":" + itemID);
+            return;
+        }
 
         // Traiter chaque ingrédient
         for (ItemStack ingredient : ingredients) {
             if (ingredient == null || ingredient.getType() == Material.AIR) continue;
 
             // Rechercher l'ID du shop et de l'item pour cet ingrédient
-            // ShopItem shopItem = ShopGuiPlusApi.getItemStackShopItem(ingredient);
-            // if (shopItem == null) continue;
-
-            // String ingredientShopID = shopItem.getShop().getId();
-            // String ingredientID = shopItem.getId();
-
             FoundItem foundItem = DynaShopPlugin.getInstance().getPriceRecipe().findItemInShops(shopID, ingredient);
-            if (!foundItem.isFound()) continue;
+            if (!foundItem.isFound()) {
+                // DynaShopPlugin.getInstance().getLogger().warning("Impossible de trouver l'ingrédient " + ingredient.getType() + " dans les shops");
+                continue;
+            }
 
             String ingredientShopID = foundItem.getShopID();
             String ingredientID = foundItem.getItemID();
             int ingredientQuantity = ingredient.getAmount() * amount;
+            
+            // DynaShopPlugin.getInstance().getLogger().info("Ingrédient trouvé: " + ingredientShopID + ":" + ingredientID + " x" + ingredientQuantity);
 
+            // Vérifier si l'ingrédient est lui-même une recette
+            boolean isIngredientRecipe = DynaShopPlugin.getInstance().getShopConfigManager().getTypeDynaShop(ingredientShopID, ingredientID) == DynaShopType.RECIPE;
+            
             // Récupérer le type de l'ingrédient et son prix dynamique
             DynaShopType ingredientType = DynaShopPlugin.getInstance().getShopConfigManager().getTypeDynaShop(ingredientShopID, ingredientID);
-            DynamicPrice ingredientPrice = getOrLoadPrice(ingredientShopID, ingredientID, null);
+            DynamicPrice ingredientPrice = getOrLoadPrice(ingredientShopID, ingredientID, ingredient);
             
-            if (ingredientPrice == null) continue;
+            if (ingredientPrice == null) {
+                // DynaShopPlugin.getInstance().getLogger().warning("Prix non trouvé pour " + ingredientShopID + ":" + ingredientID);
+                continue;
+            }
 
-            // Traiter selon le type d'ingrédient
+            // Si l'ingrédient est une recette, appliquer la récursion d'abord
+            if (isIngredientRecipe) {
+                // DynaShopPlugin.getInstance().getLogger().info("Ingrédient " + ingredientID + " est une recette, récursion");
+                applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, ingredient, ingredientQuantity, isGrowth, new ArrayList<>(visitedItems), depth + 1);
+            }
+
+            // Traiter selon le type d'ingrédient (même s'il s'agit d'une recette)
             processIngredient(ingredientShopID, ingredientID, ingredientPrice, ingredientType, ingredientQuantity, isGrowth);
             
-            // Continuer la récursion ou sauvegarder les modifications
-            if (ingredientPrice.isFromRecipe()) {
-                applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, ingredient, ingredientQuantity, isGrowth, visitedItems, depth + 1);
-            } else {
+            // Sauvegarder les modifications si ce n'est pas une recette
+            if (!isIngredientRecipe) {
+                // DynaShopPlugin.getInstance().getLogger().info("Sauvegarde des modifications pour " + ingredientShopID + ":" + ingredientID);
                 DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice);
             }
         }
@@ -1563,7 +1631,7 @@ public class DynaShopListener implements Listener {
                 });
                 
             } catch (Exception e) {
-                mainPlugin.getLogger().severe("Erreur lors de la récupération des limites: " + e.getMessage());
+                mainPlugin.getLogger().severe("Error retrieving limits: " + e.getMessage());
             }
         });
     }

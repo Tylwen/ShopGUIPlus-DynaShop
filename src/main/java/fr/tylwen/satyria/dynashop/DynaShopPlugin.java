@@ -2,7 +2,7 @@ package fr.tylwen.satyria.dynashop;
 
 import org.bstats.bukkit.Metrics;
 import org.bstats.charts.AdvancedPie;
-import org.bstats.charts.DrilldownPie;
+// import org.bstats.charts.DrilldownPie;
 
 // import net.brcdev.shopgui.ShopGuiPlusApi;
 // import net.brcdev.shopgui.config.Lang;
@@ -30,9 +30,9 @@ import fr.tylwen.satyria.dynashop.command.LimitResetCommand;
 import fr.tylwen.satyria.dynashop.command.ReloadCommand;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
 import fr.tylwen.satyria.dynashop.config.LangConfig;
-import fr.tylwen.satyria.dynashop.data.CustomIngredientsManager;
-import fr.tylwen.satyria.dynashop.data.CustomRecipeManager;
-import fr.tylwen.satyria.dynashop.data.CustomRecipeManager;
+// import fr.tylwen.satyria.dynashop.data.CustomIngredientsManager;
+// import fr.tylwen.satyria.dynashop.data.CustomRecipeManager;
+// import fr.tylwen.satyria.dynashop.data.CustomRecipeManager;
 // import fr.tylwen.satyria.dynashop.data.DynamicPrice;
 import fr.tylwen.satyria.dynashop.data.PriceRecipe;
 import fr.tylwen.satyria.dynashop.data.PriceStock;
@@ -59,7 +59,7 @@ import fr.tylwen.satyria.dynashop.listener.ShopItemPlaceholderListener;
 // import fr.tylwen.satyria.dynashop.task.DynamicPricesTask;
 import fr.tylwen.satyria.dynashop.task.WaitForShopsTask;
 import fr.tylwen.satyria.dynashop.utils.PriceFormatter;
-import fr.tylwen.satyria.dynashop.data.ShopFile;
+// import fr.tylwen.satyria.dynashop.data.ShopFile;
 // import net.brcdev.shopgui.ShopGuiPlugin;
 // import net.brcdev.shopgui.ShopGuiPlugin;
 import net.brcdev.shopgui.ShopGuiPlusApi;
@@ -77,7 +77,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
+// import java.util.stream.Collectors;
 
 
 // import javax.xml.crypto.Data;
@@ -97,7 +97,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private PriceStock priceStock;
     private DataConfig dataConfig;
     private LangConfig langConfig;
-    private CustomRecipeManager customRecipeManager;
+    // private CustomRecipeManager customRecipeManager;
     private Logger logger;
     // private CommentedConfiguration config;
     private DynaShopListener dynaShopListener;
@@ -107,7 +107,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     // private ShopRefreshManager shopRefreshManager;
     // private ItemPacketInterceptor packetInterceptor;
     private PriceFormatter priceFormatter;
-    private CustomIngredientsManager customIngredientsManager;
+    // private CustomIngredientsManager customIngredientsManager;
 
     private int dynamicPricesTaskId;
     private int waitForShopsTaskId;
@@ -176,9 +176,9 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         return this.langConfig;
     }
 
-    public CustomRecipeManager getCustomRecipeManager() {
-        return this.customRecipeManager;
-    }
+    // public CustomRecipeManager getCustomRecipeManager() {
+    //     return this.customRecipeManager;
+    // }
 
     public PriceStock getPriceStock() {
         return this.priceStock;
@@ -210,9 +210,9 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         return transactionLimiter;
     }
 
-    public CustomIngredientsManager getCustomIngredientsManager() {
-        return this.customIngredientsManager;
-    }
+    // public CustomIngredientsManager getCustomIngredientsManager() {
+    //     return this.customIngredientsManager;
+    // }
 
     // public ShopRefreshManager getShopRefreshManager() {
     //     return shopRefreshManager;
@@ -344,7 +344,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private void init() {
         generateFiles();
         this.shopConfigManager = new ShopConfigManager(new File(Bukkit.getPluginManager().getPlugin("ShopGUIPlus").getDataFolder(), "shops/"));
-        this.customRecipeManager = new CustomRecipeManager(this);
+        // this.customRecipeManager = new CustomRecipeManager(this);
         this.dynaShopListener = new DynaShopListener(this);
         this.priceRecipe = new PriceRecipe(this.configMain);
         this.dataConfig = new DataConfig(this.configMain);
@@ -356,7 +356,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         this.transactionLimiter = new TransactionLimiter(this);
         this.recipeCacheManager = new RecipeCacheManager(15 * 60 * 1000L); // 15 minutes en ms
         this.priceFormatter = new PriceFormatter(this);
-        this.customIngredientsManager = new CustomIngredientsManager();
+        // this.customIngredientsManager = new CustomIngredientsManager();
         // this.shopRefreshManager = new ShopRefreshManager(this);
         // preloadPopularItems();
     }

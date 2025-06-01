@@ -179,7 +179,7 @@ public class ShopItemPlaceholderListener implements Listener {
                 }
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Erreur lors de la récupération du shop via l'API: " + e.getMessage());
+            plugin.getLogger().warning("Error retrieving shop via API: " + e.getMessage());
         }
         
         return null;
@@ -259,8 +259,8 @@ public class ShopItemPlaceholderListener implements Listener {
                         continue;
                     }
                     
-                    // Délai progressif très léger (1 tick par tranche de 5 slots)
-                    long delay = slot / 5;
+                    // // Délai progressif très léger (1 tick par tranche de 5 slots)
+                    // long delay = slot / 5;
 
                     // plugin.getServer().getScheduler().runTaskLaterAsynchronously(plugin, () -> {
                     plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
@@ -332,7 +332,7 @@ public class ShopItemPlaceholderListener implements Listener {
                 }
             });
         } catch (Exception e) {
-            plugin.getLogger().warning("Erreur lors de la mise à jour de l'inventaire: " + e.getMessage());
+            plugin.getLogger().warning("Error updating inventory: " + e.getMessage());
         }
     }
 

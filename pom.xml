@@ -34,7 +34,7 @@
                 </configuration>
             </plugin>
             <!-- Ajouter le plugin Shade -->
-            <plugin>
+            <!-- <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>3.5.1</version>
@@ -55,8 +55,8 @@
                         </configuration>
                     </execution>
                 </executions>
-            </plugin>
-            <plugin>
+            </plugin> -->
+            <!-- <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>3.5.1</version>
@@ -64,7 +64,6 @@
                     <relocations>
                     <relocation>
                         <pattern>org.bstats</pattern>
-                        <!-- Replace this with your package! -->
                         <shadedPattern>fr.tylwen.satyria.dynashop.libs.bstats</shadedPattern>
                     </relocation>
                     </relocations>
@@ -75,6 +74,42 @@
                     <goals>
                         <goal>shade</goal>
                     </goals>
+                    </execution>
+                </executions>
+            </plugin> -->
+            <!-- Remplacer les deux plugins shade par un seul configuré correctement -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <relocations>
+                                <relocation>
+                                    <pattern>com.zaxxer.hikari</pattern>
+                                    <shadedPattern>fr.tylwen.satyria.dynashop.libs.hikari</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.bstats</pattern>
+                                    <shadedPattern>fr.tylwen.satyria.dynashop.libs.bstats</shadedPattern>
+                                </relocation>
+                            </relocations>
+                            <!-- Exclure explicitement les fichiers source Java -->
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>**/*.java</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -94,10 +129,10 @@
 			<id>placeholderapi</id>
 			<url>https://repo.extendedclip.com/content/repositories/placeholderapi/</url>
 		</repository>
-        <repository>
+        <!-- <repository>
             <id>codemc-repo</id>
             <url>https://repo.codemc.io/repository/maven-public/</url>
-        </repository>
+        </repository> -->
     </repositories>
 
     <dependencies>
@@ -131,10 +166,10 @@
             <version>3.0.2</version>
             <scope>compile</scope>
         </dependency>
-        <dependency>
+        <!-- <dependency>
             <groupId>de.tr7zw</groupId>
             <artifactId>item-nbt-api</artifactId>
             <version>2.15.0</version>
-        </dependency>
+        </dependency> -->
     </dependencies>
 </project>
