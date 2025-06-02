@@ -56,9 +56,14 @@ import net.brcdev.shopgui.ShopGuiPlusApi;
 // import net.brcdev.shopgui.ShopGuiPlusApi;
 import net.brcdev.shopgui.event.ShopPostTransactionEvent;
 import net.brcdev.shopgui.event.ShopPreTransactionEvent;
+import net.brcdev.shopgui.exception.player.PlayerDataNotLoadedException;
+import net.brcdev.shopgui.modifier.PriceModifier;
+import net.brcdev.shopgui.modifier.PriceModifierActionType;
+import net.brcdev.shopgui.modifier.PriceModifierType;
 // import net.brcdev.shopgui.gui.gui.OpenGui;
 // import net.brcdev.shopgui.player.PlayerData;
 import net.brcdev.shopgui.shop.item.ShopItem;
+import net.brcdev.shopgui.shop.Shop;
 // import net.brcdev.shopgui.shop.Shop;
 // import net.md_5.bungee.api.ChatColor;
 // import net.brcdev.shopgui.shop.Shop;
@@ -96,9 +101,10 @@ public class DynaShopListener implements Listener {
     /**
      * Événement déclenché avant une transaction de shop.
      * @param event
+     * @throws PlayerDataNotLoadedException 
      */
     @EventHandler(priority = EventPriority.HIGHEST)
-    public void onShopPreTransaction(ShopPreTransactionEvent event) {
+    public void onShopPreTransaction(ShopPreTransactionEvent event) throws PlayerDataNotLoadedException {
         Player player = event.getPlayer();
         ShopItem item = event.getShopItem();
         int amount = event.getAmount();
@@ -106,6 +112,10 @@ public class DynaShopListener implements Listener {
         String itemID = item.getId();
         ItemStack itemStack = item.getItem();
         boolean isBuy = event.getShopAction() == ShopAction.BUY;
+
+        // // Récupérer les modificateurs de prix du joueur
+        // double playerBuyModifier = ShopGuiPlusApi.getPriceModifier(player, item, PriceModifierActionType.BUY).getModifier();
+        // double playerSellModifier = ShopGuiPlusApi.getPriceModifier(player, item, PriceModifierActionType.SELL).getModifier();
 
         if (mainPlugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
             boolean canPerform = mainPlugin.getTransactionLimiter().canPerformTransactionSync(player, shopID, itemID, isBuy, amount);
@@ -181,10 +191,25 @@ public class DynaShopListener implements Listener {
             }
         }
 
+        // if (event.getShopAction() == ShopAction.BUY) {
+        //     event.setPrice(price.getBuyPriceForAmount(amount));
+        // } else if (event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) {
+        //     event.setPrice(price.getSellPriceForAmount(amount));
+        // }
+        // Appliquer les modificateurs spécifiques au joueur
+        double basePrice;
         if (event.getShopAction() == ShopAction.BUY) {
-            event.setPrice(price.getBuyPriceForAmount(amount));
+            basePrice = price.getBuyPriceForAmount(amount);
+            // Appliquer le modificateur de prix d'achat spécifique au joueur
+            // double playerBuyModifier = ShopGuiPlusApi.getBuyPriceModifier(player, item.getShop(), item);
+            double playerBuyModifier = ShopGuiPlusApi.getPriceModifier(player, item, PriceModifierActionType.BUY).getModifier();
+            event.setPrice(basePrice * playerBuyModifier);
         } else if (event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) {
-            event.setPrice(price.getSellPriceForAmount(amount));
+            basePrice = price.getSellPriceForAmount(amount);
+            // Appliquer le modificateur de prix de vente spécifique au joueur
+            // double playerSellModifier = ShopGuiPlusApi.getSellPriceModifier(player, item.getShop(), item);
+            double playerSellModifier = ShopGuiPlusApi.getPriceModifier(player, item, PriceModifierActionType.SELL).getModifier();
+            event.setPrice(basePrice * playerSellModifier);
         }
     }
 
@@ -513,7 +538,11 @@ public class DynaShopListener implements Listener {
                         handleStockPrice(linkedPrice, linkedShopID, linkedItemID, action, amount);
                     }
                 }
+            } else {
+                mainPlugin.getLogger().warning("Invalid link reference for item " + itemID + " in shop " + shopID + ": " + linkedItemRef);
             }
+        } else {
+            mainPlugin.getLogger().warning("No link reference found for item " + itemID + " in shop " + shopID);
         }
     }
 
@@ -576,11 +605,20 @@ public class DynaShopListener implements Listener {
     //     // Retourner l'objet avec des valeurs synchrones correctes
     //     return recipePrice;
     // }
-
+    
     public DynamicPrice getOrLoadPrice(String shopID, String itemID, ItemStack itemStack) {
+        return getOrLoadPrice(null, shopID, itemID, itemStack);
+    }
+
+    public DynamicPrice getOrLoadPrice(Player player, String shopID, String itemID, ItemStack itemStack) {
         // Cache en mémoire pour éviter les calculs répétitifs
         // Clé de cache unique pour cet item
         String cacheKey = shopID + ":" + itemID;
+        
+        // Si un joueur est spécifié, ajouter son UUID à la clé de cache
+        if (player != null) {
+            cacheKey += ":" + player.getUniqueId().toString();
+        }
 
         // Vérifier si l'item est déjà en cache
         DynamicPrice cachedPrice = priceCache.get(cacheKey);
@@ -616,7 +654,10 @@ public class DynaShopListener implements Listener {
             );
             
             recipePrice.setFromRecipe(true);
-            return recipePrice;
+            // // Appliquer les modificateurs de prix
+            // applyPriceModifiers(shopID, itemID, recipePrice);
+            // return recipePrice;
+            price = recipePrice;
         } else if (type == DynaShopType.STOCK) {
             price = DynaShopPlugin.getInstance().getPriceStock().createStockPrice(shopID, itemID);
             // price.setFromStock(true);
@@ -781,68 +822,20 @@ public class DynaShopListener implements Listener {
             price = new DynamicPrice(buyPrice, sellPrice, minBuy, maxBuy, minSell, maxSell, 
                                      growthBuy, decayBuy, growthSell, decaySell, 
                                      stock, minStock, maxStock, stockBuyModifier, stockSellModifier);
-        // } else {
-        //     price 
         }
         
-        // // Si aucune donnée n'est trouvée dans la base de données ou les fichiers de configuration, retourner null
-        // if (priceFromDatabase.isEmpty() && (priceData.buyPrice.isEmpty() || priceData.sellPrice.isEmpty())) {
-        //     return null;
-        // }
-        
-        // // Fusionner les données
-        // double buyPrice = priceFromDatabase.map(DynamicPrice::getBuyPrice).orElse(priceData.buyPrice.orElse(-1.0));
-        // double sellPrice = priceFromDatabase.map(DynamicPrice::getSellPrice).orElse(priceData.sellPrice.orElse(-1.0));
-    
-        // double minBuy = priceData.minBuy.orElse(buyPrice);
-        // double maxBuy = priceData.maxBuy.orElse(buyPrice);
-        // double minSell = priceData.minSell.orElse(sellPrice);
-        // double maxSell = priceData.maxSell.orElse(sellPrice);
-    
-        // double growthBuy = priceData.growthBuy.orElseGet(() -> {
-        //     boolean hasBuyDynamic = shopConfigManager.hasSection(shopID, itemID, "buyDynamic");
-        //     return hasBuyDynamic ? dataConfig.getBuyGrowthRate() : 1.0; // Valeur par défaut pour growthBuy
-        // });
-    
-        // double decayBuy = priceData.decayBuy.orElseGet(() -> {
-        //     boolean hasBuyDynamic = shopConfigManager.hasSection(shopID, itemID, "buyDynamic");
-        //     return hasBuyDynamic ? dataConfig.getBuyDecayRate() : 1.0; // Valeur par défaut pour decayBuy
-        // });
-    
-        // double growthSell = priceData.growthSell.orElseGet(() -> {
-        //     boolean hasSellDynamic = shopConfigManager.hasSection(shopID, itemID, "sellDynamic");
-        //     return hasSellDynamic ? dataConfig.getSellGrowthRate() : 1.0; // Valeur par défaut pour growthSell
-        // });
-    
-        // double decaySell = priceData.decaySell.orElseGet(() -> {
-        //     boolean hasSellDynamic = shopConfigManager.hasSection(shopID, itemID, "sellDynamic");
-        //     return hasSellDynamic ? dataConfig.getSellDecayRate() : 1.0; // Valeur par défaut pour decaySell
-        // });
-    
-        // int stock = priceFromDatabase.map(DynamicPrice::getStock).orElse(priceData.stock.orElse(0));
+        // Important: appliquer les modificateurs juste avant de retourner le prix
+        if (price != null && player != null) {
+            price.applyShopGuiPlusModifiers(player, shopID, itemID);
+        }
 
-        // int minStock = priceData.minStock.orElseGet(() -> {
-        //     boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-        //     return hasStock ? dataConfig.getStockMin() : 0; // Valeur par défaut pour minStock
-        // });
-    
-        // int maxStock = priceData.maxStock.orElseGet(() -> {
-        //     boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-        //     return hasStock ? dataConfig.getStockMax() : Integer.MAX_VALUE; // Valeur par défaut pour maxStock
-        // });
-    
-        // double stockBuyModifier = priceData.stockBuyModifier.orElseGet(() -> {
-        //     boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-        //     return hasStock ? dataConfig.getStockBuyModifier() : 1.0; // Valeur par défaut pour stockBuyModifier
-        // });
-    
-        // double stockSellModifier = priceData.stockSellModifier.orElseGet(() -> {
-        //     boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-        //     return hasStock ? dataConfig.getStockSellModifier() : 1.0; // Valeur par défaut pour stockSellModifier
-        // });
-        
         // Mettre en cache le résultat
         if (price != null) {
+            // // Appliquer les modificateurs de prix si un joueur est spécifié
+            // if (player != null) {
+            //     applyPriceModifiers(player, shopID, itemID, price);
+            // }
+
             priceCache.put(cacheKey, price);
             cacheTimes.put(cacheKey, System.currentTimeMillis());
         }
@@ -1869,5 +1862,132 @@ public class DynaShopListener implements Listener {
     //     return null;
     // }
 
+    
+    // /**
+    //  * Applique les modificateurs de prix ShopGUI+ à un objet DynamicPrice
+    //  */
+    // private void applyPriceModifiers(Player player, String shopID, String itemID, DynamicPrice price) {
+    //     try {
+    //         // Obtenir le shop et l'item
+    //         Shop shop = ShopGuiPlusApi.getShop(shopID);
+    //         if (shop == null) return;
+            
+    //         ShopItem shopItem = shop.getShopItem(itemID);
+    //         if (shopItem == null) return;
+            
+    //         // Enregistrer les valeurs avant modification
+    //         double originalBuyPrice = price.getBuyPrice();
+    //         double originalSellPrice = price.getSellPrice();
+            
+    //         // Récupérer les modificateurs (sans joueur spécifique)
+    //         // double buyModifier = ShopGuiPlusApi.getBuyPriceModifier(null, shop, shopItem);
+    //         // double sellModifier = ShopGuiPlusApi.getSellPriceModifier(null, shop, shopItem);
+    //         PriceModifier buyModifier = ShopGuiPlusApi.getPriceModifier(player, shopItem, PriceModifierActionType.BUY);
+    //         PriceModifier sellModifier = ShopGuiPlusApi.getPriceModifier(player, shopItem, PriceModifierActionType.SELL);
+    //         // if (buyModifier == null || sellModifier == null) {
+    //         //     // Si les modificateurs ne sont pas définis, utiliser 1.0 (pas de modification)
+    //         //     // buyModifier = new PriceModifier(1.0);
+    //         //     // sellModifier = new PriceModifier(1.0);
+    //         //     buyModifier.setModifier(1.0);
+    //         //     sellModifier.setModifier(1.0);
+    //         // }
+    //         if (buyModifier.getModifier() == 1.0 && sellModifier.getModifier() == 1.0) {
+    //             // Si les modificateurs sont 1.0, pas besoin de les appliquer
+    //             return;
+    //         }
+
+    //         // Ne pas appliquer les modificateurs si les prix sont négatifs (désactivés)
+    //         if (price.getBuyPrice() > 0) {
+    //             price.setBuyPrice(price.getBuyPrice() * buyModifier.getModifier());
+    //             price.setMinBuyPrice(price.getMinBuyPrice() * buyModifier.getModifier());
+    //             price.setMaxBuyPrice(price.getMaxBuyPrice() * buyModifier.getModifier());
+    //         }
+
+    //         if (price.getSellPrice() > 0) {
+    //             price.setSellPrice(price.getSellPrice() * sellModifier.getModifier());
+    //             price.setMinSellPrice(price.getMinSellPrice() * sellModifier.getModifier());
+    //             price.setMaxSellPrice(price.getMaxSellPrice() * sellModifier.getModifier());
+    //         }
+
+    //         // // Log des modificateurs appliqués (optionnel)
+    //         // if (buyModifier.getModifier() != 1.0 || sellModifier.getModifier() != 1.0) {
+    //         //     DynaShopPlugin.getInstance().getLogger().info(
+    //         //         "Modificateurs de prix appliqués à " + shopID + ":" + itemID +
+    //         //         " - Buy: x" + buyModifier.getModifier() + ", Sell: x" + sellModifier.getModifier()
+    //         //     );
+    //         // }
+            
+    //         // Vérifier si les modificateurs ont été appliqués
+    //         if (Math.abs(originalBuyPrice - price.getBuyPrice()) > 0.01 || 
+    //             Math.abs(originalSellPrice - price.getSellPrice()) > 0.01) {
+    //             mainPlugin.getLogger().info("Prix modifiés pour " + shopID + ":" + itemID +
+    //                 " - Buy: " + originalBuyPrice + " -> " + price.getBuyPrice() +
+    //                 ", Sell: " + originalSellPrice + " -> " + price.getSellPrice());
+    //         } else {
+    //             mainPlugin.getLogger().info("Aucun changement dans les prix pour " + shopID + ":" + itemID);
+    //         }
+    //     } catch (Exception e) {
+    //         DynaShopPlugin.getInstance().getLogger().warning("Erreur lors de l'application des modificateurs de prix: " + e.getMessage());
+    //     }
+    // }
+
+    // /**
+    //  * Applique les modificateurs de prix ShopGUI+ à un objet DynamicPrice
+    //  */
+    // private void applyPriceModifiers(Player player, String shopID, String itemID, DynamicPrice price) {
+    //     try {
+    //         // Obtenir le shop et l'item
+    //         Shop shop = ShopGuiPlusApi.getShop(shopID);
+    //         if (shop == null) return;
+            
+    //         ShopItem shopItem = shop.getShopItem(itemID);
+    //         if (shopItem == null) return;
+            
+    //         // Valeurs par défaut (pas de modification)
+    //         double buyModifierValue = 1.0;
+    //         double sellModifierValue = 1.0;
+            
+    //         // Si un joueur est fourni, utiliser l'API pour obtenir les modificateurs spécifiques
+    //         if (player != null) {
+    //             try {
+    //                 PriceModifier buyModifier = ShopGuiPlusApi.getPriceModifier(player, shopItem, PriceModifierActionType.BUY);
+    //                 PriceModifier sellModifier = ShopGuiPlusApi.getPriceModifier(player, shopItem, PriceModifierActionType.SELL);
+                    
+    //                 buyModifierValue = buyModifier.getModifier();
+    //                 sellModifierValue = sellModifier.getModifier();
+    //             } catch (Exception e) {
+    //                 // En cas d'erreur avec l'API, utiliser les valeurs par défaut
+    //                 DynaShopPlugin.getInstance().getLogger().warning("Erreur avec l'API de modificateurs pour le joueur: " + e.getMessage());
+    //             }
+    //         }
+    //         // Sinon, ne pas appliquer de modificateur (utiliser 1.0)
+
+    //         // Ne pas appliquer les modificateurs si les prix sont négatifs (désactivés)
+    //         if (price.getBuyPrice() > 0) {
+    //             price.setBuyPrice(price.getBuyPrice() * buyModifierValue);
+    //             price.setMinBuyPrice(price.getMinBuyPrice() * buyModifierValue);
+    //             price.setMaxBuyPrice(price.getMaxBuyPrice() * buyModifierValue);
+    //         }
+
+    //         if (price.getSellPrice() > 0) {
+    //             price.setSellPrice(price.getSellPrice() * sellModifierValue);
+    //             price.setMinSellPrice(price.getMinSellPrice() * sellModifierValue);
+    //             price.setMaxSellPrice(price.getMaxSellPrice() * sellModifierValue);
+    //         }
+
+    //         // Log des modificateurs appliqués (optionnel)
+    //         if (buyModifierValue != 1.0 || sellModifierValue != 1.0) {
+    //             String playerInfo = player != null ? " pour " + player.getName() : " (valeurs par défaut)";
+    //             DynaShopPlugin.getInstance().getLogger().info(
+    //                 "Modificateurs de prix appliqués à " + shopID + ":" + itemID +
+    //                 " - Buy: x" + buyModifierValue + ", Sell: x" + sellModifierValue + playerInfo
+    //             );
+    //         }
+    //     } catch (Exception e) {
+    //         DynaShopPlugin.getInstance().getLogger().warning(
+    //             "Erreur lors de l'application des modificateurs de prix: " + e.getMessage()
+    //         );
+    //     }
+    // }
 
 }

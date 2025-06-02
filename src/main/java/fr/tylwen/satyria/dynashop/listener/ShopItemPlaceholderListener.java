@@ -38,7 +38,8 @@ public class ShopItemPlaceholderListener implements Listener {
 
     private final Map<String, Map<String, String>> globalPriceCache = new ConcurrentHashMap<>();
     private final Map<String, Long> cacheTimestamps = new ConcurrentHashMap<>();
-    private static final long CACHE_EXPIRY = 20; // 20 ticks (1 seconde)
+    // private static final long CACHE_EXPIRY = 20; // 20 ticks (1 seconde)
+    private static final long CACHE_EXPIRY = 10; // 10 ticks (0.5 seconde)
     private final Map<UUID, UUID> playerRefreshTasks = new ConcurrentHashMap<>();
     
     public ShopItemPlaceholderListener(DynaShopPlugin plugin) {
@@ -292,7 +293,7 @@ public class ShopItemPlaceholderListener implements Listener {
                                     itemPrices = priceCache.get(itemId);
                                 } else {
                                     // Calcul des prix pour cet item
-                                    itemPrices = getCachedPrices(finalShopId, itemId, item, false);
+                                    itemPrices = getCachedPrices(player, finalShopId, itemId, item, false);
                                     priceCache.put(itemId, itemPrices);
                                 }
                                 
@@ -465,8 +466,16 @@ public class ShopItemPlaceholderListener implements Listener {
      * @param forceRefresh Force le rafraîchissement du cache
      * @return Map des valeurs de prix
      */
-    private Map<String, String> getCachedPrices(String shopId, String itemId, ItemStack itemStack, boolean forceRefresh) {
+    private Map<String, String> getCachedPrices(Player player, String shopId, String itemId, ItemStack itemStack, boolean forceRefresh) {
         String cacheKey = shopId + ":" + itemId;
+        
+        // Ajouter l'UUID du joueur au cache key pour que chaque joueur ait ses propres prix modifiés
+        if (player != null) {
+            cacheKey += ":" + player.getUniqueId().toString();
+        }
+        
+        // // Forcer le rafraîchissement pour toujours obtenir les prix modifiés les plus récents
+        // forceRefresh = true; // Forcer le rafraîchissement à chaque fois
         
         // Vérifier si les données sont en cache et encore valides
         if (!forceRefresh && globalPriceCache.containsKey(cacheKey)) {
@@ -491,7 +500,7 @@ public class ShopItemPlaceholderListener implements Listener {
 
         String buyPrice, sellPrice, buyMinPrice, buyMaxPrice, sellMinPrice, sellMaxPrice;
 
-        DynamicPrice price = DynaShopPlugin.getInstance().getDynaShopListener().getOrLoadPrice(shopId, itemId, itemStack);
+        DynamicPrice price = DynaShopPlugin.getInstance().getDynaShopListener().getOrLoadPrice(player, shopId, itemId, itemStack);
         if (price != null) {
             buyPrice = plugin.getPriceFormatter().formatPrice(price.getBuyPrice());
             sellPrice = plugin.getPriceFormatter().formatPrice(price.getSellPrice());
