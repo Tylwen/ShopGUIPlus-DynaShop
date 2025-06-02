@@ -493,6 +493,26 @@ public class ShopConfigManager {
      */
     public DynaShopType getTypeDynaShop(String shopID, String itemID) {
         String type = getItemValue(shopID, itemID, "typeDynaShop", String.class).orElse("NONE");
+        
+        // // Si c'est un LINK, récupérer le type de l'item lié
+        // if (type.equalsIgnoreCase("LINK")) {
+        //     String linkedItemRef = getItemValue(shopID, itemID, "link", String.class).orElse(null);
+            
+        //     if (linkedItemRef != null && linkedItemRef.contains(":")) {
+        //         String[] parts = linkedItemRef.split(":");
+        //         if (parts.length == 2) {
+        //             String linkedShopID = parts[0];
+        //             String linkedItemID = parts[1];
+                    
+        //             // Éviter les boucles infinies
+        //             if (!linkedShopID.equals(shopID) || !linkedItemID.equals(itemID)) {
+        //                 // Récupérer le type de l'item lié (récursif)
+        //                 return getTypeDynaShop(linkedShopID, linkedItemID);
+        //             }
+        //         }
+        //     }
+        // }
+
         try {
             return DynaShopType.valueOf(type.toUpperCase());
         } catch (IllegalArgumentException e) {

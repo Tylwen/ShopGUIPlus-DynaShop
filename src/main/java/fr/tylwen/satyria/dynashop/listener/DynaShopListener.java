@@ -52,7 +52,7 @@ import fr.tylwen.satyria.dynashop.data.ShopConfigManager;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 // import fr.tylwen.satyria.dynashop.data.param.RecipeType;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
-
+import net.brcdev.shopgui.ShopGuiPlusApi;
 // import net.brcdev.shopgui.ShopGuiPlusApi;
 import net.brcdev.shopgui.event.ShopPostTransactionEvent;
 import net.brcdev.shopgui.event.ShopPreTransactionEvent;
@@ -409,11 +409,11 @@ public class DynaShopListener implements Listener {
             handleRecipePrice(shopID, itemID, itemStack, amount, action); // Gérer les prix basés sur les recettes
         } else if (type == DynaShopType.STOCK || type == DynaShopType.STATIC_STOCK || price.isFromStock()) {
             handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
-        // } else if (type == DynaShopType.STATIC_STOCK) {
-        //     // Gérer les prix basés sur le stock statique
-        //     // mainPlugin.getLogger().warning("Type de gestion statique non implémenté pour l'item " + itemID + " dans le shop " + shopID);
-        //     // return;
-        //     handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
+        } else if (type == DynaShopType.LINK) {
+            // Gérer les prix liés (si applicable)
+            // mainPlugin.getLogger().info("Type de gestion 'LINKED' pour l'item " + itemID + " dans le shop " + shopID);
+                // Appliquer la logique de prix liée
+            handleLinkedPrice(shopID, itemID, itemStack, action, amount);
         // } else {
         //     mainPlugin.getLogger().warning("Type de gestion inconnu pour l'item " + itemID + " dans le shop " + shopID);
         }
@@ -487,6 +487,36 @@ public class DynaShopListener implements Listener {
         // mainPlugin.getLogger().info("APRÈS - Stock: " + price.getStock() + ", Buy: " + price.getBuyPrice() + ", Sell: " + price.getSellPrice());
     }
 
+    private void handleLinkedPrice(String shopID, String itemID, ItemStack itemStack, ShopAction action, int amount) {
+        // Implémenter la logique pour les prix liés si nécessaire
+        // mainPlugin.getLogger().info("Traitement des prix liés pour l'item " + itemID + " dans le shop " + shopID);
+        // Vous pouvez ajouter votre logique ici pour gérer les prix liés
+        String linkedItemRef = shopConfigManager.getItemValue(shopID, itemID, "link", String.class).orElse(null);
+        if (linkedItemRef != null && linkedItemRef.contains(":")) {
+            String[] parts = linkedItemRef.split(":");
+            if (parts.length == 2) {
+                String linkedShopID = parts[0];
+                String linkedItemID = parts[1];
+                
+                // Charger le prix du shop lié
+                DynamicPrice linkedPrice = getOrLoadPrice(linkedShopID, linkedItemID, itemStack);
+                if (linkedPrice != null) {
+                    DynaShopType linkedType = shopConfigManager.getTypeDynaShop(linkedShopID, linkedItemID);
+                    if (linkedType == DynaShopType.DYNAMIC) {
+                        // Gérer les prix dynamiques liés
+                        handleDynamicPrice(linkedPrice, action, amount);
+                    } else if (linkedType == DynaShopType.RECIPE || linkedPrice.isFromRecipe()) {
+                        // Gérer les prix basés sur les recettes liés
+                        handleRecipePrice(linkedShopID, linkedItemID, itemStack, amount, action);
+                    } else if (linkedType == DynaShopType.STOCK || linkedType == DynaShopType.STATIC_STOCK || linkedPrice.isFromStock()) {
+                        // Gérer les prix basés sur le stock lié
+                        handleStockPrice(linkedPrice, linkedShopID, linkedItemID, action, amount);
+                    }
+                }
+            }
+        }
+    }
+
     // private void savePriceIfNeeded(DynamicPrice price, String shopID, String itemID) {
     //     if (!price.isFromRecipe()) {
     //         // DynaShopPlugin.getInstance().getItemDataManager().savePrice(shopID, itemID, price.getBuyPrice(), price.getSellPrice());
@@ -555,7 +585,6 @@ public class DynaShopListener implements Listener {
         // Vérifier si l'item est déjà en cache
         DynamicPrice cachedPrice = priceCache.get(cacheKey);
         if (cachedPrice != null && (System.currentTimeMillis() - cacheTimes.get(cacheKey) < CACHE_DURATION)) {
-            // mainPlugin.getLogger().info("Prix récupéré depuis le cache pour " + itemID + " dans le shop " + shopID);
             // mainPlugin.getLogger().info("Prix récupéré depuis le cache pour " + itemID + " dans le shop " + shopID + ": " + cachedPrice);
             return cachedPrice;
         }
@@ -574,154 +603,6 @@ public class DynaShopListener implements Listener {
         
         // Traiter les prix basés sur les recettes
         if (type == DynaShopType.RECIPE) {
-            // // // // double buyPrice = DynaShopPlugin.getInstance().getCachedRecipePrice(shopID, itemID, "buyPrice");
-            // // // // double sellPrice = DynaShopPlugin.getInstance().getCachedRecipePrice(shopID, itemID, "sellPrice");
-
-            // // // double buyPrice = priceRecipe.calculatePrice(shopID, itemID, itemStack, "buyPrice", new ArrayList<>());
-            // // // double sellPrice = priceRecipe.calculatePrice(shopID, itemID, itemStack, "sellPrice", new ArrayList<>());
-            
-            // // // // double minBuy = priceData.minBuy.orElse(buyPrice * 0.5);
-            // // // // double maxBuy = priceData.maxBuy.orElse(buyPrice * 2.0);
-            // // // // double minSell = priceData.minSell.orElse(sellPrice * 0.5);
-            // // // // double maxSell = priceData.maxSell.orElse(sellPrice * 2.0);
-            // // // double minBuy = priceRecipe.calculatePrice(shopID, itemID, itemStack, "buyDynamic.min", new ArrayList<>());
-            // // // double maxBuy = priceRecipe.calculatePrice(shopID, itemID, itemStack, "buyDynamic.max", new ArrayList<>());
-            // // // double minSell = priceRecipe.calculatePrice(shopID, itemID, itemStack, "sellDynamic.min", new ArrayList<>());
-            // // // double maxSell = priceRecipe.calculatePrice(shopID, itemID, itemStack, "sellDynamic.max", new ArrayList<>());
-
-            // // // DynamicPrice recipePrice = new DynamicPrice(buyPrice, sellPrice, minBuy, maxBuy, minSell, maxSell, 1.0, 1.0, 1.0, 1.0, 0, 0, 0, 1.0, 1.0);
-            // // // recipePrice.setFromRecipe(true); // Marquer comme provenant d'une recette
-            // // // return recipePrice;
-            // // return getRecipePriceAsync(shopID, itemID, itemStack);
-            // // Vérifier si les prix sont en cache
-            // double buyPrice = DynaShopPlugin.getInstance().getCachedRecipePrice(shopID, itemID, "buyPrice");
-            // double sellPrice = DynaShopPlugin.getInstance().getCachedRecipePrice(shopID, itemID, "sellPrice");
-            
-            // // Si les prix ne sont pas en cache, les calculer
-            // if (buyPrice < 0 || sellPrice < 0) {
-            //     // Utiliser les calculs synchrones pour l'initialisation
-            //     buyPrice = priceRecipe.calculatePrice(shopID, itemID, itemStack, "buyPrice", new ArrayList<>());
-            //     sellPrice = priceRecipe.calculatePrice(shopID, itemID, itemStack, "sellPrice", new ArrayList<>());
-                
-            //     // Mettre en cache les résultats calculés
-            //     DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyPrice", buyPrice);
-            //     DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellPrice", sellPrice);
-            // }
-            
-            // // Récupérer les bornes min/max du cache
-            // double cachedMinBuy = DynaShopPlugin.getInstance().getCachedRecipePrice(shopID, itemID, "buyDynamic.min");
-            // double cachedMaxBuy = DynaShopPlugin.getInstance().getCachedRecipePrice(shopID, itemID, "buyDynamic.max");
-            // double cachedMinSell = DynaShopPlugin.getInstance().getCachedRecipePrice(shopID, itemID, "sellDynamic.min");
-            // double cachedMaxSell = DynaShopPlugin.getInstance().getCachedRecipePrice(shopID, itemID, "sellDynamic.max");
-            
-            // // Utiliser les valeurs en cache si disponibles, sinon utiliser des valeurs par défaut
-            // double minBuy, maxBuy, minSell, maxSell;
-            
-            // if (cachedMinBuy >= 0) {
-            //     minBuy = cachedMinBuy;
-            // } else {
-            //     // minBuy = priceData.minBuy.orElse(buyPrice * 0.5);
-            //     minBuy = priceRecipe.calculatePrice(shopID, itemID, itemStack, "buyDynamic.min", new ArrayList<>());
-            //     // Calculer la valeur en arrière-plan et mettre à jour le cache
-            //     priceRecipe.calculatePriceAsync(shopID, itemID, itemStack, "buyDynamic.min", newPrice -> {
-            //         DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyDynamic.min", newPrice);
-            //     });
-            // }
-            
-            // if (cachedMaxBuy >= 0) {
-            //     maxBuy = cachedMaxBuy;
-            // } else {
-            //     // maxBuy = priceData.maxBuy.orElse(buyPrice * 2.0);
-            //     maxBuy = priceRecipe.calculatePrice(shopID, itemID, itemStack, "buyDynamic.max", new ArrayList<>());
-            //     priceRecipe.calculatePriceAsync(shopID, itemID, itemStack, "buyDynamic.max", newPrice -> {
-            //         DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyDynamic.max", newPrice);
-            //     });
-            // }
-            
-            // if (cachedMinSell >= 0) {
-            //     minSell = cachedMinSell;
-            // } else {
-            //     // minSell = priceData.minSell.orElse(sellPrice * 0.5);
-            //     minSell = priceRecipe.calculatePrice(shopID, itemID, itemStack, "sellDynamic.min", new ArrayList<>());
-            //     priceRecipe.calculatePriceAsync(shopID, itemID, itemStack, "sellDynamic.min", newPrice -> {
-            //         DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellDynamic.min", newPrice);
-            //     });
-            // }
-            
-            // if (cachedMaxSell >= 0) {
-            //     maxSell = cachedMaxSell;
-            // } else {
-            //     // maxSell = priceData.maxSell.orElse(sellPrice * 2.0);
-            //     maxSell = priceRecipe.calculatePrice(shopID, itemID, itemStack, "sellDynamic.max", new ArrayList<>());
-            //     priceRecipe.calculatePriceAsync(shopID, itemID, itemStack, "sellDynamic.max", newPrice -> {
-            //         DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellDynamic.max", newPrice);
-            //     });
-            // }
-
-            // int stock, minStock, maxStock;
-
-            // int cachedStock = DynaShopPlugin.getInstance().getCachedRecipeStock(shopID, itemID, "stock");
-            // int cachedMinStock = DynaShopPlugin.getInstance().getCachedRecipeStock(shopID, itemID, "stock.min");
-            // int cachedMaxStock = DynaShopPlugin.getInstance().getCachedRecipeStock(shopID, itemID, "stock.max");
-
-            // if (cachedStock >= 0) {
-            //     stock = cachedStock;
-            // } else {
-            //     // stock = priceData.stock.orElse(0);
-            //     stock = priceRecipe.calculateStock(shopID, itemID, itemStack , new ArrayList<>());
-            //     priceRecipe.calculateStockAsync(shopID, itemID, itemStack, newStock -> {
-            //         DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "stock", newStock);
-            //     });
-            // }
-
-            // if (cachedMinStock >= 0) {
-            //     minStock = cachedMinStock;
-            // } else {
-            //     // minStock = priceData.minStock.orElse(dataConfig.getStockMin());
-            //     minStock = priceRecipe.calculateStock(shopID, itemID, itemStack, new ArrayList<>());
-            //     priceRecipe.calculateStockAsync(shopID, itemID, itemStack, newMinStock -> {
-            //         DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "stock.min", newMinStock);
-            //     });
-            // }
-
-            // if (cachedMaxStock >= 0) {
-            //     maxStock = cachedMaxStock;
-            // } else {
-            //     // maxStock = priceData.maxStock.orElse(dataConfig.getStockMax());
-            //     maxStock = priceRecipe.calculateStock(shopID, itemID, itemStack, new ArrayList<>());
-            //     priceRecipe.calculateStockAsync(shopID, itemID, itemStack, newMaxStock -> {
-            //         DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "stock.max", newMaxStock);
-            //     });
-            // }
-
-            // // if (cachedStock < 0) {
-            // //     // stock = priceData.stock.orElse(0);
-            // //     // DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "stock", stock);
-            // //     priceRecipe.calculateStockAsync(shopID, itemID, itemStack, newStock -> {
-            // //         DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "stock", newStock);
-            // //     });
-            // // }
-
-            // // if (cachedMinStock < 0) {
-            // //     // minStock = priceData.minStock.orElse(dataConfig.getStockMin());
-            // //     // DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "stock.min", minStock);
-            // //     priceRecipe.calculateStockAsync(shopID, itemID, itemStack, newMinStock -> {
-            // //         DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "stock.min", newMinStock);
-            // //     });
-            // // }
-
-            // // if (cachedMaxStock < 0) {
-            // //     // maxStock = priceData.maxStock.orElse(dataConfig.getStockMax());
-            // //     // DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "stock.max", maxStock);
-            // //     priceRecipe.calculateStockAsync(shopID, itemID, itemStack, newMaxStock -> {
-            // //         DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "stock.max", newMaxStock);
-            // //     });
-            // // }
-
-            // DynamicPrice recipePrice = new DynamicPrice(buyPrice, sellPrice, minBuy, maxBuy, minSell, maxSell, 1.0, 1.0, 1.0, 1.0, stock, minStock, maxStock, 1.0, 1.0);
-            // recipePrice.setFromRecipe(true);
-            // return recipePrice;
-            // Calculer toutes les valeurs en une seule fois
             RecipeCalculationResult result = priceRecipe.calculateRecipeValues(shopID, itemID, itemStack, new ArrayList<>());
             
             // Créer l'objet DynamicPrice avec les valeurs calculées
@@ -737,7 +618,6 @@ public class DynaShopListener implements Listener {
             recipePrice.setFromRecipe(true);
             return recipePrice;
         } else if (type == DynaShopType.STOCK) {
-            // return DynaShopPlugin.getInstance().getPriceStock().createStockPrice(shopID, itemID);
             price = DynaShopPlugin.getInstance().getPriceStock().createStockPrice(shopID, itemID);
             // price.setFromStock(true);
         } else if (type == DynaShopType.STATIC_STOCK) {
@@ -746,6 +626,85 @@ public class DynaShopListener implements Listener {
             // return DynaShopPlugin.getInstance().getPriceStock().createStaticStockPrice(shopID, itemID);
             price = DynaShopPlugin.getInstance().getPriceStock().createStaticStockPrice(shopID, itemID);
             // mainPlugin.getLogger().info("Static stock price created for " + itemID + " in shop " + shopID);
+        // Si c'est un type LINK, gérer spécialement
+        } else if (type == DynaShopType.LINK) {
+            // // Récupérer l'item lié
+            // String linkedItemID = shopConfigManager.getItemValue(shopID, itemID, "link", String.class)
+            //     .orElse(null);
+            
+            // if (linkedItemID != null) {
+            //     // Récupérer les prix de l'item lié
+            //     // String linkedCacheKey = linkedItemID.split(":")[0] + ":" + linkedItemID.splitted(":")[1];
+            //     // DynamicPrice linkedPrice = getOrLoadPrice(shopID, linkedItemID, null);
+            //     // DynamicPrice linkedPrice = getOrLoadPrice(linkedItemID.split(":")[0], linkedItemID.split(":")[1], null);
+            //     DynamicPrice linkedPrice = getOrLoadPrice(linkedItemID.split(":")[0], linkedItemID.split(":")[1], ShopGuiPlusApi.getShop(linkedItemID.split(":")[0]).getShopItem(linkedItemID.split(":")[1]).getItem());
+                
+            //     if (linkedPrice != null) {
+            //         // // Créer une copie des prix pour éviter de modifier l'original
+            //         // price = new DynamicPrice(
+            //         //     linkedPrice.getBuyPrice(), linkedPrice.getSellPrice(),
+            //         //     linkedPrice.getMinBuyPrice(), linkedPrice.getMaxBuyPrice(),
+            //         //     linkedPrice.getMinSellPrice(), linkedPrice.getMaxSellPrice(),
+            //         //     linkedPrice.getGrowthBuy(), linkedPrice.getDecayBuy(),
+            //         //     linkedPrice.getGrowthSell(), linkedPrice.getDecaySell(),
+            //         //     linkedPrice.getStock(), linkedPrice.getMinStock(), linkedPrice.getMaxStock(),
+            //         //     linkedPrice.getStockBuyModifier(), linkedPrice.getStockSellModifier()
+            //         // );
+                    
+            //         // // Conserver le type de l'item lié pour le comportement
+            //         // // DynaShopType linkedType = shopConfigManager.getTypeDynaShop(shopID, linkedItemID);
+            //         // DynaShopType linkedType = shopConfigManager.getTypeDynaShop(linkedItemID.split(":")[0], linkedItemID.split(":")[1]);
+                    
+            //         // // Définir les flags appropriés
+            //         // if (linkedType == DynaShopType.RECIPE || linkedPrice.isFromRecipe()) {
+            //         //     price.setFromRecipe(true);
+            //         // }
+            //         // if (linkedType == DynaShopType.STOCK || linkedType == DynaShopType.STATIC_STOCK || linkedPrice.isFromStock()) {
+            //         //     price.setFromStock(true);
+            //         // }
+                    
+            //         // // Mettre en cache et retourner
+            //         // // priceCache.put(cacheKey, price);
+            //         // // cacheTimes.put(cacheKey, System.currentTimeMillis());
+            //         // // return price;
+            //     }
+            // } else {
+            //     mainPlugin.getLogger().warning("Item " + itemID + " in shop " + shopID + " is linked but no linked item found.");
+            //     // return null; // Aucun item lié trouvé, retourner null
+            // }
+            // Récupérer l'item lié
+            String linkedItemID = shopConfigManager.getItemValue(shopID, itemID, "link", String.class)
+                .orElse(null);
+            
+            if (linkedItemID != null) {
+                // Extraire les parties du lien (shopID:itemID)
+                String[] parts = linkedItemID.split(":");
+                if (parts.length == 2) {
+                    String linkedShopID = parts[0];
+                    String linkedItemID2 = parts[1];
+                    
+                    // Au lieu de créer une copie, utiliser directement l'objet prix de l'item lié
+                    // Pour éviter les boucles infinies, on utilise une clé de cache différente
+                    String linkedCacheKey = linkedShopID + ":" + linkedItemID2;
+                    
+                    // Vérifier si l'item lié est déjà en cache
+                    DynamicPrice cachedLinkedPrice = priceCache.get(linkedCacheKey);
+                    if (cachedLinkedPrice != null && (System.currentTimeMillis() - cacheTimes.get(linkedCacheKey) < CACHE_DURATION)) {
+                        return cachedLinkedPrice; // Retourner directement le prix de l'item lié
+                    }
+                    
+                    // Récupérer le prix de l'item lié
+                    ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkedShopID).getShopItem(linkedItemID2).getItem();
+                    DynamicPrice linkedPrice = getOrLoadPrice(linkedShopID, linkedItemID2, linkedItemStack);
+                    
+                    if (linkedPrice != null) {
+                        // Retourner directement l'objet prix de l'item lié sans créer de copie
+                        return linkedPrice;
+                    }
+                }
+            } else {
+                mainPlugin.getLogger().warning("Item " + itemID + " in shop " + shopID + " is linked but no linked item found.");
+            }
         // } else if (type == DynaShopType.DYNAMIC) {
         } else {
             // Charger les prix depuis la base de données

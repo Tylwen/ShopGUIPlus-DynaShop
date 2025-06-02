@@ -6,6 +6,7 @@ public enum DynaShopType {
     RECIPE,     // Basé sur une recette
     STOCK,       // Basé sur le stock
     STATIC_STOCK, // Basé sur le stock statique
+    LINK,     // Prix et comportement liés à un autre item
     UNKNOWN      // Type inconnu
 ;
 
