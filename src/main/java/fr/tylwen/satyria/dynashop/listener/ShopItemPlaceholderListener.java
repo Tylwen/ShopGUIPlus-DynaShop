@@ -13,8 +13,8 @@ import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.inventory.InventoryView;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
-import fr.tylwen.satyria.dynashop.data.DynamicPrice;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
+import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.ShopGuiPlusApi;
@@ -36,10 +36,10 @@ public class ShopItemPlaceholderListener implements Listener {
 
     private BukkitTask refreshTask;
 
-    private final Map<String, Map<String, String>> globalPriceCache = new ConcurrentHashMap<>();
-    private final Map<String, Long> cacheTimestamps = new ConcurrentHashMap<>();
-    // private static final long CACHE_EXPIRY = 20; // 20 ticks (1 seconde)
-    private static final long CACHE_EXPIRY = 10; // 10 ticks (0.5 seconde)
+    // private final Map<String, Map<String, String>> globalPriceCache = new ConcurrentHashMap<>();
+    // private final Map<String, Long> cacheTimestamps = new ConcurrentHashMap<>();
+    // // private static final long CACHE_EXPIRY = 20; // 20 ticks (1 seconde)
+    // private static final long CACHE_EXPIRY = 10; // 10 ticks (0.5 seconde)
     private final Map<UUID, UUID> playerRefreshTasks = new ConcurrentHashMap<>();
     
     public ShopItemPlaceholderListener(DynaShopPlugin plugin) {
@@ -467,266 +467,279 @@ public class ShopItemPlaceholderListener implements Listener {
      * @return Map des valeurs de prix
      */
     private Map<String, String> getCachedPrices(Player player, String shopId, String itemId, ItemStack itemStack, boolean forceRefresh) {
-        String cacheKey = shopId + ":" + itemId;
+        // String cacheKey = shopId + ":" + itemId;
         
-        // Ajouter l'UUID du joueur au cache key pour que chaque joueur ait ses propres prix modifiés
-        if (player != null) {
-            cacheKey += ":" + player.getUniqueId().toString();
-        }
+        // // Ajouter l'UUID du joueur au cache key pour que chaque joueur ait ses propres prix modifiés
+        // if (player != null) {
+        //     cacheKey += ":" + player.getUniqueId().toString();
+        // }
         
+        // Créer une clé unique incluant le joueur si nécessaire
+        final String cacheKey = player != null
+            ? shopId + ":" + itemId + ":" + player.getUniqueId().toString()
+            : shopId + ":" + itemId;
+
         // // Forcer le rafraîchissement pour toujours obtenir les prix modifiés les plus récents
         // forceRefresh = true; // Forcer le rafraîchissement à chaque fois
         
-        // Vérifier si les données sont en cache et encore valides
-        if (!forceRefresh && globalPriceCache.containsKey(cacheKey)) {
-            Long timestamp = cacheTimestamps.get(cacheKey);
-            if (timestamp != null && System.currentTimeMillis() - timestamp < CACHE_EXPIRY) {
-                return globalPriceCache.get(cacheKey);
+        // // Vérifier si les données sont en cache et encore valides
+        // if (!forceRefresh && globalPriceCache.containsKey(cacheKey)) {
+        //     Long timestamp = cacheTimestamps.get(cacheKey);
+        //     if (timestamp != null && System.currentTimeMillis() - timestamp < CACHE_EXPIRY) {
+        //         return globalPriceCache.get(cacheKey);
+        //     }
+        // }
+        
+        // Forcer le rafraîchissement pour les items très importants
+        List<String> criticalItems = plugin.getConfigMain().getStringList("critical-items");
+        boolean isCriticalItem = criticalItems.contains(shopId + ":" + itemId);
+        forceRefresh = forceRefresh || isCriticalItem;
+        
+        // Utiliser le CacheManager au lieu de la vérification manuelle du cache
+        return plugin.getDisplayPriceCache().get(cacheKey, () -> {
+            // Si pas en cache ou expiré, calculer et mettre en cache
+            String currencyPrefix = "";
+            String currencySuffix = " $";
+            
+            try {
+                currencyPrefix = ShopGuiPlusApi.getPlugin().getEconomyManager().getEconomyProvider(ShopGuiPlusApi.getShop(shopId).getEconomyType()).getCurrencyPrefix();
+                currencySuffix = ShopGuiPlusApi.getPlugin().getEconomyManager().getEconomyProvider(ShopGuiPlusApi.getShop(shopId).getEconomyType()).getCurrencySuffix();
+            } catch (Exception e) {
+                // Utiliser les valeurs par défaut en cas d'erreur
             }
-        }
-        
-        // Si pas en cache ou expiré, calculer et mettre en cache
-        String currencyPrefix = "";
-        String currencySuffix = " $";
-        
-        try {
-            currencyPrefix = ShopGuiPlusApi.getPlugin().getEconomyManager().getEconomyProvider(ShopGuiPlusApi.getShop(shopId).getEconomyType()).getCurrencyPrefix();
-            currencySuffix = ShopGuiPlusApi.getPlugin().getEconomyManager().getEconomyProvider(ShopGuiPlusApi.getShop(shopId).getEconomyType()).getCurrencySuffix();
-        } catch (Exception e) {
-            // Utiliser les valeurs par défaut en cas d'erreur
-        }
-        
-        Map<String, String> prices = new HashMap<>();
+            
+            Map<String, String> prices = new HashMap<>();
 
-        String buyPrice, sellPrice, buyMinPrice, buyMaxPrice, sellMinPrice, sellMaxPrice;
+            String buyPrice, sellPrice, buyMinPrice, buyMaxPrice, sellMinPrice, sellMaxPrice;
 
-        DynamicPrice price = DynaShopPlugin.getInstance().getDynaShopListener().getOrLoadPrice(player, shopId, itemId, itemStack);
-        if (price != null) {
-            buyPrice = plugin.getPriceFormatter().formatPrice(price.getBuyPrice());
-            sellPrice = plugin.getPriceFormatter().formatPrice(price.getSellPrice());
-            buyMinPrice = plugin.getPriceFormatter().formatPrice(price.getMinBuyPrice());
-            buyMaxPrice = plugin.getPriceFormatter().formatPrice(price.getMaxBuyPrice());
-            sellMinPrice = plugin.getPriceFormatter().formatPrice(price.getMinSellPrice());
-            sellMaxPrice = plugin.getPriceFormatter().formatPrice(price.getMaxSellPrice());
-        } else {
-            buyPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy");
-            sellPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell");
-            buyMinPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_min");
-            buyMaxPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_max");
-            sellMinPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_min");
-            sellMaxPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_max");
-        }
-
-        // Déterminer si l'item est en mode STOCK
-        boolean isStockMode = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.STOCK;
-        prices.put("is_stock_mode", String.valueOf(isStockMode));
-        
-        // Déterminer si l'item est en mode STATIC_STOCK
-        boolean isStaticStockMode = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.STATIC_STOCK;
-        prices.put("is_static_stock_mode", String.valueOf(isStaticStockMode));
-
-        // Déterminer si l'item est en mode RECIPE
-        boolean isRecipeMode = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.RECIPE;
-        prices.put("is_recipe_mode", String.valueOf(isRecipeMode));
-        if (isRecipeMode) {
-            // Si l'item est en mode RECIPE, et que un des prix est en mode STOCK, on affiche le stock
-            boolean hasMaxStock = DynaShopPlugin.getInstance().getPriceRecipe().calculateMaxStock(shopId, itemId, itemStack, new ArrayList<>()) > 0;
-            if (hasMaxStock) {
-                isStockMode = true; // Forcer le mode STOCK si maxStock > 0
-                prices.put("is_stock_mode", String.valueOf(isStockMode));
-            }
-        }
-
-        // Stocker les valeurs
-        prices.put("buy", buyPrice);
-        prices.put("sell", sellPrice);
-        prices.put("buy_min", buyMinPrice);
-        prices.put("buy_max", buyMaxPrice);
-        prices.put("sell_min", sellMinPrice);
-        prices.put("sell_max", sellMaxPrice);
-        
-        // Si l'item n'est pas en mode STOCK, ne pas afficher les informations de stock
-        if (!isStockMode && !isStaticStockMode) {
-            prices.put("stock", "N/A");
-            prices.put("stock_max", "N/A");
-            prices.put("base_stock", "N/A");
-            prices.put("colored_stock_ratio", "N/A");
-        } else {
-            // // // // Ajouter les informations de stock
-            // // String currentStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock");
-            // // String maxStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock_max");
-            // // // String currentStock = plugin.getPriceFormatter().formatStock(price.getCurrentStock());
-            // // // if (currentStock.equals("0")) {
-            // // //     currentStock = "N/A"; // Si le stock est 0, on le remplace par N/A
-            // // // }
-
-            // // // plugin.getLogger().info("Current stock for " + itemId + ": " + price.getStock() + 
-            // // //     ", Max stock: " + price.getMaxStock() + 
-            // // //     ", Formatted current stock: " + plugin.getPriceFormatter().formatStock(price.getStock()) +
-            // // //     ", Formatted max stock: " + plugin.getPriceFormatter().formatStock(price.getMaxStock()));
-
-            // // // String maxStock = plugin.getPriceFormatter().formatStock(price.getMaxStock());
-            // // // if (maxStock.equals("0")) {
-            // // //     maxStock = "N/A"; // Si le stock est 0, on le remplace par N/A
-            // // // }
-            // String currentStock, maxStock, fCurrentStock, fMaxStock;
-            // if (price != null) {
-            //     currentStock = String.valueOf(price.getStock());
-            //     fCurrentStock = plugin.getPriceFormatter().formatStock(price.getStock());
-            //     // if (currentStock.equals("0")) {
-            //     //     currentStock = "N/A"; // Si le stock est 0, on le remplace par N/A
-            //     // }
-            //     maxStock = String.valueOf(price.getMaxStock());
-            //     fMaxStock = plugin.getPriceFormatter().formatStock(price.getMaxStock());
-            //     // if (maxStock.equals("0")) {
-            //     //     maxStock = "N/A"; // Si le stock est 0, on le remplace par N/A
-            //     // }
-            //     // plugin.getLogger().info("Current stock for " + itemId + ": " + price.getStock() + 
-            //     //     ", Max stock: " + price.getMaxStock() + 
-            //     //     ", Formatted current stock: " + plugin.getPriceFormatter().formatStock(price.getStock()) +
-            //     //     ", Formatted max stock: " + plugin.getPriceFormatter().formatStock(price.getMaxStock()));
-            // } else {
-            //     currentStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock");
-            //     fCurrentStock = plugin.getPriceFormatter().formatStock(Integer.parseInt(currentStock));
-            //     maxStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock_max");
-            //     fMaxStock = plugin.getPriceFormatter().formatStock(Integer.parseInt(maxStock));
-            // }
-
-            // prices.put("stock", fCurrentStock);
-            // prices.put("stock_max", fMaxStock);
-
-            // // Format pour le stock
-            // if (currentStock.equals("N/A") || currentStock.equals("0")) {
-            //     // prices.put("base_stock", ChatColor.translateAlternateColorCodes('&', "&cOut of stock"));
-            //     prices.put("base_stock", ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getPlaceholderOutOfStock()));
-            //     prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getPlaceholderOutOfStock()));
-            // } else {
-            //     prices.put("base_stock", String.format("%s/%s", fCurrentStock, fMaxStock));
-
-            //     // Format avec couleurs selon le niveau de stock
-            //     int current = Integer.parseInt(currentStock);
-            //     int max = Integer.parseInt(maxStock);
-            //     String colorCode = (current < max * 0.25) ? "&c" : (current < max * 0.5) ? "&e" : "&a";
-            //     prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 
-            //         String.format("%s%s&7/%s", colorCode, fCurrentStock, fMaxStock)));
-            // }
-            String currentStock, maxStock, fCurrentStock, fMaxStock;
+            DynamicPrice price = DynaShopPlugin.getInstance().getDynaShopListener().getOrLoadPrice(player, shopId, itemId, itemStack);
             if (price != null) {
-                // Vérifier si le stock est désactivé (-1)
-                if (price.getStock() < 0) {
-                    currentStock = "N/A";
-                    fCurrentStock = "N/A";
-                } else {
-                    currentStock = String.valueOf(price.getStock());
-                    fCurrentStock = plugin.getPriceFormatter().formatStock(price.getStock());
-                }
-                
-                // Vérifier si le stock max est désactivé (-1)
-                if (price.getMaxStock() < 0) {
-                    maxStock = "N/A";
-                    fMaxStock = "N/A";
-                } else {
-                    maxStock = String.valueOf(price.getMaxStock());
-                    fMaxStock = plugin.getPriceFormatter().formatStock(price.getMaxStock());
-                }
+                buyPrice = plugin.getPriceFormatter().formatPrice(price.getBuyPrice());
+                sellPrice = plugin.getPriceFormatter().formatPrice(price.getSellPrice());
+                buyMinPrice = plugin.getPriceFormatter().formatPrice(price.getMinBuyPrice());
+                buyMaxPrice = plugin.getPriceFormatter().formatPrice(price.getMaxBuyPrice());
+                sellMinPrice = plugin.getPriceFormatter().formatPrice(price.getMinSellPrice());
+                sellMaxPrice = plugin.getPriceFormatter().formatPrice(price.getMaxSellPrice());
             } else {
-                // Récupération depuis les méthodes de formattage
-                currentStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock");
-                // Sécuriser le parsing numérique
-                fCurrentStock = currentStock.equals("N/A") || currentStock.equals("-1") ? 
-                    "N/A" : plugin.getPriceFormatter().formatStock(Integer.parseInt(currentStock));
-                
-                maxStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock_max");
-                // Sécuriser le parsing numérique
-                fMaxStock = maxStock.equals("N/A") || maxStock.equals("-1") ? 
-                    "N/A" : plugin.getPriceFormatter().formatStock(Integer.parseInt(maxStock));
+                buyPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy");
+                sellPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell");
+                buyMinPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_min");
+                buyMaxPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_max");
+                sellMinPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_min");
+                sellMaxPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_max");
             }
 
-            prices.put("stock", fCurrentStock);
-            prices.put("stock_max", fMaxStock);
+            // Déterminer si l'item est en mode STOCK
+            boolean isStockMode = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.STOCK;
+            prices.put("is_stock_mode", String.valueOf(isStockMode));
+            
+            // Déterminer si l'item est en mode STATIC_STOCK
+            boolean isStaticStockMode = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.STATIC_STOCK;
+            prices.put("is_static_stock_mode", String.valueOf(isStaticStockMode));
 
-            // Format pour le stock - Ajouter vérification pour -1
-            if (currentStock.equals("N/A") || currentStock.equals("-1") || currentStock.equals("0")) {
-                // Utiliser le texte de configuration pour "épuisé"
-                prices.put("base_stock", ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getPlaceholderOutOfStock()));
-                prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getPlaceholderOutOfStock()));
+            // Déterminer si l'item est en mode RECIPE
+            boolean isRecipeMode = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.RECIPE;
+            prices.put("is_recipe_mode", String.valueOf(isRecipeMode));
+            if (isRecipeMode) {
+                // Si l'item est en mode RECIPE, et que un des prix est en mode STOCK, on affiche le stock
+                boolean hasMaxStock = DynaShopPlugin.getInstance().getPriceRecipe().calculateMaxStock(shopId, itemId, itemStack, new ArrayList<>()) > 0;
+                if (hasMaxStock) {
+                    isStockMode = true; // Forcer le mode STOCK si maxStock > 0
+                    prices.put("is_stock_mode", String.valueOf(isStockMode));
+                }
+            }
+
+            // Stocker les valeurs
+            prices.put("buy", buyPrice);
+            prices.put("sell", sellPrice);
+            prices.put("buy_min", buyMinPrice);
+            prices.put("buy_max", buyMaxPrice);
+            prices.put("sell_min", sellMinPrice);
+            prices.put("sell_max", sellMaxPrice);
+            
+            // Si l'item n'est pas en mode STOCK, ne pas afficher les informations de stock
+            if (!isStockMode && !isStaticStockMode) {
+                prices.put("stock", "N/A");
+                prices.put("stock_max", "N/A");
+                prices.put("base_stock", "N/A");
+                prices.put("colored_stock_ratio", "N/A");
             } else {
-                prices.put("base_stock", String.format("%s/%s", fCurrentStock, fMaxStock));
+                // // // // Ajouter les informations de stock
+                // // String currentStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock");
+                // // String maxStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock_max");
+                // // // String currentStock = plugin.getPriceFormatter().formatStock(price.getCurrentStock());
+                // // // if (currentStock.equals("0")) {
+                // // //     currentStock = "N/A"; // Si le stock est 0, on le remplace par N/A
+                // // // }
 
-                // Format avec couleurs selon le niveau de stock
-                try {
-                    int current = Integer.parseInt(currentStock);
-                    int max = Integer.parseInt(maxStock);
-                    
-                    // Vérifier si max est valide
-                    if (max <= 0) {
-                        // Cas où maxStock est 0 ou négatif - afficher uniquement la valeur actuelle
-                        prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 
-                            String.format("&7%s", fCurrentStock)));
+                // // // plugin.getLogger().info("Current stock for " + itemId + ": " + price.getStock() + 
+                // // //     ", Max stock: " + price.getMaxStock() + 
+                // // //     ", Formatted current stock: " + plugin.getPriceFormatter().formatStock(price.getStock()) +
+                // // //     ", Formatted max stock: " + plugin.getPriceFormatter().formatStock(price.getMaxStock()));
+
+                // // // String maxStock = plugin.getPriceFormatter().formatStock(price.getMaxStock());
+                // // // if (maxStock.equals("0")) {
+                // // //     maxStock = "N/A"; // Si le stock est 0, on le remplace par N/A
+                // // // }
+                // String currentStock, maxStock, fCurrentStock, fMaxStock;
+                // if (price != null) {
+                //     currentStock = String.valueOf(price.getStock());
+                //     fCurrentStock = plugin.getPriceFormatter().formatStock(price.getStock());
+                //     // if (currentStock.equals("0")) {
+                //     //     currentStock = "N/A"; // Si le stock est 0, on le remplace par N/A
+                //     // }
+                //     maxStock = String.valueOf(price.getMaxStock());
+                //     fMaxStock = plugin.getPriceFormatter().formatStock(price.getMaxStock());
+                //     // if (maxStock.equals("0")) {
+                //     //     maxStock = "N/A"; // Si le stock est 0, on le remplace par N/A
+                //     // }
+                //     // plugin.getLogger().info("Current stock for " + itemId + ": " + price.getStock() + 
+                //     //     ", Max stock: " + price.getMaxStock() + 
+                //     //     ", Formatted current stock: " + plugin.getPriceFormatter().formatStock(price.getStock()) +
+                //     //     ", Formatted max stock: " + plugin.getPriceFormatter().formatStock(price.getMaxStock()));
+                // } else {
+                //     currentStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock");
+                //     fCurrentStock = plugin.getPriceFormatter().formatStock(Integer.parseInt(currentStock));
+                //     maxStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock_max");
+                //     fMaxStock = plugin.getPriceFormatter().formatStock(Integer.parseInt(maxStock));
+                // }
+
+                // prices.put("stock", fCurrentStock);
+                // prices.put("stock_max", fMaxStock);
+
+                // // Format pour le stock
+                // if (currentStock.equals("N/A") || currentStock.equals("0")) {
+                //     // prices.put("base_stock", ChatColor.translateAlternateColorCodes('&', "&cOut of stock"));
+                //     prices.put("base_stock", ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getPlaceholderOutOfStock()));
+                //     prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getPlaceholderOutOfStock()));
+                // } else {
+                //     prices.put("base_stock", String.format("%s/%s", fCurrentStock, fMaxStock));
+
+                //     // Format avec couleurs selon le niveau de stock
+                //     int current = Integer.parseInt(currentStock);
+                //     int max = Integer.parseInt(maxStock);
+                //     String colorCode = (current < max * 0.25) ? "&c" : (current < max * 0.5) ? "&e" : "&a";
+                //     prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 
+                //         String.format("%s%s&7/%s", colorCode, fCurrentStock, fMaxStock)));
+                // }
+                String currentStock, maxStock, fCurrentStock, fMaxStock;
+                if (price != null) {
+                    // Vérifier si le stock est désactivé (-1)
+                    if (price.getStock() < 0) {
+                        currentStock = "N/A";
+                        fCurrentStock = "N/A";
                     } else {
-                        // Calculer la couleur en fonction du ratio
-                        String colorCode = (current < max * 0.25) ? "&c" : (current < max * 0.5) ? "&e" : "&a";
-                        prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 
-                            String.format("%s%s&7/%s", colorCode, fCurrentStock, fMaxStock)));
+                        currentStock = String.valueOf(price.getStock());
+                        fCurrentStock = plugin.getPriceFormatter().formatStock(price.getStock());
                     }
-                } catch (NumberFormatException e) {
-                    // En cas d'erreur de conversion, utiliser un format simplifié
-                    prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 
-                        String.format("&7%s/%s", fCurrentStock, fMaxStock)));
+                    
+                    // Vérifier si le stock max est désactivé (-1)
+                    if (price.getMaxStock() < 0) {
+                        maxStock = "N/A";
+                        fMaxStock = "N/A";
+                    } else {
+                        maxStock = String.valueOf(price.getMaxStock());
+                        fMaxStock = plugin.getPriceFormatter().formatStock(price.getMaxStock());
+                    }
+                } else {
+                    // Récupération depuis les méthodes de formattage
+                    currentStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock");
+                    // Sécuriser le parsing numérique
+                    fCurrentStock = currentStock.equals("N/A") || currentStock.equals("-1") ? 
+                        "N/A" : plugin.getPriceFormatter().formatStock(Integer.parseInt(currentStock));
+                    
+                    maxStock = plugin.getPriceFormatter().getStockByType(shopId, itemId, "stock_max");
+                    // Sécuriser le parsing numérique
+                    fMaxStock = maxStock.equals("N/A") || maxStock.equals("-1") ? 
+                        "N/A" : plugin.getPriceFormatter().formatStock(Integer.parseInt(maxStock));
+                }
+
+                prices.put("stock", fCurrentStock);
+                prices.put("stock_max", fMaxStock);
+
+                // Format pour le stock - Ajouter vérification pour -1
+                if (currentStock.equals("N/A") || currentStock.equals("-1") || currentStock.equals("0")) {
+                    // Utiliser le texte de configuration pour "épuisé"
+                    prices.put("base_stock", ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getPlaceholderOutOfStock()));
+                    prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getPlaceholderOutOfStock()));
+                } else {
+                    prices.put("base_stock", String.format("%s/%s", fCurrentStock, fMaxStock));
+
+                    // Format avec couleurs selon le niveau de stock
+                    try {
+                        int current = Integer.parseInt(currentStock);
+                        int max = Integer.parseInt(maxStock);
+                        
+                        // Vérifier si max est valide
+                        if (max <= 0) {
+                            // Cas où maxStock est 0 ou négatif - afficher uniquement la valeur actuelle
+                            prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 
+                                String.format("&7%s", fCurrentStock)));
+                        } else {
+                            // Calculer la couleur en fonction du ratio
+                            String colorCode = (current < max * 0.25) ? "&c" : (current < max * 0.5) ? "&e" : "&a";
+                            prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 
+                                String.format("%s%s&7/%s", colorCode, fCurrentStock, fMaxStock)));
+                        }
+                    } catch (NumberFormatException e) {
+                        // En cas d'erreur de conversion, utiliser un format simplifié
+                        prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 
+                            String.format("&7%s/%s", fCurrentStock, fMaxStock)));
+                    }
                 }
             }
-        }
-        
-        // // Format pour le prix d'achat avec min-max
-        // if (!buyMinPrice.equals("N/A") && !buyMaxPrice.equals("N/A")) {
-        //     prices.put("base_buy", String.format(
-        //         currencyPrefix + "%s" + currencySuffix + " §7(%s - %s) ", 
-        //         buyPrice, buyMinPrice, buyMaxPrice
-        //     ));
-        // } else {
-        //     prices.put("base_buy", currencyPrefix + buyPrice + currencySuffix);
-        // }
-        
-        // // Format pour le prix de vente avec min-max
-        // if (!sellMinPrice.equals("N/A") && !sellMaxPrice.equals("N/A")) {
-        //     prices.put("base_sell", String.format(
-        //         currencyPrefix + "%s" + currencySuffix + " §7(%s - %s) ", 
-        //         sellPrice, sellMinPrice, sellMaxPrice
-        //     ));
-        // } else {
-        //     prices.put("base_sell", currencyPrefix + sellPrice + currencySuffix);
-        // }
-        // Format pour le prix d'achat avec min-max
-        if (!buyMinPrice.equals("N/A") && !buyMaxPrice.equals("N/A") &&
-            (!buyMinPrice.equals(buyPrice) || !buyMaxPrice.equals(buyPrice))) {
-            // Afficher la fourchette uniquement si min ou max diffère du prix actuel
-            prices.put("base_buy", String.format(
-                currencyPrefix + "%s" + currencySuffix + " §7(%s - %s) ", 
-                buyPrice, buyMinPrice, buyMaxPrice
-            ));
-        } else {
-            // Affichage simplifié quand min=max=prix actuel
-            prices.put("base_buy", currencyPrefix + buyPrice + currencySuffix);
-        }
+            
+            // // Format pour le prix d'achat avec min-max
+            // if (!buyMinPrice.equals("N/A") && !buyMaxPrice.equals("N/A")) {
+            //     prices.put("base_buy", String.format(
+            //         currencyPrefix + "%s" + currencySuffix + " §7(%s - %s) ", 
+            //         buyPrice, buyMinPrice, buyMaxPrice
+            //     ));
+            // } else {
+            //     prices.put("base_buy", currencyPrefix + buyPrice + currencySuffix);
+            // }
+            
+            // // Format pour le prix de vente avec min-max
+            // if (!sellMinPrice.equals("N/A") && !sellMaxPrice.equals("N/A")) {
+            //     prices.put("base_sell", String.format(
+            //         currencyPrefix + "%s" + currencySuffix + " §7(%s - %s) ", 
+            //         sellPrice, sellMinPrice, sellMaxPrice
+            //     ));
+            // } else {
+            //     prices.put("base_sell", currencyPrefix + sellPrice + currencySuffix);
+            // }
+            // Format pour le prix d'achat avec min-max
+            if (!buyMinPrice.equals("N/A") && !buyMaxPrice.equals("N/A") &&
+                (!buyMinPrice.equals(buyPrice) || !buyMaxPrice.equals(buyPrice))) {
+                // Afficher la fourchette uniquement si min ou max diffère du prix actuel
+                prices.put("base_buy", String.format(
+                    currencyPrefix + "%s" + currencySuffix + " §7(%s - %s) ", 
+                    buyPrice, buyMinPrice, buyMaxPrice
+                ));
+            } else {
+                // Affichage simplifié quand min=max=prix actuel
+                prices.put("base_buy", currencyPrefix + buyPrice + currencySuffix);
+            }
 
-        // Format pour le prix de vente avec min-max
-        if (!sellMinPrice.equals("N/A") && !sellMaxPrice.equals("N/A") &&
-            (!sellMinPrice.equals(sellPrice) || !sellMaxPrice.equals(sellPrice))) {
-            // Afficher la fourchette uniquement si min ou max diffère du prix actuel
-            prices.put("base_sell", String.format(
-                currencyPrefix + "%s" + currencySuffix + " §7(%s - %s) ", 
-                sellPrice, sellMinPrice, sellMaxPrice
-            ));
-        } else {
-            // Affichage simplifié quand min=max=prix actuel
-            prices.put("base_sell", currencyPrefix + sellPrice + currencySuffix);
-        }
+            // Format pour le prix de vente avec min-max
+            if (!sellMinPrice.equals("N/A") && !sellMaxPrice.equals("N/A") &&
+                (!sellMinPrice.equals(sellPrice) || !sellMaxPrice.equals(sellPrice))) {
+                // Afficher la fourchette uniquement si min ou max diffère du prix actuel
+                prices.put("base_sell", String.format(
+                    currencyPrefix + "%s" + currencySuffix + " §7(%s - %s) ", 
+                    sellPrice, sellMinPrice, sellMaxPrice
+                ));
+            } else {
+                // Affichage simplifié quand min=max=prix actuel
+                prices.put("base_sell", currencyPrefix + sellPrice + currencySuffix);
+            }
 
-        // Mettre en cache avec timestamp
-        globalPriceCache.put(cacheKey, prices);
-        cacheTimestamps.put(cacheKey, System.currentTimeMillis());
-        
-        return prices;
+            // // Mettre en cache avec timestamp
+            // globalPriceCache.put(cacheKey, prices);
+            // cacheTimestamps.put(cacheKey, System.currentTimeMillis());
+            
+            return prices;
+        });
     }
 
     /**
@@ -759,11 +772,13 @@ public class ShopItemPlaceholderListener implements Listener {
     }
 
     public void shutdown() {
-        if (refreshTask != null) {
-            refreshTask.cancel();
-            refreshTask = null;
-        }
-        // openInventories.clear();
-        openShopMap.clear();
+        // if (refreshTask != null) {
+        //     refreshTask.cancel();
+        //     refreshTask = null;
+        // }
+        // // openInventories.clear();
+        // openShopMap.clear();
+        // Annuler toutes les tâches de rafraîchissement
+        playerRefreshTasks.clear();
     }
 }

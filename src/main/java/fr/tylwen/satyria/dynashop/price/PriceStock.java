@@ -1,4 +1,4 @@
-package fr.tylwen.satyria.dynashop.data;
+package fr.tylwen.satyria.dynashop.price;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.config.DataConfig;

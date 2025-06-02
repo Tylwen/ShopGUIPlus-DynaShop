@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 // import org.bukkit.Bukkit;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
-import fr.tylwen.satyria.dynashop.data.DynamicPrice;
+import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 
 // public class BatchDatabaseUpdater {
 //     private final Map<String, DynamicPrice> pendingUpdates = new HashMap<>();
@@ -70,8 +70,15 @@ public class BatchDatabaseUpdater {
     }
     
     public void queueUpdate(String shopID, String itemID, DynamicPrice price) {
+        // Forcer une mise à jour immédiate si c'est une recette
+        if (price.isFromRecipe()) {
+            flushUpdates(); // Forcer le traitement immédiat
+        }
         String key = shopID + ":" + itemID;
         pendingUpdates.put(key, price);
+        
+        // Invalider le cache immédiatement
+        DynaShopPlugin.getInstance().invalidatePriceCache(shopID, itemID, null);
     }
 
     /**

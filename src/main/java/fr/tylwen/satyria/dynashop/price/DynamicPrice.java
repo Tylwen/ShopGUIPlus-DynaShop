@@ -1,4 +1,4 @@
-package fr.tylwen.satyria.dynashop.data;
+package fr.tylwen.satyria.dynashop.price;
 
 import org.bukkit.entity.Player;
 

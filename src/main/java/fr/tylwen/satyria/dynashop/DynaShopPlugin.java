@@ -14,6 +14,7 @@ import org.bstats.charts.AdvancedPie;
 
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
 // import org.bukkit.event.HandlerList;
 // import org.bukkit.configuration.ConfigurationSection;
@@ -25,17 +26,13 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
+import fr.tylwen.satyria.dynashop.cache.CacheManager;
 import fr.tylwen.satyria.dynashop.command.DynaShopCommand;
 import fr.tylwen.satyria.dynashop.command.LimitResetCommand;
 import fr.tylwen.satyria.dynashop.command.ReloadCommand;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
 import fr.tylwen.satyria.dynashop.config.LangConfig;
-// import fr.tylwen.satyria.dynashop.data.CustomIngredientsManager;
-// import fr.tylwen.satyria.dynashop.data.CustomRecipeManager;
-// import fr.tylwen.satyria.dynashop.data.CustomRecipeManager;
-// import fr.tylwen.satyria.dynashop.data.DynamicPrice;
-import fr.tylwen.satyria.dynashop.data.PriceRecipe;
-import fr.tylwen.satyria.dynashop.data.PriceStock;
+import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 import fr.tylwen.satyria.dynashop.data.RecipeCacheManager;
 // import fr.tylwen.satyria.dynashop.config.Config;
 // import fr.tylwen.satyria.dynashop.config.Lang;
@@ -53,6 +50,8 @@ import fr.tylwen.satyria.dynashop.limit.TransactionLimiter;
 // import fr.tylwen.satyria.dynashop.hook.ShopItemProcessor;
 import fr.tylwen.satyria.dynashop.listener.DynaShopListener;
 import fr.tylwen.satyria.dynashop.listener.ShopItemPlaceholderListener;
+import fr.tylwen.satyria.dynashop.price.PriceRecipe;
+import fr.tylwen.satyria.dynashop.price.PriceStock;
 // import fr.tylwen.satyria.dynashop.packet.ItemPacketInterceptor;
 // import fr.tylwen.satyria.dynashop.utils.CommentedConfiguration;
 // import fr.tylwen.satyria.dynashop.task.ReloadDatabaseTask;
@@ -71,11 +70,13 @@ import net.brcdev.shopgui.shop.item.ShopItem;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 // import java.util.Map;
 // import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 // import java.util.stream.Collectors;
 
@@ -113,6 +114,12 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private int waitForShopsTaskId;
 
     private RecipeCacheManager recipeCacheManager;
+    
+    private CacheManager<String, DynamicPrice> priceCache;
+    private CacheManager<String, List<ItemStack>> recipeCache;
+    private CacheManager<String, Double> calculatedPriceCache;
+    private CacheManager<String, Integer> stockCache;
+    private CacheManager<String, Map<String, String>> displayPriceCache;
 
     // public DynaShopPlugin() {
     //     this.config = new CommentedConfiguration();
@@ -238,6 +245,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         instance = this;
         this.logger = getLogger();
         init();
+        initCache(); // Initialiser les caches
         // load();
         hookIntoShopGUIPlus();
 
@@ -359,6 +367,73 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         // this.customIngredientsManager = new CustomIngredientsManager();
         // this.shopRefreshManager = new ShopRefreshManager(this);
         // preloadPopularItems();
+    }
+
+    private void initCache() {
+    // Lire les durées depuis la configuration
+        int priceDuration = configMain.getInt("cache.durations.price", 30);
+        int displayDuration = configMain.getInt("cache.durations.display", 10);
+        int recipeDuration = configMain.getInt("cache.durations.recipe", 300);
+        int stockDuration = configMain.getInt("cache.durations.stock", 20);
+        int calculatedDuration = configMain.getInt("cache.durations.calculated", 60);
+        
+        // Initialiser les caches avec ces durées
+        priceCache = new CacheManager<>(this, "PriceCache", priceDuration, TimeUnit.SECONDS, 10);
+        recipeCache = new CacheManager<>(this, "RecipeCache", recipeDuration, TimeUnit.SECONDS, 5);
+        calculatedPriceCache = new CacheManager<>(this, "CalculatedPriceCache", calculatedDuration, TimeUnit.SECONDS, 5);
+        stockCache = new CacheManager<>(this, "StockCache", stockDuration, TimeUnit.SECONDS, 10);
+        displayPriceCache = new CacheManager<>(this, "DisplayPriceCache", displayDuration, TimeUnit.SECONDS, 15);
+
+        // // Initialisation des caches avec des durées adaptées
+        // priceCache = new CacheManager<>(this, "PriceCache", 30, TimeUnit.SECONDS, 10);
+        // recipeCache = new CacheManager<>(this, "RecipeCache", 5, TimeUnit.MINUTES, 5);
+        // calculatedPriceCache = new CacheManager<>(this, "CalculatedPriceCache", 1, TimeUnit.MINUTES, 5);
+        // stockCache = new CacheManager<>(this, "StockCache", 20, TimeUnit.SECONDS, 10);
+        // displayPriceCache = new CacheManager<>(this, "DisplayPriceCache", 10, TimeUnit.SECONDS, 15);
+    }
+    
+    // Getters pour les caches
+    public CacheManager<String, DynamicPrice> getPriceCache() {
+        return priceCache;
+    }
+    
+    public CacheManager<String, List<ItemStack>> getRecipeCache() {
+        return recipeCache;
+    }
+    
+    public CacheManager<String, Double> getCalculatedPriceCache() {
+        return calculatedPriceCache;
+    }
+    
+    public CacheManager<String, Integer> getStockCache() {
+        return stockCache;
+    }
+    
+    public CacheManager<String, Map<String, String>> getDisplayPriceCache() {
+        return displayPriceCache;
+    }
+
+    public void invalidatePriceCache(String shopId, String itemId, Player player) {
+        String baseKey = shopId + ":" + itemId;
+        
+        // Invalider les caches spécifiques au joueur si nécessaire
+        if (player != null) {
+            String playerKey = baseKey + ":" + player.getUniqueId().toString();
+            priceCache.invalidate(playerKey);
+            displayPriceCache.invalidate(playerKey);
+        }
+        
+        // Invalider également les caches généraux (sans joueur spécifique)
+        priceCache.invalidate(baseKey);
+        calculatedPriceCache.invalidateWithPrefix(baseKey);
+        displayPriceCache.invalidateWithPrefix(baseKey);
+        
+        // Si c'est une recette, invalider le cache des ingrédients aussi
+        if (getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.RECIPE) {
+            recipeCache.invalidate(baseKey);
+        }
+        
+        getLogger().fine("Cache invalidé pour " + baseKey);
     }
 
     // private void load() {
@@ -527,6 +602,13 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         
         // dataManager.savePricesToDatabase(priceMap);
         dataManager.closeDatabase();
+        
+        // Nettoyer les caches
+        priceCache.clear();
+        recipeCache.clear();
+        calculatedPriceCache.clear();
+        stockCache.clear();
+        displayPriceCache.clear();
 
         // HandlerList.unregisterAll(this);
 

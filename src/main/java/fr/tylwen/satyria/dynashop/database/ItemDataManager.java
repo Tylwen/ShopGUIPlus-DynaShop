@@ -14,8 +14,8 @@ import org.bukkit.Bukkit;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
-import fr.tylwen.satyria.dynashop.data.DynamicPrice;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
+import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 import net.brcdev.shopgui.shop.item.ShopItem;
 
 /**

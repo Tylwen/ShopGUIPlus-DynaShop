@@ -49,8 +49,8 @@
 package fr.tylwen.satyria.dynashop.task;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
-import fr.tylwen.satyria.dynashop.data.DynamicPrice;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
+import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 // import fr.tylwen.satyria.dynashop.database.BatchDatabaseUpdater;
 import net.brcdev.shopgui.shop.item.ShopItem;

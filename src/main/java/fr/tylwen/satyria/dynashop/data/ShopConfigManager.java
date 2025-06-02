@@ -9,6 +9,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.data.param.RecipeType;
+import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 // import net.brcdev.shopgui.exception.shop.ShopsNotLoadedException;
 import net.brcdev.shopgui.shop.Shop;
