@@ -106,7 +106,13 @@ public class PriceFormatter {
             case "buy":
                 if (useRecipe) {
                     // Si c'est un DynaShop de type RECIPE, on utilise le prix de la recette
-                    double recipePrice = plugin.getPriceRecipe().calculatePrice(shopID, itemID, itemStack, "buyPrice", new ArrayList<>());
+                    // double recipePrice = plugin.getPriceRecipe().calculatePrice(shopID, itemID, itemStack, "buyPrice", new ArrayList<>());
+                    
+                    // Utiliser le cache pour récupérer le prix d'achat d'une recette
+                    final ItemStack finalItem = itemStack;
+                    double recipePrice = plugin.getCalculatedPriceCache().get(shopID + ":" + itemID + ":buyPrice", 
+                        () -> plugin.getPriceRecipe().calculatePrice(shopID, itemID, finalItem, "buyPrice", new ArrayList<>()));
+
                     if (recipePrice >= 0) {
                         return formatPrice(recipePrice);
                     }
@@ -129,7 +135,11 @@ public class PriceFormatter {
             case "sell":
                 if (useRecipe) {
                     // Si c'est un DynaShop de type RECIPE, on utilise le prix de la recette
-                    double recipePrice = plugin.getPriceRecipe().calculatePrice(shopID, itemID, itemStack, "sellPrice", new ArrayList<>());
+                    // double recipePrice = plugin.getPriceRecipe().calculatePrice(shopID, itemID, itemStack, "sellPrice", new ArrayList<>());
+
+                    final ItemStack finalItem = itemStack;
+                    double recipePrice = plugin.getCalculatedPriceCache().get(shopID + ":" + itemID + ":sellPrice", 
+                        () -> plugin.getPriceRecipe().calculatePrice(shopID, itemID, finalItem, "sellPrice", new ArrayList<>()));
                     if (recipePrice >= 0) {
                         return formatPrice(recipePrice);
                     }
@@ -153,7 +163,10 @@ public class PriceFormatter {
                 if (useRecipe) {
                     // Si c'est un DynaShop de type RECIPE, on utilise le prix de la recette
                     // double recipePrice = plugin.getPriceRecipe().calculatePrice(shopID, itemID, itemStack, "buyDynamic.min", new ArrayList<>());
-                    double recipePrice = plugin.getCachedRecipePrice(shopID, itemID, "buyDynamic.min");
+                    // double recipePrice = plugin.getCachedRecipePrice(shopID, itemID, "buyDynamic.min");
+                    final ItemStack finalItem = itemStack;
+                    double recipePrice = plugin.getCalculatedPriceCache().get(shopID + ":" + itemID + ":buyDynamic.min", 
+                        () -> plugin.getPriceRecipe().calculatePrice(shopID, itemID, finalItem, "buyDynamic.min", new ArrayList<>()));
                     if (recipePrice >= 0) {
                         return formatPrice(recipePrice);
                     }
@@ -171,7 +184,10 @@ public class PriceFormatter {
                 if (useRecipe) {
                     // Si c'est un DynaShop de type RECIPE, on utilise le prix de la recette
                     // double recipePrice = plugin.getPriceRecipe().calculatePrice(shopID, itemID, itemStack, "sellDynamic.min", new ArrayList<>());
-                    double recipePrice = plugin.getCachedRecipePrice(shopID, itemID, "sellDynamic.min");
+                    // double recipePrice = plugin.getCachedRecipePrice(shopID, itemID, "sellDynamic.min");
+                    final ItemStack finalItem = itemStack;
+                    double recipePrice = plugin.getCalculatedPriceCache().get(shopID + ":" + itemID + ":sellDynamic.min", 
+                        () -> plugin.getPriceRecipe().calculatePrice(shopID, itemID, finalItem, "sellDynamic.min", new ArrayList<>()));
                     if (recipePrice >= 0) {
                         return formatPrice(recipePrice);
                     }
@@ -189,7 +205,10 @@ public class PriceFormatter {
                 if (useRecipe) {
                     // Si c'est un DynaShop de type RECIPE, on utilise le prix de la recette
                     // double recipePrice = plugin.getPriceRecipe().calculatePrice(shopID, itemID, itemStack, "buyDynamic.max", new ArrayList<>());
-                    double recipePrice = plugin.getCachedRecipePrice(shopID, itemID, "buyDynamic.max");
+                    // double recipePrice = plugin.getCachedRecipePrice(shopID, itemID, "buyDynamic.max");
+                    final ItemStack finalItem = itemStack;
+                    double recipePrice = plugin.getCalculatedPriceCache().get(shopID + ":" + itemID + ":buyDynamic.max", 
+                        () -> plugin.getPriceRecipe().calculatePrice(shopID, itemID, finalItem, "buyDynamic.max", new ArrayList<>()));
                     if (recipePrice >= 0) {
                         return formatPrice(recipePrice);
                     }
@@ -207,7 +226,10 @@ public class PriceFormatter {
                 if (useRecipe) {
                     // Si c'est un DynaShop de type RECIPE, on utilise le prix de la recette
                     // double recipePrice = plugin.getPriceRecipe().calculatePrice(shopID, itemID, itemStack, "sellDynamic.max", new ArrayList<>());
-                    double recipePrice = plugin.getCachedRecipePrice(shopID, itemID, "sellDynamic.max");
+                    // double recipePrice = plugin.getCachedRecipePrice(shopID, itemID, "sellDynamic.max");
+                    final ItemStack finalItem = itemStack;
+                    double recipePrice = plugin.getCalculatedPriceCache().get(shopID + ":" + itemID + ":sellDynamic.max", 
+                        () -> plugin.getPriceRecipe().calculatePrice(shopID, itemID, finalItem, "sellDynamic.max", new ArrayList<>()));
                     if (recipePrice >= 0) {
                         return formatPrice(recipePrice);
                     }

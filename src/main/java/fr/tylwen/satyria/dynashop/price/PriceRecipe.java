@@ -19,8 +19,10 @@ import org.bukkit.inventory.ShapelessRecipe;
 import org.bukkit.util.Consumer;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import fr.tylwen.satyria.dynashop.cache.CacheManager;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.data.param.RecipeType;
+import fr.tylwen.satyria.dynashop.utils.PrioritizedRunnable;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.item.ShopItem;
@@ -35,18 +37,25 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+// import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
+import java.util.Comparator;
 
 public class PriceRecipe {
+    private final DynaShopPlugin plugin;
     private final FileConfiguration config;
     
-    // Ajouter ces champs à la classe PriceRecipe
-    private final Map<String, List<ItemStack>> ingredientsCache = new HashMap<>();
-    private final long CACHE_DURATION = 20L * 60L * 5L; // 5 minutes
-    // private final long CACHE_DURATION = 20L; // 1 seconde
-    private final Map<String, Long> cacheTimestamps = new HashMap<>();
+    // // Ajouter ces champs à la classe PriceRecipe
+    // private final Map<String, List<ItemStack>> ingredientsCache = new HashMap<>();
+    // private final long CACHE_DURATION = 20L * 60L * 5L; // 5 minutes
+    // // private final long CACHE_DURATION = 20L; // 1 seconde
+    // private final Map<String, Long> cacheTimestamps = new HashMap<>();
 
     private final ExecutorService highPriorityExecutor;
     private final Map<String, Integer> itemAccessCounter = new ConcurrentHashMap<>();
@@ -57,24 +66,73 @@ public class PriceRecipe {
     // private static final int MAX_RECURSION_DEPTH = 5;
     // Pool de threads limité pour les calculs asynchrones
     private final ExecutorService recipeExecutor;
+    
+    private final CacheManager<String, List<ItemStack>> recipeCache;
 
-    public PriceRecipe(FileConfiguration config) {
-        this.config = config;
+    // public PriceRecipe(FileConfiguration config) {
+    //     this.config = config;
         
-        // Créer un pool de threads dédié et limité pour les calculs de recettes
-        this.recipeExecutor = Executors.newFixedThreadPool(2, r -> {
+    //     // Créer un pool de threads dédié et limité pour les calculs de recettes
+    //     this.recipeExecutor = Executors.newFixedThreadPool(2, r -> {
+    //         Thread thread = new Thread(r, "Recipe-Calculator");
+    //         thread.setDaemon(true);
+    //         return thread;
+    //     });
+        
+    //     // Créer un pool de threads prioritaire pour les items populaires
+    //     this.highPriorityExecutor = Executors.newFixedThreadPool(1, r -> {
+    //         Thread thread = new Thread(r, "High-Priority-Calculator");
+    //         thread.setDaemon(true);
+    //         thread.setPriority(Thread.MAX_PRIORITY);
+    //         return thread;
+    //     });
+        
+    //     // Charger les items populaires depuis la configuration
+    //     this.loadPopularItems();
+    // }
+    // public PriceRecipe(FileConfiguration config) {
+    //     this.config = config;
+    public PriceRecipe(DynaShopPlugin plugin) {
+        this.plugin = plugin;
+        this.config = plugin.getConfig();
+        
+        // Obtenir la référence au cache centralisé
+        this.recipeCache = DynaShopPlugin.getInstance().getRecipeCache();
+        
+        // ThreadFactory optimisé pour les recettes
+        ThreadFactory recipeThreadFactory = r -> {
             Thread thread = new Thread(r, "Recipe-Calculator");
             thread.setDaemon(true);
             return thread;
-        });
+        };
         
-        // Créer un pool de threads prioritaire pour les items populaires
-        this.highPriorityExecutor = Executors.newFixedThreadPool(1, r -> {
+        // Utiliser un ThreadPoolExecutor configurable au lieu de newFixedThreadPool
+        this.recipeExecutor = new ThreadPoolExecutor(
+            2, // corePoolSize - threads toujours actifs
+            4, // maximumPoolSize - taille maximale lors des pics
+            60L, TimeUnit.SECONDS, // temps avant de libérer un thread au-delà du corePoolSize
+            new LinkedBlockingQueue<>(), // file d'attente standard
+            recipeThreadFactory,
+            new ThreadPoolExecutor.CallerRunsPolicy() // stratégie pour gérer la surcharge
+        );
+        
+        // ThreadFactory optimisé pour les tâches prioritaires
+        ThreadFactory priorityThreadFactory = r -> {
             Thread thread = new Thread(r, "High-Priority-Calculator");
             thread.setDaemon(true);
             thread.setPriority(Thread.MAX_PRIORITY);
             return thread;
-        });
+        };
+        
+        // Pool de haute priorité avec file d'attente limitée
+        this.highPriorityExecutor = new ThreadPoolExecutor(
+            1, 2, 
+            60L, TimeUnit.SECONDS,
+            new PriorityBlockingQueue<>(10, 
+                Comparator.comparing(r -> ((PrioritizedRunnable)r).getPriority())
+            ),
+            priorityThreadFactory
+        );
         
         // Charger les items populaires depuis la configuration
         this.loadPopularItems();
@@ -247,16 +305,52 @@ public class PriceRecipe {
         // Ajuster le stock maximum et actuel
         int finalStock = (minAvailableStock == Integer.MAX_VALUE) ? 0 : minAvailableStock;
         
-        // Mettre en cache tous les résultats
-        DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyPrice", finalBuyPrice);
-        DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellPrice", finalSellPrice);
-        DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyDynamic.min", finalMinBuyPrice);
-        DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyDynamic.max", finalMaxBuyPrice);
-        DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellDynamic.min", finalMinSellPrice);
-        DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellDynamic.max", finalMaxSellPrice);
-        DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "stock", finalStock);
-        DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "minstock", totalMinStock);
-        DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "maxstock", totalMaxStock);
+        // // Mettre en cache tous les résultats
+        // DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyPrice", finalBuyPrice);
+        // DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellPrice", finalSellPrice);
+        // DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyDynamic.min", finalMinBuyPrice);
+        // DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "buyDynamic.max", finalMaxBuyPrice);
+        // DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellDynamic.min", finalMinSellPrice);
+        // DynaShopPlugin.getInstance().cacheRecipePrice(shopID, itemID, "sellDynamic.max", finalMaxSellPrice);
+        // DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "stock", finalStock);
+        // DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "minstock", totalMinStock);
+        // DynaShopPlugin.getInstance().cacheRecipeStock(shopID, itemID, "maxstock", totalMaxStock);
+        
+        // String buyPriceKey = shopID + ":" + itemID + ":buyPrice";
+        // String sellPriceKey = shopID + ":" + itemID + ":sellPrice";
+        // String minBuyPriceKey = shopID + ":" + itemID + ":buyDynamic.min";
+        // String maxBuyPriceKey = shopID + ":" + itemID + ":buyDynamic.max";
+        // String minSellPriceKey = shopID + ":" + itemID + ":sellDynamic.min";
+        // String maxSellPriceKey = shopID + ":" + itemID + ":sellDynamic.max";
+        // String stockKey = shopID + ":" + itemID + ":stock";
+        // String minStockKey = shopID + ":" + itemID + ":minstock";
+        // String maxStockKey = shopID + ":" + itemID + ":maxstock";
+        // // Mettre en cache les résultats dans le cache centralisé
+        // DynaShopPlugin.getInstance().getCalculatedPriceCache().put(buyPriceKey, finalBuyPrice);
+        // DynaShopPlugin.getInstance().getCalculatedPriceCache().put(sellPriceKey, finalSellPrice);
+        // DynaShopPlugin.getInstance().getCalculatedPriceCache().put(minBuyPriceKey, finalMinBuyPrice);
+        // DynaShopPlugin.getInstance().getCalculatedPriceCache().put(maxBuyPriceKey, finalMaxBuyPrice);
+        // DynaShopPlugin.getInstance().getCalculatedPriceCache().put(minSellPriceKey, finalMinSellPrice);
+        // DynaShopPlugin.getInstance().getCalculatedPriceCache().put(maxSellPriceKey, finalMaxSellPrice);
+        // DynaShopPlugin.getInstance().getCalculatedPriceCache().put(stockKey, finalStock);
+        // DynaShopPlugin.getInstance().getCalculatedPriceCache().put(minStockKey, totalMinStock);
+        // DynaShopPlugin.getInstance().getCalculatedPriceCache().put(maxStockKey, totalMaxStock);
+        CacheManager<String, Double> priceCache = DynaShopPlugin.getInstance().getCalculatedPriceCache();
+        CacheManager<String, Integer> stockCache = DynaShopPlugin.getInstance().getStockCache();
+
+        // Prix
+        priceCache.put(shopID + ":" + itemID + ":buyPrice", finalBuyPrice);
+        priceCache.put(shopID + ":" + itemID + ":sellPrice", finalSellPrice);
+        priceCache.put(shopID + ":" + itemID + ":buyDynamic.min", finalMinBuyPrice);
+        priceCache.put(shopID + ":" + itemID + ":buyDynamic.max", finalMaxBuyPrice);
+        priceCache.put(shopID + ":" + itemID + ":sellDynamic.min", finalMinSellPrice);
+        priceCache.put(shopID + ":" + itemID + ":sellDynamic.max", finalMaxSellPrice);
+
+        // Stock
+        stockCache.put(shopID + ":" + itemID + ":stock", finalStock);
+        stockCache.put(shopID + ":" + itemID + ":minstock", totalMinStock);
+        stockCache.put(shopID + ":" + itemID + ":maxstock", totalMaxStock);
+
         
         return new RecipeCalculationResult(
             finalBuyPrice, finalSellPrice,
@@ -265,27 +359,138 @@ public class PriceRecipe {
             finalStock, totalMinStock, totalMaxStock
         );
     }
+    // /**
+    //  * Version asynchrone pour calculer toutes les valeurs de recette en une fois
+    //  */
+    // public void calculateRecipeValuesAsync(String shopID, String itemID, ItemStack item, Consumer<RecipeCalculationResult> callback) {
+    //     CompletableFuture.supplyAsync(() -> {
+    //         try {
+    //             return calculateRecipeValues(shopID, itemID, item, new ArrayList<>());
+    //         } catch (Exception e) {
+    //             DynaShopPlugin.getInstance().getLogger().warning("Error calculating values for " + shopID + ":" + itemID + ": " + e.getMessage());
+    //             // Valeurs par défaut en cas d'erreur
+    //             return new RecipeCalculationResult(10.0, 8.0, 5.0, 20.0, 4.0, 16.0, 0, 0, 0);
+    //         }
+    //     }, recipeExecutor).thenAcceptAsync(result -> {
+    //         Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> {
+    //             try {
+    //                 callback.accept(result);
+    //             } catch (Exception e) {
+    //                 DynaShopPlugin.getInstance().getLogger().warning("Error in callback: " + e.getMessage());
+    //             }
+    //         });
+    //     });
+    // }
+
     /**
-     * Version asynchrone pour calculer toutes les valeurs de recette en une fois
+     * Version asynchrone optimisée pour calculer toutes les valeurs de recette en une fois
      */
     public void calculateRecipeValuesAsync(String shopID, String itemID, ItemStack item, Consumer<RecipeCalculationResult> callback) {
-        CompletableFuture.supplyAsync(() -> {
+        // Obtenir un indicateur de priorité basé sur la popularité
+        int priority = isPopularItem(shopID, itemID) ? 10 : 1;
+        
+        // Sélectionner le pool en fonction de la priorité
+        ExecutorService executor = priority > 5 ? highPriorityExecutor : recipeExecutor;
+        
+        // Tâche de calcul avec mécanisme de retry
+        Runnable calculationTask = () -> {
             try {
-                return calculateRecipeValues(shopID, itemID, item, new ArrayList<>());
+                RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, item, new ArrayList<>());
+                
+                // Exécuter le callback sur le thread principal de Bukkit
+                Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> {
+                    try {
+                        callback.accept(result);
+                    } catch (Exception e) {
+                        DynaShopPlugin.getInstance().getLogger().warning("Error in calculation callback: " + e.getMessage());
+                    }
+                });
             } catch (Exception e) {
+                // Log de l'erreur
                 DynaShopPlugin.getInstance().getLogger().warning("Error calculating values for " + shopID + ":" + itemID + ": " + e.getMessage());
-                // Valeurs par défaut en cas d'erreur
-                return new RecipeCalculationResult(10.0, 8.0, 5.0, 20.0, 4.0, 16.0, 0, 0, 0);
-            }
-        }, recipeExecutor).thenAcceptAsync(result -> {
-            Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> {
-                try {
-                    callback.accept(result);
-                } catch (Exception e) {
-                    DynaShopPlugin.getInstance().getLogger().warning("Error in callback: " + e.getMessage());
+                
+                // Réessayer après un délai si c'est une erreur temporaire
+                if (e instanceof IllegalStateException || e.getCause() instanceof IllegalStateException) {
+                    Bukkit.getScheduler().runTaskLaterAsynchronously(DynaShopPlugin.getInstance(), 
+                        // this::retryCalculation, 10L); // 0.5 seconde plus tard
+                        () -> retryCalculation(shopID, itemID, item, callback), 10L); // 0.5 seconde plus tard
+                } else {
+                    // Erreur non récupérable, utiliser des valeurs par défaut
+                    Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> {
+                        callback.accept(new RecipeCalculationResult(10.0, 8.0, 5.0, 20.0, 4.0, 16.0, 0, 0, 0));
+                    });
                 }
+            }
+        };
+        
+        // Soumettre la tâche avec sa priorité
+        if (executor == highPriorityExecutor) {
+            executor.submit(new PrioritizedRunnable(calculationTask, priority));
+        } else {
+            executor.submit(calculationTask);
+        }
+    }
+
+    /**
+     * Calcule les prix de plusieurs items en parallèle de manière optimisée
+     */
+    public void batchCalculateRecipes(List<RecipeRequest> requests, Consumer<Map<String, RecipeCalculationResult>> callback) {
+        Map<String, RecipeCalculationResult> results = new ConcurrentHashMap<>();
+        AtomicInteger counter = new AtomicInteger(requests.size());
+        
+        // Traiter chaque demande en parallèle
+        for (RecipeRequest request : requests) {
+            calculateRecipeValuesAsync(
+                request.getShopID(), 
+                request.getItemID(), 
+                request.getItem(),
+                result -> {
+                    // Stocker le résultat
+                    results.put(request.getShopID() + ":" + request.getItemID(), result);
+                    
+                    // Si tous les calculs sont terminés, appeler le callback
+                    if (counter.decrementAndGet() == 0) {
+                        callback.accept(results);
+                    }
+                }
+            );
+        }
+    }
+
+    /**
+     * Classe pour représenter une demande de calcul de recette
+     */
+    public static class RecipeRequest {
+        private final String shopID;
+        private final String itemID;
+        private final ItemStack item;
+        
+        public RecipeRequest(String shopID, String itemID, ItemStack item) {
+            this.shopID = shopID;
+            this.itemID = itemID;
+            this.item = item;
+        }
+        
+        // Getters
+        public String getShopID() { return shopID; }
+        public String getItemID() { return itemID; }
+        public ItemStack getItem() { return item; }
+    }
+        
+    /**
+     * Méthode de retry pour les calculs qui ont échoué
+     */
+    private void retryCalculation(String shopID, String itemID, ItemStack item, Consumer<RecipeCalculationResult> callback) {
+        try {
+            RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, item, new ArrayList<>());
+            Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> callback.accept(result));
+        } catch (Exception e) {
+            // Après l'échec du retry, utiliser les valeurs par défaut
+            DynaShopPlugin.getInstance().getLogger().severe("Retry failed for " + shopID + ":" + itemID + ": " + e.getMessage());
+            Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> {
+                callback.accept(new RecipeCalculationResult(10.0, 8.0, 5.0, 20.0, 4.0, 16.0, 0, 0, 0));
             });
-        });
+        }
     }
 
     /**
@@ -881,49 +1086,55 @@ public class PriceRecipe {
     public List<ItemStack> getIngredients(String shopID, String itemID, ItemStack item) {
         String cacheKey = shopID + ":" + itemID;
 
-        // Vérifier le cache
-        if (isInCache(cacheKey)) {
-            return new ArrayList<>(ingredientsCache.get(cacheKey));
-        }
+        // // Vérifier le cache
+        // if (isInCache(cacheKey)) {
+        //     return new ArrayList<>(ingredientsCache.get(cacheKey));
+        // }
 
-        List<ItemStack> ingredients = new ArrayList<>();
+        // Utiliser le CacheManager pour récupérer/calculer les ingrédients
+        return recipeCache.get(cacheKey, () -> {
+            List<ItemStack> ingredients = new ArrayList<>();
 
-        // Vérifier si la recette est définie
-        if (!DynaShopPlugin.getInstance().getShopConfigManager().hasRecipePattern(shopID, itemID)) {
-            DynaShopPlugin.getInstance().getLogger().warning("No recipe defined in configuration for " + shopID + ":" + itemID);
-            return ingredients;
-        }
+            // Vérifier si la recette est définie
+            if (!DynaShopPlugin.getInstance().getShopConfigManager().hasRecipePattern(shopID, itemID)) {
+                DynaShopPlugin.getInstance().getLogger().warning("No recipe defined in configuration for " + shopID + ":" + itemID);
+                return ingredients;
+            }
 
-        // Récupérer la configuration de la recette
-        ConfigurationSection recipeSection = DynaShopPlugin.getInstance().getShopConfigManager().getSection(shopID, itemID, "recipe");
-        if (recipeSection == null) {
-            return ingredients;
-        }
+            // Récupérer la configuration de la recette
+            ConfigurationSection recipeSection = DynaShopPlugin.getInstance().getShopConfigManager().getSection(shopID, itemID, "recipe");
+            if (recipeSection == null) {
+                return ingredients;
+            }
 
-        // Charger les ingrédients selon le type de recette
-        RecipeType typeRecipe = RecipeType.fromString(recipeSection.getString("type", "NONE").toUpperCase());
-        ingredients = loadIngredientsByType(shopID, itemID, recipeSection, typeRecipe);
+            // Charger les ingrédients selon le type de recette
+            RecipeType typeRecipe = RecipeType.fromString(recipeSection.getString("type", "NONE").toUpperCase());
+            // ingredients = loadIngredientsByType(shopID, itemID, recipeSection, typeRecipe);
+            return loadIngredientsByType(shopID, itemID, recipeSection, typeRecipe);
+        });
         
-        // Mettre en cache
-        updateCache(cacheKey, ingredients);
+        // // Mettre en cache
+        // updateCache(cacheKey, ingredients);
         
-        return ingredients;
+        // return ingredients;
     }
 
     /**
      * Vérifie si les ingrédients sont en cache et si le cache est valide
      */
     private boolean isInCache(String cacheKey) {
-        return ingredientsCache.containsKey(cacheKey) && 
-            System.currentTimeMillis() - cacheTimestamps.getOrDefault(cacheKey, 0L) < CACHE_DURATION;
+        // return ingredientsCache.containsKey(cacheKey) && 
+        //     System.currentTimeMillis() - cacheTimestamps.getOrDefault(cacheKey, 0L) < CACHE_DURATION;
+        return recipeCache.get(cacheKey, () -> null) != null;
     }
 
     /**
      * Met à jour le cache des ingrédients
      */
     private void updateCache(String cacheKey, List<ItemStack> ingredients) {
-        ingredientsCache.put(cacheKey, new ArrayList<>(ingredients));
-        cacheTimestamps.put(cacheKey, System.currentTimeMillis());
+        // ingredientsCache.put(cacheKey, new ArrayList<>(ingredients));
+        // cacheTimestamps.put(cacheKey, System.currentTimeMillis());
+        recipeCache.put(cacheKey, new ArrayList<>(ingredients));
     }
 
     /**

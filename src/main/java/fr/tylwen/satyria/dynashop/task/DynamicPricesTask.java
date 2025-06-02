@@ -226,7 +226,7 @@ public class DynamicPricesTask implements Runnable {
                     
                     // plugin.getLogger().info("Envoi de la mise à jour pour " + shopID + ":" + itemID + " avec buyPrice=" + price.getBuyPrice() + ", sellPrice=" + price.getSellPrice());
                     
-                    plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price);
+                    plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, false);
                 }
                 
                 // if (!pricesToUpdate.isEmpty()) {

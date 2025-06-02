@@ -86,15 +86,15 @@ public class DynaShopListener implements Listener {
     // Puis remplacer toutes les occurrences de Pair par SimpleEntry
     // private final Map<UUID, SimpleEntry<String, String>> openShopMap = new ConcurrentHashMap<>();
     
-    private final Map<String, DynamicPrice> priceCache = new ConcurrentHashMap<>();
-    private final Map<String, Long> cacheTimes = new ConcurrentHashMap<>();
+    // private final Map<String, DynamicPrice> priceCache = new ConcurrentHashMap<>();
+    // private final Map<String, Long> cacheTimes = new ConcurrentHashMap<>();
     // private static final long CACHE_DURATION = 30000; // 30 secondes de durée de cache
     // private static final long CACHE_DURATION = 5000; // 5 secondes de durée de cache
-    private static final long CACHE_DURATION = 10L; // 10 ticks de durée de cache
+    // private static final long CACHE_DURATION = 10L; // 10 ticks de durée de cache
 
     public DynaShopListener(DynaShopPlugin plugin) {
         this.plugin = plugin;
-        this.priceRecipe = new PriceRecipe(plugin.getConfigMain());
+        this.priceRecipe = new PriceRecipe(plugin);
         this.dataConfig = new DataConfig(plugin.getConfigMain());
         this.shopConfigManager = plugin.getShopConfigManager();
     }
@@ -213,42 +213,8 @@ public class DynaShopListener implements Listener {
             double playerSellModifier = ShopGuiPlusApi.getPriceModifier(player, item, PriceModifierActionType.SELL).getModifier();
             event.setPrice(basePrice * playerSellModifier);
         }
-        
-        // Après avoir modifié le prix
-        DynaShopPlugin.getInstance().invalidatePriceCache(
-            event.getShopItem().getShop().getId(),
-            event.getShopItem().getId(),
-            event.getPlayer()
-        );
-        
-        // Si c'est une recette, ajouter une tâche asynchrone pour invalider les ingrédients
-        if (plugin.getShopConfigManager().getTypeDynaShop(
-                event.getShopItem().getShop().getId(),
-                event.getShopItem().getId()) == DynaShopType.RECIPE) {
-            
-            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                invalidateRecipeIngredients(
-                    event.getShopItem().getShop().getId(),
-                    event.getShopItem().getId(), 
-                    event.getShopItem().getItem()
-                );
-            });
-        }
     }
 
-    private void invalidateRecipeIngredients(String shopId, String itemId, ItemStack itemStack) {
-        // Récupérer les ingrédients
-        List<ItemStack> ingredients = plugin.getPriceRecipe().getIngredients(shopId, itemId, itemStack);
-        
-        for (ItemStack ingredient : ingredients) {
-            // Trouver l'ID de shop et d'item pour chaque ingrédient
-            FoundItem foundItem = plugin.getPriceRecipe().findItemInShops(shopId, ingredient);
-            if (foundItem.isFound()) {
-                // Invalider le cache pour cet ingrédient
-                plugin.invalidatePriceCache(foundItem.getShopID(), foundItem.getItemID(), null);
-            }
-        }
-    }
 
     // /**
     //  * Traite une transaction normale après vérification des limites ou si aucune limite n'est définie.
@@ -434,14 +400,42 @@ public class DynaShopListener implements Listener {
         final ShopAction action = event.getResult().getShopAction();
         // final double resultPrice = event.getResult().getPrice();
         final boolean isBuy = action == ShopAction.BUY;
+        
+        // Après avoir modifié le prix
+        // Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> {
+        //     DynaShopPlugin.getInstance().invalidatePriceCache(shopID, itemID, null); // Invalider le cache pour ce joueur et cet item
+        // });
+        DynaShopPlugin.getInstance().invalidatePriceCache(shopID, itemID, player); // Invalider le cache pour ce joueur et cet item
+        
+        // Si c'est une recette, ajouter une tâche asynchrone pour invalider les ingrédients
+        if (plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID) == DynaShopType.RECIPE) {
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                // invalidateRecipeIngredients(shopID, itemID, itemStack);
+                invalidateRecipeIngredients(shopID, itemID, item.getItem());
+            });
+        }
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             processTransactionAsync(shopID, itemID, itemStack, amount, action);
         });
-        
+
         // Enregistrer la transaction si l'item a des limites
         if (plugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
             plugin.getTransactionLimiter().recordTransaction(player, shopID, itemID, isBuy, amount);
+        }
+    }
+    
+    private void invalidateRecipeIngredients(String shopId, String itemId, ItemStack itemStack) {
+        // Récupérer les ingrédients
+        List<ItemStack> ingredients = plugin.getPriceRecipe().getIngredients(shopId, itemId, itemStack);
+        
+        for (ItemStack ingredient : ingredients) {
+            // Trouver l'ID de shop et d'item pour chaque ingrédient
+            FoundItem foundItem = plugin.getPriceRecipe().findItemInShops(shopId, ingredient);
+            if (foundItem.isFound()) {
+                // Invalider le cache pour cet ingrédient
+                plugin.invalidatePriceCache(foundItem.getShopID(), foundItem.getItemID(), null);
+            }
         }
     }
     
@@ -488,7 +482,7 @@ public class DynaShopListener implements Listener {
         // Sauvegarder les nouveaux prix dans la base de données
         // savePriceIfNeeded(price, shopID, itemID);
         if (!price.isFromRecipe()) {
-            DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price);
+            DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
         }
         // DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price);
     }
@@ -516,12 +510,12 @@ public class DynaShopListener implements Listener {
 
         // Exécuter dans un thread asynchrone pour éviter de bloquer le thread principal
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            // Invalider tous les caches liés à cette recette
-            for (String key : new ArrayList<>(priceCache.keySet())) {
-                if (key.startsWith(shopID + ":" + itemID)) {
-                    priceCache.remove(key);
-                }
-            }
+            // // Invalider tous les caches liés à cette recette
+            // for (String key : new ArrayList<>(priceCache.keySet())) {
+            //     if (key.startsWith(shopID + ":" + itemID)) {
+            //         priceCache.remove(key);
+            //     }
+            // }
             applyGrowthOrDecayToIngredients(shopID, itemID, itemStack, amount, isGrowth, new ArrayList<>(), 0);
         });
     }
@@ -580,6 +574,35 @@ public class DynaShopListener implements Listener {
                         // Gérer les prix basés sur le stock lié
                         handleStockPrice(linkedPrice, linkedShopID, linkedItemID, action, amount);
                     }
+                    
+                    // Sauvegarder les modifications de l'item lié
+                    if (!linkedPrice.isFromRecipe()) {
+                        DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(linkedShopID, linkedItemID, linkedPrice, true);
+                    }
+                    
+                    // AJOUT: Créer une copie du prix lié pour l'item principal
+                    DynamicPrice copyForMainItem = new DynamicPrice(
+                        linkedPrice.getBuyPrice(), linkedPrice.getSellPrice(),
+                        linkedPrice.getMinBuyPrice(), linkedPrice.getMaxBuyPrice(),
+                        linkedPrice.getMinSellPrice(), linkedPrice.getMaxSellPrice(),
+                        linkedPrice.getGrowthBuy(), linkedPrice.getDecayBuy(),
+                        linkedPrice.getGrowthSell(), linkedPrice.getDecaySell(),
+                        linkedPrice.getStock(), linkedPrice.getMinStock(), linkedPrice.getMaxStock(),
+                        linkedPrice.getStockBuyModifier(), linkedPrice.getStockSellModifier()
+                    );
+                    
+                    // Conserver les flags spéciaux
+                    copyForMainItem.setFromRecipe(linkedPrice.isFromRecipe());
+                    copyForMainItem.setFromStock(linkedPrice.isFromStock());
+                    
+                    // AJOUT: Sauvegarder également cette copie pour l'item principal
+                    if (!copyForMainItem.isFromRecipe()) {
+                        DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(shopID, itemID, copyForMainItem, true);
+                    }
+                    
+                    // AJOUT: Invalider le cache pour l'item lié ET l'item qui a le lien
+                    DynaShopPlugin.getInstance().invalidatePriceCache(linkedShopID, linkedItemID, null);
+                    DynaShopPlugin.getInstance().invalidatePriceCache(shopID, itemID, null);
                 }
             } else {
                 plugin.getLogger().warning("Invalid link reference for item " + itemID + " in shop " + shopID + ": " + linkedItemRef);
@@ -1525,7 +1548,7 @@ public class DynaShopListener implements Listener {
                 processIngredient(ingredientShopID, ingredientID, ingredientPrice, ingredientType, ingredientQuantity, isGrowth);
                 
                 // Sauvegarder les modifications
-                DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice);
+                DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice, true);
             }
         }
     }

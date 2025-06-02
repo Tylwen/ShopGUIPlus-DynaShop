@@ -9,7 +9,7 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.scheduler.BukkitTask;
+// import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.inventory.InventoryView;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
@@ -34,7 +34,7 @@ public class ShopItemPlaceholderListener implements Listener {
     // Map pour stocker le shop actuellement ouvert par chaque joueur
     private final Map<UUID, SimpleEntry<String, String>> openShopMap = new ConcurrentHashMap<>();
 
-    private BukkitTask refreshTask;
+    // private BukkitTask refreshTask;
 
     // private final Map<String, Map<String, String>> globalPriceCache = new ConcurrentHashMap<>();
     // private final Map<String, Long> cacheTimestamps = new ConcurrentHashMap<>();
@@ -200,6 +200,7 @@ public class ShopItemPlaceholderListener implements Listener {
                 // Temps d'attente entre les actualisations (en ms)
                 // long refreshInterval = 5000; // 5 secondes
                 long refreshInterval = 1000; // 1 seconde
+                // long refreshInterval = 500; // 10 ticks (0.5 seconde)
 
                 while (
                     player.isOnline() && 
@@ -224,6 +225,8 @@ public class ShopItemPlaceholderListener implements Listener {
                 }
             } catch (InterruptedException e) {
                 // La tâche a été interrompue, probablement lors de l'arrêt du serveur
+                Thread.currentThread().interrupt();
+                // plugin.getLogger().fine("Refresh task interrupted for player " + player.getName());
             } finally {
                 // Nettoyer
                 playerRefreshTasks.remove(player.getUniqueId());
@@ -439,9 +442,9 @@ public class ShopItemPlaceholderListener implements Listener {
                 if (plugin.getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
                     try {
                         line = PlaceholderAPI.setPlaceholders(player, line);
-                    } catch (Throwable t) {
+                    } catch (Exception e) {
                         // Ignorer les erreurs de PlaceholderAPI et conserver le texte original
-                        // plugin.getLogger().warning("Erreur lors de l'utilisation de PlaceholderAPI: " + t.getMessage());
+                        // plugin.getLogger().warning("Erreur lors de l'utilisation de PlaceholderAPI: " + e.getMessage());
                     }
                 } else {
                     // Si PlaceholderAPI n'est pas disponible, laisser les placeholders tels quels
@@ -676,8 +679,19 @@ public class ShopItemPlaceholderListener implements Listener {
                             prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 
                                 String.format("&7%s", fCurrentStock)));
                         } else {
+                            // // Calculer la couleur en fonction du ratio
+                            // String colorCode = (current < max * 0.25) ? "&c" : (current < max * 0.5) ? "&e" : "&a";
                             // Calculer la couleur en fonction du ratio
-                            String colorCode = (current < max * 0.25) ? "&c" : (current < max * 0.5) ? "&e" : "&a";
+                            String colorCode;
+                            
+                            // Déterminer le code couleur selon le niveau de stock
+                            if (current < max * 0.25) {
+                                colorCode = "&c"; // Rouge pour stock faible
+                            } else if (current < max * 0.5) {
+                                colorCode = "&e"; // Jaune pour stock moyen
+                            } else {
+                                colorCode = "&a"; // Vert pour stock élevé
+                            }
                             prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 
                                 String.format("%s%s&7/%s", colorCode, fCurrentStock, fMaxStock)));
                         }

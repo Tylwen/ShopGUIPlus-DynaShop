@@ -33,7 +33,7 @@ import fr.tylwen.satyria.dynashop.command.ReloadCommand;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
 import fr.tylwen.satyria.dynashop.config.LangConfig;
 import fr.tylwen.satyria.dynashop.price.DynamicPrice;
-import fr.tylwen.satyria.dynashop.data.RecipeCacheManager;
+// import fr.tylwen.satyria.dynashop.data.RecipeCacheManager;
 // import fr.tylwen.satyria.dynashop.config.Config;
 // import fr.tylwen.satyria.dynashop.config.Lang;
 // import fr.tylwen.satyria.dynashop.config.Settings;
@@ -68,14 +68,14 @@ import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.item.ShopItem;
 
 import java.io.File;
-import java.util.ArrayList;
+// import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 // import java.util.Map;
 // import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+// import java.util.concurrent.ExecutorService;
+// import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 // import java.util.stream.Collectors;
@@ -113,7 +113,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private int dynamicPricesTaskId;
     private int waitForShopsTaskId;
 
-    private RecipeCacheManager recipeCacheManager;
+    // private RecipeCacheManager recipeCacheManager;
     
     private CacheManager<String, DynamicPrice> priceCache;
     private CacheManager<String, List<ItemStack>> recipeCache;
@@ -245,7 +245,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         instance = this;
         this.logger = getLogger();
         init();
-        initCache(); // Initialiser les caches
+        initCache();
         // load();
         hookIntoShopGUIPlus();
 
@@ -320,16 +320,16 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         //         }
         //     }
         // }, 20L * 60, 20L * 60 * 15); // Toutes les 15 minutes
-        // Planifier la précharge périodique des items populaires
-        Bukkit.getScheduler().runTaskTimerAsynchronously(this, 
-            this::preloadPopularItems, 
-            20L * 60 * 2,         // Démarrer après 2 minutes
-            20L * 60 * 30);   // Répéter toutes les 30 minutes
+        // // Planifier la précharge périodique des items populaires
+        // Bukkit.getScheduler().runTaskTimerAsynchronously(this, 
+        //     this::preloadPopularItems, 
+        //     20L * 60 * 2,         // Démarrer après 2 minutes
+        //     20L * 60 * 30);   // Répéter toutes les 30 minutes
 
-        // Ajouter une tâche de nettoyage du cache
-        Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
-            recipeCacheManager.cleanup();
-        }, 20L * 60L * 15L, 20L * 60L * 15L); // Nettoyage toutes les 15 minutes
+        // // Ajouter une tâche de nettoyage du cache
+        // Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
+        //     recipeCacheManager.cleanup();
+        // }, 20L * 60L * 15L, 20L * 60L * 15L); // Nettoyage toutes les 15 minutes
 
         // // Planifier le nettoyage des transactions périmées (toutes les heures)
         // getServer().getScheduler().runTaskTimerAsynchronously(this, 
@@ -351,18 +351,29 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
 
     private void init() {
         generateFiles();
+        
+        // Initialiser les caches AVANT les classes qui en dépendent
+        this.priceCache = new CacheManager<>(this, "priceCache", 5, TimeUnit.MINUTES, 10);
+        this.recipeCache = new CacheManager<>(this, "recipeCache", 10, TimeUnit.MINUTES, 5);
+        this.calculatedPriceCache = new CacheManager<>(this, "calculatedPriceCache", 5, TimeUnit.MINUTES, 10);
+        this.stockCache = new CacheManager<>(this, "stockCache", 5, TimeUnit.MINUTES, 5);
+        this.displayPriceCache = new CacheManager<>(this, "displayPriceCache", 2, TimeUnit.MINUTES, 20);
+
         this.shopConfigManager = new ShopConfigManager(new File(Bukkit.getPluginManager().getPlugin("ShopGUIPlus").getDataFolder(), "shops/"));
-        // this.customRecipeManager = new CustomRecipeManager(this);
-        this.dynaShopListener = new DynaShopListener(this);
-        this.priceRecipe = new PriceRecipe(this.configMain);
         this.dataConfig = new DataConfig(this.configMain);
         this.langConfig = new LangConfig(this.configLang);
+
+        // this.customRecipeManager = new CustomRecipeManager(this);
+        this.dynaShopListener = new DynaShopListener(this);
+        this.priceRecipe = new PriceRecipe(this);
+        // this.dataConfig = new DataConfig(this.configMain);
+        // this.langConfig = new LangConfig(this.configLang);
         this.priceStock = new PriceStock(this);
         this.dataManager = new DataManager(this);
         this.itemDataManager = new ItemDataManager(this.dataManager);
         this.batchDatabaseUpdater = new BatchDatabaseUpdater(this);
         this.transactionLimiter = new TransactionLimiter(this);
-        this.recipeCacheManager = new RecipeCacheManager(15 * 60 * 1000L); // 15 minutes en ms
+        // this.recipeCacheManager = new RecipeCacheManager(15 * 60 * 1000L); // 15 minutes en ms
         this.priceFormatter = new PriceFormatter(this);
         // this.customIngredientsManager = new CustomIngredientsManager();
         // this.shopRefreshManager = new ShopRefreshManager(this);
@@ -424,7 +435,8 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         }
         
         // Invalider également les caches généraux (sans joueur spécifique)
-        priceCache.invalidate(baseKey);
+        // priceCache.invalidate(baseKey);
+        priceCache.invalidateWithPrefix(baseKey);
         calculatedPriceCache.invalidateWithPrefix(baseKey);
         displayPriceCache.invalidateWithPrefix(baseKey);
         
@@ -646,64 +658,64 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         this.logger.info(string);
     }
 
-    public double getCachedRecipePrice(String shopID, String itemID, String priceType) {
-        return recipeCacheManager.getCachedRecipePrice(shopID, itemID, priceType);
-    }
     // public double getCachedRecipePrice(String shopID, String itemID, String priceType) {
-    //     String cacheKey = shopID + ":" + itemID + ":" + priceType;
-    //     return recipePriceCache.getOrDefault(cacheKey, -1.0); // Retourne -1.0 si le prix n'est pas en cache
+    //     return recipeCacheManager.getCachedRecipePrice(shopID, itemID, priceType);
     // }
-    public int getCachedRecipeStock(String shopID, String itemID, String priceType) {
-        return recipeCacheManager.getCachedRecipeStock(shopID, itemID, priceType);
-    }
+    // // public double getCachedRecipePrice(String shopID, String itemID, String priceType) {
+    // //     String cacheKey = shopID + ":" + itemID + ":" + priceType;
+    // //     return recipePriceCache.getOrDefault(cacheKey, -1.0); // Retourne -1.0 si le prix n'est pas en cache
+    // // }
     // public int getCachedRecipeStock(String shopID, String itemID, String priceType) {
-    //     String cacheKey = shopID + ":" + itemID + ":" + priceType;
-    //     return priceStockCache.getOrDefault(cacheKey, -1); // Retourne -1 si le stock n'est pas en cache
+    //     return recipeCacheManager.getCachedRecipeStock(shopID, itemID, priceType);
     // }
+    // // public int getCachedRecipeStock(String shopID, String itemID, String priceType) {
+    // //     String cacheKey = shopID + ":" + itemID + ":" + priceType;
+    // //     return priceStockCache.getOrDefault(cacheKey, -1); // Retourne -1 si le stock n'est pas en cache
+    // // }
     
-    public void cacheRecipePrice(String shopID, String itemID, String priceType, double price) {
-        recipeCacheManager.cacheRecipePrice(shopID, itemID, priceType, price);
-    }
-    public void cacheRecipeStock(String shopID, String itemID, String type, int stock) {
-        recipeCacheManager.cacheRecipeStock(shopID, itemID, type, stock);
-    }
+    // public void cacheRecipePrice(String shopID, String itemID, String priceType, double price) {
+    //     recipeCacheManager.cacheRecipePrice(shopID, itemID, priceType, price);
+    // }
+    // public void cacheRecipeStock(String shopID, String itemID, String type, int stock) {
+    //     recipeCacheManager.cacheRecipeStock(shopID, itemID, type, stock);
+    // }
 
-    public void preloadPopularItems() {
-        // Créer un pool de threads limité pour les précalculs
-        ExecutorService precalcExecutor = Executors.newFixedThreadPool(3);
+    // public void preloadPopularItems() {
+    //     // Créer un pool de threads limité pour les précalculs
+    //     ExecutorService precalcExecutor = Executors.newFixedThreadPool(3);
         
-        for (String popularItemKey : configMain.getStringList("popular-items")) {
-            String[] parts = popularItemKey.split(":");
-            if (parts.length == 2) {
-                final String shopID = parts[0];
-                final String itemID = parts[1];
+    //     for (String popularItemKey : configMain.getStringList("popular-items")) {
+    //         String[] parts = popularItemKey.split(":");
+    //         if (parts.length == 2) {
+    //             final String shopID = parts[0];
+    //             final String itemID = parts[1];
                 
-                // Soumettre la tâche au pool de threads
-                precalcExecutor.submit(() -> {
-                    try {
-                        // Récupérer l'item de manière synchrone
-                        ItemStack itemStack = Bukkit.getScheduler().callSyncMethod(this, () -> 
-                            ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem()
-                        ).get();
+    //             // Soumettre la tâche au pool de threads
+    //             precalcExecutor.submit(() -> {
+    //                 try {
+    //                     // Récupérer l'item de manière synchrone
+    //                     ItemStack itemStack = Bukkit.getScheduler().callSyncMethod(this, () -> 
+    //                         ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem()
+    //                     ).get();
                         
-                        if (itemStack != null) {
-                            // Précalculer les prix et les mettre en cache
-                            double buyPrice = priceRecipe.calculatePrice(shopID, itemID, itemStack, "buyPrice", new ArrayList<>());
-                            double sellPrice = priceRecipe.calculatePrice(shopID, itemID, itemStack, "sellPrice", new ArrayList<>());
+    //                     if (itemStack != null) {
+    //                         // Précalculer les prix et les mettre en cache
+    //                         double buyPrice = priceRecipe.calculatePrice(shopID, itemID, itemStack, "buyPrice", new ArrayList<>());
+    //                         double sellPrice = priceRecipe.calculatePrice(shopID, itemID, itemStack, "sellPrice", new ArrayList<>());
                             
-                            cacheRecipePrice(shopID, itemID, "buyPrice", buyPrice);
-                            cacheRecipePrice(shopID, itemID, "sellPrice", sellPrice);
+    //                         cacheRecipePrice(shopID, itemID, "buyPrice", buyPrice);
+    //                         cacheRecipePrice(shopID, itemID, "sellPrice", sellPrice);
                             
-                            // logger.info("Precalculated prices for " + shopID + ":" + itemID + " - Buy: " + buyPrice + ", Sell: " + sellPrice);
-                        }
-                    } catch (Exception e) {
-                        logger.warning("Erreur lors du précalcul des prix pour " + shopID + ":" + itemID + ": " + e.getMessage());
-                    }
-                });
-            }
-        }
+    //                         // logger.info("Precalculated prices for " + shopID + ":" + itemID + " - Buy: " + buyPrice + ", Sell: " + sellPrice);
+    //                     }
+    //                 } catch (Exception e) {
+    //                     logger.warning("Erreur lors du précalcul des prix pour " + shopID + ":" + itemID + ": " + e.getMessage());
+    //                 }
+    //             });
+    //         }
+    //     }
         
-        // Arrêter proprement le pool après les précalculs
-        precalcExecutor.shutdown();
-    }
+    //     // Arrêter proprement le pool après les précalculs
+    //     precalcExecutor.shutdown();
+    // }
 }

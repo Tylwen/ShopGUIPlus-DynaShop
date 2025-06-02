@@ -69,13 +69,28 @@ public class BatchDatabaseUpdater {
         backgroundThread.start();
     }
     
-    public void queueUpdate(String shopID, String itemID, DynamicPrice price) {
-        // Forcer une mise à jour immédiate si c'est une recette
-        if (price.isFromRecipe()) {
-            flushUpdates(); // Forcer le traitement immédiat
-        }
+    // public void queueUpdate(String shopID, String itemID, DynamicPrice price) {
+    //     // // Forcer une mise à jour immédiate si c'est une recette
+    //     // if (price.isFromRecipe()) {
+    //     //     flushUpdates(); // Forcer le traitement immédiat
+    //     // }
+    //     String key = shopID + ":" + itemID;
+    //     pendingUpdates.put(key, price);
+        
+    //     // Forcer une mise à jour immédiate pour tous les types d'items
+    //     flushUpdates();
+        
+    //     // Invalider le cache immédiatement
+    //     DynaShopPlugin.getInstance().invalidatePriceCache(shopID, itemID, null);
+    // }
+    public void queueUpdate(String shopID, String itemID, DynamicPrice price, boolean immediate) {
         String key = shopID + ":" + itemID;
         pendingUpdates.put(key, price);
+        
+        // Forcer une mise à jour immédiate si demandé
+        if (immediate || price.isFromRecipe()) {
+            flushUpdates();
+        }
         
         // Invalider le cache immédiatement
         DynaShopPlugin.getInstance().invalidatePriceCache(shopID, itemID, null);

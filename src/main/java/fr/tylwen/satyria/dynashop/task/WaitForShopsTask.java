@@ -135,9 +135,9 @@ public class WaitForShopsTask implements Runnable {
         
         // plugin.getLogger().info("DynamicPricesTask registered with ID: " + plugin.getDynamicPricesTaskId());
         
-        // Préchargement des recettes populaires
-        plugin.getLogger().info("Preloading popular items...");
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, plugin::preloadPopularItems);
+        // // Préchargement des recettes populaires
+        // plugin.getLogger().info("Preloading popular items...");
+        // plugin.getServer().getScheduler().runTaskAsynchronously(plugin, plugin::preloadPopularItems);
         
         // Autres tâches dépendantes...
         plugin.getServer().getScheduler().runTask(plugin, plugin::setupMetrics);
