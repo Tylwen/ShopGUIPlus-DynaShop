@@ -278,7 +278,7 @@ public class ShopItemPlaceholderListener implements Listener {
         // NE PAS VIDER openShopMap immédiatement si c'est un menu de sélection
         // car il est probable qu'un nouveau menu s'ouvre tout de suite après
         String title = event.getView().getTitle();
-        boolean isAmountSelection = true;
+        boolean isAmountSelection = false;
         if (title.contains(ChatColor.translateAlternateColorCodes('&', 
                 ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BUY.NAME").replace("%item%", ""))) ||
             title.contains(ChatColor.translateAlternateColorCodes('&', 
@@ -288,7 +288,7 @@ public class ShopItemPlaceholderListener implements Listener {
             title.contains(ChatColor.translateAlternateColorCodes('&', 
                 ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BULKSELL.NAME").replace("%item%", "")))) {
             // C'est un menu de sélection de quantité, ne pas vider openShopMap
-            isAmountSelection = false;
+            isAmountSelection = true;
         }
         
         // Arrêter la tâche de refresh
@@ -304,7 +304,11 @@ public class ShopItemPlaceholderListener implements Listener {
         }
         // openShopMap.remove(player.getUniqueId());
 
-        amountSelectionMenus.remove(player.getUniqueId());
+        // amountSelectionMenus.remove(player.getUniqueId());
+        // Ne pas vider amountSelectionMenus si on est dans un menu de sélection
+        if (!isAmountSelection) {  // AJOUT: appliquer la même condition
+            amountSelectionMenus.remove(player.getUniqueId());
+        }
     }
 
     // Méthodes pour exposer ces informations
@@ -1004,33 +1008,98 @@ public class ShopItemPlaceholderListener implements Listener {
         //     title.contains(ChatColor.translateAlternateColorCodes('&', 
         //     ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.SELL.NAME").replace("%item%", "")));
         
-        // Utiliser exactement votre approche existante avec la config
+        // // Utiliser exactement votre approche existante avec la config
+        // if (menuType.equals("AMOUNT_SELECTION_BULK")) {
+        //     // Traitement différent selon si c'est achat ou vente
+        //     if (isBuying) {
+        //         // Configuration pour BULK BUY
+        //         for (int i = 1; i <= 9; i++) {
+        //             if (ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains("amountSelectionGUIBulkBuy.buttons.buy" + i + ".slot")) {
+        //                 int slot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkBuy.buttons.buy" + i + ".slot");
+        //                 int value = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkBuy.buttons.buy" + i + ".value");
+        //                 slotValues.put(slot, value);
+        //             }
+        //         }
+        //         centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkBuy.buttons.buy1.slot", 0);
+        //     } else {
+        //         // Configuration pour BULK SELL
+        //         for (int i = 1; i <= 9; i++) {
+        //             if (ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains("amountSelectionGUIBulkSell.buttons.sell" + i + ".slot")) {
+        //                 int slot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkSell.buttons.sell" + i + ".slot");
+        //                 int value = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkSell.buttons.sell" + i + ".value");
+        //                 slotValues.put(slot, value);
+        //             }
+        //         }
+        //         centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkSell.buttons.sell1.slot", 0);
+        //     }
+        // } else {
+        //     // Pour les menus standard, utiliser la valeur configurée ou 22 par défaut
+        //     centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUI.itemSlot", 22);
+        // }
+        
         if (menuType.equals("AMOUNT_SELECTION_BULK")) {
             // Traitement différent selon si c'est achat ou vente
             if (isBuying) {
                 // Configuration pour BULK BUY
-                for (int i = 1; i <= 9; i++) {
-                    if (ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains("amountSelectionGUIBulkBuy.buttons.buy" + i + ".slot")) {
-                        int slot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkBuy.buttons.buy" + i + ".slot");
-                        int value = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkBuy.buttons.buy" + i + ".value");
-                        slotValues.put(slot, value);
+                try {
+                    for (int i = 1; i <= 9; i++) {
+                        String slotPath = "amountSelectionGUIBulkBuy.buttons.buy" + i + ".slot";
+                        String valuePath = "amountSelectionGUIBulkBuy.buttons.buy" + i + ".value";
+                        
+                        // Vérifier que les deux chemins existent avant d'y accéder
+                        if (ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains(slotPath) && 
+                            ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains(valuePath)) {
+                            
+                            int slot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt(slotPath);
+                            int value = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt(valuePath);
+                            slotValues.put(slot, value);
+                        }
                     }
+                    // Utiliser get() avec une valeur par défaut pour éviter les NullPointerException
+                    String centerSlotPath = "amountSelectionGUIBulkBuy.buttons.buy1.slot";
+                    if (ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains(centerSlotPath)) {
+                        centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt(centerSlotPath, 0);
+                    } else {
+                        centerSlot = 0; // Valeur par défaut sûre
+                    }
+                } catch (Exception e) {
+                    plugin.getLogger().warning("Error loading BULK BUY configuration: " + e.getMessage());
+                    centerSlot = 0; // Valeur par défaut en cas d'erreur
                 }
-                centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkBuy.buttons.buy1.slot", 0);
             } else {
-                // Configuration pour BULK SELL
-                for (int i = 1; i <= 9; i++) {
-                    if (ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains("amountSelectionGUIBulkSell.buttons.sell" + i + ".slot")) {
-                        int slot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkSell.buttons.sell" + i + ".slot");
-                        int value = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkSell.buttons.sell" + i + ".value");
-                        slotValues.put(slot, value);
+                // Configuration pour BULK SELL - même approche sécurisée
+                try {
+                    for (int i = 1; i <= 9; i++) {
+                        String slotPath = "amountSelectionGUIBulkSell.buttons.sell" + i + ".slot";
+                        String valuePath = "amountSelectionGUIBulkSell.buttons.sell" + i + ".value";
+                        
+                        if (ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains(slotPath) && 
+                            ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains(valuePath)) {
+                            
+                            int slot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt(slotPath);
+                            int value = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt(valuePath);
+                            slotValues.put(slot, value);
+                        }
                     }
+                    String centerSlotPath = "amountSelectionGUIBulkSell.buttons.sell1.slot";
+                    if (ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains(centerSlotPath)) {
+                        centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt(centerSlotPath, 0);
+                    } else {
+                        centerSlot = 0;
+                    }
+                } catch (Exception e) {
+                    plugin.getLogger().warning("Error loading BULK SELL configuration: " + e.getMessage());
+                    centerSlot = 0;
                 }
-                centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkSell.buttons.sell1.slot", 0);
             }
         } else {
-            // Pour les menus standard, utiliser la valeur configurée ou 22 par défaut
-            centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUI.itemSlot", 22);
+            // Pour les menus standard, sécuriser également
+            String itemSlotPath = "amountSelectionGUI.itemSlot";
+            if (ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains(itemSlotPath)) {
+                centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt(itemSlotPath, 22);
+            } else {
+                centerSlot = 22; // Valeur par défaut standard
+            }
         }
         
         // // Vérification de sécurité pour éviter les erreurs d'index
@@ -1179,10 +1248,8 @@ public class ShopItemPlaceholderListener implements Listener {
                     player.getOpenInventory() != null &&
                     determineShopId(player.getOpenInventory()) != null &&
                     determineShopId(player.getOpenInventory()).equals(menuType)
-                    // determineShopId(player.getOpenInventory()).equals("AMOUNT_SELECTION")
                     // player.getOpenInventory() != null
                     // determineShopId(player.getOpenInventory()) != null &&
-                    // determineShopId(player.getOpenInventory()).equals("AMOUNT_SELECTION") &&
                     // playerRefreshTasks.get(player.getUniqueId()) == refreshId
                 ) {
                     // Attendre l'intervalle configuré
@@ -1195,12 +1262,20 @@ public class ShopItemPlaceholderListener implements Listener {
                     }
                     
                     // // Vérifier si le menu ouvert est toujours un menu de sélection
-                    // String currentTitle = player.getOpenInventory().getTitle();
-                    // if (!determineShopId(player.getOpenInventory()).equals("AMOUNT_SELECTION")) {
-                    //     DynaShopPlugin.getInstance().getLogger().info("Player " + player.getName() + " no longer in amount selection menu: " + currentTitle);
+                    // // String currentTitle = player.getOpenInventory().getTitle();
+                    // if (!determineShopId(player.getOpenInventory()).equals(menuType)) {
+                    //     // DynaShopPlugin.getInstance().getLogger().info("Player " + player.getName() + " no longer in amount selection menu: " + currentTitle);
                     //     stillInMenu = false;
                     //     break;
                     // }
+                    // Vérifier si le menu ouvert est toujours un menu de sélection
+                    // String currentTitle = player.getOpenInventory().getTitle();
+                    String currentMenuType = determineShopId(player.getOpenInventory());
+                    if (currentMenuType == null || !currentMenuType.equals(menuType)) {
+                        // DynaShopPlugin.getInstance().getLogger().info("Player " + player.getName() + " no longer in amount selection menu: " + currentTitle);
+                        stillInMenu = false;
+                        break;
+                    }
                     
                     // Vérifier si l'item central a changé (sur le thread principal)
                     plugin.getServer().getScheduler().runTask(plugin, () -> {
@@ -1209,74 +1284,17 @@ public class ShopItemPlaceholderListener implements Listener {
                         // int centerSlot;
 
                         if (menuType.equals("AMOUNT_SELECTION_BULK")) {
-                            // if (info.isBuying()) {
-                            //     // Pour les menus BULK BUY, utiliser la valeur configurée ou 17 par défaut
-                            //     centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkBuy.itemSlot", 17);
-                            // } else {
-                            //     // Pour les menus BULK SELL, utiliser la valeur configurée ou 26 par défaut
-                            //     centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkSell.itemSlot", 17);
-                            // }
                             updateAmountSelectionInventoryImmediately(player, player.getOpenInventory(), info, originalLores);
                         } else {
                             // Pour les menus standard, utiliser la valeur configurée ou 22 par défaut
                             int centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUI.itemSlot", 22);
-                        // }
-                        // if (menuType.equals("AMOUNT_SELECTION_BULK")) {
-                        //     Map<Integer, Integer> slot = new HashMap<>();
-                            
-                        //     // Traitement différent selon si c'est achat ou vente
-                        //     if (info.isBuying()) {
-                        //         // Configuration pour BULK BUY
-                        //         for (int i = 1; i <= 9; i++) {
-                        //             if (ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains("amountSelectionGUIBulkBuy.buttons.buy" + i + ".slot")) {
-                        //                 slot.put(ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkBuy.buttons.buy" + i + ".slot"), 
-                        //                         ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkBuy.buttons.buy" + i + ".value"));
-                        //             }
-                        //         }
-                        //         centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkBuy.buttons.buy1.slot", 0);
-                        //     } else {
-                        //         // Configuration pour BULK SELL
-                        //         for (int i = 1; i <= 9; i++) {
-                        //             if (ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains("amountSelectionGUIBulkSell.buttons.sell" + i + ".slot")) {
-                        //                 slot.put(ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkSell.buttons.sell" + i + ".slot"), 
-                        //                         ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkSell.buttons.sell" + i + ".value"));
-                        //             }
-                        //         }
-                        //         centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkSell.buttons.sell1.slot", 0);
-                        //     }
-                        // } else {
-                        //     // Pour les menus standard, utiliser la valeur configurée ou 22 par défaut
-                        //     centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUI.itemSlot", 22);
-                        // }
-                            
-                            // Trouver l'item central actuel
-                            // int size = player.getOpenInventory().getTopInventory().getSize();
-                            // int size = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUI.size", 54);
-                            // int rows = size / 9;
-                            // int centerSlot = (rows * 9) / 4 + (rows % 2 == 0 ? -1 : 0); // Slot central pour un inventaire de taille variable, ajusté pour 54 slots
-                            // Slot central pour un inventaire de taille variable de 9 à 54 slots
-                            // int centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUI.itemSlot", 22); // Slot central par défaut
                             ItemStack currentCenterItem = player.getOpenInventory().getTopInventory().getItem(centerSlot);
-                            // DynaShopPlugin.getInstance().getLogger().info("Checking center item for player: " + player.getName() + 
-                            //     ", Current center item: " + (currentCenterItem != null ? currentCenterItem.toString() : "null") + 
-                            //     ", Last quantity: " + lastCenterQuantity[0]);
-                            // if (currentCenterItem == null) return;
                             if (currentCenterItem != null) {
-                                // DynaShopPlugin.getInstance().getLogger().warning("Center item is null for player: " + player.getName() + 
-                                //     ". Inventory size: " + player.getOpenInventory().getTopInventory().getSize() + 
-                                //     ", Center Slot: " + centerSlot);
-                                // return;
-                            
                                 // Vérifier si la quantité a changé
                                 int currentQuantity = currentCenterItem.getAmount();
-                                // DynaShopPlugin.getInstance().getLogger().info("Current center item quantity for player: " + player.getName() + 
-                                //     ", Current quantity: " + currentQuantity + 
-                                //     ", Last quantity: " + lastCenterQuantity[0]);
                                 if (currentQuantity != lastCenterQuantity[0]) {
                                     // La quantité a changé, mettre à jour les prix dans l'interface
                                     lastCenterQuantity[0] = currentQuantity;
-                                    // DynaShopPlugin.getInstance().getLogger().info("Center item quantity changed for player: " + player.getName() + 
-                                    //     ", New quantity: " + currentQuantity);
                                     
                                     // Mettre à jour l'ItemStack dans l'info avec la nouvelle quantité
                                     AmountSelectionInfo newInfo = new AmountSelectionInfo(
@@ -1292,8 +1310,6 @@ public class ShopItemPlaceholderListener implements Listener {
                                     updateAmountSelectionInventoryImmediately(player, player.getOpenInventory(), newInfo, originalLores);
                                 }
                             }
-                            // DynaShopPlugin.getInstance().getLogger().info("Center item quantity is unchanged for player: " + player.getName() + 
-                            //     ", Quantity: " + currentQuantity);
                         }
                     });
                 }
@@ -1363,9 +1379,10 @@ public class ShopItemPlaceholderListener implements Listener {
                 if (info.getMenuType().equals("AMOUNT_SELECTION_BULK")) {
                     // Pour les menus BULK, utiliser la valeur de stack à partir de la map
                     int stackValue = info.getValueForSlot(slot);
-                    DynaShopPlugin.getInstance().getLogger().info("Using stack value for slot " + slot + ": " + stackValue);
+                    // DynaShopPlugin.getInstance().getLogger().info("Using stack value for slot " + slot + ": " + stackValue);
                     // quantity = stackValue * 64; // Multiplier par 64 pour obtenir le nombre total d'items
                     quantity = stackValue * button.getMaxStackSize(); // Utiliser la taille maximale de stack pour le calcul
+                    // DynaShopPlugin.getInstance().getLogger().info("Calculated quantity for slot " + slot + ": " + quantity);
                 } else {
                     // Pour les menus standard, utiliser la quantité affichée sur l'item central
                     quantity = info.getItemStack().getAmount();
@@ -1522,6 +1539,9 @@ public class ShopItemPlaceholderListener implements Listener {
             if (isValidNumeric(basePrices.get("buy"))) {
                 double buyPrice = parseFormattedNumber(basePrices.get("buy"));
                 double totalBuyPrice = buyPrice * quantity;
+                if (totalBuyPrice < 0) {
+                    totalBuyPrice = Math.abs(totalBuyPrice);
+                }
                 adjustedPrices.put("buy", plugin.getPriceFormatter().formatPrice(totalBuyPrice));
             } else {
                 adjustedPrices.put("buy", basePrices.get("buy"));
@@ -1531,6 +1551,9 @@ public class ShopItemPlaceholderListener implements Listener {
             if (isValidNumeric(basePrices.get("sell"))) {
                 double sellPrice = parseFormattedNumber(basePrices.get("sell"));
                 double totalSellPrice = sellPrice * quantity;
+                if (totalSellPrice < 0) {
+                    totalSellPrice = Math.abs(totalSellPrice);
+                }
                 adjustedPrices.put("sell", plugin.getPriceFormatter().formatPrice(totalSellPrice));
             } else {
                 adjustedPrices.put("sell", basePrices.get("sell"));
@@ -1613,7 +1636,21 @@ public class ShopItemPlaceholderListener implements Listener {
      * Vérifie si une chaîne de caractères représente un nombre valide
      */
     private boolean isValidNumeric(String value) {
-        return value != null && !value.equals("N/A") && !value.equals("-1");
+        // return value != null && !value.equals("N/A") && !value.equals("-1");
+        if (value == null || value.equals("N/A") || value.equals("-1")) {
+            return false;
+        }
+        
+        // Vérifier si la chaîne contient au moins un chiffre
+        boolean hasDigit = false;
+        for (char c : value.toCharArray()) {
+            if (Character.isDigit(c)) {
+                hasDigit = true;
+                break;
+            }
+        }
+        
+        return hasDigit;
     }
 
     /**
@@ -1625,17 +1662,27 @@ public class ShopItemPlaceholderListener implements Listener {
         }
         
         try {
-            // Supprimer tous les caractères non numériques sauf le point décimal
-            String cleaned = "";
-            boolean hasDecimal = false;
+            // // Supprimer tous les caractères non numériques sauf le point décimal
+            // String cleaned = "";
+            // boolean hasDecimal = false;
             
-            for (char c : formatted.toCharArray()) {
-                if (Character.isDigit(c)) {
-                    cleaned += c;
-                } else if (c == '.' && !hasDecimal) {
-                    cleaned += c;
-                    hasDecimal = true;
-                }
+            // for (char c : formatted.toCharArray()) {
+            //     if (Character.isDigit(c)) {
+            //         cleaned += c;
+            //     } else if (c == '.' && !hasDecimal) {
+            //         cleaned += c;
+            //         hasDecimal = true;
+            //     }
+            // }
+            // Supprimer les préfixes de devise (comme "$" ou "€")
+            String cleaned = formatted.replaceAll("[^0-9.,\\-]", "");
+            
+            // Gérer le format standard des nombres (avec virgules comme séparateurs de milliers)
+            cleaned = cleaned.replace(",", "");
+            
+            // Si la chaîne est vide après nettoyage, retourner 0
+            if (cleaned.isEmpty() || cleaned.equals("-")) {
+                return 0.0;
             }
             
             return Double.parseDouble(cleaned);
