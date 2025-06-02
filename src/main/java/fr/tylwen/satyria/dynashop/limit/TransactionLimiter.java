@@ -79,11 +79,12 @@ public class TransactionLimiter {
         this.plugin = plugin;
         initDatabase();
         // Appeler l'optimisation de la base de données au démarrage
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, this::optimizeDatabase);
+        // plugin.getServer().getScheduler().runTaskAsynchronously(plugin, this::optimizeDatabase);
         
         // Planifier une optimisation périodique (une fois par jour)
         plugin.getServer().getScheduler().runTaskTimerAsynchronously(plugin, 
-            this::optimizeDatabase,
+            // this::optimizeDatabase,
+            this::cleanupExpiredTransactions,  // Au lieu de optimizeDatabase
             20L * 60L * 60L * 12L, // 12 heures après le démarrage
             20L * 60L * 60L * 24L  // Répéter toutes les 24 heures
         );
@@ -98,42 +99,143 @@ public class TransactionLimiter {
     }
     
     private void initDatabase() {
-        String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
-        String query = "CREATE TABLE IF NOT EXISTS " + tablePrefix + "_transaction_limits ("
-                + "player_uuid VARCHAR(36) NOT NULL, "
-                + "shop_id VARCHAR(100) NOT NULL, "
-                + "item_id VARCHAR(100) NOT NULL, "
-                + "transaction_type VARCHAR(10) NOT NULL, " // 'BUY' ou 'SELL'
-                + "amount INT NOT NULL, "
-                + "transaction_time TIMESTAMP NOT NULL, "
-                + "PRIMARY KEY (player_uuid, shop_id, item_id, transaction_type, transaction_time)"
-                + ")";
+        // String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
+        // String query = "CREATE TABLE IF NOT EXISTS " + tablePrefix + "_transaction_limits ("
+        //         + "player_uuid VARCHAR(36) NOT NULL, "
+        //         + "shop_id VARCHAR(100) NOT NULL, "
+        //         + "item_id VARCHAR(100) NOT NULL, "
+        //         + "transaction_type VARCHAR(10) NOT NULL, " // 'BUY' ou 'SELL'
+        //         + "amount INT NOT NULL, "
+        //         + "transaction_time TIMESTAMP NOT NULL, "
+        //         + "PRIMARY KEY (player_uuid, shop_id, item_id, transaction_type, transaction_time)"
+        //         + ")";
         
-        plugin.getDataManager().executeUpdate(query);
+        // plugin.getDataManager().executeUpdate(query);
 
-        // Optionnel : ajouter un index pour améliorer les performances des requêtes
+        // // Optionnel : ajouter un index pour améliorer les performances des requêtes
         
-        // Ajout d'index pour accélérer les requêtes fréquentes
+        // // Ajout d'index pour accélérer les requêtes fréquentes
+        // String[] indexes = {
+        //     // Index sur transaction_time pour accélérer les nettoyages
+        //     "CREATE INDEX IF NOT EXISTS " + tablePrefix + "_tx_time_idx ON " 
+        //         + tablePrefix + "_transaction_limits (transaction_time)",
+            
+        //     // Index sur player_uuid pour accélérer les requêtes par joueur
+        //     "CREATE INDEX IF NOT EXISTS " + tablePrefix + "_player_idx ON " 
+        //         + tablePrefix + "_transaction_limits (player_uuid)",
+            
+        //     // Index composite pour les requêtes de récapitulation
+        //     "CREATE INDEX IF NOT EXISTS " + tablePrefix + "_lookup_idx ON " 
+        //         + tablePrefix + "_transaction_limits (player_uuid, shop_id, item_id, transaction_type)"
+        // };
+        
+        // for (String indexQuery : indexes) {
+        //     try {
+        //         plugin.getDataManager().executeUpdate(indexQuery);
+        //     } catch (Exception e) {
+        //         plugin.getLogger().warning("Erreur lors de la création d'index: " + e.getMessage());
+        //     }
+        // }
+        
+        // Créer toutes les tables nécessaires
+        createTransactionTables();
+    }
+
+    /**
+     * Crée toutes les tables nécessaires pour le système de limites de transactions.
+     * Compatible avec MySQL et SQLite.
+     */
+    private void createTransactionTables() {
+        String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
+        boolean isMySQL = plugin.getDataConfig().getDatabaseType().equalsIgnoreCase("mysql");
+        
+        // Structure de base d'une table de transactions
+        String baseTableStructure = 
+                "player_uuid VARCHAR(36) NOT NULL, " +
+                "shop_id VARCHAR(100) NOT NULL, " +
+                "item_id VARCHAR(100) NOT NULL, " +
+                "transaction_type VARCHAR(10) NOT NULL, " + 
+                "amount INT NOT NULL, " +
+                "transaction_time TIMESTAMP NOT NULL, " +
+                "PRIMARY KEY (player_uuid, shop_id, item_id, transaction_type, transaction_time)";
+        
+        // Tableau des tables à créer
+        String[] tablesToCreate = {
+            tablePrefix + "_transaction_limits",  // Table principale
+            tablePrefix + "_tx_daily",            // Limites quotidiennes
+            tablePrefix + "_tx_weekly",           // Limites hebdomadaires
+            tablePrefix + "_tx_monthly",          // Limites mensuelles
+            tablePrefix + "_tx_yearly",           // Limites annuelles
+            tablePrefix + "_tx_forever"           // Limites permanentes
+        };
+        
+        for (String tableName : tablesToCreate) {
+            if (isMySQL && !tableName.equals(tablePrefix + "_transaction_limits")) {
+                // Avec MySQL, on peut utiliser LIKE pour les tables secondaires
+                String query = "CREATE TABLE IF NOT EXISTS " + tableName + " LIKE " + tablePrefix + "_transaction_limits";
+                plugin.getDataManager().executeUpdate(query);
+            } else {
+                // Création complète de la structure pour SQLite ou la table principale MySQL
+                String query = "CREATE TABLE IF NOT EXISTS " + tableName + " (" + baseTableStructure + ")";
+                plugin.getDataManager().executeUpdate(query);
+            }
+        }
+        
+        // Création des index pour chaque table
+        for (String tableName : tablesToCreate) {
+            createIndexesForTable(tableName);
+        }
+        
+        // Création de la vue (pour MySQL uniquement)
+        if (isMySQL) {
+            createTransactionsView(tablePrefix, tablesToCreate);
+        }
+    }
+
+    /**
+     * Crée les index nécessaires pour une table de transactions
+     */
+    private void createIndexesForTable(String tableName) {
         String[] indexes = {
             // Index sur transaction_time pour accélérer les nettoyages
-            "CREATE INDEX IF NOT EXISTS " + tablePrefix + "_tx_time_idx ON " 
-                + tablePrefix + "_transaction_limits (transaction_time)",
+            "CREATE INDEX IF NOT EXISTS " + tableName + "_time_idx ON " + tableName + " (transaction_time)",
             
             // Index sur player_uuid pour accélérer les requêtes par joueur
-            "CREATE INDEX IF NOT EXISTS " + tablePrefix + "_player_idx ON " 
-                + tablePrefix + "_transaction_limits (player_uuid)",
+            "CREATE INDEX IF NOT EXISTS " + tableName + "_player_idx ON " + tableName + " (player_uuid)",
             
             // Index composite pour les requêtes de récapitulation
-            "CREATE INDEX IF NOT EXISTS " + tablePrefix + "_lookup_idx ON " 
-                + tablePrefix + "_transaction_limits (player_uuid, shop_id, item_id, transaction_type)"
+            "CREATE INDEX IF NOT EXISTS " + tableName + "_lookup_idx ON " + tableName + 
+            " (player_uuid, shop_id, item_id, transaction_type)"
         };
         
         for (String indexQuery : indexes) {
             try {
                 plugin.getDataManager().executeUpdate(indexQuery);
             } catch (Exception e) {
-                plugin.getLogger().warning("Erreur lors de la création d'index: " + e.getMessage());
+                plugin.getLogger().warning("Erreur lors de la création d'index pour " + tableName + ": " + e.getMessage());
             }
+        }
+    }
+
+    /**
+     * Crée une vue qui combine toutes les tables de transactions (MySQL uniquement)
+     */
+    private void createTransactionsView(String tablePrefix, String[] tables) {
+        try {
+            StringBuilder viewQuery = new StringBuilder();
+            viewQuery.append("CREATE OR REPLACE VIEW ").append(tablePrefix).append("_transactions_view AS ");
+            
+            for (int i = 0; i < tables.length; i++) {
+                if (i > 0) {
+                    viewQuery.append(" UNION ALL ");
+                }
+                viewQuery.append("SELECT * FROM ").append(tables[i]);
+            }
+            
+            plugin.getDataManager().executeUpdate(viewQuery.toString());
+        } catch (Exception e) {
+            // Si la vue ne peut pas être créée, on continue sans erreur critique
+            plugin.getLogger().warning("Note: Impossible de créer la vue de transactions: " + e.getMessage());
         }
     }
     

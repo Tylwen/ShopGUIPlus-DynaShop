@@ -972,7 +972,7 @@ public class PriceRecipe {
                 continue;
             }
             
-            ItemStack ingredient = loadIngredientFromSection(ingredientsSection.getConfigurationSection(key));
+            ItemStack ingredient = loadIngredientFromSection(ingredientsSection, key);
             if (ingredient != null) {
                 // Multiplier la quantité par le nombre d'occurrences
                 ingredient.setAmount(ingredient.getAmount() * occurrences);
@@ -1012,7 +1012,7 @@ public class PriceRecipe {
         }
         
         for (String key : ingredientsSection.getKeys(false)) {
-            ItemStack ingredient = loadIngredientFromSection(ingredientsSection.getConfigurationSection(key));
+            ItemStack ingredient = loadIngredientFromSection(ingredientsSection, key);
             if (ingredient != null) {
                 ingredients.add(ingredient);
             }
@@ -1027,11 +1027,25 @@ public class PriceRecipe {
     private List<ItemStack> loadFurnaceIngredients(ConfigurationSection recipeSection) {
         List<ItemStack> ingredients = new ArrayList<>();
         
+        // Vérifier si l'entrée est spécifiée comme une chaîne directe
+        if (recipeSection.isString("input")) {
+            String itemRef = recipeSection.getString("input");
+            if (itemRef != null && itemRef.contains(":")) {
+                ItemStack ingredient = loadShopItem(itemRef);
+                if (ingredient != null) {
+                    ingredients.add(ingredient);
+                }
+            }
+            return ingredients;
+        }
+        
+        // Sinon, traiter comme une section de configuration
         ConfigurationSection inputSection = recipeSection.getConfigurationSection("input");
         if (inputSection == null) {
             return ingredients;
         }
         
+        // Utiliser l'ancienne méthode pour la compatibilité
         ItemStack ingredient = loadIngredientFromSection(inputSection);
         if (ingredient != null) {
             ingredients.add(ingredient);
@@ -1039,9 +1053,57 @@ public class PriceRecipe {
         
         return ingredients;
     }
+    // private List<ItemStack> loadFurnaceIngredients(ConfigurationSection recipeSection) {
+    //     List<ItemStack> ingredients = new ArrayList<>();
+        
+    //     ConfigurationSection inputSection = recipeSection.getConfigurationSection("input");
+    //     if (inputSection == null) {
+    //         return ingredients;
+    //     }
+        
+    //     ItemStack ingredient = loadIngredientFromSection(inputSection);
+    //     if (ingredient != null) {
+    //         ingredients.add(ingredient);
+    //     }
+        
+    //     return ingredients;
+    // }
 
     /**
-     * Charge un ingrédient à partir d'une section de configuration
+     * Charge un ingrédient à partir d'une section de configuration ou d'une valeur directe
+     */
+    private ItemStack loadIngredientFromSection(ConfigurationSection ingredientsSection, String key) {
+        if (ingredientsSection == null) {
+            return null;
+        }
+        
+        try {
+            // Vérifier si c'est une valeur directe (nouvelle syntaxe X: minerais:RUBY)
+            if (ingredientsSection.isString(key)) {
+                String itemRef = ingredientsSection.getString(key);
+                if (itemRef != null && itemRef.contains(":")) {
+                    return loadShopItem(itemRef);
+                }
+            }
+            
+            // Sinon, c'est une section de configuration (ancienne syntaxe X: {item: minerais:RUBY})
+            ConfigurationSection section = ingredientsSection.getConfigurationSection(key);
+            if (section != null) {
+                String itemRef = section.getString("item");
+                if (itemRef != null && itemRef.contains(":")) {
+                    return loadShopItem(itemRef);
+                } else {
+                    return loadMaterialItem(section);
+                }
+            }
+        } catch (Exception e) {
+            DynaShopPlugin.getInstance().getLogger().warning("Error loading ingredient " + key + ": " + e.getMessage());
+        }
+        
+        return null;
+    }
+    /**
+     * Version de compatibilité pour l'ancien format
      */
     private ItemStack loadIngredientFromSection(ConfigurationSection section) {
         if (section == null) {
@@ -1051,7 +1113,6 @@ public class PriceRecipe {
         try {
             String itemRef = section.getString("item");
             if (itemRef != null && itemRef.contains(":")) {
-                // return loadShopItem(itemRef, section.getInt("quantity", 1));
                 return loadShopItem(itemRef);
             } else {
                 return loadMaterialItem(section);

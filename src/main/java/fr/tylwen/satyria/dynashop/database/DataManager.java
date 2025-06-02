@@ -174,34 +174,73 @@ public class DataManager {
 
     private void createPricesView(String tablePrefix) {
         try {
+            // // String viewSQL = "CREATE OR REPLACE VIEW " + tablePrefix + "_items AS " +
+            // //                 "SELECT s.shopID, s.itemID, " +
+            // //                 "COALESCE(b.price, -1) AS buyPrice, " +
+            // //                 "COALESCE(sell.price, -1) AS sellPrice, " +
+            // //                 "s.stock " +
+            // //                 "FROM " + tablePrefix + "_stock s " +
+            // //                 "LEFT JOIN " + tablePrefix + "_buy_prices b ON s.shopID = b.shopID AND s.itemID = b.itemID " +
+            // //                 "LEFT JOIN " + tablePrefix + "_sell_prices sell ON s.shopID = sell.shopID AND s.itemID = sell.itemID";
             // String viewSQL = "CREATE OR REPLACE VIEW " + tablePrefix + "_items AS " +
-            //                 "SELECT s.shopID, s.itemID, " +
+            //                 "SELECT all_items.shopID, all_items.itemID, " +
             //                 "COALESCE(b.price, -1) AS buyPrice, " +
             //                 "COALESCE(sell.price, -1) AS sellPrice, " +
-            //                 "s.stock " +
-            //                 "FROM " + tablePrefix + "_stock s " +
-            //                 "LEFT JOIN " + tablePrefix + "_buy_prices b ON s.shopID = b.shopID AND s.itemID = b.itemID " +
-            //                 "LEFT JOIN " + tablePrefix + "_sell_prices sell ON s.shopID = sell.shopID AND s.itemID = sell.itemID";
-            String viewSQL = "CREATE OR REPLACE VIEW " + tablePrefix + "_items AS " +
-                            "SELECT all_items.shopID, all_items.itemID, " +
-                            "COALESCE(b.price, -1) AS buyPrice, " +
-                            "COALESCE(sell.price, -1) AS sellPrice, " +
-                            "COALESCE(s.stock, -1) AS stock " +
-                            "FROM (" +
-                            "   SELECT DISTINCT shopID, itemID FROM " + tablePrefix + "_buy_prices " +
-                            "   UNION " +
-                            "   SELECT DISTINCT shopID, itemID FROM " + tablePrefix + "_sell_prices " +
-                            "   UNION " +
-                            "   SELECT DISTINCT shopID, itemID FROM " + tablePrefix + "_stock" +
-                            ") as all_items " +
-                            "LEFT JOIN " + tablePrefix + "_stock s ON all_items.shopID = s.shopID AND all_items.itemID = s.itemID " +
-                            "LEFT JOIN " + tablePrefix + "_buy_prices b ON all_items.shopID = b.shopID AND all_items.itemID = b.itemID " +
-                            "LEFT JOIN " + tablePrefix + "_sell_prices sell ON all_items.shopID = sell.shopID AND all_items.itemID = sell.itemID";
+            //                 "COALESCE(s.stock, -1) AS stock " +
+            //                 "FROM (" +
+            //                 "   SELECT DISTINCT shopID, itemID FROM " + tablePrefix + "_buy_prices " +
+            //                 "   UNION " +
+            //                 "   SELECT DISTINCT shopID, itemID FROM " + tablePrefix + "_sell_prices " +
+            //                 "   UNION " +
+            //                 "   SELECT DISTINCT shopID, itemID FROM " + tablePrefix + "_stock" +
+            //                 ") as all_items " +
+            //                 "LEFT JOIN " + tablePrefix + "_stock s ON all_items.shopID = s.shopID AND all_items.itemID = s.itemID " +
+            //                 "LEFT JOIN " + tablePrefix + "_buy_prices b ON all_items.shopID = b.shopID AND all_items.itemID = b.itemID " +
+            //                 "LEFT JOIN " + tablePrefix + "_sell_prices sell ON all_items.shopID = sell.shopID AND all_items.itemID = sell.itemID";
+            String viewSQL;
+            
+            // Adapter la syntaxe selon le type de base de données
+            if (dataConfig.getDatabaseType().equals("mysql")) {
+                // Syntaxe MySQL
+                viewSQL = "CREATE OR REPLACE VIEW " + tablePrefix + "_items AS " +
+                        "SELECT all_items.shopID, all_items.itemID, " +
+                        "COALESCE(b.price, -1) AS buyPrice, " +
+                        "COALESCE(sell.price, -1) AS sellPrice, " +
+                        "COALESCE(s.stock, -1) AS stock " +
+                        "FROM (" +
+                        "   SELECT DISTINCT shopID, itemID FROM " + tablePrefix + "_buy_prices " +
+                        "   UNION " +
+                        "   SELECT DISTINCT shopID, itemID FROM " + tablePrefix + "_sell_prices " +
+                        "   UNION " +
+                        "   SELECT DISTINCT shopID, itemID FROM " + tablePrefix + "_stock" +
+                        ") as all_items " +
+                        "LEFT JOIN " + tablePrefix + "_stock s ON all_items.shopID = s.shopID AND all_items.itemID = s.itemID " +
+                        "LEFT JOIN " + tablePrefix + "_buy_prices b ON all_items.shopID = b.shopID AND all_items.itemID = b.itemID " +
+                        "LEFT JOIN " + tablePrefix + "_sell_prices sell ON all_items.shopID = sell.shopID AND all_items.itemID = sell.itemID";
+            } else {
+                // Syntaxe SQLite
+                executeUpdate("DROP VIEW IF EXISTS " + tablePrefix + "_items");
+                viewSQL = "CREATE VIEW " + tablePrefix + "_items AS " +
+                        "SELECT all_items.shopID, all_items.itemID, " +
+                        "COALESCE(b.price, -1) AS buyPrice, " +
+                        "COALESCE(sell.price, -1) AS sellPrice, " +
+                        "COALESCE(s.stock, -1) AS stock " +
+                        "FROM (" +
+                        "   SELECT DISTINCT shopID, itemID FROM " + tablePrefix + "_buy_prices " +
+                        "   UNION " +
+                        "   SELECT DISTINCT shopID, itemID FROM " + tablePrefix + "_sell_prices " +
+                        "   UNION " +
+                        "   SELECT DISTINCT shopID, itemID FROM " + tablePrefix + "_stock" +
+                        ") as all_items " +
+                        "LEFT JOIN " + tablePrefix + "_stock s ON all_items.shopID = s.shopID AND all_items.itemID = s.itemID " +
+                        "LEFT JOIN " + tablePrefix + "_buy_prices b ON all_items.shopID = b.shopID AND all_items.itemID = b.itemID " +
+                        "LEFT JOIN " + tablePrefix + "_sell_prices sell ON all_items.shopID = sell.shopID AND all_items.itemID = sell.itemID";
+            }
             
             executeUpdate(viewSQL);
         } catch (Exception e) {
             // La vue peut échouer avec SQLite, ce n'est pas critique
-            plugin.getLogger().warning("Note: Impossible de créer la vue des prix (normal pour SQLite): " + e.getMessage());
+            plugin.getLogger().warning("Note: Impossible de créer la vue des prix : " + e.getMessage());
         }
     }
 
@@ -643,20 +682,46 @@ public class DataManager {
                 return null;
             }, shopId, itemId);
         } catch (Exception e) {
-            // Fallback en cas d'échec de la vue
-            Optional<Double> buyPrice = getBuyPrice(shopId, itemId);
-            Optional<Double> sellPrice = getSellPrice(shopId, itemId);
-            Optional<Integer> stock = getStock(shopId, itemId);
+            // // Fallback en cas d'échec de la vue
+            // Optional<Double> buyPrice = getBuyPrice(shopId, itemId);
+            // Optional<Double> sellPrice = getSellPrice(shopId, itemId);
+            // Optional<Integer> stock = getStock(shopId, itemId);
 
-            if (!buyPrice.isPresent() && !sellPrice.isPresent() && !stock.isPresent()) {
-                return Optional.empty();
-            }
+            // if (!buyPrice.isPresent() && !sellPrice.isPresent() && !stock.isPresent()) {
+            //     return Optional.empty();
+            // }
             
-            return Optional.of(new DynamicPrice(
-                buyPrice.orElse(-1.0),
-                sellPrice.orElse(-1.0),
-                stock.orElse(-1)
-            ));
+            // return Optional.of(new DynamicPrice(
+            //     buyPrice.orElse(-1.0),
+            //     sellPrice.orElse(-1.0),
+            //     stock.orElse(-1)
+            // ));
+            // Fallback en cas d'échec de la vue - requête directe sur les tables
+            String fallbackQuery = "SELECT " +
+                "(SELECT price FROM " + tablePrefix + "_buy_prices WHERE shopID = ? AND itemID = ? LIMIT 1) AS buyPrice, " +
+                "(SELECT price FROM " + tablePrefix + "_sell_prices WHERE shopID = ? AND itemID = ? LIMIT 1) AS sellPrice, " +
+                "(SELECT stock FROM " + tablePrefix + "_stock WHERE shopID = ? AND itemID = ? LIMIT 1) AS stock";
+            
+            return executeQuery(fallbackQuery, rs -> {
+                if (rs.next()) {
+                    double buyPrice = rs.getDouble("buyPrice");
+                    if (rs.wasNull()) buyPrice = -1.0;
+                    
+                    double sellPrice = rs.getDouble("sellPrice");
+                    if (rs.wasNull()) sellPrice = -1.0;
+                    
+                    int stock = rs.getInt("stock");
+                    if (rs.wasNull()) stock = -1;
+                    
+                    // Si aucun prix n'est défini, ne pas créer d'objet
+                    if (buyPrice <= 0 && sellPrice <= 0 && stock < 0) {
+                        return null;
+                    }
+                    
+                    return new DynamicPrice(buyPrice, sellPrice, stock);
+                }
+                return null;
+            }, shopId, itemId, shopId, itemId, shopId, itemId);
         }
     }
 
@@ -950,6 +1015,11 @@ public class DataManager {
             
             // Renommer l'ancienne table pour la conserver en backup
             executeUpdate("RENAME TABLE " + tablePrefix + "_prices TO " + tablePrefix + "_prices_old");
+
+            // On supprime l'ancienne table de prix
+            executeUpdate("DROP TABLE " + tablePrefix + "_prices_old");
+            // Log de succès
+            plugin.getLogger().info("Migration des données de prix vers le nouveau schéma réussie!");
             
             // plugin.getLogger().info("Migration des données de prix vers le nouveau schéma réussie!");
         }

@@ -1366,18 +1366,29 @@ public class DynaShopListener implements Listener {
                 continue;
             }
 
+            // // Si l'ingrédient est une recette, appliquer la récursion d'abord
+            // if (isIngredientRecipe) {
+            //     // DynaShopPlugin.getInstance().getLogger().info("Ingrédient " + ingredientID + " est une recette, récursion");
+            //     applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, ingredient, ingredientQuantity, isGrowth, new ArrayList<>(visitedItems), depth + 1);
+            // }
+
+            // // Traiter selon le type d'ingrédient (même s'il s'agit d'une recette)
+            // processIngredient(ingredientShopID, ingredientID, ingredientPrice, ingredientType, ingredientQuantity, isGrowth);
+            
+            // // Sauvegarder les modifications si ce n'est pas une recette
+            // if (!isIngredientRecipe) {
+            //     // DynaShopPlugin.getInstance().getLogger().info("Sauvegarde des modifications pour " + ingredientShopID + ":" + ingredientID);
+            //     DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice);
+            // }
             // Si l'ingrédient est une recette, appliquer la récursion d'abord
             if (isIngredientRecipe) {
-                // DynaShopPlugin.getInstance().getLogger().info("Ingrédient " + ingredientID + " est une recette, récursion");
+                // Appliquer la récursion uniquement, sans modifier le prix directement
                 applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, ingredient, ingredientQuantity, isGrowth, new ArrayList<>(visitedItems), depth + 1);
-            }
-
-            // Traiter selon le type d'ingrédient (même s'il s'agit d'une recette)
-            processIngredient(ingredientShopID, ingredientID, ingredientPrice, ingredientType, ingredientQuantity, isGrowth);
-            
-            // Sauvegarder les modifications si ce n'est pas une recette
-            if (!isIngredientRecipe) {
-                // DynaShopPlugin.getInstance().getLogger().info("Sauvegarde des modifications pour " + ingredientShopID + ":" + ingredientID);
+            } else {
+                // Traiter selon le type d'ingrédient (uniquement pour les non-recettes)
+                processIngredient(ingredientShopID, ingredientID, ingredientPrice, ingredientType, ingredientQuantity, isGrowth);
+                
+                // Sauvegarder les modifications
                 DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice);
             }
         }
