@@ -1,10 +1,12 @@
 package fr.tylwen.satyria.dynashop.listener;
 
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.inventory.ItemStack;
@@ -17,10 +19,12 @@ import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.brcdev.shopgui.shop.Shop;
+import net.brcdev.shopgui.shop.item.ShopItem;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +37,8 @@ public class ShopItemPlaceholderListener implements Listener {
     
     // Map pour stocker le shop actuellement ouvert par chaque joueur
     private final Map<UUID, SimpleEntry<String, String>> openShopMap = new ConcurrentHashMap<>();
+    private final Map<UUID, AmountSelectionInfo> amountSelectionMenus = new ConcurrentHashMap<>();
+    private final Map<UUID, SimpleEntry<String, String>> lastShopMap = new ConcurrentHashMap<>();
 
     // private BukkitTask refreshTask;
 
@@ -47,6 +53,48 @@ public class ShopItemPlaceholderListener implements Listener {
 
         // // Démarrer le planificateur de rafraîchissement
         // startRefreshScheduler();
+    }
+
+    // Classe interne pour stocker les informations du menu de sélection
+    private static class AmountSelectionInfo {
+        private final String shopId;
+        private final String itemId;
+        private final ItemStack itemStack;
+        private final boolean isBuying; // true pour achat, false pour vente
+        private final String menuType; // "AMOUNT_SELECTION" ou "AMOUNT_SELECTION_BULK"
+        private final Map<Integer, Integer> slotValues; // Map des slots -> valeurs (nombre de stacks)
+
+        public AmountSelectionInfo(String shopId, String itemId, ItemStack itemStack, boolean isBuying, String menuType, Map<Integer, Integer> slotValues) {
+            this.shopId = shopId;
+            this.itemId = itemId;
+            this.itemStack = itemStack.clone();
+            this.isBuying = isBuying;
+            this.menuType = menuType;
+            this.slotValues = slotValues != null ? new HashMap<>(slotValues) : new HashMap<>();
+        }
+
+        // Constructeurs de compatibilité
+        public AmountSelectionInfo(String shopId, String itemId, ItemStack itemStack, boolean isBuying, String menuType) {
+            this(shopId, itemId, itemStack, isBuying, menuType, null);
+        }
+
+        // Ajouter un constructeur de compatibilité pour l'existant
+        public AmountSelectionInfo(String shopId, String itemId, ItemStack itemStack, boolean isBuying) {
+            this(shopId, itemId, itemStack, isBuying, "AMOUNT_SELECTION", null);
+        }
+
+        // Getters
+        public String getShopId() { return shopId; }
+        public String getItemId() { return itemId; }
+        public ItemStack getItemStack() { return itemStack; }
+        public boolean isBuying() { return isBuying; }
+        public String getMenuType() { return menuType; }
+        public Map<Integer, Integer> getSlotValues() { return slotValues; }
+        
+        // Méthode utilitaire pour récupérer la valeur (nombre de stacks) pour un slot donné
+        public int getValueForSlot(int slot) {
+            return slotValues.getOrDefault(slot, 1); // Par défaut 1 stack si non trouvé
+        }
     }
 
     // /**
@@ -71,6 +119,46 @@ public class ShopItemPlaceholderListener implements Listener {
         String fullShopId = determineShopId(view);
         if (fullShopId == null) return;
         
+        // Traitement spécial pour les menus de sélection de quantité
+        if (fullShopId.equals("AMOUNT_SELECTION") || fullShopId.equals("AMOUNT_SELECTION_BULK")) {
+            // DynaShopPlugin.getInstance().getLogger().info("TEST 1: " + fullShopId);
+            AmountSelectionInfo info = extractAmountSelectionInfo(view, fullShopId);
+            if (info == null) {
+                // DynaShopPlugin.getInstance().getLogger().warning("Failed to extract amount selection info for player: " + player.getName());
+                return;
+            }
+            // if (info == null) return;
+            
+            // Stocker les informations pour ce menu
+            amountSelectionMenus.put(player.getUniqueId(), info);
+            
+            // IMPORTANT: Pré-traitement pour masquer les placeholders pendant le chargement
+            Map<Integer, List<String>> originalLores = new HashMap<>();
+            
+            // Traiter tous les boutons dans l'inventaire
+            for (int slot = 0; slot < view.getTopInventory().getSize(); slot++) {
+                ItemStack item = view.getTopInventory().getItem(slot);
+                if (item != null && item.hasItemMeta() && item.getItemMeta().hasLore()) {
+                    ItemMeta meta = item.getItemMeta();
+                    List<String> lore = meta.getLore();
+                    
+                    // Stocker le lore original et pré-traiter
+                    originalLores.put(slot, new ArrayList<>(lore));
+                    List<String> tempLore = preProcessPlaceholders(lore);
+                    meta.setLore(tempLore);
+                    item.setItemMeta(meta);
+                }
+            }
+            // DynaShopPlugin.getInstance().getLogger().info("Detected amount selection menu for item: " + info.getItemId());
+            
+            // Mettre à jour les prix dans les boutons
+            updateAmountSelectionInventory(player, view, info, originalLores);
+            
+            // Démarrer l'actualisation continue
+            startContinuousAmountSelectionRefresh(player, view, info, originalLores);
+            return;
+        }
+        
         String shopId = fullShopId;
         int page = 1;
 
@@ -83,6 +171,10 @@ public class ShopItemPlaceholderListener implements Listener {
                 page = 1;
             }
         }
+        
+        // IMPORTANT: Enregistrer le shop ouvert par le joueur
+        // Utiliser une valeur par défaut pour l'itemId qui sera mise à jour plus tard
+        openShopMap.put(player.getUniqueId(), new SimpleEntry<>(shopId, null));
 
         // IMPORTANT: Stocker les lores originaux avant de les modifier
         Map<Integer, List<String>> originalLores = new HashMap<>();
@@ -117,18 +209,102 @@ public class ShopItemPlaceholderListener implements Listener {
         startContinuousRefresh(player, view, shopId, page, originalLores);
     }
 
+    // @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (!(event.getWhoClicked() instanceof Player)) return;
+        // DynaShopPlugin.getInstance().getLogger().info("TEST 2: " + event.getView().getTitle());
+        
+        Player player = (Player) event.getWhoClicked();
+        // Obtenir le shopId actuel
+        SimpleEntry<String, String> shopData = openShopMap.get(player.getUniqueId());
+        if (shopData == null) return;
+        // DynaShopPlugin.getInstance().getLogger().info("TEST 3: " + shopData.getKey());
+        
+        String shopId = shopData.getKey();
+        if (shopId == null) return;
+        // DynaShopPlugin.getInstance().getLogger().info("TEST 4: " + shopId);
+        
+        // Vérifier si c'est un click dans l'inventaire du haut (le shop)
+        if (event.getClickedInventory() != event.getView().getTopInventory()) return;
+        
+        // Récupérer l'item cliqué
+        ItemStack clickedItem = event.getCurrentItem();
+        if (clickedItem == null || clickedItem.getType() == Material.AIR) return;
+        // DynaShopPlugin.getInstance().getLogger().info("TEST 5: " + clickedItem.getType().name());
+        try {
+            // Tenter de récupérer l'ID de l'item à partir du slot
+            Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
+            if (shop == null) return;
+            // DynaShopPlugin.getInstance().getLogger().info("TEST 6: " + shop.getName());
+            
+            int page = 1;
+            if (shopData.getKey().contains("#")) {
+                String[] parts = shopData.getKey().split("#");
+                try {
+                    page = Integer.parseInt(parts[1]);
+                } catch (NumberFormatException e) {
+                    page = 1;
+                }
+            }
+            
+            ShopItem shopItem = shop.getShopItem(page, event.getSlot());
+            if (shopItem != null) {
+                // DynaShopPlugin.getInstance().getLogger().info("TEST 7: " + openShopMap.get(player.getUniqueId()).getValue());
+                // Mettre à jour l'itemId dans la map
+                openShopMap.put(player.getUniqueId(), new SimpleEntry<>(shopId, shopItem.getId()));
+                // DynaShopPlugin.getInstance().getLogger().info("TEST 8: " + openShopMap.get(player.getUniqueId()).getValue());
+            }
+        } catch (Exception e) {
+            // Ignorer les erreurs - garder la dernière valeur connue
+        }
+    }
+
+
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
-        if (!(event.getPlayer() instanceof Player))
-            return;
+        if (!(event.getPlayer() instanceof Player)) return;
             
         Player player = (Player) event.getPlayer();
+        
+        // AJOUT: Sauvegarder les informations du shop actuel avant de les supprimer
+        SimpleEntry<String, String> currentShop = openShopMap.get(player.getUniqueId());
+        if (currentShop != null && currentShop.getKey() != null) {
+            lastShopMap.put(player.getUniqueId(), currentShop);
+            // plugin.getLogger().info("Saving shop info for " + player.getName() + ": " + 
+            //                     currentShop.getKey() + ":" + currentShop.getValue());
+        }
+        
+        // NE PAS VIDER openShopMap immédiatement si c'est un menu de sélection
+        // car il est probable qu'un nouveau menu s'ouvre tout de suite après
+        String title = event.getView().getTitle();
+        boolean isAmountSelection = true;
+        if (title.contains(ChatColor.translateAlternateColorCodes('&', 
+                ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BUY.NAME").replace("%item%", ""))) ||
+            title.contains(ChatColor.translateAlternateColorCodes('&', 
+                ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.SELL.NAME").replace("%item%", ""))) ||
+            title.contains(ChatColor.translateAlternateColorCodes('&', 
+                ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BULKBUY.NAME").replace("%item%", ""))) ||
+            title.contains(ChatColor.translateAlternateColorCodes('&', 
+                ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BULKSELL.NAME").replace("%item%", "")))) {
+            // C'est un menu de sélection de quantité, ne pas vider openShopMap
+            isAmountSelection = false;
+        }
         
         // Arrêter la tâche de refresh
         playerRefreshTasks.remove(player.getUniqueId());
         
         // Nettoyer les autres maps
-        openShopMap.remove(player.getUniqueId());
+        // Ne nettoyer openShopMap que si ce n'est pas un menu de sélection
+        if (!isAmountSelection) {
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                openShopMap.remove(player.getUniqueId());
+                DynaShopPlugin.getInstance().getLogger().info("Cleared openShopMap for player: " + player.getName());
+            }, 20L); // 20 ticks de délai (1s) pour s'assurer qu'un nouveau menu n'est pas ouvert
+        }
+        // openShopMap.remove(player.getUniqueId());
+
+        amountSelectionMenus.remove(player.getUniqueId());
     }
 
     // Méthodes pour exposer ces informations
@@ -151,6 +327,24 @@ public class ShopItemPlaceholderListener implements Listener {
      */
     private String determineShopId(InventoryView view) {
         String title = view.getTitle();
+        
+        // Vérifier si c'est un menu de sélection de quantité
+        if (title.contains(ChatColor.translateAlternateColorCodes('&', 
+                ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BUY.NAME").replace("%item%", ""))) ||
+            title.contains(ChatColor.translateAlternateColorCodes('&', 
+                ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.SELL.NAME").replace("%item%", "")))) {
+            // C'est un menu de sélection de quantité
+            // DynaShopPlugin.getInstance().getLogger().info("Detected amount selection menu: " + title);
+            return "AMOUNT_SELECTION";
+        }
+
+        if (title.contains(ChatColor.translateAlternateColorCodes('&', 
+                ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BULKBUY.NAME").replace("%item%", ""))) ||
+            title.contains(ChatColor.translateAlternateColorCodes('&', 
+                ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BULKSELL.NAME").replace("%item%", "")))) {
+            // C'est un menu de sélection de quantité en mode bulk
+            return "AMOUNT_SELECTION_BULK";
+        }
 
         try {
             for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
@@ -166,8 +360,7 @@ public class ShopItemPlaceholderListener implements Listener {
                         
                         // Extraire la partie du titre qui correspond à la page
                         if (title.startsWith(before) && (after.isEmpty() || title.endsWith(after))) {
-                            String pageStr = title.substring(before.length(), 
-                                            after.isEmpty() ? title.length() : title.length() - after.length());
+                            String pageStr = title.substring(before.length(), after.isEmpty() ? title.length() : title.length() - after.length());
                             try {
                                 page = Integer.parseInt(pageStr);
                             } catch (NumberFormatException e) {
@@ -785,6 +978,673 @@ public class ShopItemPlaceholderListener implements Listener {
         return processed;
     }
 
+    private AmountSelectionInfo extractAmountSelectionInfo(InventoryView view, String menuType) {
+        String title = view.getTitle();
+        // boolean isBuying = title.contains(ChatColor.translateAlternateColorCodes('&', ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BUY.NAME").replace("%item%", ""))) ||
+        //                 title.contains(ChatColor.translateAlternateColorCodes('&', ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BULKBUY.NAME").replace("%item%", "")));
+        
+        boolean isBuying = title.contains(ChatColor.translateAlternateColorCodes('&', 
+            ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BUY.NAME").replace("%item%", ""))) ||
+            title.contains(ChatColor.translateAlternateColorCodes('&', 
+            ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BULKBUY.NAME").replace("%item%", "")));
+            
+        // Déterminer l'emplacement de l'item selon le type de menu
+        int centerSlot;
+        int inventorySize = view.getTopInventory().getSize();
+        Map<Integer, Integer> slotValues = new HashMap<>();
+
+        // // Séparer clairement les types de menus
+        // boolean isBulkMenu = title.contains(ChatColor.translateAlternateColorCodes('&', 
+        //     ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BULKBUY.NAME").replace("%item%", ""))) ||
+        //     title.contains(ChatColor.translateAlternateColorCodes('&', 
+        //     ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BULKSELL.NAME").replace("%item%", "")));
+        
+        // boolean isRegularMenu = title.contains(ChatColor.translateAlternateColorCodes('&', 
+        //     ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BUY.NAME").replace("%item%", ""))) ||
+        //     title.contains(ChatColor.translateAlternateColorCodes('&', 
+        //     ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.SELL.NAME").replace("%item%", "")));
+        
+        // Utiliser exactement votre approche existante avec la config
+        if (menuType.equals("AMOUNT_SELECTION_BULK")) {
+            // Traitement différent selon si c'est achat ou vente
+            if (isBuying) {
+                // Configuration pour BULK BUY
+                for (int i = 1; i <= 9; i++) {
+                    if (ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains("amountSelectionGUIBulkBuy.buttons.buy" + i + ".slot")) {
+                        int slot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkBuy.buttons.buy" + i + ".slot");
+                        int value = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkBuy.buttons.buy" + i + ".value");
+                        slotValues.put(slot, value);
+                    }
+                }
+                centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkBuy.buttons.buy1.slot", 0);
+            } else {
+                // Configuration pour BULK SELL
+                for (int i = 1; i <= 9; i++) {
+                    if (ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains("amountSelectionGUIBulkSell.buttons.sell" + i + ".slot")) {
+                        int slot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkSell.buttons.sell" + i + ".slot");
+                        int value = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkSell.buttons.sell" + i + ".value");
+                        slotValues.put(slot, value);
+                    }
+                }
+                centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkSell.buttons.sell1.slot", 0);
+            }
+        } else {
+            // Pour les menus standard, utiliser la valeur configurée ou 22 par défaut
+            centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUI.itemSlot", 22);
+        }
+        
+        // // Vérification de sécurité pour éviter les erreurs d'index
+        // if (centerSlot >= inventorySize) {
+        //     plugin.getLogger().warning("Center slot " + centerSlot + " is out of bounds for inventory size " + 
+        //         inventorySize + " in menu type " + menuType + ". Using fallback slot.");
+            
+        //     // Utiliser un slot de repli sûr
+        //     centerSlot = Math.min(4, inventorySize - 1); // Position 4 ou dernière position
+        // }
+        
+        // Récupérer l'item à la position calculée
+        ItemStack centerItem = view.getTopInventory().getItem(centerSlot);
+        if (centerItem == null) {
+            plugin.getLogger().warning("Center item is null in amount selection inventory at slot " + centerSlot);
+            return null;
+        }
+
+        // // Récupérer l'item central (habituellement en position 23)
+        // // ItemStack centerItem = view.getTopInventory().getItem(23); // 23 est le slot central dans un inventaire de 54 slots
+        // // int size = view.getTopInventory().getSize();
+        // // int rows = size / 9; // Nombre de lignes
+        // // int centerSlot = (rows * 9) / 2 + (rows % 2 == 0 ? -1 : 0); // Slot central pour un inventaire de taille variable
+        // // int centerSlot = (rows * 9) / 4 + (rows % 2 == 0 ? -1 : 0); // Slot central pour un inventaire de taille variable, ajusté pour 54 slots
+        // int centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUI.itemSlot", 22); // Slot central par défaut
+        // ItemStack centerItem = view.getTopInventory().getItem(centerSlot);
+        // if (centerItem == null) {
+        //     // plugin.getLogger().warning("Center item is null in amount selection inventory for player: " + view.getPlayer().getName() +
+        //     //     ". Inventory size: " + size + ", Rows: " + rows + ", Center Slot: " + centerSlot);
+        //     return null;
+        // }
+        
+        // // Récupérer les dernières informations du shop ouvert par le joueur
+        // Player player = (Player) view.getPlayer();
+        // SimpleEntry<String, String> lastShopInfo = openShopMap.get(player.getUniqueId());
+        // DynaShopPlugin.getInstance().getLogger().info("openShopMap for player " + player.getName() + ": " + openShopMap.get(player.getUniqueId()));
+        // DynaShopPlugin.getInstance().getLogger().info("Last shop info for player " + player.getName() + ": " + lastShopInfo + 
+        //     ", Shop ID: " + (lastShopInfo != null ? lastShopInfo.getKey() : "null") + 
+        //     ", Item ID: " + (lastShopInfo != null ? lastShopInfo.getValue() : "null"));
+        // if (lastShopInfo == null) {
+        //     plugin.getLogger().warning("No last shop info found for player: " + player.getName());
+        //     return null;
+        // }
+        
+        // Récupérer les dernières informations du shop (d'abord openShopMap, puis lastShopMap)
+        // Récupérer les dernières informations du shop (d'abord openShopMap, puis lastShopMap)
+        Player player = (Player) view.getPlayer();
+        SimpleEntry<String, String> shopInfo = openShopMap.get(player.getUniqueId());
+        
+        // Si aucune info dans openShopMap, essayer lastShopMap
+        if (shopInfo == null) {
+            shopInfo = lastShopMap.get(player.getUniqueId());
+            // plugin.getLogger().info("Using lastShopMap for player " + player.getName() + ": " + shopInfo);
+        }
+        
+        if (shopInfo == null) {
+            // plugin.getLogger().warning("No shop info found for player: " + player.getName());
+            return null;
+        }
+        
+        return new AmountSelectionInfo(
+            shopInfo.getKey(),         // shopId
+            shopInfo.getValue(),       // itemId
+            centerItem,                // itemStack
+            isBuying,                   // isBuying
+            menuType,                  // menuType
+            slotValues                 // slotValues - La map des slots et valeurs
+        );
+    }
+
+    // private void startContinuousAmountSelectionRefresh(Player player, InventoryView view, AmountSelectionInfo info, 
+    //                                              Map<Integer, List<String>> originalLores) {
+    //     // ID unique pour cette session de refresh
+    //     final UUID refreshId = UUID.randomUUID();
+        
+    //     // Stocker l'ID du refresh dans une map pour pouvoir l'arrêter plus tard
+    //     playerRefreshTasks.put(player.getUniqueId(), refreshId);
+        
+    //     // Démarrer la tâche asynchrone avec boucle
+    //     plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+    //         try {
+    //             // Temps d'attente entre les actualisations (en ms)
+    //             long refreshInterval = 1000; // 1 seconde
+
+    //             while (
+    //                 player.isOnline() && 
+    //                 player.getOpenInventory() != null && 
+    //                 determineShopId(player.getOpenInventory()) != null &&
+    //                 determineShopId(player.getOpenInventory()).equals("AMOUNT_SELECTION") &&
+    //                 playerRefreshTasks.get(player.getUniqueId()) == refreshId
+    //             ) {
+    //                 // Attendre l'intervalle configuré
+    //                 Thread.sleep(refreshInterval);
+                    
+    //                 // Vérifier à nouveau que le joueur est toujours en ligne et que l'inventaire est ouvert
+    //                 if (!player.isOnline() || player.getOpenInventory() == null) {
+    //                     break;
+    //                 }
+                    
+    //                 // Effectuer la mise à jour sur le thread principal
+    //                 plugin.getServer().getScheduler().runTask(plugin, () -> {
+    //                     if (player.isOnline() && player.getOpenInventory() != null) {
+    //                         updateAmountSelectionInventory(player, view, info, originalLores);
+    //                     }
+    //                 });
+    //             }
+    //         } catch (InterruptedException e) {
+    //             Thread.currentThread().interrupt();
+    //         } finally {
+    //             // Nettoyer
+    //             playerRefreshTasks.remove(player.getUniqueId());
+    //             amountSelectionMenus.remove(player.getUniqueId());
+    //         }
+    //     });
+    // }
+
+    private void startContinuousAmountSelectionRefresh(Player player, InventoryView view, AmountSelectionInfo info, Map<Integer, List<String>> originalLores) {
+        startContinuousAmountSelectionRefresh(player, view, info, originalLores, info.getMenuType());
+    }
+
+    private void startContinuousAmountSelectionRefresh(Player player, InventoryView view, AmountSelectionInfo info, Map<Integer, List<String>> originalLores, String menuType) {
+        // ID unique pour cette session de refresh
+        final UUID refreshId = UUID.randomUUID();
+        
+        // Stocker l'ID du refresh dans une map pour pouvoir l'arrêter plus tard
+        playerRefreshTasks.put(player.getUniqueId(), refreshId);
+        
+        // Variables pour suivre les changements
+        final int[] lastCenterQuantity = {info.getItemStack().getAmount()};
+        // DynaShopPlugin.getInstance().getLogger().info("Starting continuous refresh for player: " + player.getName() + 
+        //     ", Shop ID: " + info.getShopId() + ", Item ID: " + info.getItemId() + 
+        //     ", Initial quantity: " + lastCenterQuantity[0]);
+        
+        // Démarrer la tâche asynchrone avec boucle
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                // Temps d'attente entre les vérifications (en ms)
+                long refreshInterval = 100; // 100ms pour une détection rapide
+
+                // Flag pour suivre si le joueur est toujours dans le menu de sélection
+                boolean stillInMenu = true;
+
+                while (
+                    player.isOnline() && 
+                    stillInMenu &&
+                    player.getOpenInventory() != null &&
+                    determineShopId(player.getOpenInventory()) != null &&
+                    determineShopId(player.getOpenInventory()).equals(menuType)
+                    // determineShopId(player.getOpenInventory()).equals("AMOUNT_SELECTION")
+                    // player.getOpenInventory() != null
+                    // determineShopId(player.getOpenInventory()) != null &&
+                    // determineShopId(player.getOpenInventory()).equals("AMOUNT_SELECTION") &&
+                    // playerRefreshTasks.get(player.getUniqueId()) == refreshId
+                ) {
+                    // Attendre l'intervalle configuré
+                    Thread.sleep(refreshInterval);
+                    
+                    // Vérifier à nouveau que le joueur est toujours en ligne et que l'inventaire est ouvert
+                    if (!player.isOnline() || player.getOpenInventory() == null) {
+                        stillInMenu = false;
+                        break;
+                    }
+                    
+                    // // Vérifier si le menu ouvert est toujours un menu de sélection
+                    // String currentTitle = player.getOpenInventory().getTitle();
+                    // if (!determineShopId(player.getOpenInventory()).equals("AMOUNT_SELECTION")) {
+                    //     DynaShopPlugin.getInstance().getLogger().info("Player " + player.getName() + " no longer in amount selection menu: " + currentTitle);
+                    //     stillInMenu = false;
+                    //     break;
+                    // }
+                    
+                    // Vérifier si l'item central a changé (sur le thread principal)
+                    plugin.getServer().getScheduler().runTask(plugin, () -> {
+                        // if (!player.isOnline() || player.getOpenInventory() == null) return;
+                        // if (player.isOnline() && player.getOpenInventory() != null) {
+                        // int centerSlot;
+
+                        if (menuType.equals("AMOUNT_SELECTION_BULK")) {
+                            // if (info.isBuying()) {
+                            //     // Pour les menus BULK BUY, utiliser la valeur configurée ou 17 par défaut
+                            //     centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkBuy.itemSlot", 17);
+                            // } else {
+                            //     // Pour les menus BULK SELL, utiliser la valeur configurée ou 26 par défaut
+                            //     centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkSell.itemSlot", 17);
+                            // }
+                            updateAmountSelectionInventoryImmediately(player, player.getOpenInventory(), info, originalLores);
+                        } else {
+                            // Pour les menus standard, utiliser la valeur configurée ou 22 par défaut
+                            int centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUI.itemSlot", 22);
+                        // }
+                        // if (menuType.equals("AMOUNT_SELECTION_BULK")) {
+                        //     Map<Integer, Integer> slot = new HashMap<>();
+                            
+                        //     // Traitement différent selon si c'est achat ou vente
+                        //     if (info.isBuying()) {
+                        //         // Configuration pour BULK BUY
+                        //         for (int i = 1; i <= 9; i++) {
+                        //             if (ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains("amountSelectionGUIBulkBuy.buttons.buy" + i + ".slot")) {
+                        //                 slot.put(ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkBuy.buttons.buy" + i + ".slot"), 
+                        //                         ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkBuy.buttons.buy" + i + ".value"));
+                        //             }
+                        //         }
+                        //         centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkBuy.buttons.buy1.slot", 0);
+                        //     } else {
+                        //         // Configuration pour BULK SELL
+                        //         for (int i = 1; i <= 9; i++) {
+                        //             if (ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains("amountSelectionGUIBulkSell.buttons.sell" + i + ".slot")) {
+                        //                 slot.put(ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkSell.buttons.sell" + i + ".slot"), 
+                        //                         ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkSell.buttons.sell" + i + ".value"));
+                        //             }
+                        //         }
+                        //         centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUIBulkSell.buttons.sell1.slot", 0);
+                        //     }
+                        // } else {
+                        //     // Pour les menus standard, utiliser la valeur configurée ou 22 par défaut
+                        //     centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUI.itemSlot", 22);
+                        // }
+                            
+                            // Trouver l'item central actuel
+                            // int size = player.getOpenInventory().getTopInventory().getSize();
+                            // int size = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUI.size", 54);
+                            // int rows = size / 9;
+                            // int centerSlot = (rows * 9) / 4 + (rows % 2 == 0 ? -1 : 0); // Slot central pour un inventaire de taille variable, ajusté pour 54 slots
+                            // Slot central pour un inventaire de taille variable de 9 à 54 slots
+                            // int centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUI.itemSlot", 22); // Slot central par défaut
+                            ItemStack currentCenterItem = player.getOpenInventory().getTopInventory().getItem(centerSlot);
+                            // DynaShopPlugin.getInstance().getLogger().info("Checking center item for player: " + player.getName() + 
+                            //     ", Current center item: " + (currentCenterItem != null ? currentCenterItem.toString() : "null") + 
+                            //     ", Last quantity: " + lastCenterQuantity[0]);
+                            // if (currentCenterItem == null) return;
+                            if (currentCenterItem != null) {
+                                // DynaShopPlugin.getInstance().getLogger().warning("Center item is null for player: " + player.getName() + 
+                                //     ". Inventory size: " + player.getOpenInventory().getTopInventory().getSize() + 
+                                //     ", Center Slot: " + centerSlot);
+                                // return;
+                            
+                                // Vérifier si la quantité a changé
+                                int currentQuantity = currentCenterItem.getAmount();
+                                // DynaShopPlugin.getInstance().getLogger().info("Current center item quantity for player: " + player.getName() + 
+                                //     ", Current quantity: " + currentQuantity + 
+                                //     ", Last quantity: " + lastCenterQuantity[0]);
+                                if (currentQuantity != lastCenterQuantity[0]) {
+                                    // La quantité a changé, mettre à jour les prix dans l'interface
+                                    lastCenterQuantity[0] = currentQuantity;
+                                    // DynaShopPlugin.getInstance().getLogger().info("Center item quantity changed for player: " + player.getName() + 
+                                    //     ", New quantity: " + currentQuantity);
+                                    
+                                    // Mettre à jour l'ItemStack dans l'info avec la nouvelle quantité
+                                    AmountSelectionInfo newInfo = new AmountSelectionInfo(
+                                        info.getShopId(),
+                                        info.getItemId(),
+                                        currentCenterItem, // avec la nouvelle quantité
+                                        info.isBuying(),
+                                        menuType,
+                                        info.getSlotValues() // conserver les valeurs de slot
+                                    );
+                                    
+                                    // Actualiser immédiatement les prix dans tous les boutons
+                                    updateAmountSelectionInventoryImmediately(player, player.getOpenInventory(), newInfo, originalLores);
+                                }
+                            }
+                            // DynaShopPlugin.getInstance().getLogger().info("Center item quantity is unchanged for player: " + player.getName() + 
+                            //     ", Quantity: " + currentQuantity);
+                        }
+                    });
+                }
+            } catch (InterruptedException e) {
+                DynaShopPlugin.getInstance().getLogger().warning("Continuous refresh interrupted for player: " + player.getName() + " - " + e.getMessage());
+                Thread.currentThread().interrupt();
+            } finally {
+                DynaShopPlugin.getInstance().getLogger().info("Stopping continuous refresh for player: " + player.getName());
+                // Nettoyer
+                playerRefreshTasks.remove(player.getUniqueId());
+                amountSelectionMenus.remove(player.getUniqueId());
+            }
+        });
+    }
+
+    /**
+     * Mise à jour immédiate de l'inventaire avec la nouvelle quantité
+     */
+    private void updateAmountSelectionInventoryImmediately(Player player, InventoryView view, AmountSelectionInfo info, Map<Integer, List<String>> originalLores) {
+        if (view == null || view.getTopInventory() == null) return;
+        
+        try {
+            // ÉTAPE 1: Masquer immédiatement tous les placeholders visibles
+            for (int slot = 0; slot < view.getTopInventory().getSize(); slot++) {
+                ItemStack button = view.getTopInventory().getItem(slot);
+                if (button == null || !button.hasItemMeta() || !button.getItemMeta().hasLore()) {
+                    continue;
+                }
+                
+                ItemMeta meta = button.getItemMeta();
+                List<String> currentLore = meta.getLore();
+                
+                // Vérifier si le lore contient des placeholders DynaShop
+                if (containsDynaShopPlaceholder(currentLore)) {
+                    // Pré-remplacer immédiatement pour masquer les placeholders bruts
+                    List<String> tempLore = preProcessPlaceholders(currentLore);
+                    meta.setLore(tempLore);
+                    button.setItemMeta(meta);
+                }
+            }
+            
+            // Forcer une mise à jour immédiate pour masquer les placeholders
+            player.updateInventory();
+
+            // Obtenir les prix de base pour l'item
+            Map<String, String> basePrices = getCachedPrices(
+                player, 
+                info.getShopId(), 
+                info.getItemId(), 
+                info.getItemStack(),
+                true // forceRefresh pour avoir les prix les plus récents
+            );
+            
+            // Parcourir tous les boutons de l'inventaire
+            for (int slot = 0; slot < view.getTopInventory().getSize(); slot++) {
+                ItemStack button = view.getTopInventory().getItem(slot);
+                if (button == null || !button.hasItemMeta() || !button.getItemMeta().hasLore()) {
+                    continue;
+                }
+                
+                // // Récupérer la quantité du bouton
+                // int quantity = button.getAmount();
+
+                // Déterminer la quantité à utiliser pour ce slot spécifique
+                int quantity;
+                
+                if (info.getMenuType().equals("AMOUNT_SELECTION_BULK")) {
+                    // Pour les menus BULK, utiliser la valeur de stack à partir de la map
+                    int stackValue = info.getValueForSlot(slot);
+                    DynaShopPlugin.getInstance().getLogger().info("Using stack value for slot " + slot + ": " + stackValue);
+                    // quantity = stackValue * 64; // Multiplier par 64 pour obtenir le nombre total d'items
+                    quantity = stackValue * button.getMaxStackSize(); // Utiliser la taille maximale de stack pour le calcul
+                } else {
+                    // Pour les menus standard, utiliser la quantité affichée sur l'item central
+                    quantity = info.getItemStack().getAmount();
+                }
+                
+                // Récupérer le lore original si disponible, sinon utiliser le lore actuel
+                List<String> originalLore = originalLores.containsKey(slot) ? 
+                                        originalLores.get(slot) : 
+                                        button.getItemMeta().getLore();
+                
+                if (originalLore == null || originalLore.isEmpty() || !containsDynaShopPlaceholder(originalLore)) {
+                    continue;
+                }
+                
+                // Créer une copie des prix pour cet item spécifique avec cette quantité
+                Map<String, String> adjustedPrices = adjustPricesForQuantity(basePrices, quantity);
+                
+                // Appliquer les remplacements
+                List<String> newLore = replacePlaceholders(originalLore, adjustedPrices, player);
+                ItemMeta meta = button.getItemMeta();
+                meta.setLore(newLore);
+                button.setItemMeta(meta);
+            }
+            
+            // Forcer la mise à jour de l'inventaire pour le joueur
+            player.updateInventory();
+            
+        } catch (Exception e) {
+            plugin.getLogger().warning("Error updating amount selection inventory: " + e.getMessage());
+        }
+    }
+
+    private void updateAmountSelectionInventory(Player player, InventoryView view, AmountSelectionInfo info, Map<Integer, List<String>> originalLores) {
+        if (view == null || view.getTopInventory() == null) { return; }
+
+        try {
+            // Cache global des prix pour cet item
+            final Map<String, String> basePrices = getCachedPrices(
+                player, 
+                info.getShopId(), 
+                info.getItemId(), 
+                info.getItemStack(), 
+                true // forceRefresh
+            );
+            
+            // Traiter chaque bouton individuellement
+            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+                for (int slot = 0; slot < view.getTopInventory().getSize(); slot++) {
+                    final int currentSlot = slot;
+                    
+                    // Ne traiter que les slots qui avaient des placeholders originaux
+                    if (!originalLores.containsKey(currentSlot)) {
+                        continue;
+                    }
+                    
+                    plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+                        try {
+                            ItemStack button = view.getTopInventory().getItem(currentSlot);
+                            if (button == null || !button.hasItemMeta() || !button.getItemMeta().hasLore()) {
+                                return;
+                            }
+                            
+                            // Récupérer la quantité associée au bouton
+                            int quantity = button.getAmount();
+                            
+                            // Créer une copie des prix pour cet item spécifique avec cette quantité
+                            Map<String, String> adjustedPrices = adjustPricesForQuantity(basePrices, quantity);
+
+                            // Utiliser le lore original pour la détection des placeholders
+                            List<String> originalLore = originalLores.get(currentSlot);
+                            if (originalLore == null || originalLore.isEmpty()) {
+                                return;
+                            }
+                            
+                            // Appliquer les remplacements
+                            List<String> newLore = replacePlaceholders(originalLore, adjustedPrices, player);
+                            ItemMeta meta = button.getItemMeta();
+                            meta.setLore(newLore);
+                            button.setItemMeta(meta);
+                            
+                            // Mettre à jour l'item dans l'inventaire immédiatement
+                            final ItemStack finalButton = button.clone();
+                            
+                            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                                try {
+                                    // Vérifier que l'inventaire est toujours ouvert avant de le mettre à jour
+                                    if (player.isOnline() && player.getOpenInventory().equals(view)) {
+                                        view.getTopInventory().setItem(currentSlot, finalButton);
+                                        player.updateInventory();
+                                    }
+                                } catch (Exception e) {
+                                    // Ignorer les erreurs lors de la mise à jour
+                                }
+                            });
+                            
+                        } catch (Exception e) {
+                            // Capturer toute exception pour éviter d'interrompre la tâche
+                        }
+                    });
+                }
+            });
+        } catch (Exception e) {
+            plugin.getLogger().warning("Error updating amount selection inventory: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Ajuste les prix en fonction de la quantité
+     * @param basePrices Prix de base (unitaires)
+     * @param quantity Quantité d'items
+     * @return Prix ajustés pour la quantité spécifiée
+     */
+    private Map<String, String> adjustPricesForQuantity(Map<String, String> basePrices, int quantity) {
+        if (quantity <= 1) {
+            // Pour la quantité 1, pas besoin d'ajuster
+            return new HashMap<>(basePrices);
+        }
+        
+        Map<String, String> adjustedPrices = new HashMap<>();
+        String currencyPrefix = "";
+        String currencySuffix = " $";
+        
+        // Récupérer les préfixes et suffixes de monnaie
+        if (basePrices.get("base_buy") != null) {
+            String baseBuy = basePrices.get("base_buy");
+            if (baseBuy.contains("$")) {
+                int dollarIndex = baseBuy.indexOf("$");
+                // Chercher le préfixe (tout avant le premier chiffre)
+                for (int i = 0; i < dollarIndex; i++) {
+                    if (!Character.isDigit(baseBuy.charAt(i)) && baseBuy.charAt(i) != '.') {
+                        currencyPrefix += baseBuy.charAt(i);
+                    } else {
+                        break;
+                    }
+                }
+                // Le suffixe est " $" ou similaire
+                currencySuffix = baseBuy.substring(baseBuy.indexOf("$"));
+                if (currencySuffix.contains(" ")) {
+                    currencySuffix = currencySuffix.substring(0, currencySuffix.indexOf(" ") + 1) + "$";
+                }
+            }
+        }
+        
+        // Copier les valeurs non-numériques telles quelles
+        for (Map.Entry<String, String> entry : basePrices.entrySet()) {
+            if (!isNumericValue(entry.getKey())) {
+                adjustedPrices.put(entry.getKey(), entry.getValue());
+            }
+        }
+        
+        // Ajuster les prix numériques en multipliant par la quantité
+        try {
+            // Prix d'achat
+            if (isValidNumeric(basePrices.get("buy"))) {
+                double buyPrice = parseFormattedNumber(basePrices.get("buy"));
+                double totalBuyPrice = buyPrice * quantity;
+                adjustedPrices.put("buy", plugin.getPriceFormatter().formatPrice(totalBuyPrice));
+            } else {
+                adjustedPrices.put("buy", basePrices.get("buy"));
+            }
+            
+            // Prix de vente
+            if (isValidNumeric(basePrices.get("sell"))) {
+                double sellPrice = parseFormattedNumber(basePrices.get("sell"));
+                double totalSellPrice = sellPrice * quantity;
+                adjustedPrices.put("sell", plugin.getPriceFormatter().formatPrice(totalSellPrice));
+            } else {
+                adjustedPrices.put("sell", basePrices.get("sell"));
+            }
+            
+            // Prix min/max d'achat
+            if (isValidNumeric(basePrices.get("buy_min"))) {
+                double minBuyPrice = parseFormattedNumber(basePrices.get("buy_min"));
+                double totalMinBuyPrice = minBuyPrice * quantity;
+                adjustedPrices.put("buy_min", plugin.getPriceFormatter().formatPrice(totalMinBuyPrice));
+            } else {
+                adjustedPrices.put("buy_min", basePrices.get("buy_min"));
+            }
+            
+            if (isValidNumeric(basePrices.get("buy_max"))) {
+                double maxBuyPrice = parseFormattedNumber(basePrices.get("buy_max"));
+                double totalMaxBuyPrice = maxBuyPrice * quantity;
+                adjustedPrices.put("buy_max", plugin.getPriceFormatter().formatPrice(totalMaxBuyPrice));
+            } else {
+                adjustedPrices.put("buy_max", basePrices.get("buy_max"));
+            }
+            
+            // Prix min/max de vente
+            if (isValidNumeric(basePrices.get("sell_min"))) {
+                double minSellPrice = parseFormattedNumber(basePrices.get("sell_min"));
+                double totalMinSellPrice = minSellPrice * quantity;
+                adjustedPrices.put("sell_min", plugin.getPriceFormatter().formatPrice(totalMinSellPrice));
+            } else {
+                adjustedPrices.put("sell_min", basePrices.get("sell_min"));
+            }
+            
+            if (isValidNumeric(basePrices.get("sell_max"))) {
+                double maxSellPrice = parseFormattedNumber(basePrices.get("sell_max"));
+                double totalMaxSellPrice = maxSellPrice * quantity;
+                adjustedPrices.put("sell_max", plugin.getPriceFormatter().formatPrice(totalMaxSellPrice));
+            } else {
+                adjustedPrices.put("sell_max", basePrices.get("sell_max"));
+            }
+            
+            // Ajuster les formats de présentation
+            if (adjustedPrices.containsKey("buy") && adjustedPrices.containsKey("buy_min") && adjustedPrices.containsKey("buy_max") &&
+                !adjustedPrices.get("buy").equals("N/A") && !adjustedPrices.get("buy_min").equals("N/A") && !adjustedPrices.get("buy_max").equals("N/A") &&
+                (!adjustedPrices.get("buy_min").equals(adjustedPrices.get("buy")) || !adjustedPrices.get("buy_max").equals(adjustedPrices.get("buy")))) {
+                adjustedPrices.put("base_buy", String.format(
+                    currencyPrefix + "%s" + currencySuffix + " §7(%s - %s) ", 
+                    adjustedPrices.get("buy"), adjustedPrices.get("buy_min"), adjustedPrices.get("buy_max")
+                ));
+            } else if (adjustedPrices.containsKey("buy")) {
+                adjustedPrices.put("base_buy", currencyPrefix + adjustedPrices.get("buy") + currencySuffix);
+            }
+            
+            if (adjustedPrices.containsKey("sell") && adjustedPrices.containsKey("sell_min") && adjustedPrices.containsKey("sell_max") &&
+                !adjustedPrices.get("sell").equals("N/A") && !adjustedPrices.get("sell_min").equals("N/A") && !adjustedPrices.get("sell_max").equals("N/A") &&
+                (!adjustedPrices.get("sell_min").equals(adjustedPrices.get("sell")) || !adjustedPrices.get("sell_max").equals(adjustedPrices.get("sell")))) {
+                adjustedPrices.put("base_sell", String.format(
+                    currencyPrefix + "%s" + currencySuffix + " §7(%s - %s) ", 
+                    adjustedPrices.get("sell"), adjustedPrices.get("sell_min"), adjustedPrices.get("sell_max")
+                ));
+            } else if (adjustedPrices.containsKey("sell")) {
+                adjustedPrices.put("base_sell", currencyPrefix + adjustedPrices.get("sell") + currencySuffix);
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Error adjusting prices for quantity " + quantity + ": " + e.getMessage());
+            return basePrices; // En cas d'erreur, retourner les prix de base
+        }
+        
+        return adjustedPrices;
+    }
+
+    /**
+     * Vérifie si la clé correspond à une valeur numérique
+     */
+    private boolean isNumericValue(String key) {
+        return key.equals("buy") || key.equals("sell") || 
+            key.equals("buy_min") || key.equals("buy_max") || 
+            key.equals("sell_min") || key.equals("sell_max");
+    }
+
+    /**
+     * Vérifie si une chaîne de caractères représente un nombre valide
+     */
+    private boolean isValidNumeric(String value) {
+        return value != null && !value.equals("N/A") && !value.equals("-1");
+    }
+
+    /**
+     * Convertit une chaîne formatée (ex: "1,234.56") en nombre
+     */
+    private double parseFormattedNumber(String formatted) {
+        if (formatted == null || formatted.equals("N/A")) {
+            return 0.0;
+        }
+        
+        try {
+            // Supprimer tous les caractères non numériques sauf le point décimal
+            String cleaned = "";
+            boolean hasDecimal = false;
+            
+            for (char c : formatted.toCharArray()) {
+                if (Character.isDigit(c)) {
+                    cleaned += c;
+                } else if (c == '.' && !hasDecimal) {
+                    cleaned += c;
+                    hasDecimal = true;
+                }
+            }
+            
+            return Double.parseDouble(cleaned);
+        } catch (NumberFormatException e) {
+            plugin.getLogger().warning("Could not parse number from: " + formatted);
+            return 0.0;
+        }
+    }
+
     public void shutdown() {
         // if (refreshTask != null) {
         //     refreshTask.cancel();
@@ -794,5 +1654,7 @@ public class ShopItemPlaceholderListener implements Listener {
         // openShopMap.clear();
         // Annuler toutes les tâches de rafraîchissement
         playerRefreshTasks.clear();
+        openShopMap.clear();
+        amountSelectionMenus.clear();
     }
 }
