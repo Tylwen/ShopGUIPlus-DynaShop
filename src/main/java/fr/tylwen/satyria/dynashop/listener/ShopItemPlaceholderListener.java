@@ -2518,5 +2518,6 @@ public class ShopItemPlaceholderListener implements Listener {
         playerRefreshTasks.clear();
         openShopMap.clear();
         amountSelectionMenus.clear();
+        pendingBulkMenuOpens.clear();
     }
 }
