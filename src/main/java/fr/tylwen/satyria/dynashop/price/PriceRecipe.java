@@ -1119,23 +1119,23 @@ public class PriceRecipe {
         // return ingredients;
     }
 
-    /**
-     * Vérifie si les ingrédients sont en cache et si le cache est valide
-     */
-    private boolean isInCache(String cacheKey) {
-        // return ingredientsCache.containsKey(cacheKey) && 
-        //     System.currentTimeMillis() - cacheTimestamps.getOrDefault(cacheKey, 0L) < CACHE_DURATION;
-        return recipeCache.get(cacheKey, () -> null) != null;
-    }
+    // /**
+    //  * Vérifie si les ingrédients sont en cache et si le cache est valide
+    //  */
+    // private boolean isInCache(String cacheKey) {
+    //     // return ingredientsCache.containsKey(cacheKey) && 
+    //     //     System.currentTimeMillis() - cacheTimestamps.getOrDefault(cacheKey, 0L) < CACHE_DURATION;
+    //     return recipeCache.get(cacheKey, () -> null) != null;
+    // }
 
-    /**
-     * Met à jour le cache des ingrédients
-     */
-    private void updateCache(String cacheKey, List<ItemStack> ingredients) {
-        // ingredientsCache.put(cacheKey, new ArrayList<>(ingredients));
-        // cacheTimestamps.put(cacheKey, System.currentTimeMillis());
-        recipeCache.put(cacheKey, new ArrayList<>(ingredients));
-    }
+    // /**
+    //  * Met à jour le cache des ingrédients
+    //  */
+    // private void updateCache(String cacheKey, List<ItemStack> ingredients) {
+    //     // ingredientsCache.put(cacheKey, new ArrayList<>(ingredients));
+    //     // cacheTimestamps.put(cacheKey, System.currentTimeMillis());
+    //     recipeCache.put(cacheKey, new ArrayList<>(ingredients));
+    // }
 
     /**
      * Charge les ingrédients selon le type de recette
