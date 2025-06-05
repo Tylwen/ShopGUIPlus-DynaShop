@@ -21,6 +21,7 @@ import me.clip.placeholderapi.PlaceholderAPI;
 import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.item.ShopItem;
 import net.brcdev.shopgui.ShopGuiPlusApi;
+import net.brcdev.shopgui.exception.player.PlayerDataNotLoadedException;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
@@ -45,6 +46,7 @@ public class ShopItemPlaceholderListener implements Listener {
     private final Map<UUID, SimpleEntry<String, String>> openShopMap = new ConcurrentHashMap<>();
     private final Map<UUID, AmountSelectionInfo> amountSelectionMenus = new ConcurrentHashMap<>();
     private final Map<UUID, SimpleEntry<String, String>> lastShopMap = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> pendingBulkMenuOpens = new ConcurrentHashMap<>();
 
     // private BukkitTask refreshTask;
 
@@ -78,6 +80,7 @@ public class ShopItemPlaceholderListener implements Listener {
                 playerRefreshTasks.remove(uuid);
             }
         }
+        pendingBulkMenuOpens.clear();
     }
 
     // Classe interne pour stocker les informations du menu de sélection
@@ -134,9 +137,7 @@ public class ShopItemPlaceholderListener implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onInventoryOpen(InventoryOpenEvent event) {
-        if (!(event.getPlayer() instanceof Player)) {
-            return;
-        }
+        if (!(event.getPlayer() instanceof Player)) return;
 
         Player player = (Player) event.getPlayer();
         InventoryView view = event.getView();
@@ -146,13 +147,36 @@ public class ShopItemPlaceholderListener implements Listener {
         
         // Traitement spécial pour les menus de sélection de quantité
         if (fullShopId.equals("AMOUNT_SELECTION") || fullShopId.equals("AMOUNT_SELECTION_BULK")) {
+            // // IMPORTANT: Enregistrer le shop complet (AVEC LE NUMÉRO DE PAGE) ouvert par le joueur
+            // openShopMap.put(player.getUniqueId(), new SimpleEntry<>(fullShopId, null));
+            // plugin.getLogger().info("Detected shop page: " + fullShopId + " for player " + player.getName());
+            // NE PAS ÉCRASER l'information du shop existante dans openShopMap
+            // Récupérer les informations de shop existantes
+            SimpleEntry<String, String> shopInfo = openShopMap.get(player.getUniqueId());
+            
+            // Si aucune info dans openShopMap, essayer lastShopMap
+            if (shopInfo == null) {
+                shopInfo = lastShopMap.get(player.getUniqueId());
+                plugin.getLogger().info("Restored from lastShopMap for selection menu: " +
+                    (shopInfo != null ? shopInfo.getKey() + "=" + shopInfo.getValue() : "null"));
+
+                // Si on a trouvé des infos dans lastShopMap, les mettre dans openShopMap
+                if (shopInfo != null) {
+                    openShopMap.put(player.getUniqueId(), shopInfo);
+                }
+            }
+            
+            // Stocker le type de menu séparément
+            plugin.getLogger().info("Opening selection menu type: " + fullShopId + " for shop: " +
+                (shopInfo != null ? shopInfo.getKey() : "unknown"));
+
+            // NOUVEAU: Stocker le type de menu séparément (vous devrez ajouter cette map)
+            // private final Map<UUID, String> currentMenuTypes = new ConcurrentHashMap<>();
+            // currentMenuTypes.put(player.getUniqueId(), menuType);
+            
             // DynaShopPlugin.getInstance().getLogger().info("TEST 1: " + fullShopId);
             AmountSelectionInfo info = extractAmountSelectionInfo(view, fullShopId);
-            if (info == null) {
-                // DynaShopPlugin.getInstance().getLogger().warning("Failed to extract amount selection info for player: " + player.getName());
-                return;
-            }
-            // if (info == null) return;
+            if (info == null) return;
             
             // Stocker les informations pour ce menu
             amountSelectionMenus.put(player.getUniqueId(), info);
@@ -212,8 +236,15 @@ public class ShopItemPlaceholderListener implements Listener {
             updateAmountSelectionInventory(player, view, info, originalLores);
             
             // Démarrer l'actualisation continue
-            startContinuousAmountSelectionRefresh(player, view, info, originalLores);
+            startContinuousAmountSelectionRefresh(player, view, info, originalLores, fullShopId);
             return;
+        } else {
+            // C'est un shop normal
+            // IMPORTANT: Conserver le shopId complet avec numéro de page dans openShopMap
+            openShopMap.put(player.getUniqueId(), new SimpleEntry<>(fullShopId, null));
+            plugin.getLogger().info("New menu type for player " + player.getName() + ": " + fullShopId + " openShopMap: " + openShopMap.get(player.getUniqueId()));
+            
+            // [Reste du code existant...]
         }
         
         String shopId = fullShopId;
@@ -292,8 +323,23 @@ public class ShopItemPlaceholderListener implements Listener {
             if (menuType != null && (menuType.equals("AMOUNT_SELECTION") || menuType.equals("AMOUNT_SELECTION_BULK"))) {
                 // Dans un menu de sélection, on ne change pas l'item
                 // On conserve l'information précédente
-                // plugin.getLogger().info("Click in selection menu - preserving item info: " + shopData.getValue());
+                plugin.getLogger().info("Click in selection menu - preserving item info: " + shopData.getValue());
                 return;
+            } else if (menuType != null && menuType.equals("AMOUNT_SELECTION")) {
+                // Si le joueur clique sur le bouton "BULK" dans un menu de sélection
+                if (event.getCurrentItem() != null && event.getCurrentItem().getType() != Material.AIR) {
+                    ItemMeta meta = event.getCurrentItem().getItemMeta();
+                    if (meta != null && meta.hasDisplayName()) {
+                        String bulkButton = ChatColor.translateAlternateColorCodes('&', 
+                            ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("GENERAL.BULK"));
+                        
+                        // Si c'est un bouton BULK, marquer le joueur comme passant au menu BULK
+                        if (meta.getDisplayName().contains(bulkButton)) {
+                            pendingBulkMenuOpens.put(player.getUniqueId(), System.currentTimeMillis());
+                            plugin.getLogger().info("Player " + player.getName() + " is opening a BULK menu, preventing shop reopening");
+                        }
+                    }
+                }
             }
 
             // // Tenter de récupérer l'ID de l'item à partir du slot
@@ -353,10 +399,14 @@ public class ShopItemPlaceholderListener implements Listener {
         
         // AJOUT: Sauvegarder les informations du shop actuel avant de les supprimer
         SimpleEntry<String, String> currentShop = openShopMap.get(playerId);
+        
+        // IMPORTANT: Définir la variable shopId pour l'utiliser plus tard
+        String shopId = currentShop != null ? currentShop.getKey() : null;
+
         if (currentShop != null && currentShop.getKey() != null) {
-            lastShopMap.put(playerId, currentShop);
-            // plugin.getLogger().info("Saving shop info for " + player.getName() + ": " + 
-            //                     currentShop.getKey() + ":" + currentShop.getValue());
+            // Créer une NOUVELLE entrée pour éviter les références partagées
+            lastShopMap.put(playerId, new SimpleEntry<>(currentShop.getKey(), currentShop.getValue()));
+            plugin.getLogger().info("Saved shop info to lastShopMap: " + currentShop.getKey() + "=" + currentShop.getValue());
         }
         
         // NE PAS VIDER openShopMap immédiatement si c'est un menu de sélection
@@ -408,19 +458,122 @@ public class ShopItemPlaceholderListener implements Listener {
         if (!isSelectionMenu) {
             // Utiliser une tâche différée avec vérification supplémentaire
             plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                if (!player.isOnline()) return;
                 // Vérifier d'abord si le joueur n'a pas ouvert un nouveau menu de sélection
                     // openShopMap.remove(playerId);
                 String newMenuType = player.isOnline() ? determineShopId(player.getOpenInventory()) : null;
                 boolean isNewSelectionMenu = newMenuType != null && (newMenuType.equals("AMOUNT_SELECTION") || newMenuType.equals("AMOUNT_SELECTION_BULK"));
-                // DynaShopPlugin.getInstance().getLogger().info("New menu type for player " + player.getName() + ": " + newMenuType + " openShopMap: " + openShopMap.get(playerId));
+                DynaShopPlugin.getInstance().getLogger().info("New menu type for player " + player.getName() + ": " + newMenuType + " openShopMap: " + openShopMap.get(playerId));
+                
+                // Vérifier si c'est juste un changement de page du même shop
+                boolean isChangingPage = false;
+                if (newMenuType != null && shopId != null) {
+                    String baseNewShop = newMenuType.contains("#") ? newMenuType.split("#")[0] : newMenuType;
+                    String baseOldShop = shopId.contains("#") ? shopId.split("#")[0] : shopId;
+                    isChangingPage = baseNewShop.equals(baseOldShop) && newMenuType.contains("#");
+                }
 
-                // Ne supprimer que si ce n'est toujours pas un menu de sélection
-                if (!isNewSelectionMenu) {
+                // // Ne supprimer que si ce n'est toujours pas un menu de sélection
+                // if (!isNewSelectionMenu) {
+                //     openShopMap.remove(playerId);
+                //     amountSelectionMenus.remove(playerId);
+                //     DynaShopPlugin.getInstance().getLogger().info("Cleared openShopMap for player: " + player.getName());
+                // }
+                // Ne nettoyer que si ce n'est pas un menu de sélection ET pas un changement de page
+                if (!isNewSelectionMenu && !isChangingPage) {
                     openShopMap.remove(playerId);
                     amountSelectionMenus.remove(playerId);
-                    // DynaShopPlugin.getInstance().getLogger().info("Cleared openShopMap for player: " + player.getName());
+                    plugin.getLogger().info("Cleared openShopMap for player: " + player.getName());
+                } else {
+                    // Si c'est un changement de page, mettre à jour openShopMap avec la nouvelle page
+                    if (isChangingPage) {
+                        // Préserver l'itemId lors du changement de page
+                        String itemId = currentShop != null ? currentShop.getValue() : null;
+                        openShopMap.put(playerId, new SimpleEntry<>(newMenuType, itemId));
+                        plugin.getLogger().info("Updated openShopMap for page change: " + newMenuType + "=" + itemId);
+                        
+                        // Mettre à jour lastShopMap également
+                        lastShopMap.put(playerId, new SimpleEntry<>(newMenuType, itemId));
+                    }
+                    
+                    plugin.getLogger().info("Preserved shop info: " + 
+                                        (isChangingPage ? "changing page" : "opening selection menu"));
                 }
             }, 10L); // Délai à 10 ticks (0.5s)
+        } else {
+            // Pour les menus de sélection, ne pas nettoyer mais arrêter le refresh
+            playerRefreshTasks.remove(playerId);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onSelectionMenuClose(InventoryCloseEvent event) {
+        if (!(event.getPlayer() instanceof Player)) return;
+        
+        Player player = (Player) event.getPlayer();
+        UUID playerId = player.getUniqueId();
+        String menuType = determineShopId(event.getView());
+        
+        // Vérifier si c'est un menu de sélection qui se ferme
+        if (menuType != null && (menuType.equals("AMOUNT_SELECTION") || menuType.equals("AMOUNT_SELECTION_BULK"))) {
+            // IMPORTANT: Vérifier si le joueur est en train d'ouvrir un menu BULK
+            if (pendingBulkMenuOpens.containsKey(playerId)) {
+                long timestamp = pendingBulkMenuOpens.get(playerId);
+                // Si l'entrée a moins de 500ms, c'est une transition vers un menu BULK
+                if (System.currentTimeMillis() - timestamp < 500) {
+                    pendingBulkMenuOpens.remove(playerId);
+                    plugin.getLogger().info("Detected transition to BULK menu, not reopening shop for player " + player.getName());
+                    return; // Ne pas continuer avec le code de réouverture du shop
+                } else {
+                    // Nettoyer les entrées périmées
+                    pendingBulkMenuOpens.remove(playerId);
+                }
+            }
+
+            // Récupérer l'information du dernier shop (avec son numéro de page)
+            SimpleEntry<String, String> lastShop = lastShopMap.get(player.getUniqueId());
+            
+            if (lastShop != null && lastShop.getKey() != null && lastShop.getKey().contains("#")) {
+                // Extraire le nom du shop et la page
+                String[] parts = lastShop.getKey().split("#");
+                String shopId = parts[0];
+                int page = 1;
+                
+                try {
+                    page = Integer.parseInt(parts[1]);
+                } catch (NumberFormatException e) {
+                    page = 1;
+                }
+
+                final int finalPage = page;
+                
+                // Si la page est supérieure à 1, programmer l'ouverture du shop à cette page
+                if (finalPage > 1) {
+                    // Utiliser un délai pour éviter les conflits avec l'événement de fermeture
+                    plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                        // Vérifier que le joueur est toujours en ligne
+                        // Vérification supplémentaire que le joueur n'est pas dans un menu de sélection
+                        if (player.isOnline()) {
+                            String currentMenuType = determineShopId(player.getOpenInventory());
+                            if (currentMenuType == null || 
+                                (!currentMenuType.equals("AMOUNT_SELECTION") && !currentMenuType.equals("AMOUNT_SELECTION_BULK"))) {
+                                
+                                Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
+                                if (shop != null) {
+                                    plugin.getLogger().info("Reopening shop " + shopId + " at page " + finalPage + " for player " + player.getName());
+                                    try {
+                                        ShopGuiPlusApi.openShop(player, shopId, finalPage);
+                                    } catch (PlayerDataNotLoadedException e) {
+                                        // Ignorer l'erreur
+                                    }
+                                }
+                            } else {
+                                plugin.getLogger().info("Player " + player.getName() + " already in selection menu, not reopening shop");
+                            }
+                        }
+                    }, 2L); // 2 ticks = 100ms
+                }
+            }
         }
     }
 
@@ -480,6 +633,7 @@ public class ShopItemPlaceholderListener implements Listener {
                             String pageStr = title.substring(before.length(), after.isEmpty() ? title.length() : title.length() - after.length());
                             try {
                                 page = Integer.parseInt(pageStr);
+                                plugin.getLogger().info("Detected page number: " + page + " for shop " + shop.getId());
                             } catch (NumberFormatException e) {
                                 page = 1;
                             }
@@ -830,20 +984,39 @@ public class ShopItemPlaceholderListener implements Listener {
         //     ? shopId + ":" + itemId + ":" + player.getUniqueId().toString()
         //     : shopId + ":" + itemId;
 
-        // // Créer une clé unique incluant le joueur ET la quantité
-        // final String cacheKey = player != null
-        //     ? shopId + ":" + itemId + ":" + quantity + ":" + player.getUniqueId().toString()
-        //     : shopId + ":" + itemId + ":" + quantity;
-
-        String baseShopId = shopId;
-        if (shopId.contains("#")) {
-            baseShopId = shopId.split("#")[0];
-        }
-        
         // Créer une clé unique incluant le joueur ET la quantité
         final String cacheKey = player != null
-            ? baseShopId + ":" + itemId + ":" + quantity + ":" + player.getUniqueId().toString()
-            : baseShopId + ":" + itemId + ":" + quantity;
+            ? shopId + ":" + itemId + ":" + quantity + ":" + player.getUniqueId().toString()
+            : shopId + ":" + itemId + ":" + quantity;
+
+        // String baseShopId = shopId;
+        // if (shopId.contains("#")) {
+        //     baseShopId = shopId.split("#")[0];
+        //     plugin.getLogger().info("Using full shop ID for cache: " + shopId + ", base: " + baseShopId);
+        // }
+        // Extraire le shopId de base pour les appels à l'API
+        String baseShopId = shopId;
+        int page = 1;
+        
+        if (shopId != null && shopId.contains("#")) {
+            String[] parts = shopId.split("#");
+            baseShopId = parts[0];
+            try {
+                page = Integer.parseInt(parts[1]);
+            } catch (NumberFormatException e) {
+                page = 1;
+            }
+            plugin.getLogger().info("Using shop ID with page: " + shopId + " (base=" + baseShopId + ", page=" + page + ")");
+        }
+        
+        // Variables finales pour utilisation dans la lambda
+        final String finalBaseShopId = baseShopId;
+        final int finalPage = page;
+        
+        // // Créer une clé unique incluant le joueur ET la quantité
+        // final String cacheKey = player != null
+        //     ? baseShopId + ":" + itemId + ":" + quantity + ":" + player.getUniqueId().toString()
+        //     : baseShopId + ":" + itemId + ":" + quantity;
 
         // // Forcer le rafraîchissement pour toujours obtenir les prix modifiés les plus récents
         // forceRefresh = true; // Forcer le rafraîchissement à chaque fois
@@ -858,7 +1031,7 @@ public class ShopItemPlaceholderListener implements Listener {
         
         // Forcer le rafraîchissement pour les items très importants
         List<String> criticalItems = plugin.getConfigMain().getStringList("critical-items");
-        boolean isCriticalItem = criticalItems.contains(shopId + ":" + itemId);
+        boolean isCriticalItem = criticalItems.contains(baseShopId + ":" + itemId);
         forceRefresh = forceRefresh || isCriticalItem;
         
         // Utiliser le CacheManager au lieu de la vérification manuelle du cache
@@ -878,7 +1051,7 @@ public class ShopItemPlaceholderListener implements Listener {
 
             // String buyPrice, sellPrice, buyMinPrice, buyMaxPrice, sellMinPrice, sellMaxPrice;
 
-            DynamicPrice price = DynaShopPlugin.getInstance().getDynaShopListener().getOrLoadPrice(player, shopId, itemId, itemStack);
+            DynamicPrice price = DynaShopPlugin.getInstance().getDynaShopListener().getOrLoadPrice(player, finalBaseShopId, itemId, itemStack);
 
             if (price != null) {
                 // buyPrice = plugin.getPriceFormatter().formatPrice(price.getBuyPrice());
@@ -927,12 +1100,12 @@ public class ShopItemPlaceholderListener implements Listener {
                 // sellMaxPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_max");
                 
                 // Si pas de prix dynamique, récupérer les prix statiques et multiplier
-                double buyPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy")) * quantity;
-                double sellPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell")) * quantity;
-                double buyMinPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_min")) * quantity;
-                double buyMaxPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_max")) * quantity;
-                double sellMinPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_min")) * quantity;
-                double sellMaxPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_max")) * quantity;
+                double buyPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "buy")) * quantity;
+                double sellPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "sell")) * quantity;
+                double buyMinPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "buy_min")) * quantity;
+                double buyMaxPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "buy_max")) * quantity;
+                double sellMinPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "sell_min")) * quantity;
+                double sellMaxPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "sell_max")) * quantity;
                 
                 // // S'assurer que les prix ne sont pas négatifs
                 // buyPriceValue = Math.max(0, buyPriceValue);
@@ -1267,7 +1440,7 @@ public class ShopItemPlaceholderListener implements Listener {
         // Récupérer l'item central
         ItemStack centerItem = view.getTopInventory().getItem(centerSlot);
         if (centerItem == null) {
-            // plugin.getLogger().warning("Center item is null in amount selection inventory at slot " + centerSlot);
+            plugin.getLogger().warning("Center item is null in amount selection inventory at slot " + centerSlot);
             return null;
         }
         
@@ -1278,18 +1451,20 @@ public class ShopItemPlaceholderListener implements Listener {
         // Fallback sur lastShopMap si nécessaire
         if (shopInfo == null) {
             shopInfo = lastShopMap.get(player.getUniqueId());
+            plugin.getLogger().info("Using lastShopMap for selection menu: " + 
+                (shopInfo != null ? shopInfo.getKey() : "null"));
         }
         
-        if (shopInfo == null) {
-            return null;
-        }
+        if (shopInfo == null) return null;
         
-        // Extraire le shopId de base et la page
         String shopId = shopInfo.getKey();
+        String itemId = shopInfo.getValue();
+        
+        // Log explicite pour débogage
         String baseShopId = shopId;
         int page = 1;
         
-        if (shopId.contains("#")) {
+        if (shopId != null && shopId.contains("#")) {
             String[] parts = shopId.split("#");
             baseShopId = parts[0];
             try {
@@ -1299,20 +1474,48 @@ public class ShopItemPlaceholderListener implements Listener {
             }
         }
         
+        plugin.getLogger().info("Extracting info for selection menu: type=" + menuType + 
+                            ", shop=" + shopId + " (base=" + baseShopId + ", page=" + page + ")" +
+                            ", item=" + itemId);
+        
+        return new AmountSelectionInfo(
+            shopId,    // Utiliser le vrai shopId (avec page) et non le type de menu
+            itemId,    // Utiliser le vrai itemId
+            centerItem,
+            isBuying,
+            menuType,  // Type de menu uniquement ici
+            slotValues
+        );
+        
+        // // Extraire le shopId de base et la page
+        // String shopId = shopInfo.getKey();
+        // String baseShopId = shopId;
+        // int page = 1;
+        
+        // if (shopId.contains("#")) {
+        //     String[] parts = shopId.split("#");
+        //     baseShopId = parts[0];
+        //     try {
+        //         page = Integer.parseInt(parts[1]);
+        //     } catch (NumberFormatException e) {
+        //         page = 1;
+        //     }
+        // }
+        
         // // Log pour débogage
         // plugin.getLogger().info("Extracting info for selection menu: shop=" + shopId + 
         //                     ", base shop=" + baseShopId + 
         //                     ", page=" + page + 
         //                     ", item=" + shopInfo.getValue());
         
-        return new AmountSelectionInfo(
-            shopId,              // shopId complet avec page
-            shopInfo.getValue(), // itemId
-            centerItem,          // itemStack
-            isBuying,            // isBuying
-            menuType,            // menuType
-            slotValues           // slotValues
-        );
+        // return new AmountSelectionInfo(
+        //     shopId,              // shopId complet avec page
+        //     shopInfo.getValue(), // itemId
+        //     centerItem,          // itemStack
+        //     isBuying,            // isBuying
+        //     menuType,            // menuType
+        //     slotValues           // slotValues
+        // );
         
         // return new AmountSelectionInfo(
         //     shopInfo.getKey(),    // shopId
