@@ -14,6 +14,8 @@ public class DataConfig {
     private final String databaseSqliteFile;
 
     private final int dynamicPriceDuration;
+    private final long guiRefreshDefaultItems;
+    private final long guiRefreshCriticalItems;
 
     // Variables pour les valeurs par défaut
     private final double priceMinMultiply;
@@ -76,6 +78,10 @@ public class DataConfig {
         this.shapedValue = config.getDouble("recipe.shaped", 1.0);
         this.shapelessValue = config.getDouble("recipe.shapeless", 1.0);
         this.furnaceValue = config.getDouble("recipe.furnace", 1.0);
+
+        
+        this.guiRefreshDefaultItems = config.getLong("gui.refresh.default-items", 1000); // 1 seconde en ms
+        this.guiRefreshCriticalItems = config.getLong("gui.refresh.critical-items", 300); // 0.3 seconde en ms
     }
 
     // Getters pour accéder aux valeurs de la configuration de la base de données
@@ -188,5 +194,14 @@ public class DataConfig {
 
     public double getFurnaceValue() {
         return furnaceValue;
+    }
+
+    // Getters pour les valeurs de rafraîchissement de l'interface graphique
+    public long getGuiRefreshDefaultItems() {
+        return guiRefreshDefaultItems;
+    }
+    
+    public long getGuiRefreshCriticalItems() {
+        return guiRefreshCriticalItems;
     }
 }

@@ -48,71 +48,71 @@ public class BatchDatabaseUpdater {
     private final Thread backgroundThread;
     private final AtomicBoolean running = new AtomicBoolean(true);
     
-    public BatchDatabaseUpdater(DynaShopPlugin plugin) {
-        this.plugin = plugin;
-        
-        // Créer un thread dédié qui vérifie régulièrement les mises à jour en attente
-        backgroundThread = new Thread(() -> {
-            while (running.get()) {
-                try {
-                    flushUpdates();
-                    Thread.sleep(1000); // Vérifier chaque seconde
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                } catch (Exception e) {
-                    plugin.getLogger().severe("Error updating prices: " + e.getMessage());
-                }
-            }
-        });
-        // backgroundThread = Thread.startVirtualThread(() -> {
-        //     while (!Thread.currentThread().isInterrupted()) {
-        //         try {
-        //             flushUpdates();
-        //             Thread.sleep(1000); // Vérifier chaque seconde
-        //         } catch (InterruptedException e) {
-        //             Thread.currentThread().interrupt();
-        //             break;
-        //         } catch (Exception e) {
-        //             plugin.getLogger().severe("Error updating prices: " + e.getMessage());
-        //         }
-        //     }
-        // });
-        backgroundThread.setDaemon(true);
-        backgroundThread.setName("DynaShop-DBUpdater");
-        backgroundThread.start();
-    }
     // public BatchDatabaseUpdater(DynaShopPlugin plugin) {
     //     this.plugin = plugin;
         
-    //     // Utilisation d'un thread virtuel
-    //     backgroundThread = Thread.ofVirtual()
-    //         .name("DynaShop-DBUpdater")
-    //         .uncaughtExceptionHandler((t, e) -> {
-    //             plugin.getLogger().severe("Uncaught exception in database updater thread: " + e.getMessage());
-    //             e.printStackTrace();
-    //         })
-    //         .start(() -> {
-    //             while (running.get()) {
-    //                 try {
-    //                     flushUpdates();
-    //                     Thread.sleep(1000); // Vérifier chaque seconde
-    //                 } catch (InterruptedException e) {
-    //                     // Pas besoin d'appeler Thread.currentThread().interrupt() car on sort de la boucle
-    //                     Thread.currentThread().interrupt();
-    //                     break;
-    //                 } catch (Exception e) {
-    //                     plugin.getLogger().severe("Error updating prices: " + e.getMessage());
-    //                 }
-    //             }
-    //             // Dernière mise à jour avant de terminer complètement
+    //     // Créer un thread dédié qui vérifie régulièrement les mises à jour en attente
+    //     backgroundThread = new Thread(() -> {
+    //         while (running.get()) {
     //             try {
     //                 flushUpdates();
+    //                 Thread.sleep(1000); // Vérifier chaque seconde
+    //             } catch (InterruptedException e) {
+    //                 Thread.currentThread().interrupt();
+    //                 break;
     //             } catch (Exception e) {
-    //                 plugin.getLogger().severe("Error during final flush: " + e.getMessage());
+    //                 plugin.getLogger().severe("Error updating prices: " + e.getMessage());
     //             }
-    //         });
+    //         }
+    //     });
+    //     // backgroundThread = Thread.startVirtualThread(() -> {
+    //     //     while (!Thread.currentThread().isInterrupted()) {
+    //     //         try {
+    //     //             flushUpdates();
+    //     //             Thread.sleep(1000); // Vérifier chaque seconde
+    //     //         } catch (InterruptedException e) {
+    //     //             Thread.currentThread().interrupt();
+    //     //             break;
+    //     //         } catch (Exception e) {
+    //     //             plugin.getLogger().severe("Error updating prices: " + e.getMessage());
+    //     //         }
+    //     //     }
+    //     // });
+    //     backgroundThread.setDaemon(true);
+    //     backgroundThread.setName("DynaShop-DBUpdater");
+    //     backgroundThread.start();
     // }
+    public BatchDatabaseUpdater(DynaShopPlugin plugin) {
+        this.plugin = plugin;
+        
+        // Utilisation d'un thread virtuel
+        backgroundThread = Thread.ofVirtual()
+            .name("DynaShop-DBUpdater")
+            .uncaughtExceptionHandler((t, e) -> {
+                plugin.getLogger().severe("Uncaught exception in database updater thread: " + e.getMessage());
+                e.printStackTrace();
+            })
+            .start(() -> {
+                while (running.get()) {
+                    try {
+                        flushUpdates();
+                        Thread.sleep(1000); // Vérifier chaque seconde
+                    } catch (InterruptedException e) {
+                        // Pas besoin d'appeler Thread.currentThread().interrupt() car on sort de la boucle
+                        Thread.currentThread().interrupt();
+                        break;
+                    } catch (Exception e) {
+                        plugin.getLogger().severe("Error updating prices: " + e.getMessage());
+                    }
+                }
+                // Dernière mise à jour avant de terminer complètement
+                try {
+                    flushUpdates();
+                } catch (Exception e) {
+                    plugin.getLogger().severe("Error during final flush: " + e.getMessage());
+                }
+            });
+    }
     
     // public void queueUpdate(String shopID, String itemID, DynamicPrice price) {
     //     // // Forcer une mise à jour immédiate si c'est une recette
@@ -281,28 +281,28 @@ public class BatchDatabaseUpdater {
         }
     }
     
-    public void shutdown() {
-        running.set(false);
-        backgroundThread.interrupt();
-        flushUpdates(); // Traiter les dernières mises à jour en attente
-    }
     // public void shutdown() {
     //     running.set(false);
     //     backgroundThread.interrupt();
-        
-    //     try {
-    //         // Attendre la fin du thread avec un timeout raisonnable
-    //         backgroundThread.join(5000);
-    //     } catch (InterruptedException e) {
-    //         plugin.getLogger().warning("Interrupted while waiting for database updater to finish");
-    //         // Restaurer l'état d'interruption
-    //         Thread.currentThread().interrupt();
-    //     }
-        
-    //     // Si le thread ne s'est pas terminé proprement, forcer une dernière mise à jour
-    //     if (backgroundThread.isAlive()) {
-    //         plugin.getLogger().warning("Database updater thread did not terminate gracefully");
-    //         flushUpdates();
-    //     }
+    //     flushUpdates(); // Traiter les dernières mises à jour en attente
     // }
+    public void shutdown() {
+        running.set(false);
+        backgroundThread.interrupt();
+        
+        try {
+            // Attendre la fin du thread avec un timeout raisonnable
+            backgroundThread.join(5000);
+        } catch (InterruptedException e) {
+            plugin.getLogger().warning("Interrupted while waiting for database updater to finish");
+            // Restaurer l'état d'interruption
+            Thread.currentThread().interrupt();
+        }
+        
+        // Si le thread ne s'est pas terminé proprement, forcer une dernière mise à jour
+        if (backgroundThread.isAlive()) {
+            plugin.getLogger().warning("Database updater thread did not terminate gracefully");
+            flushUpdates();
+        }
+    }
 }

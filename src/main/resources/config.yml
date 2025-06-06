@@ -40,8 +40,20 @@ default:
   stock-buy-modifier: 0.5 # Stock modifier for dynamic pricing
   stock-sell-modifier: 2.0 # Stock modifier for dynamic pricing
 
+gui:
+  refresh:
+    # default-items: 5 # Default refresh time for the GUI in seconds
+    # critical-items: 1 # Refresh time for critical items in seconds
+    default-items: 1000 # Default refresh time for the GUI in milliseconds (1000 ms = 1 second)
+    critical-items: 300 # Refresh time for critical items in milliseconds (300 ms = 0.3 seconds)
+
 # Paramètres de cache
 cache:
+  # Mode de cache : "full" pour un cache complet, "realtime" pour un cache en temps réel
+  # Mode de cache "full" : les prix sont mis à jour périodiquement
+  # Mode de cache "realtime" : les prix sont mis à jour en temps réel, mais peuvent être moins performants
+  # Mode de cache "full" est recommandé pour les serveurs avec beaucoup de joueurs
+  mode: "full" # "full" or "realtime"
   # Liste des items dont les prix doivent toujours être à jour
   critical-items:
     # - "minerais:15"  # Exemple: l'or est critique

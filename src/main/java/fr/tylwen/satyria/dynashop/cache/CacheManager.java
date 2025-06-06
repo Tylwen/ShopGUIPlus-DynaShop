@@ -169,3 +169,61 @@ public class CacheManager<K, V> {
         }
     }
 }
+
+
+// Collecte des informations sur l’espace de travailVoici à quoi servent les différents caches dans `DynaShopPlugin` :
+
+// ---
+
+// ### 1. `priceCache`  
+// **Type** : `CacheManager<String, DynamicPrice>`  
+// **But** :  
+// - Stocke les objets `DynamicPrice` pour chaque item/shop.
+// - Permet de ne pas recalculer le prix dynamique complet à chaque accès (lecture rapide du cache).
+// - Utilisé pour toutes les opérations qui ont besoin du prix d’un item (achat, vente, affichage…).
+
+// ---
+
+// ### 2. `recipeCache`  
+// **Type** : `CacheManager<String, List<ItemStack>>`  
+// **But** :  
+// - Stocke la liste des ingrédients d’une recette pour chaque item.
+// - Évite de relire et parser la config à chaque fois qu’on veut connaître la recette d’un item.
+// - Utilisé lors du calcul du prix par recette ou pour afficher les ingrédients.
+
+// ---
+
+// ### 3. `calculatedPriceCache`  
+// **Type** : `CacheManager<String, Double>`  
+// **But** :  
+// - Stocke le résultat du calcul final d’un prix (double) pour un item donné, souvent pour un type précis (buy/sell).
+// - Sert à éviter de recalculer le prix (parfois complexe) à chaque demande, surtout pour les items dont le prix dépend de plusieurs facteurs.
+
+// ---
+
+// ### 4. `stockCache`  
+// **Type** : `CacheManager<String, Integer>`  
+// **But** :  
+// - Stocke le stock courant d’un item (quantité disponible).
+// - Permet de ne pas interroger la base de données ou la config à chaque accès au stock.
+// - Important pour les shops en mode stock ou static_stock.
+
+// ---
+
+// ### 5. `displayPriceCache`  
+// **Type** : `CacheManager<String, Map<String, String>>`  
+// **But** :  
+// - Stocke les valeurs déjà formatées pour les placeholders d’affichage (prix, stock, etc.) pour chaque item.
+// - Permet d’accélérer l’affichage des lores dans les menus, car tout est déjà prêt à être injecté dans le texte.
+// - Utilisé dans `ShopItemPlaceholderListener` pour éviter de recalculer/formatter à chaque tick ou refresh d’inventaire.
+
+// ---
+
+// **Résumé** :  
+// - **priceCache** : prix dynamiques complets (objets).
+// - **recipeCache** : ingrédients des recettes.
+// - **calculatedPriceCache** : prix finaux (double).
+// - **stockCache** : quantités en stock.
+// - **displayPriceCache** : valeurs prêtes pour l’affichage (placeholders).
+
+// Chaque cache vise à éviter des recalculs coûteux ou des accès fréquents à la base/config, et à améliorer la performance globale du plugin, surtout en mode "full cache".

@@ -115,6 +115,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
 
     // private RecipeCacheManager recipeCacheManager;
     
+    private String cacheMode;
     private CacheManager<String, DynamicPrice> priceCache;
     private CacheManager<String, List<ItemStack>> recipeCache;
     private CacheManager<String, Double> calculatedPriceCache;
@@ -228,6 +229,15 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     // public ItemPacketInterceptor getPacketInterceptor() {
     //     return packetInterceptor;
     // }
+
+    public void reloadConfigAndCacheMode() {
+        reloadConfig();
+        cacheMode = getConfig().getString("cache.mode", "full");
+    }
+
+    public boolean isRealTimeMode() {
+        return "realtime".equalsIgnoreCase(cacheMode);
+    }
 
 
     @Override
@@ -379,7 +389,10 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     }
 
     private void initCache() {
-    // Lire les durées depuis la configuration
+        // Vérifier si le mode de cache est défini dans la configuration
+        cacheMode = getConfig().getString("cache.mode", "full");
+
+        // Lire les durées depuis la configuration
         int priceDuration = configMain.getInt("cache.durations.price", 30);
         int displayDuration = configMain.getInt("cache.durations.display", 10);
         int recipeDuration = configMain.getInt("cache.durations.recipe", 300);
@@ -387,6 +400,14 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         int calculatedDuration = configMain.getInt("cache.durations.calculated", 60);
         
         // Initialiser les caches avec ces durées
+        if (cacheMode.equalsIgnoreCase("realtime")) {
+            // En mode "realtime", on utilise des durées plus courtes
+            priceDuration = 5;
+            displayDuration = 1;
+            // recipeDuration = 10;
+            stockDuration = 5;
+            calculatedDuration = 10;
+        }
         priceCache = new CacheManager<>(this, "PriceCache", priceDuration, TimeUnit.SECONDS, 10);
         recipeCache = new CacheManager<>(this, "RecipeCache", recipeDuration, TimeUnit.SECONDS, 5);
         calculatedPriceCache = new CacheManager<>(this, "CalculatedPriceCache", calculatedDuration, TimeUnit.SECONDS, 5);
@@ -451,6 +472,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         // this.priceRecipe = new PriceRecipe(this.configMain);
         this.dataConfig = new DataConfig(this.configMain);
         this.langConfig = new LangConfig(this.configLang);
+        reloadConfigAndCacheMode();
         // Lang.setConfig(this.configLang);
         // Settings.setConfig(this.configMain);
         // Settings.load();
