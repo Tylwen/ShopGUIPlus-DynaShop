@@ -68,6 +68,8 @@ public class PriceRecipe {
     private final ExecutorService recipeExecutor;
     
     private final CacheManager<String, List<ItemStack>> recipeCache;
+    
+    private final Map<String, Map<Integer, Double>> enchantMultipliers = new HashMap<>();
 
     // public PriceRecipe(FileConfiguration config) {
     //     this.config = config;
@@ -133,6 +135,8 @@ public class PriceRecipe {
             ),
             priorityThreadFactory
         );
+        
+        this.loadEnchantMultipliers();
         
         // Charger les items populaires depuis la configuration
         this.loadPopularItems();
@@ -382,6 +386,29 @@ public class PriceRecipe {
     //     });
     // }
 
+    public DynamicPrice createRecipePrice(String shopID, String itemID, ItemStack itemStack) {
+        // // Créer un prix dynamique pour la recette
+        // DynamicPrice recipePrice = new DynamicPrice(0.0, 0.0);
+        // recipePrice.setDynaShopType(DynaShopType.RECIPE);
+        // return recipePrice;
+
+        RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, itemStack, new ArrayList<>());
+
+        // Créer l'objet DynamicPrice avec les valeurs calculées
+        DynamicPrice recipePrice = new DynamicPrice(
+            result.getBuyPrice(), result.getSellPrice(),
+            result.getMinBuyPrice(), result.getMaxBuyPrice(), 
+            result.getMinSellPrice(), result.getMaxSellPrice(),
+            1.0, 1.0, 1.0, 1.0,
+            result.getStock(), result.getMinStock(), result.getMaxStock(),
+            1.0, 1.0
+        );
+        
+        // recipePrice.setDynaShopType(DynaShopType.RECIPE);
+        recipePrice.setFromRecipe(true);
+        return recipePrice;
+    }
+
     /**
      * Version asynchrone optimisée pour calculer toutes les valeurs de recette en une fois
      */
@@ -538,6 +565,14 @@ public class PriceRecipe {
 
         // Appliquer le modificateur en fonction du type de recette
         double modifier = getRecipeModifier(item);
+        // double price = basePrice * modifier;    
+        
+        // // Appliquer le multiplicateur d'enchantement si activé pour cet item
+        // if (isEnchantmentModifierEnabled(shopID, itemID)) {
+        //     price *= getEnchantMultiplier(item);
+        // }
+        // return price;
+
         return basePrice * modifier;
     }
 
@@ -656,8 +691,7 @@ public class PriceRecipe {
             String ingredientShopID = foundItem.getShopID();
             
             // Vérifier le type de l'ingrédient
-            DynaShopType ingredientType = DynaShopPlugin.getInstance().getShopConfigManager()
-                .getTypeDynaShop(ingredientShopID, ingredientID);
+            DynaShopType ingredientType = DynaShopPlugin.getInstance().getShopConfigManager().getTypeDynaShop(ingredientShopID, ingredientID);
             
             // Ne calculer le stock max que pour les items en mode STOCK ou STATIC_STOCK
             if (ingredientType != DynaShopType.STOCK && ingredientType != DynaShopType.STATIC_STOCK) {
@@ -1799,6 +1833,44 @@ public class PriceRecipe {
         }
         
         return true; // Tous les tests ont réussi, items considérés comme égaux
+    }
+
+    // Charger les multiplicateurs depuis la config globale
+    private void loadEnchantMultipliers() {
+        if (!config.isConfigurationSection("enchant_multipliers")) return;
+        ConfigurationSection section = config.getConfigurationSection("enchant_multipliers");
+        for (String enchantKey : section.getKeys(false)) {
+            ConfigurationSection levels = section.getConfigurationSection(enchantKey);
+            Map<Integer, Double> levelMap = new HashMap<>();
+            for (String levelStr : levels.getKeys(false)) {
+                double mult = levels.getDouble(levelStr, 1.0);
+                levelMap.put(Integer.parseInt(levelStr), mult);
+            }
+            enchantMultipliers.put(enchantKey, levelMap);
+        }
+    }
+
+    // // Utilitaire pour savoir si l'option est activée pour l'item
+    // private boolean isEnchantmentModifierEnabled(String shopID, String itemID) {
+    //     return DynaShopPlugin.getInstance().getShopConfigManager()
+    //         .getItemValue(shopID, itemID, "dynaShop.enchantment", Boolean.class)
+    //         .orElse(false);
+    // }
+
+    // Calcule le multiplicateur d'enchantement pour un item
+    public double getEnchantMultiplier(ItemStack item) {
+        if (!item.hasItemMeta() || !item.getItemMeta().hasEnchants()) return 1.0;
+        double multiplier = 1.0;
+        for (Map.Entry<org.bukkit.enchantments.Enchantment, Integer> entry : item.getEnchantments().entrySet()) {
+            String enchKey = entry.getKey().getKey().getKey().toUpperCase();
+            int level = entry.getValue();
+            Map<Integer, Double> levelMap = enchantMultipliers.get(enchKey);
+            if (levelMap != null) {
+                Double mult = levelMap.get(level);
+                if (mult != null) multiplier *= mult;
+            }
+        }
+        return multiplier;
     }
     
 }

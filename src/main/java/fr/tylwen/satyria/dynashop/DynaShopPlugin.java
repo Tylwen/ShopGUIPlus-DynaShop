@@ -497,8 +497,8 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
                     try {
                         for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
                             for (ShopItem item : shop.getShopItems()) {
-                                DynaShopType type = shopConfigManager.getTypeDynaShop(shop.getId(), item.getId());
-                                String typeName = type.name();
+                                DynaShopType typeDynaShop = shopConfigManager.getTypeDynaShop(shop.getId(), item.getId());
+                                String typeName = typeDynaShop.name();
                                 newMap.put(typeName, newMap.getOrDefault(typeName, 0) + 1);
                             }
                         }

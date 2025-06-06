@@ -3,6 +3,7 @@ package fr.tylwen.satyria.dynashop.price;
 import org.bukkit.entity.Player;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 import net.brcdev.shopgui.modifier.PriceModifier;
 import net.brcdev.shopgui.modifier.PriceModifierActionType;
@@ -25,6 +26,12 @@ public class DynamicPrice {
     private final double stockSellModifier; // Coefficient pour ajuster le prix de vente en fonction du stock
     private boolean isFromStock; // Indique si le prix provient du stock
     // private boolean isFromRecipeStock; // Indique si le prix provient du stock d'une recette
+
+    private DynaShopType typeDynaShop; // Type de DynamicPrice (RECIPE, STOCK, etc.)
+    private DynaShopType buyTypeDynaShop; // Type spécifique pour l'achat
+    private DynaShopType sellTypeDynaShop; // Type spécifique pour la vente
+    // private DynaShopType buyTypeDynaShop = DynaShopType.UNKNOWN;
+    // private DynaShopType sellTypeDynaShop = DynaShopType.UNKNOWN;
 
     /**
      * @param buyPrice  prix initial d'achat
@@ -101,6 +108,12 @@ public class DynamicPrice {
         this.maxStock = maxStock;
         this.stockBuyModifier = stockBuyModifier;
         this.stockSellModifier = stockSellModifier;
+
+        // this.typeDynaShop = DynaShopType.NONE;
+        this.typeDynaShop = DynaShopType.UNKNOWN;
+        this.buyTypeDynaShop = DynaShopType.UNKNOWN;
+        this.sellTypeDynaShop = DynaShopType.UNKNOWN;
+
         this.isFromRecipe = false;
         this.isFromStock = false;
     }
@@ -499,4 +512,43 @@ public class DynamicPrice {
     //         DynaShopPlugin.getInstance().getLogger().warning("Erreur lors de l'application des modificateurs de prix: " + e.getMessage());
     //     }
     // }
+
+    public DynaShopType getDynaShopType() {
+        // if (this.typeDynaShop == null) {
+        //     // Si le type n'est pas défini, retourner UNKNOWN
+        //     return DynaShopType.UNKNOWN;
+        // } else if (this.typeDynaShop == DynaShopType.UNKNOWN) {
+        //     // Si le type est UNKNOWN, retourner le type par défaut
+        //     return DynaShopPlugin.getInstance().getShopConfigManager().getTypeDynaShop(
+        // }
+        return typeDynaShop;
+    }
+
+    public void setDynaShopType(DynaShopType typeDynaShop) {
+        this.typeDynaShop = typeDynaShop;
+    }
+
+    public DynaShopType getBuyTypeDynaShop() {
+        if (buyTypeDynaShop == DynaShopType.UNKNOWN) {
+            // Fallback sur le type général si non défini
+            return typeDynaShop != null ? typeDynaShop : DynaShopType.NONE;
+        }
+        return buyTypeDynaShop;
+    }
+
+    public DynaShopType getSellTypeDynaShop() {
+        if (sellTypeDynaShop == DynaShopType.UNKNOWN) {
+            // Fallback sur le type général si non défini
+            return typeDynaShop != null ? typeDynaShop : DynaShopType.NONE;
+        }
+        return sellTypeDynaShop;
+    }
+
+    public void setBuyTypeDynaShop(DynaShopType type) {
+        this.buyTypeDynaShop = type;
+    }
+
+    public void setSellTypeDynaShop(DynaShopType type) {
+        this.sellTypeDynaShop = type;
+    }
 }

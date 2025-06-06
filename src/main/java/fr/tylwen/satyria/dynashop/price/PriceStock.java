@@ -4,6 +4,9 @@ import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
 // import org.bukkit.inventory.ItemStack;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
+import net.brcdev.shopgui.ShopGuiPlusApi;
+
+import org.bukkit.inventory.ItemStack;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -75,6 +78,15 @@ public class PriceStock {
         // Mettre en cache
         cachePrice(cacheKey, price, typePrice);
         
+        // // Appliquer le multiplicateur d'enchantement si activé pour cet item
+        // boolean enchantmentEnabled = plugin.getShopConfigManager()
+        //     .getItemValue(shopID, itemID, "dynaShop.enchantment", Boolean.class)
+        //     .orElse(false);
+        // ItemStack item = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem();
+        // if (enchantmentEnabled && item != null) {
+        //     price *= plugin.getPriceRecipe().getEnchantMultiplier(item);
+        // }
+        
         return price;
     }
     
@@ -136,7 +148,8 @@ public class PriceStock {
     // }
     public void decreaseStock(String shopID, String itemID, int amount) {
         // Vérifier si l'item est en mode STOCK ou STATIC_STOCK
-        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID);
+        // DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID);
+        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID, "buy");
         if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK) {
             // Ne rien faire si l'item n'est pas en mode stock
             return;
@@ -171,7 +184,8 @@ public class PriceStock {
     // }
     public void increaseStock(String shopID, String itemID, int amount) {
         // Vérifier si l'item est en mode STOCK ou STATIC_STOCK
-        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID);
+        // DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID);
+        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID, "sell");
         if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK) {
             // Ne rien faire si l'item n'est pas en mode stock
             return;
@@ -212,7 +226,7 @@ public class PriceStock {
     //     return stockOptional.map(stock -> stock >= amount).orElse(true);
     // }
     public boolean canBuy(String shopID, String itemID, int amount) {
-        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID);
+        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID, "buy");
         if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK) {
             // Si l'item n'est pas en mode stock, l'achat est toujours possible
             return true;
@@ -234,7 +248,7 @@ public class PriceStock {
     //     return stockOptional.map(stock -> stock + amount <= maxStock).orElse(true);
     // }
     public boolean canSell(String shopID, String itemID, int amount) {
-        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID);
+        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID, "sell");
         if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK) {
             // Si l'item n'est pas en mode stock, la vente est toujours possible
             return true;
@@ -298,6 +312,7 @@ public class PriceStock {
             stockBuyModifier, stockSellModifier
         );
         
+        // price.setDynaShopType(DynaShopType.STOCK);
         price.setFromStock(true);
         return price;
     }
@@ -330,6 +345,7 @@ public class PriceStock {
             dataConfig.getStockBuyModifier(), dataConfig.getStockSellModifier()
         );
         
+        // price.setDynaShopType(DynaShopType.STATIC_STOCK);
         price.setFromStock(true);
         return price;
     }

@@ -180,7 +180,7 @@ public class ItemDataManager {
      */
     public void insertStock(String shopID, String itemID, int stock) {
         // Vérifier le type de l'item
-        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID);
+        DynaShopType typeDynaShop = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID);
         
         // // Si l'item n'est pas en mode STOCK ou STATIC_STOCK, utiliser -1
         // if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK) {
@@ -191,7 +191,7 @@ public class ItemDataManager {
         //     dataManager.deleteStock(shopID, itemID);
         // }
         // N'insérer que les items en mode STOCK ou STATIC_STOCK
-        if (type == DynaShopType.STOCK || type == DynaShopType.STATIC_STOCK) {
+        if (typeDynaShop == DynaShopType.STOCK || typeDynaShop == DynaShopType.STATIC_STOCK) {
             dataManager.insertStock(shopID, itemID, stock);
         } else {
             // Pour les autres types, supprimer l'entrée si elle existe

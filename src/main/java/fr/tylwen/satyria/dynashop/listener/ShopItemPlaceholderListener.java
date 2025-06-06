@@ -873,7 +873,9 @@ public class ShopItemPlaceholderListener implements Listener {
         
         for (String line : lore) {
             boolean skipLine = false;
-            
+            boolean hideBuyPriceForUnbuyable = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getBoolean("hideBuyPriceForUnbuyable", true);
+            boolean hideSellPriceForUnsellable = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getBoolean("hideSellPriceForUnsellable", true);
+
             // Vérifier si la ligne contient des placeholders spécifiques
             if (line.contains("%dynashop_current_")) {
                 // Vérifier les placeholders individuels
@@ -881,7 +883,8 @@ public class ShopItemPlaceholderListener implements Listener {
                 //     (prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0"))) {
                 //     skipLine = true;
                 // }
-                if (line.contains("%dynashop_current_buyPrice%") && 
+                if (line.contains("%dynashop_current_buyPrice%") &&
+                    hideBuyPriceForUnbuyable &&
                     (prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0") || prices.get("buy").equals("-1"))) {
                     skipLine = true;
                 }
@@ -891,6 +894,7 @@ public class ShopItemPlaceholderListener implements Listener {
                 //     skipLine = true;
                 // }
                 if (line.contains("%dynashop_current_sellPrice%") && 
+                    hideSellPriceForUnsellable &&
                     (prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0") || prices.get("sell").equals("-1"))) {
                     skipLine = true;
                 }
@@ -901,6 +905,7 @@ public class ShopItemPlaceholderListener implements Listener {
                 //     skipLine = true;
                 // }
                 if (line.contains("%dynashop_current_buy%") && 
+                    hideBuyPriceForUnbuyable &&
                     (prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0") || prices.get("buy").equals("-1"))) {
                     skipLine = true;
                 }
@@ -911,6 +916,7 @@ public class ShopItemPlaceholderListener implements Listener {
                 //     skipLine = true;
                 // }
                 if (line.contains("%dynashop_current_sell%") && 
+                    hideSellPriceForUnsellable &&
                     (prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0") || prices.get("sell").equals("-1"))) {
                     skipLine = true;
                 }
@@ -998,51 +1004,19 @@ public class ShopItemPlaceholderListener implements Listener {
      * @return Map des valeurs de prix
      */
     private Map<String, String> getCachedPrices(Player player, String shopId, String itemId, ItemStack itemStack, int quantity, boolean forceRefresh) {
-        // String cacheKey = shopId + ":" + itemId;
-        
-        // // Ajouter l'UUID du joueur au cache key pour que chaque joueur ait ses propres prix modifiés
-        // if (player != null) {
-        //     cacheKey += ":" + player.getUniqueId().toString();
-        // }
-        
-        // // Créer une clé unique incluant le joueur si nécessaire
-        // final String cacheKey = player != null
-        //     ? shopId + ":" + itemId + ":" + player.getUniqueId().toString()
-        //     : shopId + ":" + itemId;
-
-        // Créer une clé unique incluant le joueur ET la quantité
         final String cacheKey = player != null
             ? shopId + ":" + itemId + ":" + quantity + ":" + player.getUniqueId().toString()
             : shopId + ":" + itemId + ":" + quantity;
 
-        // String baseShopId = shopId;
-        // if (shopId.contains("#")) {
-        //     baseShopId = shopId.split("#")[0];
-        //     plugin.getLogger().info("Using full shop ID for cache: " + shopId + ", base: " + baseShopId);
-        // }
-        // Extraire le shopId de base pour les appels à l'API
         String baseShopId = shopId;
-        // int page = 1;
         
         if (shopId != null && shopId.contains("#")) {
             String[] parts = shopId.split("#");
             baseShopId = parts[0];
-            // try {
-            //     page = Integer.parseInt(parts[1]);
-            // } catch (NumberFormatException e) {
-            //     page = 1;
-            // }
-            // plugin.getLogger().info("Using shop ID with page: " + shopId + " (base=" + baseShopId + ", page=" + page + ")");
         }
         
-        // Variables finales pour utilisation dans la lambda
         final String finalBaseShopId = baseShopId;
         // final int finalPage = page;
-        
-        // // Créer une clé unique incluant le joueur ET la quantité
-        // final String cacheKey = player != null
-        //     ? baseShopId + ":" + itemId + ":" + quantity + ":" + player.getUniqueId().toString()
-        //     : baseShopId + ":" + itemId + ":" + quantity;
 
         // // Forcer le rafraîchissement pour toujours obtenir les prix modifiés les plus récents
         // forceRefresh = true; // Forcer le rafraîchissement à chaque fois
@@ -1059,123 +1033,228 @@ public class ShopItemPlaceholderListener implements Listener {
         List<String> criticalItems = plugin.getConfigMain().getStringList("critical-items");
         boolean isCriticalItem = criticalItems.contains(baseShopId + ":" + itemId);
         forceRefresh = forceRefresh || isCriticalItem;
+
+        if (forceRefresh) {
+            // Si on force le rafraîchissement, supprimer l'entrée du cache
+            plugin.getDisplayPriceCache().invalidate(cacheKey);
+        }
         
         // Utiliser le CacheManager au lieu de la vérification manuelle du cache
         return plugin.getDisplayPriceCache().get(cacheKey, () -> {
-            // Si pas en cache ou expiré, calculer et mettre en cache
-            String currencyPrefix = "";
-            String currencySuffix = " $";
-            
-            try {
-                currencyPrefix = ShopGuiPlusApi.getPlugin().getEconomyManager().getEconomyProvider(ShopGuiPlusApi.getShop(shopId).getEconomyType()).getCurrencyPrefix();
-                currencySuffix = ShopGuiPlusApi.getPlugin().getEconomyManager().getEconomyProvider(ShopGuiPlusApi.getShop(shopId).getEconomyType()).getCurrencySuffix();
-            } catch (Exception e) {
-                // Utiliser les valeurs par défaut en cas d'erreur
-            }
-            
             Map<String, String> prices = new HashMap<>();
-
-            // String buyPrice, sellPrice, buyMinPrice, buyMaxPrice, sellMinPrice, sellMaxPrice;
+            
+            // Récupérer le type d'achat et de vente pour cet item
+            DynaShopType buyType = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId, "buy");
+            DynaShopType sellType = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId, "sell");
 
             DynamicPrice price = DynaShopPlugin.getInstance().getDynaShopListener().getOrLoadPrice(player, finalBaseShopId, itemId, itemStack);
 
+            // String buyPrice, sellPrice, buyMinPrice, buyMaxPrice, sellMinPrice, sellMaxPrice;
+            double buyPriceValue, sellPriceValue, buyMinPriceValue, buyMaxPriceValue, sellMinPriceValue, sellMaxPriceValue;
+
+            // if (price != null) {
+            //     // buyPrice = plugin.getPriceFormatter().formatPrice(price.getBuyPrice());
+            //     // sellPrice = plugin.getPriceFormatter().formatPrice(price.getSellPrice());
+            //     // buyMinPrice = plugin.getPriceFormatter().formatPrice(price.getMinBuyPrice());
+            //     // buyMaxPrice = plugin.getPriceFormatter().formatPrice(price.getMaxBuyPrice());
+            //     // sellMinPrice = plugin.getPriceFormatter().formatPrice(price.getMinSellPrice());
+            //     // sellMaxPrice = plugin.getPriceFormatter().formatPrice(price.getMaxSellPrice());
+                
+            //     // Calculer les prix totaux en fonction de la quantité
+            //     double buyPriceValue = price.getBuyPrice() * quantity;
+            //     double sellPriceValue = price.getSellPrice() * quantity;
+            //     double buyMinPriceValue = price.getMinBuyPrice() * quantity;
+            //     double buyMaxPriceValue = price.getMaxBuyPrice() * quantity;
+            //     double sellMinPriceValue = price.getMinSellPrice() * quantity;
+            //     double sellMaxPriceValue = price.getMaxSellPrice() * quantity;
+                
+            //     // // S'assurer que les prix ne sont pas négatifs
+            //     // buyPriceValue = Math.max(0, buyPriceValue);
+            //     // sellPriceValue = Math.max(0, sellPriceValue);
+            //     // buyMinPriceValue = Math.max(0, buyMinPriceValue);
+            //     // buyMaxPriceValue = Math.max(0, buyMaxPriceValue);
+            //     // sellMinPriceValue = Math.max(0, sellMinPriceValue);
+            //     // sellMaxPriceValue = Math.max(0, sellMaxPriceValue);
+                
+            //     // Formater les prix
+            //     String buyPrice = plugin.getPriceFormatter().formatPrice(buyPriceValue);
+            //     String sellPrice = plugin.getPriceFormatter().formatPrice(sellPriceValue);
+            //     String buyMinPrice = plugin.getPriceFormatter().formatPrice(buyMinPriceValue);
+            //     String buyMaxPrice = plugin.getPriceFormatter().formatPrice(buyMaxPriceValue);
+            //     String sellMinPrice = plugin.getPriceFormatter().formatPrice(sellMinPriceValue);
+            //     String sellMaxPrice = plugin.getPriceFormatter().formatPrice(sellMaxPriceValue);
+                
+            //     prices.put("buy", buyPrice);
+            //     prices.put("sell", sellPrice);
+            //     prices.put("buy_min", buyMinPrice);
+            //     prices.put("buy_max", buyMaxPrice);
+            //     prices.put("sell_min", sellMinPrice);
+            //     prices.put("sell_max", sellMaxPrice);
+            // } else {
+            //     // buyPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy");
+            //     // sellPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell");
+            //     // buyMinPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_min");
+            //     // buyMaxPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_max");
+            //     // sellMinPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_min");
+            //     // sellMaxPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_max");
+                
+            //     // Si pas de prix dynamique, récupérer les prix statiques et multiplier
+            //     double buyPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "buy")) * quantity;
+            //     double sellPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "sell")) * quantity;
+            //     double buyMinPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "buy_min")) * quantity;
+            //     double buyMaxPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "buy_max")) * quantity;
+            //     double sellMinPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "sell_min")) * quantity;
+            //     double sellMaxPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "sell_max")) * quantity;
+                
+            //     // // S'assurer que les prix ne sont pas négatifs
+            //     // buyPriceValue = Math.max(0, buyPriceValue);
+            //     // sellPriceValue = Math.max(0, sellPriceValue);
+            //     // buyMinPriceValue = Math.max(0, buyMinPriceValue);
+            //     // buyMaxPriceValue = Math.max(0, buyMaxPriceValue);
+            //     // sellMinPriceValue = Math.max(0, sellMinPriceValue);
+            //     // sellMaxPriceValue = Math.max(0, sellMaxPriceValue);
+                
+            //     // Formater les prix
+            //     String buyPrice = plugin.getPriceFormatter().formatPrice(buyPriceValue);
+            //     String sellPrice = plugin.getPriceFormatter().formatPrice(sellPriceValue);
+            //     String buyMinPrice = plugin.getPriceFormatter().formatPrice(buyMinPriceValue);
+            //     String buyMaxPrice = plugin.getPriceFormatter().formatPrice(buyMaxPriceValue);
+            //     String sellMinPrice = plugin.getPriceFormatter().formatPrice(sellMinPriceValue);
+            //     String sellMaxPrice = plugin.getPriceFormatter().formatPrice(sellMaxPriceValue);
+                
+            //     prices.put("buy", buyPrice);
+            //     prices.put("sell", sellPrice);
+            //     prices.put("buy_min", buyMinPrice);
+            //     prices.put("buy_max", buyMaxPrice);
+            //     prices.put("sell_min", sellMinPrice);
+            //     prices.put("sell_max", sellMaxPrice);
+            // }
+
+            // if (price != null) {
+            //     buyPriceValue = price.getBuyPrice() * quantity;
+            //     sellPriceValue = price.getSellPrice() * quantity;
+            //     buyMinPriceValue = price.getMinBuyPrice() * quantity;
+            //     buyMaxPriceValue = price.getMaxBuyPrice() * quantity;
+            //     sellMinPriceValue = price.getMinSellPrice() * quantity;
+            //     sellMaxPriceValue = price.getMaxSellPrice() * quantity;
+            // // } else {
+            // //     buyPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "buy")) * quantity;
+            // //     sellPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "sell")) * quantity;
+            // //     buyMinPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "buy_min")) * quantity;
+            // //     buyMaxPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "buy_max")) * quantity;
+            // //     sellMinPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "sell_min")) * quantity;
+            // //     sellMaxPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "sell_max")) * quantity;
+            
+            //     // Formater les prix
+            //     prices.put("buy", plugin.getPriceFormatter().formatPrice(buyPriceValue));
+            //     prices.put("sell", plugin.getPriceFormatter().formatPrice(sellPriceValue));
+            //     prices.put("buy_min", plugin.getPriceFormatter().formatPrice(buyMinPriceValue));
+            //     prices.put("buy_max", plugin.getPriceFormatter().formatPrice(buyMaxPriceValue));
+            //     prices.put("sell_min", plugin.getPriceFormatter().formatPrice(sellMinPriceValue));
+            //     prices.put("sell_max", plugin.getPriceFormatter().formatPrice(sellMaxPriceValue));
+            // }
+
+            // // Formater les prix
+            // prices.put("buy", plugin.getPriceFormatter().formatPrice(buyPriceValue));
+            // prices.put("sell", plugin.getPriceFormatter().formatPrice(sellPriceValue));
+            // prices.put("buy_min", plugin.getPriceFormatter().formatPrice(buyMinPriceValue));
+            // prices.put("buy_max", plugin.getPriceFormatter().formatPrice(buyMaxPriceValue));
+            // prices.put("sell_min", plugin.getPriceFormatter().formatPrice(sellMinPriceValue));
+            // prices.put("sell_max", plugin.getPriceFormatter().formatPrice(sellMaxPriceValue));
+
+            // // Déterminer si l'item est en mode STOCK
+            // boolean isStockMode = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.STOCK;
+            // prices.put("is_stock_mode", String.valueOf(isStockMode));
+            
+            // // Déterminer si l'item est en mode STATIC_STOCK
+            // boolean isStaticStockMode = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.STATIC_STOCK;
+            // prices.put("is_static_stock_mode", String.valueOf(isStaticStockMode));
+
+            // // Déterminer si l'item est en mode RECIPE
+            // boolean isRecipeMode = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.RECIPE;
+            // prices.put("is_recipe_mode", String.valueOf(isRecipeMode));
+            // if (isRecipeMode) {
+            //     // Si l'item est en mode RECIPE, et que un des prix est en mode STOCK, on affiche le stock
+            //     boolean hasMaxStock = DynaShopPlugin.getInstance().getPriceRecipe().calculateMaxStock(shopId, itemId, itemStack, new ArrayList<>()) > 0;
+            //     if (hasMaxStock) {
+            //         isStockMode = true; // Forcer le mode STOCK si maxStock > 0
+            //         prices.put("is_stock_mode", String.valueOf(isStockMode));
+            //     }
+            // }
+            
             if (price != null) {
-                // buyPrice = plugin.getPriceFormatter().formatPrice(price.getBuyPrice());
-                // sellPrice = plugin.getPriceFormatter().formatPrice(price.getSellPrice());
-                // buyMinPrice = plugin.getPriceFormatter().formatPrice(price.getMinBuyPrice());
-                // buyMaxPrice = plugin.getPriceFormatter().formatPrice(price.getMaxBuyPrice());
-                // sellMinPrice = plugin.getPriceFormatter().formatPrice(price.getMinSellPrice());
-                // sellMaxPrice = plugin.getPriceFormatter().formatPrice(price.getMaxSellPrice());
-                
-                // Calculer les prix totaux en fonction de la quantité
-                double buyPriceValue = price.getBuyPrice() * quantity;
-                double sellPriceValue = price.getSellPrice() * quantity;
-                double buyMinPriceValue = price.getMinBuyPrice() * quantity;
-                double buyMaxPriceValue = price.getMaxBuyPrice() * quantity;
-                double sellMinPriceValue = price.getMinSellPrice() * quantity;
-                double sellMaxPriceValue = price.getMaxSellPrice() * quantity;
-                
-                // // S'assurer que les prix ne sont pas négatifs
-                // buyPriceValue = Math.max(0, buyPriceValue);
-                // sellPriceValue = Math.max(0, sellPriceValue);
-                // buyMinPriceValue = Math.max(0, buyMinPriceValue);
-                // buyMaxPriceValue = Math.max(0, buyMaxPriceValue);
-                // sellMinPriceValue = Math.max(0, sellMinPriceValue);
-                // sellMaxPriceValue = Math.max(0, sellMaxPriceValue);
-                
-                // Formater les prix
-                String buyPrice = plugin.getPriceFormatter().formatPrice(buyPriceValue);
-                String sellPrice = plugin.getPriceFormatter().formatPrice(sellPriceValue);
-                String buyMinPrice = plugin.getPriceFormatter().formatPrice(buyMinPriceValue);
-                String buyMaxPrice = plugin.getPriceFormatter().formatPrice(buyMaxPriceValue);
-                String sellMinPrice = plugin.getPriceFormatter().formatPrice(sellMinPriceValue);
-                String sellMaxPrice = plugin.getPriceFormatter().formatPrice(sellMaxPriceValue);
-                
-                prices.put("buy", buyPrice);
-                prices.put("sell", sellPrice);
-                prices.put("buy_min", buyMinPrice);
-                prices.put("buy_max", buyMaxPrice);
-                prices.put("sell_min", sellMinPrice);
-                prices.put("sell_max", sellMaxPrice);
-            } else {
-                // buyPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy");
-                // sellPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell");
-                // buyMinPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_min");
-                // buyMaxPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_max");
-                // sellMinPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_min");
-                // sellMaxPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_max");
-                
-                // Si pas de prix dynamique, récupérer les prix statiques et multiplier
-                double buyPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "buy")) * quantity;
-                double sellPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "sell")) * quantity;
-                double buyMinPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "buy_min")) * quantity;
-                double buyMaxPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "buy_max")) * quantity;
-                double sellMinPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "sell_min")) * quantity;
-                double sellMaxPriceValue = parseFormattedNumber(plugin.getPriceFormatter().getPriceByType(finalBaseShopId, itemId, "sell_max")) * quantity;
-                
-                // // S'assurer que les prix ne sont pas négatifs
-                // buyPriceValue = Math.max(0, buyPriceValue);
-                // sellPriceValue = Math.max(0, sellPriceValue);
-                // buyMinPriceValue = Math.max(0, buyMinPriceValue);
-                // buyMaxPriceValue = Math.max(0, buyMaxPriceValue);
-                // sellMinPriceValue = Math.max(0, sellMinPriceValue);
-                // sellMaxPriceValue = Math.max(0, sellMaxPriceValue);
-                
-                // Formater les prix
-                String buyPrice = plugin.getPriceFormatter().formatPrice(buyPriceValue);
-                String sellPrice = plugin.getPriceFormatter().formatPrice(sellPriceValue);
-                String buyMinPrice = plugin.getPriceFormatter().formatPrice(buyMinPriceValue);
-                String buyMaxPrice = plugin.getPriceFormatter().formatPrice(buyMaxPriceValue);
-                String sellMinPrice = plugin.getPriceFormatter().formatPrice(sellMinPriceValue);
-                String sellMaxPrice = plugin.getPriceFormatter().formatPrice(sellMaxPriceValue);
-                
-                prices.put("buy", buyPrice);
-                prices.put("sell", sellPrice);
-                prices.put("buy_min", buyMinPrice);
-                prices.put("buy_max", buyMaxPrice);
-                prices.put("sell_min", sellMinPrice);
-                prices.put("sell_max", sellMaxPrice);
+                if (price.getBuyPrice() <= -1) {
+                    prices.put("buy", "N/A");
+                } else {
+                    prices.put("buy", plugin.getPriceFormatter().formatPrice(price.getBuyPrice() * quantity));
+                }
+                if (price.getSellPrice() <= -1) {
+                    prices.put("sell", "N/A");
+                } else {
+                    prices.put("sell", plugin.getPriceFormatter().formatPrice(price.getSellPrice() * quantity));
+                }
+                if (price.getMinBuyPrice() <= -1) {
+                    prices.put("buy_min", "N/A");
+                } else {
+                    prices.put("buy_min", plugin.getPriceFormatter().formatPrice(price.getMinBuyPrice() * quantity));
+                }
+                if (price.getMaxBuyPrice() <= -1) {
+                    prices.put("buy_max", "N/A");
+                } else {
+                    prices.put("buy_max", plugin.getPriceFormatter().formatPrice(price.getMaxBuyPrice() * quantity));
+                }
+                if (price.getMinSellPrice() <= -1) {
+                    prices.put("sell_min", "N/A");
+                } else {
+                    prices.put("sell_min", plugin.getPriceFormatter().formatPrice(price.getMinSellPrice() * quantity));
+                }
+                if (price.getMaxSellPrice() <= -1) {
+                    prices.put("sell_max", "N/A");
+                } else {
+                    prices.put("sell_max", plugin.getPriceFormatter().formatPrice(price.getMaxSellPrice() * quantity));
+                }
+                // buyPriceValue = price.getBuyPrice() * quantity;
+                // sellPriceValue = price.getSellPrice() * quantity;
+                // buyMinPriceValue = price.getMinBuyPrice() * quantity;
+                // buyMaxPriceValue = price.getMaxBuyPrice() * quantity;
+                // sellMinPriceValue = price.getMinSellPrice() * quantity;
+                // sellMaxPriceValue = price.getMaxSellPrice() * quantity;
+            
+                // // Formater les prix
+                // prices.put("buy", plugin.getPriceFormatter().formatPrice(buyPriceValue));
+                // prices.put("sell", plugin.getPriceFormatter().formatPrice(sellPriceValue));
+                // prices.put("buy_min", plugin.getPriceFormatter().formatPrice(buyMinPriceValue));
+                // prices.put("buy_max", plugin.getPriceFormatter().formatPrice(buyMaxPriceValue));
+                // prices.put("sell_min", plugin.getPriceFormatter().formatPrice(sellMinPriceValue));
+                // prices.put("sell_max", plugin.getPriceFormatter().formatPrice(sellMaxPriceValue));
             }
 
-            // Déterminer si l'item est en mode STOCK
-            boolean isStockMode = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.STOCK;
-            prices.put("is_stock_mode", String.valueOf(isStockMode));
-            
-            // Déterminer si l'item est en mode STATIC_STOCK
-            boolean isStaticStockMode = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.STATIC_STOCK;
-            prices.put("is_static_stock_mode", String.valueOf(isStaticStockMode));
+            boolean isStockMode = buyType == DynaShopType.STOCK || sellType == DynaShopType.STOCK;
+            boolean isStaticStockMode = buyType == DynaShopType.STATIC_STOCK || sellType == DynaShopType.STATIC_STOCK;
+            boolean isRecipeMode = buyType == DynaShopType.RECIPE || sellType == DynaShopType.RECIPE;
+            boolean isLinkMode = buyType == DynaShopType.LINK || sellType == DynaShopType.LINK;
 
-            // Déterminer si l'item est en mode RECIPE
-            boolean isRecipeMode = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.RECIPE;
+            prices.put("is_stock_mode", String.valueOf(isStockMode));
+            prices.put("is_static_stock_mode", String.valueOf(isStaticStockMode));
             prices.put("is_recipe_mode", String.valueOf(isRecipeMode));
+            prices.put("is_link_mode", String.valueOf(isLinkMode));
+
             if (isRecipeMode) {
                 // Si l'item est en mode RECIPE, et que un des prix est en mode STOCK, on affiche le stock
-                boolean hasMaxStock = DynaShopPlugin.getInstance().getPriceRecipe().calculateMaxStock(shopId, itemId, itemStack, new ArrayList<>()) > 0;
+                boolean hasMaxStock = DynaShopPlugin.getInstance().getPriceRecipe().calculateMaxStock(finalBaseShopId, itemId, itemStack, new ArrayList<>()) > 0;
                 if (hasMaxStock) {
                     isStockMode = true; // Forcer le mode STOCK si maxStock > 0
                     prices.put("is_stock_mode", String.valueOf(isStockMode));
                 }
             }
+
+            // boolean isStockMode = price.getDynaShopType() == DynaShopType.STOCK;
+            // boolean isStaticStockMode = price.getDynaShopType() == DynaShopType.STATIC_STOCK;
+            // boolean isRecipeMode = price.getDynaShopType() == DynaShopType.RECIPE;
+            
+            // prices.put("is_stock_mode", String.valueOf(isStockMode));
+            // prices.put("is_static_stock_mode", String.valueOf(isStaticStockMode));
+            // prices.put("is_recipe_mode", String.valueOf(isRecipeMode));
 
             // // Stocker les valeurs
             // prices.put("buy", buyPrice);
@@ -1325,6 +1404,17 @@ public class ShopItemPlaceholderListener implements Listener {
                 }
             }
             
+            // Si pas en cache ou expiré, calculer et mettre en cache
+            String currencyPrefix = "";
+            String currencySuffix = " $";
+            
+            try {
+                currencyPrefix = ShopGuiPlusApi.getPlugin().getEconomyManager().getEconomyProvider(ShopGuiPlusApi.getShop(shopId).getEconomyType()).getCurrencyPrefix();
+                currencySuffix = ShopGuiPlusApi.getPlugin().getEconomyManager().getEconomyProvider(ShopGuiPlusApi.getShop(shopId).getEconomyType()).getCurrencySuffix();
+            } catch (Exception e) {
+                // Utiliser les valeurs par défaut en cas d'erreur
+            }
+            
             // // Format pour le prix d'achat avec min-max
             // if (!buyMinPrice.equals("N/A") && !buyMaxPrice.equals("N/A")) {
             //     prices.put("base_buy", String.format(
@@ -1356,7 +1446,13 @@ public class ShopItemPlaceholderListener implements Listener {
                 ));
             } else {
                 // Affichage simplifié quand min=max=prix actuel
-                prices.put("base_buy", currencyPrefix + prices.get("buy") + currencySuffix);
+                // prices.put("base_buy", currencyPrefix + prices.get("buy") + currencySuffix);
+                if (prices.get("buy").equals("0")) {
+                    // prices.put("base_buy", "-");
+                    prices.put("base_buy", ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getString("buyPriceForUnsellablePlaceholder", "-"));
+                } else {
+                    prices.put("base_buy", currencyPrefix + prices.get("buy") + currencySuffix);
+                }
             }
 
             // Format pour le prix de vente avec min-max
@@ -1370,7 +1466,8 @@ public class ShopItemPlaceholderListener implements Listener {
             } else {
                 // Affichage simplifié quand min=max=prix actuel
                 if (prices.get("sell").equals("0")) {
-                    prices.put("base_sell", "-");
+                    // prices.put("base_sell", "-");
+                    prices.put("base_sell", ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getString("sellPriceForUnsellablePlaceholder", "-"));
                 } else {
                     prices.put("base_sell", currencyPrefix + prices.get("sell") + currencySuffix);
                 }
@@ -1580,11 +1677,11 @@ public class ShopItemPlaceholderListener implements Listener {
         // Démarrer la tâche asynchrone avec boucle
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
-                // Flag pour suivre si le joueur est toujours dans le menu de sélection
-                boolean stillInMenu = true;
+                // // Flag pour suivre si le joueur est toujours dans le menu de sélection
+                // boolean stillInMenu = true;
 
                 while (
-                    stillInMenu &&
+                    // stillInMenu &&
                     player.isOnline() && 
                     player.getOpenInventory() != null &&
                     determineShopId(player.getOpenInventory()) != null &&
@@ -1601,12 +1698,12 @@ public class ShopItemPlaceholderListener implements Listener {
                         break;
                     }
                     
-                    // Vérifier si le menu ouvert est toujours un menu de sélection
-                    String currentMenuType = determineShopId(player.getOpenInventory());
-                    if (currentMenuType == null || !currentMenuType.equals(menuType)) {
-                        stillInMenu = false;
-                        break;
-                    }
+                    // // Vérifier si le menu ouvert est toujours un menu de sélection
+                    // String currentMenuType = determineShopId(player.getOpenInventory());
+                    // if (currentMenuType == null || !currentMenuType.equals(menuType)) {
+                    //     stillInMenu = false;
+                    //     break;
+                    // }
                     
                     // Effectuer la mise à jour sur le thread principal
                     plugin.getServer().getScheduler().runTask(plugin, () -> {
@@ -1614,13 +1711,20 @@ public class ShopItemPlaceholderListener implements Listener {
                             // Pour les menus standards, vérifier si la quantité a changé
                             if (menuType.equals("AMOUNT_SELECTION")) {
                                 int centerSlot = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUI.itemSlot", 22);
+                                int inventorySize = player.getOpenInventory().getTopInventory().getSize();
+
+                                // IMPORTANT: Ajout de la vérification de taille
+                                if (centerSlot >= inventorySize) {
+                                    centerSlot = Math.min(inventorySize - 1, 13); // Slot sûr
+                                    // plugin.getLogger().info("Adjusted center slot to " + centerSlot + " (inventory size: " + inventorySize + ")");
+                                }
+
                                 ItemStack currentItem = player.getOpenInventory().getTopInventory().getItem(centerSlot);
                                 
                                 if (currentItem != null && currentItem.getAmount() != lastCenterQuantity[0]) {
                                     // Mettre à jour la quantité de référence
                                     lastCenterQuantity[0] = currentItem.getAmount();
 
-                                    
                                     // // ÉTAPE 1: Masquer immédiatement tous les placeholders visibles
                                     // for (int slot = 0; slot < view.getTopInventory().getSize(); slot++) {
                                     //     ItemStack button = view.getTopInventory().getItem(slot);

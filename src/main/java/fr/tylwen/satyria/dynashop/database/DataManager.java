@@ -781,10 +781,10 @@ public class DataManager {
                     String itemId = rs.getString("itemID");
                     
                     // Vérifier le type de l'item
-                    DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId);
+                    DynaShopType typeDynaShop = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId);
                     
                     // Si l'item n'est pas en mode STOCK ou STATIC_STOCK, supprimer son entrée
-                    if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK) {
+                    if (typeDynaShop != DynaShopType.STOCK && typeDynaShop != DynaShopType.STATIC_STOCK) {
                         deleteStock(shopId, itemId);
                         // itemsRemoved++;
                     }

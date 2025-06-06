@@ -93,6 +93,7 @@ public class PriceFormatter {
      */
     public String getPriceByType(String shopID, String itemID, String priceType) {
         boolean useRecipe = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID).orElse(DynaShopType.NONE) == DynaShopType.RECIPE;
+        // boolean useRecipe = plugin.getShopConfigManager().resolveTypeDynaShop(shopID, itemID, priceType.equals("buy") || priceType.equals("buy_min") || priceType.equals("buy_max")) == DynaShopType.RECIPE;
         ItemStack itemStack = null;
         
         if (useRecipe) {

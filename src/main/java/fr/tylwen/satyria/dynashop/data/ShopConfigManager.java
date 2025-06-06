@@ -257,21 +257,18 @@ public class ShopConfigManager {
      * @param itemSec La section de configuration de l'item.
      */
     private void processItem(Shop shop, String key, ConfigurationSection itemSec) {
-        if (itemSec == null) {
-            return;
-        }
-    
+        if (itemSec == null) return;
+
         ShopItem item = shop.getShopItems().stream()
             .filter(i -> i.getId().equals(key))
             .findFirst()
             .orElse(null);
-        // if (item == null || priceMap.containsKey(item)) {
-        if (item == null) {
-            return;
-        }
+        if (item == null) return;
+        
+        DynaShopType typeGeneral = getTypeDynaShop(shop.getId(), item.getId());
 
         // if ((!itemSec.isConfigurationSection("buyDynamic") || !itemSec.isConfigurationSection("sellDynamic")) && getTypeDynaShop(shop.getId(), item.getId()) != DynaShopType.STATIC_STOCK) {
-        if ((!itemSec.isConfigurationSection("buyDynamic") && !itemSec.isConfigurationSection("sellDynamic")) && getTypeDynaShop(shop.getId(), item.getId()) != DynaShopType.STATIC_STOCK) {
+        if ((!itemSec.isConfigurationSection("buyDynamic") && !itemSec.isConfigurationSection("sellDynamic")) && typeGeneral != DynaShopType.STATIC_STOCK) {
             if (DynaShopPlugin.getInstance().getItemDataManager().itemExists(shop.getId(), item.getId())) {
                 DynaShopPlugin.getInstance().getItemDataManager().deleteItem(shop.getId(), item.getId());
             }
@@ -280,18 +277,16 @@ public class ShopConfigManager {
         }
 
         DynamicPrice price = createDynamicPrice(itemSec);
+        
+        DynaShopType typeBuy = getTypeDynaShop(shop.getId(), item.getId(), "buy");
+        DynaShopType typeSell = getTypeDynaShop(shop.getId(), item.getId(), "sell");
+        price.setDynaShopType(typeGeneral);
+        price.setBuyTypeDynaShop(typeBuy);
+        price.setSellTypeDynaShop(typeSell);
+
+
         priceMap.put(item, price);
 
-        // // Charger les recettes
-        // DynaShopPlugin.getInstance().getCustomRecipeManager().loadRecipeFromShopConfig(shop.getId(), key, itemSec).ifPresent(recipe -> {
-        //     Bukkit.addRecipe(recipe);
-        //     DynaShopPlugin.getInstance().getLogger().info("Recette ajoutée pour l'item " + key + " dans le shop " + shop.getId());
-        // });
-    
-        // if (!DynaShopPlugin.getInstance().getItemDataManager().itemHasPrice(shop.getId(), item.getId())) {
-        //     DynaShopPlugin.getInstance().getLogger().info("Adding new item price for " + item.getId() + " in shop " + shop.getId());
-        //     DynaShopPlugin.getInstance().getItemDataManager().savePrice(shop.getId(), item.getId(), price.getBuyPrice(), price.getSellPrice());
-        // }
         Bukkit.getScheduler().runTaskAsynchronously(DynaShopPlugin.getInstance(), () -> {
             if (!DynaShopPlugin.getInstance().getItemDataManager().itemHasPrice(shop.getId(), item.getId())) {
                 // DynaShopPlugin.getInstance().getItemDataManager().createItem(shop.getId(), item.getId());
@@ -303,7 +298,8 @@ public class ShopConfigManager {
                 if (price.getSellPrice() > 0) {
                     DynaShopPlugin.getInstance().getDataManager().insertSellPrice(shop.getId(), item.getId(), price.getSellPrice());
                 }
-                if ((getTypeDynaShop(shop.getId(), item.getId()) == DynaShopType.STATIC_STOCK || getTypeDynaShop(shop.getId(), item.getId()) == DynaShopType.STOCK) && price.getStock() > 0) {
+                // if ((getTypeDynaShop(shop.getId(), item.getId()) == DynaShopType.STATIC_STOCK || getTypeDynaShop(shop.getId(), item.getId()) == DynaShopType.STOCK) && price.getStock() > 0) {
+                if ((typeGeneral == DynaShopType.STATIC_STOCK || typeGeneral == DynaShopType.STOCK) && price.getStock() > 0) {
                     DynaShopPlugin.getInstance().getDataManager().insertStock(shop.getId(), item.getId(), price.getStock());
                 }
             }
@@ -485,6 +481,26 @@ public class ShopConfigManager {
     //     return hasSection(shopID, itemID, "dynashop." + section);
     // }
 
+    public DynaShopType resolveTypeDynaShop(String shopID, String itemID, boolean isBuy) {
+        // Si tu veux garder la compatibilité, tu peux fallback sur le type général
+        return getTypeDynaShop(shopID, itemID, isBuy ? "buy" : "sell");
+    }
+
+    public DynaShopType getTypeDynaShop(String shopID, String itemID, String priceType) {
+        // priceType: "buy" ou "sell"
+        String key = priceType.equalsIgnoreCase("buy") ? "dynaShop.buyType" : "dynaShop.sellType";
+        Optional<String> typeOpt = getItemValue(shopID, itemID, key, String.class);
+        if (typeOpt.isPresent()) {
+            try {
+                return DynaShopType.valueOf(typeOpt.get().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                return DynaShopType.NONE;
+            }
+        }
+        // fallback sur typeDynaShop général
+        return getTypeDynaShop(shopID, itemID);
+    }
+
     /**
      * Récupère le type de DynaShop d'un item dans un shop.
      *
@@ -543,6 +559,13 @@ public class ShopConfigManager {
     
     //     return itemSection.getString("typeDynashop", "none");
     // }
+
+    public Map<String, DynaShopType> getAllTypeDynaShop(String shopID, String itemID) {
+        Map<String, DynaShopType> types = new HashMap<>();
+        types.put("buy", getTypeDynaShop(shopID, itemID, "buy"));
+        types.put("sell", getTypeDynaShop(shopID, itemID, "sell"));
+        return types;
+    }
 
     /**
      * Récupère le type de recette d'un item dans un shop.
