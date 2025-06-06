@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 // import org.bukkit.Bukkit;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 
 // public class BatchDatabaseUpdater {
@@ -132,7 +133,8 @@ public class BatchDatabaseUpdater {
         pendingUpdates.put(key, price);
         
         // Forcer une mise à jour immédiate si demandé
-        if (immediate || price.isFromRecipe()) {
+        // if (immediate || price.isFromRecipe()) {
+        if (immediate || price.getDynaShopType() == DynaShopType.RECIPE) {
             flushUpdates();
         }
         

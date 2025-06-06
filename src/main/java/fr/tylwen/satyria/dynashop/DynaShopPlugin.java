@@ -366,8 +366,6 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         // this.customRecipeManager = new CustomRecipeManager(this);
         this.dynaShopListener = new DynaShopListener(this);
         this.priceRecipe = new PriceRecipe(this);
-        // this.dataConfig = new DataConfig(this.configMain);
-        // this.langConfig = new LangConfig(this.configLang);
         this.priceStock = new PriceStock(this);
         this.dataManager = new DataManager(this);
         this.itemDataManager = new ItemDataManager(this.dataManager);
@@ -448,14 +446,15 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         getLogger().fine("Cache invalidé pour " + baseKey);
     }
 
-    // private void load() {
-    //     generateFiles();
-    //     this.priceRecipe = new PriceRecipe(this.configMain);
-    //     this.dataConfig = new DataConfig(this.configMain);
-    //     // Lang.setConfig(this.configLang);
-    //     // Settings.setConfig(this.configMain);
-    //     // Settings.load();
-    // }
+    public void load() {
+        generateFiles();
+        // this.priceRecipe = new PriceRecipe(this.configMain);
+        this.dataConfig = new DataConfig(this.configMain);
+        this.langConfig = new LangConfig(this.configLang);
+        // Lang.setConfig(this.configLang);
+        // Settings.setConfig(this.configMain);
+        // Settings.load();
+    }
 
     private void generateFiles() {
         saveDefaultConfig();
@@ -588,7 +587,14 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
             getServer().getScheduler().cancelTask(dynamicPricesTaskId);
             getLogger().info("Tâche DynamicPricesTask annulée (ID: " + dynamicPricesTaskId + ")");
         }
-        
+
+        // Il faut tout désactiver du plugin
+        if (waitForShopsTaskId != 0) {
+            getServer().getScheduler().cancelTask(waitForShopsTaskId);
+            getLogger().info("Tâche WaitForShopsTask annulée (ID: " + waitForShopsTaskId + ")");
+        }
+
+
         if (shopItemPlaceholderListener != null) {
             shopItemPlaceholderListener.shutdown();
         }

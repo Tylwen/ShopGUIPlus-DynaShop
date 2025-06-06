@@ -466,6 +466,17 @@ public class ShopConfigManager {
         
         // Chemin complet vers la clé pattern
         String path = shopID + ".items." + itemID + ".recipe.pattern";
+        // // Chemin complet vers la clé pattern
+        // String path;
+        // if (getTypeRecipe(shopID, itemID) == RecipeType.SHAPED) {
+        //     path = shopID + ".items." + itemID + ".recipe.pattern";
+        // } else if (getTypeRecipe(shopID, itemID) == RecipeType.SHAPELESS) {
+        //     path = shopID + ".items." + itemID + ".recipe.ingredients";
+        // } else if (getTypeRecipe(shopID, itemID) == RecipeType.FURNACE) {
+        //     path = shopID + ".items." + itemID + ".recipe.input";
+        // } else {
+        //     return false; // Si le type de recette n'est pas SHAPED ou SHAPELESS, on ne vérifie pas
+        // }
         
         // Vérifier si la clé existe et contient une liste
         return config.isList(path) && !config.getStringList(path).isEmpty();

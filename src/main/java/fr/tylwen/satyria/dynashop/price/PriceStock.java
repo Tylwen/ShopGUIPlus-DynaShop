@@ -1,12 +1,13 @@
 package fr.tylwen.satyria.dynashop.price;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import fr.tylwen.satyria.dynashop.cache.CacheManager;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
 // import org.bukkit.inventory.ItemStack;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
-import net.brcdev.shopgui.ShopGuiPlusApi;
+// import net.brcdev.shopgui.ShopGuiPlusApi;
 
-import org.bukkit.inventory.ItemStack;
+// import org.bukkit.inventory.ItemStack;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -15,7 +16,7 @@ import java.util.Optional;
 public class PriceStock {
     private final DynaShopPlugin plugin;
     private final DataConfig dataConfig;
-    private final Map<String, DynamicPrice> priceCache = new HashMap<>();
+    private final CacheManager<String, DynamicPrice> priceCache;
     
     // Durée de validité du cache en millisecondes (5 minutes)
     private static final long CACHE_DURATION = 5 * 60 * 1000;
@@ -24,6 +25,7 @@ public class PriceStock {
     public PriceStock(DynaShopPlugin plugin) {
         this.plugin = plugin;
         this.dataConfig = plugin.getDataConfig();
+        this.priceCache = plugin.getPriceCache();
     }
 
     /**
@@ -117,7 +119,8 @@ public class PriceStock {
         decreaseStock(shopID, itemID, amount);
         
         // Invalider le cache
-        invalidateCache(shopID, itemID);
+        // invalidateCache(shopID, itemID);
+        DynaShopPlugin.getInstance().invalidatePriceCache(shopID, itemID, null);
     }
     
     /**
@@ -128,7 +131,8 @@ public class PriceStock {
         increaseStock(shopID, itemID, amount);
         
         // Invalider le cache
-        invalidateCache(shopID, itemID);
+        // invalidateCache(shopID, itemID);
+        DynaShopPlugin.getInstance().invalidatePriceCache(shopID, itemID, null);
     }
     
     /**
@@ -312,8 +316,8 @@ public class PriceStock {
             stockBuyModifier, stockSellModifier
         );
         
-        // price.setDynaShopType(DynaShopType.STOCK);
-        price.setFromStock(true);
+        price.setDynaShopType(DynaShopType.STOCK);
+        // price.setFromStock(true);
         return price;
     }
 
@@ -345,8 +349,8 @@ public class PriceStock {
             dataConfig.getStockBuyModifier(), dataConfig.getStockSellModifier()
         );
         
-        // price.setDynaShopType(DynaShopType.STATIC_STOCK);
-        price.setFromStock(true);
+        price.setDynaShopType(DynaShopType.STATIC_STOCK);
+        // price.setFromStock(true);
         return price;
     }
     
@@ -356,32 +360,53 @@ public class PriceStock {
                System.currentTimeMillis() - cacheTimestamps.get(key) < CACHE_DURATION;
     }
     
-    private double getCachedPrice(String key, String typePrice) {
-        DynamicPrice cachedPrice = priceCache.get(key);
-        if (cachedPrice == null) return 0.0;
+    // private double getCachedPrice(String key, String typePrice) {
+    //     DynamicPrice cachedPrice = priceCache.get(key);
+    //     if (cachedPrice == null) return 0.0;
         
+    //     return typePrice.equals("buyPrice") ? cachedPrice.getBuyPrice() : cachedPrice.getSellPrice();
+    // }
+    private double getCachedPrice(String key, String typePrice) {
+        DynamicPrice cachedPrice = priceCache.get(key, () -> null);
+        if (cachedPrice == null) return 0.0;
         return typePrice.equals("buyPrice") ? cachedPrice.getBuyPrice() : cachedPrice.getSellPrice();
     }
     
-    private void cachePrice(String key, double price, String typePrice) {
-        DynamicPrice dynamicPrice = priceCache.computeIfAbsent(key, k -> new DynamicPrice(0, 0));
+    // private void cachePrice(String key, double price, String typePrice) {
+    //     DynamicPrice dynamicPrice = priceCache.computeIfAbsent(key, k -> new DynamicPrice(0, 0));
         
+    //     if (typePrice.equals("buyPrice")) {
+    //         dynamicPrice.setBuyPrice(price);
+    //     } else {
+    //         dynamicPrice.setSellPrice(price);
+    //     }
+        
+    //     cacheTimestamps.put(key, System.currentTimeMillis());
+    // }
+    private void cachePrice(String key, double price, String typePrice) {
+        priceCache.get(key, () -> new DynamicPrice(0, 0)); // S'assure que l'entrée existe
+        DynamicPrice dynamicPrice = priceCache.get(key, () -> new DynamicPrice(0, 0));
         if (typePrice.equals("buyPrice")) {
             dynamicPrice.setBuyPrice(price);
         } else {
             dynamicPrice.setSellPrice(price);
         }
-        
-        cacheTimestamps.put(key, System.currentTimeMillis());
+        priceCache.put(key, dynamicPrice); // Met à jour l'entrée dans le cache global
     }
     
-    private void invalidateCache(String shopID, String itemID) {
-        String buyKey = shopID + ":" + itemID + ":buyPrice";
-        String sellKey = shopID + ":" + itemID + ":sellPrice";
+    // private void invalidateCache(String shopID, String itemID) {
+    //     String buyKey = shopID + ":" + itemID + ":buyPrice";
+    //     String sellKey = shopID + ":" + itemID + ":sellPrice";
         
-        priceCache.remove(buyKey);
-        priceCache.remove(sellKey);
-        cacheTimestamps.remove(buyKey);
-        cacheTimestamps.remove(sellKey);
-    }
+    //     priceCache.remove(buyKey);
+    //     priceCache.remove(sellKey);
+    //     cacheTimestamps.remove(buyKey);
+    //     cacheTimestamps.remove(sellKey);
+    // }
+    // private void invalidateCache(String shopID, String itemID) {
+    //     String buyKey = shopID + ":" + itemID + ":buyPrice";
+    //     String sellKey = shopID + ":" + itemID + ":sellPrice";
+    //     priceCache.invalidate(buyKey);
+    //     priceCache.invalidate(sellKey);
+    // }
 }

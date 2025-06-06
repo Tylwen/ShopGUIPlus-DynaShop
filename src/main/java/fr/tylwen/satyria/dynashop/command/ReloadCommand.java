@@ -27,6 +27,9 @@
 package fr.tylwen.satyria.dynashop.command;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import fr.tylwen.satyria.dynashop.config.DataConfig;
+
+import java.io.File;
 
 // import java.io.File;
 
@@ -39,6 +42,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 // import org.bukkit.configuration.file.FileConfiguration;
 // import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 
 public class ReloadCommand implements CommandExecutor {
     private final DynaShopPlugin plugin;
@@ -47,6 +51,43 @@ public class ReloadCommand implements CommandExecutor {
         this.plugin = plugin;
     }
 
+    // @Override
+    // public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    //     if (!sender.hasPermission("dynashop.reload")) {
+    //         sender.sendMessage("§cVous n'avez pas la permission d'exécuter cette commande.");
+    //         return true;
+    //     }
+
+    //     sender.sendMessage("§eRechargement du plugin DynaShop...");
+    //     plugin.onDisable(); // Désactiver proprement le plugin
+    //     plugin.onEnable();  // Réactiver le plugin
+    //     plugin.reloadConfig(); // Recharge config.yml
+    //     sender.sendMessage("§aLe plugin DynaShop a été rechargé avec succès !");
+    //     return true;
+        
+    //     // sender.sendMessage("§eRechargement du plugin DynaShop...");
+
+    //     // // Recharger les fichiers de configuration
+    //     // try {
+    //     //     plugin.reloadConfig(); // Recharge config.yml
+    //     //     File langFile = new File(plugin.getDataFolder(), "lang.yml");
+    //     //     if (langFile.exists()) {
+    //     //         FileConfiguration langConfig = YamlConfiguration.loadConfiguration(langFile);
+    //     //         plugin.setLangConfig(langConfig); // Méthode à ajouter dans DynaShopPlugin pour gérer lang.yml
+    //     //     }
+
+    //     //     // Recharger les shops
+    //         // plugin.getShopConfigManager().reloadShops(); // Assurez-vous que cette méthode existe dans ShopConfigManager
+
+    //     //     sender.sendMessage("§aLes fichiers de configuration et de langue ont été rechargés avec succès !");
+    //     // } catch (Exception e) {
+    //     //     sender.sendMessage("§cUne erreur est survenue lors du rechargement des fichiers de configuration.");
+    //     //     e.printStackTrace();
+    //     // }
+
+    //     // sender.sendMessage("§aLe plugin DynaShop a été rechargé avec succès !");
+    //     // return true;
+    // }
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!sender.hasPermission("dynashop.reload")) {
@@ -55,33 +96,39 @@ public class ReloadCommand implements CommandExecutor {
         }
 
         sender.sendMessage("§eRechargement du plugin DynaShop...");
-        plugin.onDisable(); // Désactiver proprement le plugin
-        plugin.onEnable();  // Réactiver le plugin
-        plugin.reloadConfig(); // Recharge config.yml
-        sender.sendMessage("§aLe plugin DynaShop a été rechargé avec succès !");
+
+        try {
+            // Recharger les fichiers de configuration
+            plugin.reloadConfig(); // Recharge config.yml
+            
+            // Ré-instancier DataConfig avec la nouvelle config
+            // plugin.setDataConfig(new DataConfig(plugin.getConfig()));
+            plugin.load();
+
+            // // Si tu utilises DataConfig ailleurs (ex: dans ItemDataManager), il faut aussi la réinjecter
+            // plugin.getItemDataManager().setDataConfig(plugin.getDataConfig());
+
+            // File langFile = new File(plugin.getDataFolder(), "lang.yml");
+            // if (langFile.exists()) {
+            //     YamlConfiguration langConfig = YamlConfiguration.loadConfiguration(langFile);
+            //     plugin.setLangConfig(langConfig); // Ajoute un setter si besoin
+            // }
+
+            // // Recharger les shops
+            // plugin.getShopConfigManager().reloadShops(); // Assure-toi que cette méthode existe
+
+            // // Réinitialiser les caches si besoin
+            // plugin.getPriceCache().clear();
+            // plugin.getRecipeCache().clear();
+            // plugin.getCalculatedPriceCache().clear();
+            // plugin.getStockCache().clear();
+            // plugin.getDisplayPriceCache().clear();
+
+            sender.sendMessage("§aLe plugin DynaShop a été rechargé avec succès !");
+        } catch (Exception e) {
+            sender.sendMessage("§cUne erreur est survenue lors du rechargement des fichiers de configuration.");
+            e.printStackTrace();
+        }
         return true;
-        
-        // sender.sendMessage("§eRechargement du plugin DynaShop...");
-
-        // // Recharger les fichiers de configuration
-        // try {
-        //     plugin.reloadConfig(); // Recharge config.yml
-        //     File langFile = new File(plugin.getDataFolder(), "lang.yml");
-        //     if (langFile.exists()) {
-        //         FileConfiguration langConfig = YamlConfiguration.loadConfiguration(langFile);
-        //         plugin.setLangConfig(langConfig); // Méthode à ajouter dans DynaShopPlugin pour gérer lang.yml
-        //     }
-
-        //     // Recharger les shops
-        //     plugin.getShopConfigManager().reloadShops(); // Assurez-vous que cette méthode existe dans ShopConfigManager
-
-        //     sender.sendMessage("§aLes fichiers de configuration et de langue ont été rechargés avec succès !");
-        // } catch (Exception e) {
-        //     sender.sendMessage("§cUne erreur est survenue lors du rechargement des fichiers de configuration.");
-        //     e.printStackTrace();
-        // }
-
-        // sender.sendMessage("§aLe plugin DynaShop a été rechargé avec succès !");
-        // return true;
     }
 }

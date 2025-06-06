@@ -1183,50 +1183,36 @@ public class ShopItemPlaceholderListener implements Listener {
             // }
             
             if (price != null) {
-                if (price.getBuyPrice() <= -1) {
+                if (price.getBuyPrice() < 0) {
                     prices.put("buy", "N/A");
                 } else {
                     prices.put("buy", plugin.getPriceFormatter().formatPrice(price.getBuyPrice() * quantity));
                 }
-                if (price.getSellPrice() <= -1) {
+                if (price.getSellPrice() < 0) {
                     prices.put("sell", "N/A");
                 } else {
                     prices.put("sell", plugin.getPriceFormatter().formatPrice(price.getSellPrice() * quantity));
                 }
-                if (price.getMinBuyPrice() <= -1) {
+                if (price.getMinBuyPrice() < 0) {
                     prices.put("buy_min", "N/A");
                 } else {
                     prices.put("buy_min", plugin.getPriceFormatter().formatPrice(price.getMinBuyPrice() * quantity));
                 }
-                if (price.getMaxBuyPrice() <= -1) {
+                if (price.getMaxBuyPrice() < 0) {
                     prices.put("buy_max", "N/A");
                 } else {
                     prices.put("buy_max", plugin.getPriceFormatter().formatPrice(price.getMaxBuyPrice() * quantity));
                 }
-                if (price.getMinSellPrice() <= -1) {
+                if (price.getMinSellPrice() < 0) {
                     prices.put("sell_min", "N/A");
                 } else {
                     prices.put("sell_min", plugin.getPriceFormatter().formatPrice(price.getMinSellPrice() * quantity));
                 }
-                if (price.getMaxSellPrice() <= -1) {
+                if (price.getMaxSellPrice() < 0) {
                     prices.put("sell_max", "N/A");
                 } else {
                     prices.put("sell_max", plugin.getPriceFormatter().formatPrice(price.getMaxSellPrice() * quantity));
                 }
-                // buyPriceValue = price.getBuyPrice() * quantity;
-                // sellPriceValue = price.getSellPrice() * quantity;
-                // buyMinPriceValue = price.getMinBuyPrice() * quantity;
-                // buyMaxPriceValue = price.getMaxBuyPrice() * quantity;
-                // sellMinPriceValue = price.getMinSellPrice() * quantity;
-                // sellMaxPriceValue = price.getMaxSellPrice() * quantity;
-            
-                // // Formater les prix
-                // prices.put("buy", plugin.getPriceFormatter().formatPrice(buyPriceValue));
-                // prices.put("sell", plugin.getPriceFormatter().formatPrice(sellPriceValue));
-                // prices.put("buy_min", plugin.getPriceFormatter().formatPrice(buyMinPriceValue));
-                // prices.put("buy_max", plugin.getPriceFormatter().formatPrice(buyMaxPriceValue));
-                // prices.put("sell_min", plugin.getPriceFormatter().formatPrice(sellMinPriceValue));
-                // prices.put("sell_max", plugin.getPriceFormatter().formatPrice(sellMaxPriceValue));
             }
 
             boolean isStockMode = buyType == DynaShopType.STOCK || sellType == DynaShopType.STOCK;

@@ -73,9 +73,9 @@ public class DataConfig {
         this.stockSellModifier = config.getDouble("default.stock-sell-modifier", 2.0);
 
         // Charger les valeurs pour les recipes
-        this.shapedValue = config.getDouble("actions.shaped", 1.0);
-        this.shapelessValue = config.getDouble("actions.shapeless", 1.0);
-        this.furnaceValue = config.getDouble("actions.furnace", 1.0);
+        this.shapedValue = config.getDouble("recipe.shaped", 1.0);
+        this.shapelessValue = config.getDouble("recipe.shapeless", 1.0);
+        this.furnaceValue = config.getDouble("recipe.furnace", 1.0);
     }
 
     // Getters pour accéder aux valeurs de la configuration de la base de données

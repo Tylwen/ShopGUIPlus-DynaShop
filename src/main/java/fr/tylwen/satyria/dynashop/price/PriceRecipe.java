@@ -284,8 +284,9 @@ public class PriceRecipe {
         }
         
         // Appliquer le modificateur de recette
-        double modifier = getRecipeModifier(item);
-        
+        // double modifier = getRecipeModifier(item);
+        double modifier = getRecipeModifier(shopID, itemID);
+
         double finalBuyPrice = allBuyPricesNegative ? -1.0 : basePrice * modifier;
         double finalSellPrice = allSellPricesNegative ? -1.0 : baseSellPrice * modifier;
         double finalMinBuyPrice = allBuyPricesNegative ? -1.0 : baseMinBuyPrice * modifier;
@@ -404,8 +405,8 @@ public class PriceRecipe {
             1.0, 1.0
         );
         
-        // recipePrice.setDynaShopType(DynaShopType.RECIPE);
-        recipePrice.setFromRecipe(true);
+        recipePrice.setDynaShopType(DynaShopType.RECIPE);
+        // recipePrice.setFromRecipe(true);
         return recipePrice;
     }
 
@@ -564,7 +565,8 @@ public class PriceRecipe {
         }
 
         // Appliquer le modificateur en fonction du type de recette
-        double modifier = getRecipeModifier(item);
+        // double modifier = getRecipeModifier(item);
+        double modifier = getRecipeModifier(shopID, itemID);
         // double price = basePrice * modifier;    
         
         // // Appliquer le multiplicateur d'enchantement si activé pour cet item
@@ -1129,11 +1131,11 @@ public class PriceRecipe {
         return recipeCache.get(cacheKey, () -> {
             List<ItemStack> ingredients = new ArrayList<>();
 
-            // Vérifier si la recette est définie
-            if (!DynaShopPlugin.getInstance().getShopConfigManager().hasRecipePattern(shopID, itemID)) {
-                DynaShopPlugin.getInstance().getLogger().warning("No recipe defined in configuration for " + shopID + ":" + itemID);
-                return ingredients;
-            }
+            // // Vérifier si la recette est définie
+            // if (!DynaShopPlugin.getInstance().getShopConfigManager().hasRecipePattern(shopID, itemID)) {
+            //     DynaShopPlugin.getInstance().getLogger().warning("No recipe defined in configuration for " + shopID + ":" + itemID);
+            //     return ingredients;
+            // }
 
             // Récupérer la configuration de la recette
             ConfigurationSection recipeSection = DynaShopPlugin.getInstance().getShopConfigManager().getSection(shopID, itemID, "recipe");
@@ -1555,20 +1557,47 @@ public class PriceRecipe {
         return key.toString();
     }
 
-    private double getRecipeModifier(ItemStack item) {
+    // private double getRecipeModifier(ItemStack item) {
+    //     // Déterminer le type de recette et appliquer le modificateur correspondant
+    //     // for (Recipe recipe : item.getItemMeta().getPersistentDataContainer().getRecipesFor(item)) {
+    //     for (Recipe recipe : DynaShopPlugin.getInstance().getServer().getRecipesFor(item)) {
+    //         if (recipe instanceof ShapedRecipe) {
+    //             // return config.getDouble("actions.shaped", 1.0);
+    //             return DynaShopPlugin.getInstance().getDataConfig().getShapedValue();
+    //         } else if (recipe instanceof ShapelessRecipe) {
+    //             // return config.getDouble("actions.shapeless", 1.0);
+    //             return DynaShopPlugin.getInstance().getDataConfig().getShapelessValue();
+    //         } else if (recipe instanceof FurnaceRecipe) {
+    //             // return config.getDouble("actions.furnace", 1.0);
+    //             return DynaShopPlugin.getInstance().getDataConfig().getFurnaceValue();
+    //         }
+    //     }
+
+    //     // Retourner un modificateur par défaut si aucune recette n'est trouvée
+    //     return 1.0;
+    // }
+    private double getRecipeModifier(String shopID, String itemID) {
         // Déterminer le type de recette et appliquer le modificateur correspondant
         // for (Recipe recipe : item.getItemMeta().getPersistentDataContainer().getRecipesFor(item)) {
-        for (Recipe recipe : DynaShopPlugin.getInstance().getServer().getRecipesFor(item)) {
-            if (recipe instanceof ShapedRecipe) {
-                // return config.getDouble("actions.shaped", 1.0);
-                return DynaShopPlugin.getInstance().getDataConfig().getShapedValue();
-            } else if (recipe instanceof ShapelessRecipe) {
-                // return config.getDouble("actions.shapeless", 1.0);
-                return DynaShopPlugin.getInstance().getDataConfig().getShapelessValue();
-            } else if (recipe instanceof FurnaceRecipe) {
-                // return config.getDouble("actions.furnace", 1.0);
-                return DynaShopPlugin.getInstance().getDataConfig().getFurnaceValue();
-            }
+        // for (Recipe recipe : DynaShopPlugin.getInstance().getServer().getRecipesFor(item)) {
+        //     if (recipe instanceof ShapedRecipe) {
+        //         // return config.getDouble("actions.shaped", 1.0);
+        //         return DynaShopPlugin.getInstance().getDataConfig().getShapedValue();
+        //     } else if (recipe instanceof ShapelessRecipe) {
+        //         // return config.getDouble("actions.shapeless", 1.0);
+        //         return DynaShopPlugin.getInstance().getDataConfig().getShapelessValue();
+        //     } else if (recipe instanceof FurnaceRecipe) {
+        //         // return config.getDouble("actions.furnace", 1.0);
+        //         return DynaShopPlugin.getInstance().getDataConfig().getFurnaceValue();
+        //     }
+        // }
+        RecipeType recipeType = DynaShopPlugin.getInstance().getShopConfigManager().getTypeRecipe(shopID, itemID);
+        if (recipeType == RecipeType.SHAPED) {
+            return DynaShopPlugin.getInstance().getDataConfig().getShapedValue();
+        } else if (recipeType == RecipeType.SHAPELESS) {
+            return DynaShopPlugin.getInstance().getDataConfig().getShapelessValue();
+        } else if (recipeType == RecipeType.FURNACE) {
+            return DynaShopPlugin.getInstance().getDataConfig().getFurnaceValue();
         }
 
         // Retourner un modificateur par défaut si aucune recette n'est trouvée

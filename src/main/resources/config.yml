@@ -13,9 +13,9 @@ database:
 
 # Dynamic store configuration
 actions:
-  shaped: 1.2
-  shapeless: 1.1
-  furnace: 1.5
+  shaped: 1.25
+  shapeless: 1.25
+  furnace: 0.75
 
 time-period: 15 # Duration of dynamic pricing period (in minutes)
 
@@ -54,3 +54,157 @@ cache:
     recipe: 300
     stock: 20
     calculated: 60
+
+# Enchants value multipliers, for every level (if the item has this enchant, its value will be multiplied by the specified multiplier)
+# Those values are cumulative if an item has multiples enchants ; they'll be applied after the value of the item stack was calculated ; they won't apply if the item value already has that enchantment
+enchant_multipliers:
+  ARROW_DAMAGE:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  ARROW_FIRE:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  ARROW_INFINITE:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  ARROW_KNOCKBACK:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  DAMAGE_ALL:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  DAMAGE_ARTHROPODS:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  DAMAGE_UNDEAD:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  DEPTH_STRIDER:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  DIG_SPEED:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  DURABILITY:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  FIRE_ASPECT:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  KNOCKBACK:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  LOOT_BONUS_BLOCKS:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  LOOT_BONUS_MOBS:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  LUCK:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  LURE:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  OXYGEN:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  PROTECTION_ENVIRONMENTAL:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  PROTECTION_EXPLOSIONS:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  PROTECTION_FALL:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  PROTECTION_FIRE:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  PROTECTION_PROJECTILE:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  SILK_TOUCH:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  THORNS:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0
+  WATER_WORKER:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+    5: 3.0

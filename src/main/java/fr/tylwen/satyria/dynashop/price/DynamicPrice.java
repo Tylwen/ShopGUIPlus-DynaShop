@@ -14,9 +14,9 @@ public class DynamicPrice {
 
     private double buyPrice, sellPrice;
     private double minBuy, maxBuy, minSell, maxSell;
-    private final double growthBuy, decayBuy, growthSell, decaySell;
+    private double growthBuy, decayBuy, growthSell, decaySell;
     static final double MIN_MARGIN = 0.01; // Marge minimale entre buyPrice et sellPrice
-    private boolean isFromRecipe;
+    // private boolean isFromRecipe;
     
     // Variables pour le système de stock
     private int stock; // Stock actuel
@@ -24,7 +24,7 @@ public class DynamicPrice {
     private final int maxStock; // Stock maximum
     private final double stockBuyModifier; // Coefficient pour ajuster le prix d'achat en fonction du stock
     private final double stockSellModifier; // Coefficient pour ajuster le prix de vente en fonction du stock
-    private boolean isFromStock; // Indique si le prix provient du stock
+    // private boolean isFromStock; // Indique si le prix provient du stock
     // private boolean isFromRecipeStock; // Indique si le prix provient du stock d'une recette
 
     private DynaShopType typeDynaShop; // Type de DynamicPrice (RECIPE, STOCK, etc.)
@@ -114,8 +114,8 @@ public class DynamicPrice {
         this.buyTypeDynaShop = DynaShopType.UNKNOWN;
         this.sellTypeDynaShop = DynaShopType.UNKNOWN;
 
-        this.isFromRecipe = false;
-        this.isFromStock = false;
+        // this.isFromRecipe = false;
+        // this.isFromStock = false;
     }
 
     public DynamicPrice(double buyPrice, double sellPrice) {
@@ -232,6 +232,34 @@ public class DynamicPrice {
         // }
     }
 
+    public void setGrowthBuy(double growthBuy) {
+        if (growthBuy <= 0) {
+            throw new IllegalArgumentException("Le facteur de croissance d'achat doit être positif");
+        }
+        this.growthBuy = growthBuy;
+    }
+
+    public void setDecayBuy(double decayBuy) {
+        if (decayBuy <= 0) {
+            throw new IllegalArgumentException("Le facteur de décroissance d'achat doit être positif");
+        }
+        this.decayBuy = decayBuy;
+    }
+
+    public void setGrowthSell(double growthSell) {
+        if (growthSell <= 0) {
+            throw new IllegalArgumentException("Le facteur de croissance de vente doit être positif");
+        }
+        this.growthSell = growthSell;
+    }
+
+    public void setDecaySell(double decaySell) {
+        if (decaySell <= 0) {
+            throw new IllegalArgumentException("Le facteur de décroissance de vente doit être positif");
+        }
+        this.decaySell = decaySell;
+    }
+
     // — Getters —
     public double getBuyPrice() {
         return buyPrice;
@@ -285,14 +313,14 @@ public class DynamicPrice {
         return buyPrice >= minBuy && buyPrice <= maxBuy && sellPrice >= minSell && sellPrice <= maxSell;
     }
 
-    // Pour le système de recette DynaShopType.RECIPE
-    public boolean isFromRecipe() {
-        return isFromRecipe;
-    }
+    // // Pour le système de recette DynaShopType.RECIPE
+    // public boolean isFromRecipe() {
+    //     return isFromRecipe;
+    // }
 
-    public void setFromRecipe(boolean fromRecipe) {
-        this.isFromRecipe = fromRecipe;
-    }
+    // public void setFromRecipe(boolean fromRecipe) {
+    //     this.isFromRecipe = fromRecipe;
+    // }
 
 
     // Pour le système de stock DynaShopType.STOCK
@@ -328,13 +356,13 @@ public class DynamicPrice {
         return stockSellModifier;
     }
 
-    public boolean isFromStock() {
-        return isFromStock;
-    }
+    // public boolean isFromStock() {
+    //     return isFromStock;
+    // }
 
-    public void setFromStock(boolean fromStock) {
-        this.isFromStock = fromStock;
-    }
+    // public void setFromStock(boolean fromStock) {
+    //     this.isFromStock = fromStock;
+    // }
 
 
     public void adjustPricesBasedOnStock() {
