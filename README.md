@@ -163,7 +163,7 @@ items:
   - For `FURNACE`, use `input:` instead of `ingredients:`.
 
 **Note:**  
-The syntax `shopID:itemID` allows you to use any item from another shop as an ingredient, making the system very flexible. -->
+The syntax `shopID:itemID` allows you to use any item from another shop as an ingredient, making the system very flexible.
 
 ### 5. LINK Mode
 
@@ -210,18 +210,77 @@ In item lores (in shops or selection menus), you can use:
 
 ## Limits & Cooldowns
 
-In an item's config:
+You can limit the number of buy/sell transactions per player, per item, and per period.  
+The system supports both **numeric cooldowns** (in seconds) and **periods** (`DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY`, `FOREVER`).
+
+### Example configuration
 
 ```yaml
 limit:
-  buy: 100
-  sell: 100
-  cooldown: 3600 # in seconds (1 hour)
+  buy: 100           # Max items a player can buy per period/cooldown
+  sell: 50           # Max items a player can sell per period/cooldown
+  cooldown: 3600     # Cooldown in seconds (here: 1 hour)
 ```
 
-- **buy/sell**: Per-player buy/sell limit per period.
-- **cooldown**: Period duration (in seconds).
+Or with a period:
 
+```yaml
+limit:
+  buy: 1000
+  sell: 1000
+  cooldown: DAILY    # Reset every day at midnight
+```
+
+**Available periods:**  
+- `DAILY` (reset every day at midnight)
+- `WEEKLY` (reset every Monday at midnight)
+- `MONTHLY` (reset every 1st of the month)
+- `YEARLY` (reset every January 1st)
+- `FOREVER` (never resets)
+
+### How it works
+
+- The plugin tracks transactions per player, per shop, per item, and per type (buy/sell).
+- When the limit is reached, the player cannot buy/sell more until the cooldown/period resets.
+- The plugin displays a message with the remaining time or amount.
+- Limits are stored in the database and cleaned up automatically.
+
+### Commands
+
+- `/resetlimits <player> [shopID] [itemID]`  
+  Reset all limits for a player, or for a specific item.
+
+### Advanced
+
+- You can use different limits for each item.
+- If you set `cooldown` to a number, it is interpreted as seconds.
+- If you set `cooldown` to a string (`DAILY`, `WEEKLY`, ...), it uses the corresponding period.
+- If you omit `limit.buy` or `limit.sell`, there is no limit for that action.
+
+### Example with different periods
+
+```yaml
+items:
+  diamond:
+    typeDynaShop: DYNAMIC
+    buyPrice: 1000
+    limit:
+      buy: 10
+      sell: 5
+      cooldown: DAILY
+
+  gold:
+    typeDynaShop: DYNAMIC
+    buyPrice: 500
+    limit:
+      buy: 100
+      sell: 100
+      cooldown: 3600 # 1 hour
+```
+
+**Note:**  
+Limits are enforced even if the server restarts.  
+You can monitor and clean up old transaction data automatically (see plugin logs for details).
 ---
 
 ## Reload & Best Practices
