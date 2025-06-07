@@ -136,7 +136,34 @@ items:
         X: diamond
     buyPrice: 0 # Optional, will be calculated
     sellPrice: 0 # Optional, will be calculated
+
+  custom_mix:
+    typeDynaShop: RECIPE
+    recipe:
+      type: SHAPELESS
+      ingredients:
+        A: minerais:emerald # reference to another item in a shop
+        B: IRON_INGOT
+        C: minerais:diamond
+    buyPrice: 0
+    sellPrice: 0
+
+  iron_ingot_from_ore:
+    typeDynaShop: RECIPE
+    recipe:
+      type: FURNACE
+      input: minerais:iron_ore # reference to another item in a shop
+    buyPrice: 0
+    sellPrice: 0
 ```
+
+- **type:** `SHAPED`, `SHAPELESS` ou `FURNACE`
+- **ingredients:**  
+  - For each symbol, you can use either a material name (e.g., `DIAMOND`) or a reference `shopID:itemID` (e.g., `minerais:iron_ore`).
+  - For `FURNACE`, use `input:` instead of `ingredients:`.
+
+**Note:**  
+The syntax `shopID:itemID` allows you to use any item from another shop as an ingredient, making the system very flexible. -->
 
 ### 5. LINK Mode
 

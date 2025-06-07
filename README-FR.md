@@ -118,11 +118,11 @@ items:
       max: 5000
 ```
 
-### 4. Mode RECIPE
+### 4. RECIPE Mode
 
 ```yaml
 items:
-  bloc_de_diamant:
+  diamond_block:
     typeDynaShop: RECIPE
     recipe:
       type: SHAPED
@@ -131,9 +131,37 @@ items:
         - "XXX"
         - "XXX"
       ingredients:
-        X: diamant
-    buyPrice: 0 # Peut être omis, sera calculé
-    sellPrice: 0 # Peut être omis, sera calculé
+        X: diamond
+    buyPrice: 0 # Optionnel, sera calculé
+    sellPrice: 0 # Optionnel, sera calculé
+
+  custom_mix:
+    typeDynaShop: RECIPE
+    recipe:
+      type: SHAPELESS
+      ingredients:
+        A: shopgui:emerald # référence à un item d’un autre shop
+        B: IRON_INGOT
+        C: shopgui:diamond
+    buyPrice: 0
+    sellPrice: 0
+
+  iron_ingot_from_ore:
+    typeDynaShop: RECIPE
+    recipe:
+      type: FURNACE
+      input: minerais:iron_ore # référence à un item d’un autre shop
+    buyPrice: 0
+    sellPrice: 0
+```
+
+- **type:** `SHAPED`, `SHAPELESS` ou `FURNACE`
+- **ingredients:**  
+  - Pour chaque symbole, tu peux mettre soit un nom de matériau (`DIAMOND`), soit une référence `shopID:itemID` (ex : `minerais:iron_ore`).
+  - Pour `FURNACE`, utilise `input:` au lieu de `ingredients:`.
+
+**Remarque :**  
+La syntaxe `shopID:itemID` permet d’utiliser n’importe quel item d’un autre shop comme ingrédient, ce qui rend le système très flexible.
 ```
 
 ### 5. Mode LINK
