@@ -1,5 +1,5 @@
-.vscode
-target
-bin
-build
-dist
+.vscode/
+target/
+bin/
+build/
+dist/
