@@ -1,56 +1,59 @@
 # ShopGUI+ DynaShop (Addon)
-Collecte des informations sur l’espace de travailVoici un **wiki complet** pour ShopGUIPlus-DynaShop, couvrant toutes les fonctionnalités principales, les modes de fonctionnement, et la configuration nécessaire pour chaque mode.
+
+A complete **wiki** for ShopGUIPlus-DynaShop, covering all main features, operating modes, and configuration for each mode.
 
 ---
 
-# 📖 Wiki ShopGUIPlus-DynaShop
+# 📖 ShopGUIPlus-DynaShop Wiki
 
-## Sommaire
+## Table of Contents
 
-- Fonctionnalités principales
-- Types de mode DynaShop
-- Configuration générale
-- Configuration des items par mode
-- Gestion du cache et des performances
-- Placeholders dynamiques
-- Limites et cooldowns
-- Reload et bonnes pratiques
-
----
-
-## Fonctionnalités principales
-
-- **Prix dynamiques** : Les prix d’achat/vente évoluent selon l’offre et la demande.
-- **Stock dynamique** : Les items peuvent avoir un stock limité, influençant le prix.
-- **Prix par recette** : Calcul automatique du prix d’un item selon sa recette de craft.
-- **Système de cache configurable** : Choix entre performance (full cache) et données en temps réel (realtime).
-- **Placeholders dynamiques** : Affichage des prix, stocks, min/max, etc. dans les lores.
-- **Limites de transaction** : Limites d’achat/vente par joueur, par période.
-- **Compatibilité complète ShopGUI+** : Supporte tous les types de shops, pages, menus de sélection, etc.
+- Main Features
+- DynaShop Modes
+- General Configuration
+- Item Configuration by Mode
+- Cache & Performance Management
+- Dynamic Placeholders
+- Limits & Cooldowns
+- Reload & Best Practices
+- Example ShopGUIPlus Config
+- FAQ
 
 ---
 
-## Types de mode DynaShop
+## Main Features
 
-Chaque item peut fonctionner selon un **type de mode** :
-
-| Mode           | Description                                                                 | Clé de config (`typeDynaShop`) |
-|----------------|-----------------------------------------------------------------------------|-------------------------------|
-| `DYNAMIC`      | Prix évolutif selon l’offre/demande, sans stock                             | `DYNAMIC`                     |
-| `STOCK`        | Prix évolutif + gestion de stock (quantité limitée)                         | `STOCK`                       |
-| `STATIC_STOCK` | Prix fixe, mais gestion de stock (quantité limitée)                         | `STATIC_STOCK`                |
-| `RECIPE`       | Prix calculé automatiquement selon la recette de craft                      | `RECIPE`                      |
-| `LINK`         | L’item hérite du prix d’un autre item (shopID:itemID)                      | `LINK`                        |
+- **Dynamic pricing**: Buy/sell prices evolve based on supply and demand.
+- **Dynamic stock**: Items can have limited stock, affecting price.
+- **Recipe-based pricing**: Automatic price calculation based on crafting recipe.
+- **Configurable cache system**: Choose between performance (`full` cache) and real-time data (`realtime`).
+- **Dynamic placeholders**: Display prices, stock, min/max, etc. in item lores.
+- **Transaction limits**: Per-player buy/sell limits per period.
+- **Full ShopGUI+ compatibility**: Supports all shop types, pages, selection menus, etc.
 
 ---
 
-## Configuration générale
+## DynaShop Modes
 
-Dans config.yml du plugin DynaShop :
+Each item can work in a specific **DynaShop mode**:
+
+| Mode         | Description                                                      | Config key (`typeDynaShop`) |
+|--------------|------------------------------------------------------------------|-----------------------------|
+| `DYNAMIC`    | Dynamic price, no stock management                               | `DYNAMIC`                   |
+| `STOCK`      | Dynamic price + stock management (limited quantity)              | `STOCK`                     |
+| `STATIC_STOCK` | Fixed price, but with stock management                         | `STATIC_STOCK`              |
+| `RECIPE`     | Price automatically calculated from crafting recipe              | `RECIPE`                    |
+| `LINK`       | Item inherits price from another item (shopID:itemID)            | `LINK`                      |
+
+---
+
+## General Configuration
+
+In your DynaShop `config.yml`:
 
 ```yaml
 cache:
-  mode: "full" # "full" (performances) ou "realtime" (données fraîches)
+  mode: "full" # "full" (performance) or "realtime" (fresh data)
   durations:
     price: 30
     display: 10
@@ -59,19 +62,19 @@ cache:
     calculated: 60
 
 gui-refresh:
-  default-items: 1000   # ms entre chaque refresh d’inventaire normal
-  critical-items: 300   # ms pour les items critiques (ex: stock très faible)
+  default-items: 1000   # ms between each normal inventory refresh
+  critical-items: 300   # ms for critical items (e.g. very low stock)
 ```
 
 ---
 
-## Configuration des items par mode
+## Item Configuration by Mode
 
-### 1. Mode DYNAMIC
+### 1. DYNAMIC Mode
 
 ```yaml
 items:
-  diamant:
+  diamond:
     typeDynaShop: DYNAMIC
     buyPrice: 1000
     buyDynamic:
@@ -87,11 +90,11 @@ items:
       decay: 0.99
 ```
 
-### 2. Mode STOCK
+### 2. STOCK Mode
 
 ```yaml
 items:
-  fer:
+  iron:
     typeDynaShop: STOCK
     buyPrice: 100
     sellPrice: 80
@@ -103,11 +106,11 @@ items:
       sellModifier: 1.0
 ```
 
-### 3. Mode STATIC_STOCK
+### 3. STATIC_STOCK Mode
 
 ```yaml
 items:
-  or:
+  gold:
     typeDynaShop: STATIC_STOCK
     buyPrice: 200
     sellPrice: 150
@@ -117,11 +120,11 @@ items:
       max: 5000
 ```
 
-### 4. Mode RECIPE
+### 4. RECIPE Mode
 
 ```yaml
 items:
-  bloc_de_diamant:
+  diamond_block:
     typeDynaShop: RECIPE
     recipe:
       type: SHAPED
@@ -130,87 +133,87 @@ items:
         - "XXX"
         - "XXX"
       ingredients:
-        X: diamant
-    buyPrice: 0 # Peut être omis, sera calculé
-    sellPrice: 0 # Peut être omis, sera calculé
+        X: diamond
+    buyPrice: 0 # Optional, will be calculated
+    sellPrice: 0 # Optional, will be calculated
 ```
 
-### 5. Mode LINK
+### 5. LINK Mode
 
 ```yaml
 items:
-  charbon_deepslate:
+  deepslate_coal:
     typeDynaShop: LINK
-    link: minerais:1 # shopID:itemID cible
-    buyPrice: -1 # Optionnel, sera ignoré
+    link: ores:1 # target shopID:itemID
+    buyPrice: -1 # Optional, will be ignored
     sellPrice: 25
 ```
 
 ---
 
-## Gestion du cache et des performances
+## Cache & Performance Management
 
-- **Mode `full`** : Les prix, stocks, recettes, etc. sont mis en cache pour de meilleures performances.
-- **Mode `realtime`** : Les prix sont recalculés à chaque affichage, sans utiliser le cache (pour des données toujours fraîches, mais plus de charge serveur).
-- **Durées de cache** : Configurables dans config.yml (voir plus haut).
+- **`full` mode**: Prices, stock, recipes, etc. are cached for better performance.
+- **`realtime` mode**: Prices are recalculated every time, no cache (always fresh data, higher server load).
+- **Cache durations**: Configurable in `config.yml` (see above).
 
-**Astuce** :  
-Pour un serveur avec beaucoup de joueurs, privilégiez le mode `full`.  
-Pour des tests ou un shop très dynamique, utilisez `realtime`.
+**Tip**:  
+For large servers, use `full` mode.  
+For testing or highly dynamic shops, use `realtime`.
 
 ---
 
-## Placeholders dynamiques
+## Dynamic Placeholders
 
-Dans les lores des items (dans les shops ou menus de sélection), vous pouvez utiliser :
+In item lores (in shops or selection menus), you can use:
 
-- `%dynashop_current_buyPrice%` : Prix d’achat actuel
-- `%dynashop_current_sellPrice%` : Prix de vente actuel
+- `%dynashop_current_buyPrice%`: Current buy price
+- `%dynashop_current_sellPrice%`: Current sell price
 - `%dynashop_current_buyMinPrice%` / `%dynashop_current_buyMaxPrice%`
 - `%dynashop_current_sellMinPrice%` / `%dynashop_current_sellMaxPrice%`
-- `%dynashop_current_buy%` / `%dynashop_current_sell%` : Prix formaté (avec min/max si applicable)
-- `%dynashop_current_stock%` : Stock actuel
-- `%dynashop_current_maxstock%` : Stock max
-- `%dynashop_current_stock_ratio%` : Stock actuel/max
-- `%dynashop_current_colored_stock_ratio%` : Stock actuel/max avec couleur selon le niveau
+- `%dynashop_current_buy%` / `%dynashop_current_sell%`: Formatted price (with min/max if applicable)
+- `%dynashop_current_stock%`: Current stock
+- `%dynashop_current_maxstock%`: Max stock
+- `%dynashop_current_stock_ratio%`: Current/max stock
+- `%dynashop_current_colored_stock_ratio%`: Current/max stock with color based on level
 
-**Les lignes contenant des placeholders seront automatiquement masquées si la valeur est "N/A" ou "-1" selon la config.**
+**Lines with placeholders will be automatically hidden if the value is "N/A" or "-1" (configurable).**
 
 ---
 
-## Limites et cooldowns
+## Limits & Cooldowns
 
-Dans la config d’un item :
+In an item's config:
 
 ```yaml
 limit:
   buy: 100
   sell: 100
-  cooldown: 3600 # en secondes (1h)
+  cooldown: 3600 # in seconds (1 hour)
 ```
 
-- **buy/sell** : Limite d’achat/vente par joueur et par période.
-- **cooldown** : Durée de la période (en secondes).
+- **buy/sell**: Per-player buy/sell limit per period.
+- **cooldown**: Period duration (in seconds).
 
 ---
 
-## Reload et bonnes pratiques
+## Reload & Best Practices
 
-- Utilisez la commande `/dynashop reload` pour recharger la config et les shops.
-- **Ne jamais appeler onDisable/onEnable manuellement** dans le code.
-- Après un reload, le cache et les configs sont réinitialisés selon le mode choisi.
+- Use `/dynashop reload` to reload config and shops.
+- **Never call onDisable/onEnable manually** in code.
+- After reload, cache and configs are reset according to the chosen mode.
 
 ---
 
-## Exemples de configuration ShopGUIPlus
+## Example ShopGUIPlus Configuration
 
-Dans `plugins/ShopGUIPlus/shops/monshop.yml` :
+In `plugins/ShopGUIPlus/shops/myshop.yml`:
 
 ```yaml
-monshop:
-  name: "Magasin &l»&r MonShop #%page%"
+myshop:
+  name: "Shop &l»&r MyShop #%page%"
   items:
-    diamant:
+    diamond:
       type: item
       item:
         material: DIAMOND
@@ -232,15 +235,15 @@ monshop:
 
 ## FAQ
 
-- **Q : Peut-on mixer plusieurs modes dans un même shop ?**  
-  **R : Oui**, chaque item peut avoir son propre `typeDynaShop`.
+- **Q: Can I mix several modes in the same shop?**  
+  **A: Yes**, each item can have its own `typeDynaShop`.
 
-- **Q : Comment forcer le recalcul d’un prix ?**  
-  **R : Utilisez le mode `realtime` ou augmentez la durée du cache pour le mode `full`.**
+- **Q: How to force a price recalculation?**  
+  **A: Use `realtime` mode or lower the cache duration for `full` mode.**
 
-- **Q : Les placeholders ne s’affichent pas ?**  
-  **R : Vérifiez que l’itemId est bien renseigné dans la map interne lors de l’ouverture du menu de sélection.**
+- **Q: Placeholders not showing?**  
+  **A: Make sure the itemId is set in the internal map when opening the selection menu.**
 
 ---
 
-Pour plus de détails, consultez les fichiers de config d’exemple et les commentaires dans le code source.
+For more details, check the example config files and comments in the source code.
