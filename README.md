@@ -176,6 +176,42 @@ items:
     sellPrice: 25
 ```
 
+### Advanced: Different type for buy and sell
+
+You can define a different DynaShop type for buying and selling the same item using `buyType` and `sellType`:
+
+```yaml
+items:
+  gold_block:
+    typeDynaShop: DYNAMIC         # General type (fallback) or set NONE
+    dynaShop:
+      buyType: RECIPE              # Use RECIPE mode for buying
+      sellType: DYNAMIC           # Use DYNAMIC mode for selling
+    buyPrice: 500
+    sellPrice: 300
+    recipe:
+      type: SHAPED
+      pattern:
+        - "XXX"
+        - "XXX"
+        - "XXX"
+      ingredients:
+        X: ores:gold_ingot
+    buyDynamic:
+      min: 400
+      max: 600
+    sellDynamic:
+      min: 250
+      max: 350
+```
+
+- `dynaShop.buyType`: Type used for buying (e.g. `DYNAMIC`, `RECIPE`, `LINK`)
+- `dynaShop.sellType`: Type used for selling
+
+If not set, the plugin uses the general `typeDynaShop` for both buy and sell.
+
+**This allows you to, for example, have a fixed price for selling but a dynamic price for buying, or use stock only for one direction.**
+
 ---
 
 ## Cache & Performance Management
