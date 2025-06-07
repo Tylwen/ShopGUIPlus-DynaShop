@@ -214,6 +214,70 @@ If not set, the plugin uses the general `typeDynaShop` for both buy and sell.
 
 ---
 
+### Enchantment Price Modifier
+
+You can enable a price multiplier for enchanted items.  
+If enabled, the price of an item will be multiplied according to its enchantments and the multipliers defined in your config.
+
+#### How to enable
+
+Add this in your item config (per item):
+
+```yaml
+items:
+  diamond_sword:
+    typeDynaShop: DYNAMIC
+    buyPrice: 1000
+    dynaShop:
+      enchantment: true   # Enable enchantment price modifier for this item
+```
+
+Or globally for all items (in your config):
+
+```yaml
+dynaShop:
+  enchantment: true
+```
+
+#### How it works
+
+- If `enchantment: true` is set, the plugin will check the item's enchantments.
+- The price will be multiplied by the value defined for each enchantment and level in your config (see below).
+- If not set, the price is not affected by enchantments.
+
+#### Example: Define multipliers
+
+In your config (usually `plugins/ShopGUIPlus/config.yml`):
+
+```yaml
+enchant_multipliers:
+  SHARPNESS:
+    1: 1.2
+    2: 1.4
+    3: 1.7
+    4: 2.0
+    5: 2.5
+  LOOTING:
+    1: 1.1
+    2: 1.3
+    3: 1.6
+```
+
+- The price will be multiplied by all applicable multipliers (one per enchantment/level).
+- If a multiplier is not set for a level, it defaults to `1.0` (no change).
+
+#### Result
+
+If a player tries to buy or sell an enchanted item, the price will be higher according to the multipliers you set.
+
+---
+
+**Tip:**  
+You can combine this with all DynaShop modes and placeholders.  
+If you want to disable the enchantment modifier for a specific item, set `enchantment: false` in its config.
+
+---
+
 ## Cache & Performance Management
 
 - **`full` mode**: Prices, stock, recipes, etc. are cached for better performance.
@@ -426,16 +490,15 @@ items:
       sell: 100
       cooldown: 3600 # 1 hour
 ```
-
 **Note:**  
 Limits are enforced even if the server restarts.  
 You can monitor and clean up old transaction data automatically (see plugin logs for details).
+
 ---
 
 ## Reload & Best Practices
 
 - Use `/dynashop reload` to reload config and shops.
-- **Never call onDisable/onEnable manually** in code.
 - After reload, cache and configs are reset according to the chosen mode.
 
 ---
