@@ -2,13 +2,11 @@ name: ShopGUIPlus-DynaShop
 prefix: DynaShop
 author: Tylwen
 main: fr.tylwen.satyria.dynashop.DynaShopPlugin
-version: 1.0.10
+version: ${dynashop.version}
 description: Plugin de gestion de boutique dynamique pour Minecraft
 api-version: '1.13'
 depend: [ ShopGUIPlus, Vault ]
-# depend: [ ShopGUIPlus, Vault, PlaceholderAPI ]
 softdepend: [ PlaceholderAPI ]
-# loadbefore: [ ShopGUIPlus ]
 
 commands:
 #   shop:

@@ -7,21 +7,26 @@
 
 	<groupId>fr.tylwen.satyria.dynashop</groupId>
 	<artifactId>ShopGUIPlus-DynaShop</artifactId>
-	<version>1.0.10</version>
+	<version>${dynashop.version}</version>
 
 	<properties>
+        <dynashop.version>1.0.10</dynashop.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
 	</properties>
 
     <build>
+        <finalName>ShopGUIPlus-DynaShop-${dynashop.version}</finalName>
         <sourceDirectory>src/main/java/</sourceDirectory>
         <resources>
             <resource>
                 <targetPath>.</targetPath>
                 <filtering>true</filtering>
                 <directory>${basedir}/src/main/resources/</directory>
+                <includes>
+                    <include>plugin.yml</include>
+                </includes>
             </resource>
         </resources>
         <plugins>
@@ -146,7 +151,7 @@
             <groupId>com.github.brcdev-minecraft</groupId>
 	        <artifactId>shopgui-api</artifactId>
             <version>3.0.0</version>
-            <scope>provided</scope> <!-- Changez en "provided" -->
+            <scope>provided</scope>
         </dependency>
 		<dependency>
 			<groupId>me.clip</groupId>
