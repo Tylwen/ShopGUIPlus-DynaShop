@@ -345,6 +345,20 @@ shopItemLoreFormat:
 
 **Tip:**  
 Lines with placeholders are automatically hidden if the value is "N/A" or "-1" (see `hideBuyPriceForUnbuyable` and `hideSellPriceForUnsellable` in your config).
+You can also use any PlaceholderAPI placeholders in your item lores, buttons, and GUIs.  
+If PlaceholderAPI is installed, all `%placeholder%` variables (from any supported plugin) will be replaced automatically in the lore, alongside DynaShop placeholders.
+
+For example:
+
+```yaml
+shopItemLoreFormat:
+  item:
+    - "&7&l» &fBuy price: &c%dynashop_current_buy%"
+    - "&7&l» &fPlayer: &b%player_name%"
+    - "&7&l» &fBalance: &a%vault_eco_balance_formatted%"
+```
+
+This allows you to display player names, balances, stats, and any other dynamic info supported by PlaceholderAPI, together with DynaShop dynamic prices and stock.
 
 ---
 
