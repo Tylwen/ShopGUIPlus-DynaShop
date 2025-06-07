@@ -1,5 +1,4 @@
 # ShopGUI+ DynaShop (Addon)
-
 Collecte des informations sur l’espace de travailVoici un **wiki complet** pour ShopGUIPlus-DynaShop, couvrant toutes les fonctionnalités principales, les modes de fonctionnement, et la configuration nécessaire pour chaque mode.
 
 ---
