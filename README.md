@@ -232,13 +232,6 @@ items:
       enchantment: true   # Enable enchantment price modifier for this item
 ```
 
-Or globally for all items (in your config):
-
-```yaml
-dynaShop:
-  enchantment: true
-```
-
 #### How it works
 
 - If `enchantment: true` is set, the plugin will check the item's enchantments.
