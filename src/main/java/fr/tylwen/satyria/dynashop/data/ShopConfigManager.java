@@ -296,7 +296,7 @@ public class ShopConfigManager {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             if (!plugin.getItemDataManager().itemHasPrice(shop.getId(), item.getId())) {
                 // plugin.getItemDataManager().createItem(shop.getId(), item.getId());
-                plugin.getLogger().info("Adding new item price for " + item.getId() + " in shop " + shop.getId());
+                // plugin.getLogger().info("Adding new item price for " + item.getId() + " in shop " + shop.getId());
                 // plugin.getItemDataManager().savePrice(shop.getId(), item.getId(), price.getBuyPrice(), price.getSellPrice());
                 if (price.getBuyPrice() > 0) {
                     plugin.getDataManager().insertBuyPrice(shop.getId(), item.getId(), price.getBuyPrice());
