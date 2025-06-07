@@ -369,7 +369,9 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         this.stockCache = new CacheManager<>(this, "stockCache", 5, TimeUnit.MINUTES, 5);
         this.displayPriceCache = new CacheManager<>(this, "displayPriceCache", 2, TimeUnit.MINUTES, 20);
 
-        this.shopConfigManager = new ShopConfigManager(new File(Bukkit.getPluginManager().getPlugin("ShopGUIPlus").getDataFolder(), "shops/"));
+        // this.shopConfigManager = new ShopConfigManager(new File(Bukkit.getPluginManager().getPlugin("ShopGUIPlus").getDataFolder(), "shops/"));
+        // this.shopConfigManager = new ShopConfigManager(new File(ShopGuiPlusApi.getPlugin().getConfigShops().getConfig().getCurrentPath(), "shops/"));
+        this.shopConfigManager = new ShopConfigManager(this);
         this.dataConfig = new DataConfig(this.configMain);
         this.langConfig = new LangConfig(this.configLang);
 

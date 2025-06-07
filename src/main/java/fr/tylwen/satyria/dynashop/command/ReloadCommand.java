@@ -27,9 +27,10 @@
 package fr.tylwen.satyria.dynashop.command;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
-import fr.tylwen.satyria.dynashop.config.DataConfig;
+// import fr.tylwen.satyria.dynashop.config.DataConfig;
+// import net.brcdev.shopgui.ShopGuiPlusApi;
 
-import java.io.File;
+// import java.io.File;
 
 // import java.io.File;
 
@@ -42,7 +43,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 // import org.bukkit.configuration.file.FileConfiguration;
 // import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
+// import org.bukkit.configuration.file.YamlConfiguration;
 
 public class ReloadCommand implements CommandExecutor {
     private final DynaShopPlugin plugin;
@@ -98,6 +99,7 @@ public class ReloadCommand implements CommandExecutor {
         sender.sendMessage("§eRechargement du plugin DynaShop...");
 
         try {
+
             // Recharger les fichiers de configuration
             plugin.reloadConfig(); // Recharge config.yml
             
@@ -116,6 +118,8 @@ public class ReloadCommand implements CommandExecutor {
 
             // // Recharger les shops
             // plugin.getShopConfigManager().reloadShops(); // Assure-toi que cette méthode existe
+            // ShopGuiPlusApi.getPlugin().getShopManager().load(); // Recharger les shops de ShopGuiPlus
+            plugin.getShopConfigManager().reloadCache(); // Recharger les shops de DynaShop
 
             // // Réinitialiser les caches si besoin
             // plugin.getPriceCache().clear();

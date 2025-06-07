@@ -23,7 +23,7 @@ public class LimitResetCommand implements CommandExecutor {
         }
         
         if (args.length < 1) {
-            sender.sendMessage(ChatColor.RED + "Usage: /resetlimits <joueur> [shopID] [itemID]");
+            sender.sendMessage(ChatColor.RED + "Usage: /dynashop resetlimits <joueur> [shopID] [itemID]");
             return true;
         }
         

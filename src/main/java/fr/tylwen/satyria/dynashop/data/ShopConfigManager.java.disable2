@@ -2,6 +2,7 @@ package fr.tylwen.satyria.dynashop.data;
 
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 // import org.bukkit.plugin.Plugin;
 // import org.bukkit.inventory.ItemStack;
@@ -75,7 +76,7 @@ public class ShopConfigManager {
      * @param shopID L'ID du shop.
      * @return La configuration YAML à jour.
      */
-    public YamlConfiguration getOrUpdateShopConfig(String shopID) {
+    private YamlConfiguration getOrUpdateShopConfig(String shopID) {
         File shopFile = ShopFile.getFileByShopID(shopID);
         if (shopFile == null || !shopFile.exists()) {
             return new YamlConfiguration();
@@ -120,7 +121,8 @@ public class ShopConfigManager {
     public ConfigurationSection getCachedSection(String shopID, String itemID, String section) {
         String cacheKey = shopID + ":" + itemID + ":" + section;
         return sectionCache.computeIfAbsent(cacheKey, key -> {
-            YamlConfiguration config = getOrUpdateShopConfig(shopID);
+            // YamlConfiguration config = getOrUpdateShopConfig(shopID);
+            FileConfiguration config = ShopGuiPlusApi.getPlugin().getConfigShops().getConfig();
             ConfigurationSection shopSection = config.getConfigurationSection(shopID);
             if (shopSection == null) return null;
             
@@ -152,25 +154,25 @@ public class ShopConfigManager {
         return getCachedSection(shopID, itemID, section) != null;
     }
     
-    /**
-     * Force le rechargement du cache pour tous les shops.
-     */
-    public void reloadCache() {
-        shopConfigCache.clear();
-        fileLastModifiedCache.clear();
-        sectionCache.clear();
+    // /**
+    //  * Force le rechargement du cache pour tous les shops.
+    //  */
+    // private void reloadCache() {
+    //     shopConfigCache.clear();
+    //     fileLastModifiedCache.clear();
+    //     sectionCache.clear();
         
-        // Recharger les fichiers de shop
-        File shopDir = getShopDirectory();
-        if (shopDir != null && shopDir.exists()) {
-            ShopFile.loadShopFiles(shopDir);
+    //     // Recharger les fichiers de shop
+    //     File shopDir = getShopDirectory();
+    //     if (shopDir != null && shopDir.exists()) {
+    //         ShopFile.loadShopFiles(shopDir);
             
-            // Précharger les configurations des shops fréquemment utilisés
-            for (String shopID : ShopFile.getAllShopIDs()) {
-                getOrUpdateShopConfig(shopID);
-            }
-        }
-    }
+    //         // Précharger les configurations des shops fréquemment utilisés
+    //         for (String shopID : ShopFile.getAllShopIDs()) {
+    //             getOrUpdateShopConfig(shopID);
+    //         }
+    //     }
+    // }
 
     /**
      * Charge, pour chaque shop de ShopGUI+, les définitions buyPrice / sellPrice
@@ -182,7 +184,7 @@ public class ShopConfigManager {
             return;
         }
     
-        plugin.getDataManager().loadPricesFromDatabase();
+        DynaShopPlugin.getInstance().getDataManager().loadPricesFromDatabase();
     
         // ShopFile shopFile = new ShopFile(shopDir);
         // shopFile.loadShopFiles();
@@ -275,8 +277,8 @@ public class ShopConfigManager {
 
         // if ((!itemSec.isConfigurationSection("buyDynamic") || !itemSec.isConfigurationSection("sellDynamic")) && getTypeDynaShop(shop.getId(), item.getId()) != DynaShopType.STATIC_STOCK) {
         if ((!itemSec.isConfigurationSection("buyDynamic") && !itemSec.isConfigurationSection("sellDynamic")) && typeGeneral != DynaShopType.STATIC_STOCK) {
-            if (plugin.getItemDataManager().itemExists(shop.getId(), item.getId())) {
-                plugin.getItemDataManager().deleteItem(shop.getId(), item.getId());
+            if (DynaShopPlugin.getInstance().getItemDataManager().itemExists(shop.getId(), item.getId())) {
+                DynaShopPlugin.getInstance().getItemDataManager().deleteItem(shop.getId(), item.getId());
             }
             priceMap.remove(item);
             return;
@@ -293,20 +295,20 @@ public class ShopConfigManager {
 
         priceMap.put(item, price);
 
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            if (!plugin.getItemDataManager().itemHasPrice(shop.getId(), item.getId())) {
-                // plugin.getItemDataManager().createItem(shop.getId(), item.getId());
-                plugin.getLogger().info("Adding new item price for " + item.getId() + " in shop " + shop.getId());
-                // plugin.getItemDataManager().savePrice(shop.getId(), item.getId(), price.getBuyPrice(), price.getSellPrice());
+        Bukkit.getScheduler().runTaskAsynchronously(DynaShopPlugin.getInstance(), () -> {
+            if (!DynaShopPlugin.getInstance().getItemDataManager().itemHasPrice(shop.getId(), item.getId())) {
+                // DynaShopPlugin.getInstance().getItemDataManager().createItem(shop.getId(), item.getId());
+                DynaShopPlugin.getInstance().getLogger().info("Adding new item price for " + item.getId() + " in shop " + shop.getId());
+                // DynaShopPlugin.getInstance().getItemDataManager().savePrice(shop.getId(), item.getId(), price.getBuyPrice(), price.getSellPrice());
                 if (price.getBuyPrice() > 0) {
-                    plugin.getDataManager().insertBuyPrice(shop.getId(), item.getId(), price.getBuyPrice());
+                    DynaShopPlugin.getInstance().getDataManager().insertBuyPrice(shop.getId(), item.getId(), price.getBuyPrice());
                 }
                 if (price.getSellPrice() > 0) {
-                    plugin.getDataManager().insertSellPrice(shop.getId(), item.getId(), price.getSellPrice());
+                    DynaShopPlugin.getInstance().getDataManager().insertSellPrice(shop.getId(), item.getId(), price.getSellPrice());
                 }
                 // if ((getTypeDynaShop(shop.getId(), item.getId()) == DynaShopType.STATIC_STOCK || getTypeDynaShop(shop.getId(), item.getId()) == DynaShopType.STOCK) && price.getStock() > 0) {
                 if ((typeGeneral == DynaShopType.STATIC_STOCK || typeGeneral == DynaShopType.STOCK) && price.getStock() > 0) {
-                    plugin.getDataManager().insertStock(shop.getId(), item.getId(), price.getStock());
+                    DynaShopPlugin.getInstance().getDataManager().insertStock(shop.getId(), item.getId(), price.getStock());
                 }
             }
         });
@@ -353,7 +355,7 @@ public class ShopConfigManager {
             sellModifier = stockSec.getDouble("sellModifier", 2.0);
         }
 
-        // plugin.getLogger().info("Creating DynamicPrice for item: " + itemSec.getCurrentPath() +
+        // DynaShopPlugin.getInstance().getLogger().info("Creating DynamicPrice for item: " + itemSec.getCurrentPath() +
         //     " | Buy: " + baseBuy + " (min: " + minBuy + ", max: " + maxBuy + ", growth: " + growthBuy + ", decay: " + decayBuy +
         //     ") | Sell: " + baseSell + " (min: " + minSell + ", max: " + maxSell + ", growth: " + growthSell + ", decay: " + decaySell +
         //     ") | Stock: " + stock + " (min: " + minStock + ", max: " + maxStock +
@@ -418,7 +420,8 @@ public class ShopConfigManager {
     //     return hasSection(shopID, itemID, "recipe.pattern");
     // }
     public boolean hasRecipePattern(String shopID, String itemID) {
-        YamlConfiguration config = getOrUpdateShopConfig(shopID);
+        // YamlConfiguration config = getOrUpdateShopConfig(shopID);
+        FileConfiguration config = ShopGuiPlusApi.getPlugin().getConfigShops().getConfig();
         if (config == null) return false;
         
         // Chemin complet vers la clé pattern
@@ -535,7 +538,8 @@ public class ShopConfigManager {
     
         // Charger la configuration YAML du fichier
         // YamlConfiguration config = YamlConfiguration.loadConfiguration(shopFile);
-        YamlConfiguration config = getOrUpdateShopConfig(shopID);
+        // YamlConfiguration config = getOrUpdateShopConfig(shopID);
+        FileConfiguration config = ShopGuiPlusApi.getPlugin().getConfigShops().getConfig();
     
         ConfigurationSection shopSection = config.getConfigurationSection(shopID);
         if (shopSection == null) {
@@ -651,7 +655,8 @@ public class ShopConfigManager {
         // Récupérer la section de l'item directement (une seule navigation)
         String cacheKey = shopID + ":" + itemID;
         ConfigurationSection itemSection = sectionCache.computeIfAbsent(cacheKey, k -> {
-            YamlConfiguration config = getOrUpdateShopConfig(shopID);
+            // YamlConfiguration config = getOrUpdateShopConfig(shopID);
+            FileConfiguration config = ShopGuiPlusApi.getPlugin().getConfigShops().getConfig();
             
             // Naviguer jusqu'à la section shop
             ConfigurationSection shopSection = config.getConfigurationSection(shopID);
@@ -747,7 +752,7 @@ public class ShopConfigManager {
     }
 
     // public ItemStack getItemStack(String shopID, String itemID) {
-    //     Optional<ItemStack> itemStack = plugin.getItemDataManager().getItemStack(shopID, itemID);
+    //     Optional<ItemStack> itemStack = DynaShopPlugin.getInstance().getItemDataManager().getItemStack(shopID, itemID);
     //     if (itemStack.isPresent()) {
     //         return itemStack.get();
     //     } else {
@@ -764,7 +769,8 @@ public class ShopConfigManager {
      * @return La section de configuration, ou null si elle n'existe pas.
      */
     public ConfigurationSection getSection(String shopID, String itemID, String section) {
-        YamlConfiguration config = getOrUpdateShopConfig(shopID);
+        // YamlConfiguration config = getOrUpdateShopConfig(shopID);
+        FileConfiguration config = ShopGuiPlusApi.getPlugin().getConfigShops().getConfig();
         ConfigurationSection shopSection = config.getConfigurationSection(shopID);
         ConfigurationSection itemsSection = shopSection.getConfigurationSection("items");
         if (itemsSection == null) {

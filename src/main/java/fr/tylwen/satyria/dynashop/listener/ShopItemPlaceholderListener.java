@@ -40,6 +40,8 @@ public class ShopItemPlaceholderListener implements Listener {
     private DynaShopPlugin plugin;
     private final long guiRefreshDefaultItems;
     private final long guiRefreshCriticalItems;
+
+    private final boolean forceRefresh;
     
     // Définir des constantes configurables pour les intervalles de rafraîchissement
     // private static final long DEFAULT_REFRESH_INTERVAL = 1000; // 1 seconde en ms
@@ -68,6 +70,8 @@ public class ShopItemPlaceholderListener implements Listener {
 
         this.guiRefreshDefaultItems = plugin.getConfig().getLong("gui-refresh.default-items", 1000);
         this.guiRefreshCriticalItems = plugin.getConfig().getLong("gui-refresh.critical-items", 300);
+
+        this.forceRefresh = plugin.isRealTimeMode();
 
         // // Démarrer le planificateur de rafraîchissement
         // startRefreshScheduler();
@@ -197,11 +201,11 @@ public class ShopItemPlaceholderListener implements Listener {
             // private final Map<UUID, String> currentMenuTypes = new ConcurrentHashMap<>();
             // currentMenuTypes.put(player.getUniqueId(), menuType);
             
-            // DynaShopPlugin.getInstance().getLogger().info("TEST 1: " + fullShopId);
+            // plugin.getLogger().info("TEST 1: " + fullShopId);
             AmountSelectionInfo info = extractAmountSelectionInfo(view, fullShopId);
             if (info == null) return;
 
-            // DynaShopPlugin.getInstance().getLogger().info("TEST 2: " + view.getTitle() + " | Item ID: " + info.getItemId() + " | Shop ID: " + info.getShopId());
+            // plugin.getLogger().info("TEST 2: " + view.getTitle() + " | Item ID: " + info.getItemId() + " | Shop ID: " + info.getShopId());
             
             // // Correction : mettre à jour openShopMap avec l'itemId si connu
             // if (info.getItemId() != null) {
@@ -229,7 +233,7 @@ public class ShopItemPlaceholderListener implements Listener {
             //     }
             // }
             // if (fullShopId.equals("AMOUNT_SELECTION")) {
-            //     // DynaShopPlugin.getInstance().getLogger().info("Detected amount selection menu for item: " + info.getItemId());
+            //     // plugin.getLogger().info("Detected amount selection menu for item: " + info.getItemId());
             //     ItemStack itemStack = info.getItemStack();
             //     if (itemStack != null && itemStack.hasItemMeta() && itemStack.getItemMeta().hasLore()) {
             //         ItemMeta meta = itemStack.getItemMeta();
@@ -243,7 +247,7 @@ public class ShopItemPlaceholderListener implements Listener {
             //         itemStack.setItemMeta(meta);
             //     }
             // } else if (fullShopId.equals("AMOUNT_SELECTION_BULK")) {
-            //     // DynaShopPlugin.getInstance().getLogger().info("Detected bulk amount selection menu for item: " + info.getItemId());
+            //     // plugin.getLogger().info("Detected bulk amount selection menu for item: " + info.getItemId());
             //     for (Map.Entry<Integer, Integer> entry : info.getSlotValues().entrySet()) {
             //         int slot = entry.getKey();
             //         ItemStack item = view.getTopInventory().getItem(slot);
@@ -275,13 +279,13 @@ public class ShopItemPlaceholderListener implements Listener {
                     item.setItemMeta(meta);
                 }
             }
-            // DynaShopPlugin.getInstance().getLogger().info("Detected amount selection menu for item: " + info.getItemId());
+            // plugin.getLogger().info("Detected amount selection menu for item: " + info.getItemId());
             
             // Mettre à jour les prix dans les boutons
             updateAmountSelectionInventory(player, view, info, originalLores);
             
             // Démarrer l'actualisation continue
-            startContinuousAmountSelectionRefresh(player, view, info, originalLores, fullShopId);
+            startContinuousAmountSelectionRefresh(player, info, originalLores, fullShopId);
             return;
         } else {
             // C'est un shop normal
@@ -479,7 +483,7 @@ public class ShopItemPlaceholderListener implements Listener {
             // ShopItem shopItem = shop.getShopItem(page, shopData.getValue() != null ? Integer.parseInt(shopData.getValue()) : event.getSlot());
 
             // if (shopItem != null) {
-            // DynaShopPlugin.getInstance().getLogger().info("Clicked item in shop: " + shopId + ":" + shopItem.getId() + " for player " + player.getName());
+            // plugin.getLogger().info("Clicked item in shop: " + shopId + ":" + shopItem.getId() + " for player " + player.getName());
             // Mettre à jour l'itemId dans la map
             openShopMap.put(player.getUniqueId(), new SimpleEntry<>(shopId, shopItem.getId()));
             
@@ -530,7 +534,7 @@ public class ShopItemPlaceholderListener implements Listener {
         // Déterminer si c'est un menu de sélection
         String menuType = determineShopId(event.getView());
         boolean isSelectionMenu = menuType != null && (menuType.equals("AMOUNT_SELECTION") || menuType.equals("AMOUNT_SELECTION_BULK"));
-        // DynaShopPlugin.getInstance().getLogger().info("Closing inventory for player: " + player.getName() + 
+        // plugin.getLogger().info("Closing inventory for player: " + player.getName() + 
         //     " | Menu type: " + (isSelectionMenu ? "Selection Menu" : "Regular Shop"));
         
         // Arrêter la tâche de refresh
@@ -539,7 +543,7 @@ public class ShopItemPlaceholderListener implements Listener {
         // Arrêter la tâche de refresh dans tous les cas
         // UUID taskId = playerRefreshTasks.remove(playerId);
         // if (taskId != null) {
-        //     // DynaShopPlugin.getInstance().getLogger().info("Stopping continuous refresh for player: " + player.getName());
+        //     // plugin.getLogger().info("Stopping continuous refresh for player: " + player.getName());
         // }
         
         // // Nettoyer les autres maps
@@ -547,7 +551,7 @@ public class ShopItemPlaceholderListener implements Listener {
         // if (!isSelectionMenu) {
         //     plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
         //         openShopMap.remove(playerId);
-        //         // DynaShopPlugin.getInstance().getLogger().info("Cleared openShopMap for player: " + player.getName());
+        //         // plugin.getLogger().info("Cleared openShopMap for player: " + player.getName());
         //     }, 20L); // 20 ticks de délai (1s) pour s'assurer qu'un nouveau menu n'est pas ouvert
         // }
         // // openShopMap.remove(player.getUniqueId());
@@ -566,7 +570,7 @@ public class ShopItemPlaceholderListener implements Listener {
                     // openShopMap.remove(playerId);
                 String newMenuType = player.isOnline() ? determineShopId(player.getOpenInventory()) : null;
                 boolean isNewSelectionMenu = newMenuType != null && (newMenuType.equals("AMOUNT_SELECTION") || newMenuType.equals("AMOUNT_SELECTION_BULK"));
-                // DynaShopPlugin.getInstance().getLogger().info("New menu type for player " + player.getName() + ": " + newMenuType + " openShopMap: " + openShopMap.get(playerId));
+                // plugin.getLogger().info("New menu type for player " + player.getName() + ": " + newMenuType + " openShopMap: " + openShopMap.get(playerId));
                 
                 // Vérifier si c'est juste un changement de page du même shop
                 boolean isChangingPage = false;
@@ -580,7 +584,7 @@ public class ShopItemPlaceholderListener implements Listener {
                 // if (!isNewSelectionMenu) {
                 //     openShopMap.remove(playerId);
                 //     amountSelectionMenus.remove(playerId);
-                //     DynaShopPlugin.getInstance().getLogger().info("Cleared openShopMap for player: " + player.getName());
+                //     plugin.getLogger().info("Cleared openShopMap for player: " + player.getName());
                 // }
                 // Ne nettoyer que si ce n'est pas un menu de sélection ET pas un changement de page
                 if (!isNewSelectionMenu && !isChangingPage) {
@@ -708,7 +712,7 @@ public class ShopItemPlaceholderListener implements Listener {
             title.contains(ChatColor.translateAlternateColorCodes('&', 
                 ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.SELL.NAME").replace("%item%", "")))) {
             // C'est un menu de sélection de quantité
-            // DynaShopPlugin.getInstance().getLogger().info("Detected amount selection menu: " + title);
+            // plugin.getLogger().info("Detected amount selection menu: " + title);
             return "AMOUNT_SELECTION";
         }
 
@@ -817,7 +821,7 @@ public class ShopItemPlaceholderListener implements Listener {
         //     if (!player.isOnline() || player.getOpenInventory() == null || playerRefreshTasks.get(player.getUniqueId()) != refreshId) {
         //         task[0].cancel();
         //         playerRefreshTasks.remove(player.getUniqueId());
-        //         DynaShopPlugin.getInstance().getLogger().info("Stopping continuous refresh for player " + player.getName() + " - either offline or inventory closed.");
+        //         plugin.getLogger().info("Stopping continuous refresh for player " + player.getName() + " - either offline or inventory closed.");
         //         return;
         //     }
         //     plugin.getServer().getScheduler().runTask(plugin, () -> {
@@ -912,6 +916,7 @@ public class ShopItemPlaceholderListener implements Listener {
                                 // }
                                 
                                 itemPrices = getCachedPlaceholders(player, finalShopId, itemId, item, false);
+                                // itemPrices = getCachedPlaceholders(player, finalShopId, itemId, item, forceRefresh);
                                 
                                 // Appliquer les remplacements
                                 List<String> newLore = replacePlaceholders(originalLore, itemPrices, player);
@@ -1183,7 +1188,7 @@ public class ShopItemPlaceholderListener implements Listener {
         DynaShopType buyType = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId, "buy");
         DynaShopType sellType = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId, "sell");
 
-        DynamicPrice price = DynaShopPlugin.getInstance().getDynaShopListener().getOrLoadPrice(player, shopId, itemId, itemStack);
+        DynamicPrice price = plugin.getDynaShopListener().getOrLoadPrice(player, shopId, itemId, itemStack);
 
         // String buyPrice, sellPrice, buyMinPrice, buyMaxPrice, sellMinPrice, sellMaxPrice;
         // double buyPriceValue, sellPriceValue, buyMinPriceValue, buyMaxPriceValue, sellMinPriceValue, sellMaxPriceValue;
@@ -1233,7 +1238,7 @@ public class ShopItemPlaceholderListener implements Listener {
 
         if (isRecipeMode) {
             // Si l'item est en mode RECIPE, et que un des prix est en mode STOCK, on affiche le stock
-            boolean hasMaxStock = DynaShopPlugin.getInstance().getPriceRecipe().calculateMaxStock(shopId, itemId, itemStack, new ArrayList<>()) > 0;
+            boolean hasMaxStock = plugin.getPriceRecipe().calculateMaxStock(shopId, itemId, new ArrayList<>()) > 0;
             if (hasMaxStock) {
                 isStockMode = true; // Forcer le mode STOCK si maxStock > 0
                 prices.put("is_stock_mode", String.valueOf(isStockMode));
@@ -1592,7 +1597,7 @@ public class ShopItemPlaceholderListener implements Listener {
         );
     }
 
-    private void startContinuousAmountSelectionRefresh(Player player, InventoryView view, AmountSelectionInfo info, Map<Integer, List<String>> originalLores, String menuType) {
+    private void startContinuousAmountSelectionRefresh(Player player, AmountSelectionInfo info, Map<Integer, List<String>> originalLores, String menuType) {
         // Annuler la tâche précédente si elle existe
         BukkitTask oldTask = playerSelectionRefreshBukkitTasks.remove(player.getUniqueId());
         if (oldTask != null) oldTask.cancel();
@@ -1906,7 +1911,7 @@ public class ShopItemPlaceholderListener implements Listener {
                                     if (item != null && item.getType() == info.getItemStack().getType()) {
                                         // Vérifier si l'item correspond (même type, même métadonnées)
                                         // if (ShopGuiPlusApi.getPlugin().getItemManager().compare(item, info.getItemStack())) {
-                                        if (DynaShopPlugin.getInstance().getPriceRecipe().customCompare(item, info.getItemStack())) {
+                                        if (plugin.getPriceRecipe().customCompare(item, info.getItemStack())) {
                                             quantity += item.getAmount();
                                         }
                                     }
@@ -1919,7 +1924,7 @@ public class ShopItemPlaceholderListener implements Listener {
                             } else {
                                 quantity = info.getItemStack().getAmount();
                             }
-                            // DynaShopPlugin.getInstance().getLogger().info("Processing slot " + slot + " with quantity: " + quantity);
+                            // plugin.getLogger().info("Processing slot " + slot + " with quantity: " + quantity);
                             // if (info.getMenuType().equals("AMOUNT_SELECTION_BULK")) {
                             //     // CORRECTION: Vérifier si ce slot existe dans la map des valeurs
                             //     if (info.getSlotValues().containsKey(slot)) {
@@ -1955,11 +1960,12 @@ public class ShopItemPlaceholderListener implements Listener {
                                 info.getItemId(), 
                                 info.getItemStack(), 
                                 quantity,
-                                true // forceRefresh
+                                // forceRefresh // forceRefresh
+                                false // forceRefresh
                             );
 
-                            // DynaShopPlugin.getInstance().info("Processing slot " + slot + " with quantity: " + quantity + ", prices: " + prices);
-                            // DynaShopPlugin.getInstance().info("Info for slot " + info.getItemId() + ": " + info);
+                            // plugin.info("Processing slot " + slot + " with quantity: " + quantity + ", prices: " + prices);
+                            // plugin.info("Info for slot " + info.getItemId() + ": " + info);
                             
                             // Appliquer les remplacements
                             List<String> newLore = replacePlaceholders(originalLore, prices, player);
@@ -1996,62 +2002,62 @@ public class ShopItemPlaceholderListener implements Listener {
         }
     }
 
-    /**
-     * Convertit une chaîne formatée (ex: "1,234.56") en nombre
-     */
-    private double parseFormattedNumber(String formatted) {
-        if (formatted == null || formatted.equals("N/A") || formatted.isEmpty()) {
-            return 0.0;
-        }
+    // /**
+    //  * Convertit une chaîne formatée (ex: "1,234.56") en nombre
+    //  */
+    // private double parseFormattedNumber(String formatted) {
+    //     if (formatted == null || formatted.equals("N/A") || formatted.isEmpty()) {
+    //         return 0.0;
+    //     }
         
-        try {
-            // // Supprimer tous les caractères non numériques sauf le point décimal
-            // String cleaned = "";
-            // boolean hasDecimal = false;
+    //     try {
+    //         // // Supprimer tous les caractères non numériques sauf le point décimal
+    //         // String cleaned = "";
+    //         // boolean hasDecimal = false;
             
-            // for (char c : formatted.toCharArray()) {
-            //     if (Character.isDigit(c)) {
-            //         cleaned += c;
-            //     } else if (c == '.' && !hasDecimal) {
-            //         cleaned += c;
-            //         hasDecimal = true;
-            //     }
-            // }
-            // // Supprimer les préfixes de devise (comme "$" ou "€")
-            // String cleaned = formatted.replaceAll("[^0-9.,\\-]", "");
+    //         // for (char c : formatted.toCharArray()) {
+    //         //     if (Character.isDigit(c)) {
+    //         //         cleaned += c;
+    //         //     } else if (c == '.' && !hasDecimal) {
+    //         //         cleaned += c;
+    //         //         hasDecimal = true;
+    //         //     }
+    //         // }
+    //         // // Supprimer les préfixes de devise (comme "$" ou "€")
+    //         // String cleaned = formatted.replaceAll("[^0-9.,\\-]", "");
             
-            // // Gérer le format standard des nombres (avec virgules comme séparateurs de milliers)
-            // cleaned = cleaned.replace(",", "");
+    //         // // Gérer le format standard des nombres (avec virgules comme séparateurs de milliers)
+    //         // cleaned = cleaned.replace(",", "");
             
-            // // Si la chaîne est vide après nettoyage, retourner 0
-            // if (cleaned.isEmpty() || cleaned.equals("-")) {
-            //     return 0.0;
-            // }
+    //         // // Si la chaîne est vide après nettoyage, retourner 0
+    //         // if (cleaned.isEmpty() || cleaned.equals("-")) {
+    //         //     return 0.0;
+    //         // }
             
-            // return Double.parseDouble(cleaned);
+    //         // return Double.parseDouble(cleaned);
             
-            // Approche plus efficace avec StringBuilder
-            StringBuilder cleaned = new StringBuilder(formatted.length());
-            boolean hasDecimal = false;
+    //         // Approche plus efficace avec StringBuilder
+    //         StringBuilder cleaned = new StringBuilder(formatted.length());
+    //         boolean hasDecimal = false;
             
-            for (int i = 0; i < formatted.length(); i++) {
-                char c = formatted.charAt(i);
-                if (Character.isDigit(c)) {
-                    cleaned.append(c);
-                } else if ((c == '.' || c == ',') && !hasDecimal) {
-                    cleaned.append('.');
-                    hasDecimal = true;
-                } else if (c == '-' && cleaned.length() == 0) {
-                    cleaned.append(c);
-                }
-            }
+    //         for (int i = 0; i < formatted.length(); i++) {
+    //             char c = formatted.charAt(i);
+    //             if (Character.isDigit(c)) {
+    //                 cleaned.append(c);
+    //             } else if ((c == '.' || c == ',') && !hasDecimal) {
+    //                 cleaned.append('.');
+    //                 hasDecimal = true;
+    //             } else if (c == '-' && cleaned.length() == 0) {
+    //                 cleaned.append(c);
+    //             }
+    //         }
             
-            return cleaned.length() > 0 ? Double.parseDouble(cleaned.toString()) : 0.0;
-        } catch (NumberFormatException e) {
-            // plugin.getLogger().warning("Could not parse number from: " + formatted);
-            return 0.0;
-        }
-    }
+    //         return cleaned.length() > 0 ? Double.parseDouble(cleaned.toString()) : 0.0;
+    //     } catch (NumberFormatException e) {
+    //         // plugin.getLogger().warning("Could not parse number from: " + formatted);
+    //         return 0.0;
+    //     }
+    // }
 
     public void shutdown() {
         // if (refreshTask != null) {

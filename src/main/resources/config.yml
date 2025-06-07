@@ -42,24 +42,18 @@ default:
 
 gui:
   refresh:
-    # default-items: 5 # Default refresh time for the GUI in seconds
-    # critical-items: 1 # Refresh time for critical items in seconds
     default-items: 1000 # Default refresh time for the GUI in milliseconds (1000 ms = 1 second)
     critical-items: 300 # Refresh time for critical items in milliseconds (300 ms = 0.3 seconds)
 
-# Paramètres de cache
+# Cache settings
 cache:
-  # Mode de cache : "full" pour un cache complet, "realtime" pour un cache en temps réel
-  # Mode de cache "full" : les prix sont mis à jour périodiquement
-  # Mode de cache "realtime" : les prix sont mis à jour en temps réel, mais peuvent être moins performants
-  # Mode de cache "full" est recommandé pour les serveurs avec beaucoup de joueurs
   mode: "full" # "full" or "realtime"
-  # Liste des items dont les prix doivent toujours être à jour
+  # List of items that should always have up-to-date prices
   critical-items:
-    # - "minerais:15"  # Exemple: l'or est critique
-    - "shop2:item3"  # Autre exemple
-  
-  # Durées de cache en secondes
+    # - "minerais:15"  # Example: gold is critical
+    - "shop2:item3"  # Another example
+
+  # Cache durations in seconds
   durations:
     price: 30
     display: 10
@@ -70,43 +64,31 @@ cache:
 # Enchants value multipliers, for every level (if the item has this enchant, its value will be multiplied by the specified multiplier)
 # Those values are cumulative if an item has multiples enchants ; they'll be applied after the value of the item stack was calculated ; they won't apply if the item value already has that enchantment
 enchant_multipliers:
-  ARROW_DAMAGE:
+  AQUA_AFFINITY:
+    1: 1.2
+  BANE_OF_ARTHROPODS:
     1: 1.2
     2: 1.5
     3: 1.9
     4: 2.5
     5: 3.0
-  ARROW_FIRE:
+  BLAST_PROTECTION:
     1: 1.2
     2: 1.5
     3: 1.9
     4: 2.5
-    5: 3.0
-  ARROW_INFINITE:
+  BREACH:
     1: 1.2
     2: 1.5
     3: 1.9
     4: 2.5
-    5: 3.0
-  ARROW_KNOCKBACK:
+  CHANNELING:
     1: 1.2
-    2: 1.5
-    3: 1.9
-    4: 2.5
-    5: 3.0
-  DAMAGE_ALL:
-    1: 1.2
-    2: 1.5
-    3: 1.9
-    4: 2.5
-    5: 3.0
-  DAMAGE_ARTHROPODS:
-    1: 1.2
-    2: 1.5
-    3: 1.9
-    4: 2.5
-    5: 3.0
-  DAMAGE_UNDEAD:
+  CURSE_OF_BINDING:
+    1: 1.0
+  CURSE_OF_VANISHING:
+    1: 1.0
+  DENSITY:
     1: 1.2
     2: 1.5
     3: 1.9
@@ -116,87 +98,102 @@ enchant_multipliers:
     1: 1.2
     2: 1.5
     3: 1.9
-    4: 2.5
-    5: 3.0
-  DIG_SPEED:
+  EFFICIENCY:
     1: 1.2
     2: 1.5
     3: 1.9
     4: 2.5
     5: 3.0
-  DURABILITY:
+  FEATHER_FALLING:
     1: 1.2
     2: 1.5
     3: 1.9
     4: 2.5
-    5: 3.0
   FIRE_ASPECT:
     1: 1.2
     2: 1.5
+  FIRE_PROTECTION:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+    4: 2.5
+  FLAME:
+    1: 1.2
+  FORTUNE:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+  FROST_WALKER:
+    1: 1.2
+    2: 1.5
+  IMPALING:
+    1: 1.2
+    2: 1.5
     3: 1.9
     4: 2.5
     5: 3.0
+  INFINITY:
+    1: 1.2
   KNOCKBACK:
     1: 1.2
     2: 1.5
-    3: 1.9
-    4: 2.5
-    5: 3.0
-  LOOT_BONUS_BLOCKS:
+  LOOTING:
     1: 1.2
     2: 1.5
     3: 1.9
-    4: 2.5
-    5: 3.0
-  LOOT_BONUS_MOBS:
+  LOYALTY:
     1: 1.2
     2: 1.5
     3: 1.9
-    4: 2.5
-    5: 3.0
-  LUCK:
+  LUCK_OF_THE_SEA:
     1: 1.2
     2: 1.5
     3: 1.9
-    4: 2.5
-    5: 3.0
   LURE:
     1: 1.2
     2: 1.5
     3: 1.9
+  MENDING:
+    1: 1.2
+  MULTISHOT:
+    1: 1.2
+  PIERCING:
+    1: 1.2
+    2: 1.5
+    3: 1.9
     4: 2.5
-    5: 3.0
-  OXYGEN:
+  POWER:
     1: 1.2
     2: 1.5
     3: 1.9
     4: 2.5
     5: 3.0
-  PROTECTION_ENVIRONMENTAL:
+  PROJECTILE_PROTECTION:
     1: 1.2
     2: 1.5
     3: 1.9
     4: 2.5
-    5: 3.0
-  PROTECTION_EXPLOSIONS:
+  PROTECTION:
     1: 1.2
     2: 1.5
     3: 1.9
     4: 2.5
-    5: 3.0
-  PROTECTION_FALL:
+  PUNCH:
+    1: 1.2
+    2: 1.5
+  QUICK_CHARGE:
     1: 1.2
     2: 1.5
     3: 1.9
-    4: 2.5
-    5: 3.0
-  PROTECTION_FIRE:
+  RESPIRATION:
     1: 1.2
     2: 1.5
     3: 1.9
-    4: 2.5
-    5: 3.0
-  PROTECTION_PROJECTILE:
+  RIPTIDE:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+  SHARPNESS:
     1: 1.2
     2: 1.5
     3: 1.9
@@ -204,19 +201,35 @@ enchant_multipliers:
     5: 3.0
   SILK_TOUCH:
     1: 1.2
+  SMITE:
+    1: 1.2
     2: 1.5
     3: 1.9
     4: 2.5
     5: 3.0
+  SOUL_SPEED:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+  SWEEPING_EDGE:
+    1: 1.2
+    2: 1.5
+    3: 1.9
+  SWIFT_SNEAK:
+    1: 1.2
+    2: 1.5
+    3: 1.9
   THORNS:
     1: 1.2
     2: 1.5
     3: 1.9
-    4: 2.5
-    5: 3.0
-  WATER_WORKER:
+  UNBREAKING:
     1: 1.2
     2: 1.5
     3: 1.9
     4: 2.5
     5: 3.0
+  WIND_BURST:
+    1: 1.2
+    2: 1.5
+    3: 1.9

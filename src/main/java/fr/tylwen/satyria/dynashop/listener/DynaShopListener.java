@@ -40,8 +40,6 @@ import org.bukkit.event.Listener;
 // import org.bukkit.inventory.Inventory;
 // import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
-// import org.checkerframework.checker.units.qual.m;
-import org.checkerframework.checker.units.qual.min;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.price.DynamicPrice;
@@ -50,7 +48,7 @@ import fr.tylwen.satyria.dynashop.data.ShopConfigManager;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.price.PriceRecipe;
 import fr.tylwen.satyria.dynashop.price.PriceRecipe.FoundItem;
-import fr.tylwen.satyria.dynashop.price.PriceRecipe.RecipeCalculationResult;
+// import fr.tylwen.satyria.dynashop.price.PriceRecipe.RecipeCalculationResult;
 // import fr.tylwen.satyria.dynashop.data.param.RecipeType;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
 import net.brcdev.shopgui.ShopGuiPlusApi;
@@ -149,7 +147,7 @@ public class DynaShopListener implements Listener {
         if (typeDynaShop == DynaShopType.STOCK || typeDynaShop == DynaShopType.STATIC_STOCK) {
             // Si c'est un achat et que le stock est vide
             // if (event.getShopAction() == ShopAction.BUY && price.getStock() <= 0) {
-            if (event.getShopAction() == ShopAction.BUY && !DynaShopPlugin.getInstance().getPriceStock().canBuy(shopID, itemID, amount)) {
+            if (event.getShopAction() == ShopAction.BUY && !plugin.getPriceStock().canBuy(shopID, itemID, amount)) {
                 event.setCancelled(true);
                 if (event.getPlayer() != null) {
                     event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgOutOfStock()));
@@ -159,7 +157,7 @@ public class DynaShopListener implements Listener {
             
             // Si c'est une vente et que le stock est plein
             // if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && price.getStock() >= price.getMaxStock()) {
-            if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && !DynaShopPlugin.getInstance().getPriceStock().canSell(shopID, itemID, amount)) {
+            if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && !plugin.getPriceStock().canSell(shopID, itemID, amount)) {
                 event.setCancelled(true);
                 if (event.getPlayer() != null) {
                     event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgFullStock()));
@@ -170,8 +168,8 @@ public class DynaShopListener implements Listener {
 
         // Vérifier le mode RECIPE et s'il y a des ingrédients en mode STOCK
         if (typeDynaShop == DynaShopType.RECIPE) {
-            int stockAmount = priceRecipe.calculateStock(shopID, itemID, itemStack, new ArrayList<>());
-            int maxStock = priceRecipe.calculateMaxStock(shopID, itemID, itemStack, new ArrayList<>());
+            int stockAmount = priceRecipe.calculateStock(shopID, itemID, new ArrayList<>());
+            int maxStock = priceRecipe.calculateMaxStock(shopID, itemID, new ArrayList<>());
             // plugin.getLogger().info("Stock amount for " + itemID + " in shop " + shopID + ": " + stockAmount + ", Max stock: " + maxStock);
             // Vérifier si le stock est suffisant pour l'achat
             if (maxStock > 0) {
@@ -241,11 +239,11 @@ public class DynaShopListener implements Listener {
         final boolean isBuy = action == ShopAction.BUY;
         
         // Après avoir modifié le prix
-        // Bukkit.getScheduler().runTask(DynaShopPlugin.getInstance(), () -> {
-        //     DynaShopPlugin.getInstance().invalidatePriceCache(shopID, itemID, null); // Invalider le cache pour ce joueur et cet item
+        // Bukkit.getScheduler().runTask(plugin, () -> {
+        //     plugin.invalidatePriceCache(shopID, itemID, null); // Invalider le cache pour ce joueur et cet item
         // });
         // Invalider le cache pour ce joueur et cet item
-        DynaShopPlugin.getInstance().invalidatePriceCache(shopID, itemID, player); // Invalider le cache pour ce joueur et cet item
+        plugin.invalidatePriceCache(shopID, itemID, player); // Invalider le cache pour ce joueur et cet item
 
         // DynaShopType typeDynaShop = shopConfigManager.getTypeDynaShop(shopID, itemID);
         DynaShopType typeDynaShop = shopConfigManager.resolveTypeDynaShop(shopID, itemID, isBuy);
@@ -254,7 +252,7 @@ public class DynaShopListener implements Listener {
         if (typeDynaShop == DynaShopType.RECIPE) {
             Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
                 // invalidateRecipeIngredients(shopID, itemID, itemStack);
-                invalidateRecipeIngredients(shopID, itemID, item.getItem());
+                invalidateRecipeIngredients(shopID, itemID);
             });
         }
 
@@ -268,9 +266,9 @@ public class DynaShopListener implements Listener {
         }
     }
     
-    private void invalidateRecipeIngredients(String shopId, String itemId, ItemStack itemStack) {
+    private void invalidateRecipeIngredients(String shopId, String itemId) {
         // Récupérer les ingrédients
-        List<ItemStack> ingredients = plugin.getPriceRecipe().getIngredients(shopId, itemId, itemStack);
+        List<ItemStack> ingredients = plugin.getPriceRecipe().getIngredients(shopId, itemId);
         
         for (ItemStack ingredient : ingredients) {
             // Trouver l'ID de shop et d'item pour chaque ingrédient
@@ -326,7 +324,7 @@ public class DynaShopListener implements Listener {
         if (buyTypeDynaShop == DynaShopType.DYNAMIC) {
             handleDynamicPrice(price, action, amount); // Gérer les prix dynamiques
         } else if (buyTypeDynaShop == DynaShopType.RECIPE) {
-            handleRecipePrice(shopID, itemID, itemStack, amount, action); // Gérer les prix basés sur les recettes
+            handleRecipePrice(shopID, itemID, amount, action); // Gérer les prix basés sur les recettes
         } else if (buyTypeDynaShop == DynaShopType.STOCK || buyTypeDynaShop == DynaShopType.STATIC_STOCK) {
             handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
         } else if (buyTypeDynaShop == DynaShopType.LINK) {
@@ -336,7 +334,7 @@ public class DynaShopListener implements Listener {
         if (sellTypeDynaShop == DynaShopType.DYNAMIC) {
             handleDynamicPrice(price, action, amount); // Gérer les prix dynamiques
         } else if (sellTypeDynaShop == DynaShopType.RECIPE) {
-            handleRecipePrice(shopID, itemID, itemStack, amount, action); // Gérer les prix basés sur les recettes
+            handleRecipePrice(shopID, itemID, amount, action); // Gérer les prix basés sur les recettes
         } else if (sellTypeDynaShop == DynaShopType.STOCK || sellTypeDynaShop == DynaShopType.STATIC_STOCK) {
             handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
         } else if (sellTypeDynaShop == DynaShopType.LINK) {
@@ -354,14 +352,14 @@ public class DynaShopListener implements Listener {
         // if (!price.isFromRecipe()) {
         // if (price.getDynaShopType() != DynaShopType.RECIPE) {
         // if (typeDynaShop != DynaShopType.RECIPE) {
-        //     DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
+        //     plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
         // }
-        // DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price);
+        // plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price);
         if (buyTypeDynaShop != DynaShopType.RECIPE) {
-            DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
+            plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
         }
         if (sellTypeDynaShop != DynaShopType.RECIPE) {
-            DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
+            plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
         }
     }
 
@@ -373,7 +371,7 @@ public class DynaShopListener implements Listener {
         }
     }
 
-    private void handleRecipePrice(String shopID, String itemID, ItemStack itemStack, int amount, ShopAction action) {
+    private void handleRecipePrice(String shopID, String itemID, int amount, ShopAction action) {
         // if (amount <= 0) {
         //     return; // Ignorer les transactions avec une quantité nulle ou négative
         // }
@@ -394,7 +392,7 @@ public class DynaShopListener implements Listener {
             //         priceCache.remove(key);
             //     }
             // }
-            applyGrowthOrDecayToIngredients(shopID, itemID, itemStack, amount, isGrowth, new ArrayList<>(), 0);
+            applyGrowthOrDecayToIngredients(shopID, itemID, amount, isGrowth, new ArrayList<>(), 0);
         });
     }
 
@@ -417,12 +415,12 @@ public class DynaShopListener implements Listener {
         }
 
         // Mettre à jour l'objet price
-        double newBuyPrice = DynaShopPlugin.getInstance().getPriceStock().calculatePrice(shopID, itemID, "buyPrice");
-        double newSellPrice = DynaShopPlugin.getInstance().getPriceStock().calculatePrice(shopID, itemID, "sellPrice");
+        double newBuyPrice = plugin.getPriceStock().calculatePrice(shopID, itemID, "buyPrice");
+        double newSellPrice = plugin.getPriceStock().calculatePrice(shopID, itemID, "sellPrice");
         
         price.setBuyPrice(newBuyPrice);
         price.setSellPrice(newSellPrice);
-        price.setStock(DynaShopPlugin.getInstance().getItemDataManager().getStock(shopID, itemID).orElse(0));
+        price.setStock(plugin.getItemDataManager().getStock(shopID, itemID).orElse(0));
         
         // plugin.getLogger().info("APRÈS - Stock: " + price.getStock() + ", Buy: " + price.getBuyPrice() + ", Sell: " + price.getSellPrice());
     }
@@ -448,7 +446,7 @@ public class DynaShopListener implements Listener {
                     // } else if (linkedType == DynaShopType.RECIPE || linkedPrice.isFromRecipe()) {
                     } else if (linkedType == DynaShopType.RECIPE) {
                         // Gérer les prix basés sur les recettes liés
-                        handleRecipePrice(linkedShopID, linkedItemID, itemStack, amount, action);
+                        handleRecipePrice(linkedShopID, linkedItemID, amount, action);
                     // } else if (linkedType == DynaShopType.STOCK || linkedType == DynaShopType.STATIC_STOCK || linkedPrice.isFromStock()) {
                     } else if (linkedType == DynaShopType.STOCK || linkedType == DynaShopType.STATIC_STOCK) {
                         // Gérer les prix basés sur le stock lié
@@ -458,7 +456,7 @@ public class DynaShopListener implements Listener {
                     // Sauvegarder les modifications de l'item lié
                     // if (!linkedPrice.isFromRecipe()) {
                     if (linkedPrice.getDynaShopType() != DynaShopType.RECIPE) {
-                        DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(linkedShopID, linkedItemID, linkedPrice, true);
+                        plugin.getBatchDatabaseUpdater().queueUpdate(linkedShopID, linkedItemID, linkedPrice, true);
                     }
                     
                     // AJOUT: Créer une copie du prix lié pour l'item principal
@@ -480,12 +478,12 @@ public class DynaShopListener implements Listener {
                     // AJOUT: Sauvegarder également cette copie pour l'item principal
                     // if (!copyForMainItem.isFromRecipe()) {
                     if (copyForMainItem.getDynaShopType() != DynaShopType.RECIPE) {
-                        DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(shopID, itemID, copyForMainItem, true);
+                        plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, copyForMainItem, true);
                     }
                     
                     // AJOUT: Invalider le cache pour l'item lié ET l'item qui a le lien
-                    DynaShopPlugin.getInstance().invalidatePriceCache(linkedShopID, linkedItemID, null);
-                    DynaShopPlugin.getInstance().invalidatePriceCache(shopID, itemID, null);
+                    plugin.invalidatePriceCache(linkedShopID, linkedItemID, null);
+                    plugin.invalidatePriceCache(shopID, itemID, null);
                 }
             } else {
                 plugin.getLogger().warning("Invalid link reference for item " + itemID + " in shop " + shopID + ": " + linkedItemRef);
@@ -518,7 +516,7 @@ public class DynaShopListener implements Listener {
         //     return price;
         // } else {
         //     // Utiliser le cache manager pour récupérer le prix
-        //     return DynaShopPlugin.getInstance().getPriceCache().get(cacheKey, () -> {
+        //     return plugin.getPriceCache().get(cacheKey, () -> {
         //         // Cette fonction n'est exécutée que si le prix n'est pas en cache
         //         DynamicPrice price = loadPriceFromSource(shopID, itemID, itemStack);
                 
@@ -545,7 +543,7 @@ public class DynaShopListener implements Listener {
         // }
 
         // Utiliser le cache manager pour récupérer le prix
-        return DynaShopPlugin.getInstance().getPriceCache().get(cacheKey, () -> {
+        return plugin.getPriceCache().get(cacheKey, () -> {
             // Cette fonction n'est exécutée que si le prix n'est pas en cache
             DynamicPrice price = loadPriceFromSource(shopID, itemID, itemStack);
             
@@ -567,7 +565,7 @@ public class DynaShopListener implements Listener {
         if (buyTypeDynaShop == DynaShopType.NONE || buyTypeDynaShop == DynaShopType.UNKNOWN) buyTypeDynaShop = typeDynaShop;
         if (sellTypeDynaShop == DynaShopType.NONE || sellTypeDynaShop == DynaShopType.UNKNOWN) sellTypeDynaShop = typeDynaShop;
 
-        // DynaShopPlugin.getInstance().getLogger().info("Chargement du prix pour l'item " + itemID + " dans le shop " + shopID + 
+        // plugin.getLogger().info("Chargement du prix pour l'item " + itemID + " dans le shop " + shopID + 
         //     " (buyType: " + buyTypeDynaShop + ", sellType: " + sellTypeDynaShop + ")");
         
         // Traitement selon le type
@@ -579,7 +577,7 @@ public class DynaShopListener implements Listener {
 
         // if (buyTypeDynaShop == DynaShopType.DYNAMIC && sellTypeDynaShop == DynaShopType.DYNAMIC) {
         //     // Charger les prix dynamiques depuis la base de données
-        //     Optional<DynamicPrice> priceFromDatabase = DynaShopPlugin.getInstance().getItemDataManager().getItemValues(shopID, itemID);
+        //     Optional<DynamicPrice> priceFromDatabase = plugin.getItemDataManager().getItemValues(shopID, itemID);
             
         //     // Charger les données supplémentaires depuis les fichiers de configuration
         //     ItemPriceData priceData = shopConfigManager.getItemAllValues(shopID, itemID);
@@ -656,7 +654,7 @@ public class DynaShopListener implements Listener {
         // // // Si le type est DYNAMIC, charger les prix dynamiques
         // // if (buyTypeDynaShop == DynaShopType.DYNAMIC || sellTypeDynaShop == DynaShopType.DYNAMIC) {
         // //     // Charger les prix dynamiques depuis la base de données
-        // //     Optional<DynamicPrice> priceFromDatabase = DynaShopPlugin.getInstance().getItemDataManager().getItemValues(shopID, itemID);
+        // //     Optional<DynamicPrice> priceFromDatabase = plugin.getItemDataManager().getItemValues(shopID, itemID);
             
         // //     // Charger les données supplémentaires depuis les fichiers de configuration
         // //     ItemPriceData priceData = shopConfigManager.getItemAllValues(shopID, itemID);
@@ -731,19 +729,19 @@ public class DynaShopListener implements Listener {
         // // } else if (buyTypeDynaShop == DynaShopType.RECIPE || sellTypeDynaShop == DynaShopType.RECIPE) {
         // if (buyTypeDynaShop == DynaShopType.RECIPE || sellTypeDynaShop == DynaShopType.RECIPE) {
         //     // Traiter les prix basés sur les recettes
-        //     price = DynaShopPlugin.getInstance().getPriceRecipe().createRecipePrice(shopID, itemID, itemStack);
+        //     price = plugin.getPriceRecipe().createRecipePrice(shopID, itemID, itemStack);
         //     price.setDynaShopType(DynaShopType.RECIPE);
         //     price.setFromRecipe(true);
         //     price.setFromStock(false);
         // } else if (typeDynaShop == DynaShopType.STOCK) {
         //     // Traiter les prix basés sur le stock
-        //     price = DynaShopPlugin.getInstance().getPriceStock().createStockPrice(shopID, itemID);
+        //     price = plugin.getPriceStock().createStockPrice(shopID, itemID);
         //     price.setDynaShopType(DynaShopType.STOCK);
         //     price.setFromRecipe(false);
         //     price.setFromStock(true);
         // } else if (typeDynaShop == DynaShopType.STATIC_STOCK) {
         //     // Traiter les prix basés sur le stock statique
-        //     price = DynaShopPlugin.getInstance().getPriceStock().createStaticStockPrice(shopID, itemID);
+        //     price = plugin.getPriceStock().createStaticStockPrice(shopID, itemID);
         //     price.setDynaShopType(DynaShopType.STATIC_STOCK);
         //     price.setFromRecipe(false);
         //     price.setFromStock(true);
@@ -774,7 +772,7 @@ public class DynaShopListener implements Listener {
         //     // return null;
             
         //     // Charger les prix dynamiques depuis la base de données
-        //     Optional<DynamicPrice> priceFromDatabase = DynaShopPlugin.getInstance().getItemDataManager().getItemValues(shopID, itemID);
+        //     Optional<DynamicPrice> priceFromDatabase = plugin.getItemDataManager().getItemValues(shopID, itemID);
             
         //     // Charger les données supplémentaires depuis les fichiers de configuration
         //     ItemPriceData priceData = shopConfigManager.getItemAllValues(shopID, itemID);
@@ -854,14 +852,14 @@ public class DynaShopListener implements Listener {
         int stock = 0, minStock = 0, maxStock = 0;
 
         if (buyTypeDynaShop == DynaShopType.RECIPE) {
-            DynamicPrice recipePrice = DynaShopPlugin.getInstance().getPriceRecipe().createRecipePrice(shopID, itemID, itemStack);
+            DynamicPrice recipePrice = plugin.getPriceRecipe().createRecipePrice(shopID, itemID);
             buyPrice = recipePrice.getBuyPrice();
             minBuy = recipePrice.getMinBuyPrice();
             maxBuy = recipePrice.getMaxBuyPrice();
             growthBuy = recipePrice.getGrowthBuy();
             decayBuy = recipePrice.getDecayBuy();
         } else if (buyTypeDynaShop == DynaShopType.STOCK) {
-            DynamicPrice stockPrice = DynaShopPlugin.getInstance().getPriceStock().createStockPrice(shopID, itemID);
+            DynamicPrice stockPrice = plugin.getPriceStock().createStockPrice(shopID, itemID);
             buyPrice = stockPrice.getBuyPrice();
             minBuy = stockPrice.getMinBuyPrice();
             maxBuy = stockPrice.getMaxBuyPrice();
@@ -870,7 +868,7 @@ public class DynaShopListener implements Listener {
             maxStock = stockPrice.getMaxStock();
             // stockBuyModifier = stockPrice.getStockBuyModifier();
         } else if (typeDynaShop == DynaShopType.STATIC_STOCK) {
-            DynamicPrice staticStockPrice = DynaShopPlugin.getInstance().getPriceStock().createStaticStockPrice(shopID, itemID);
+            DynamicPrice staticStockPrice = plugin.getPriceStock().createStaticStockPrice(shopID, itemID);
             buyPrice = staticStockPrice.getBuyPrice();
             minBuy = staticStockPrice.getMinBuyPrice();
             maxBuy = staticStockPrice.getMaxBuyPrice();
@@ -911,7 +909,7 @@ public class DynaShopListener implements Listener {
             }
         } else {
             // Charger les prix dynamiques depuis la base de données
-            Optional<DynamicPrice> priceFromDatabase = DynaShopPlugin.getInstance().getItemDataManager().getItemValues(shopID, itemID);
+            Optional<DynamicPrice> priceFromDatabase = plugin.getItemDataManager().getItemValues(shopID, itemID);
             
             // Charger les données supplémentaires depuis les fichiers de configuration
             ItemPriceData priceData = shopConfigManager.getItemAllValues(shopID, itemID);
@@ -922,38 +920,38 @@ public class DynaShopListener implements Listener {
 
             growthBuy = priceData.growthBuy.orElseGet(() -> {
                 boolean hasBuyDynamic = shopConfigManager.hasSection(shopID, itemID, "buyDynamic");
-                return hasBuyDynamic ? DynaShopPlugin.getInstance().getDataConfig().getBuyGrowthRate() : 1.0;
+                return hasBuyDynamic ? plugin.getDataConfig().getBuyGrowthRate() : 1.0;
             });
 
             decayBuy = priceData.decayBuy.orElseGet(() -> {
                 boolean hasBuyDynamic = shopConfigManager.hasSection(shopID, itemID, "buyDynamic");
-                return hasBuyDynamic ? DynaShopPlugin.getInstance().getDataConfig().getBuyDecayRate() : 1.0;
+                return hasBuyDynamic ? plugin.getDataConfig().getBuyDecayRate() : 1.0;
             });
 
             stock = priceFromDatabase.map(DynamicPrice::getStock).orElse(priceData.stock.orElse(0));
             minStock = priceData.minStock.orElseGet(() -> {
                 boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-                return hasStock ? DynaShopPlugin.getInstance().getDataConfig().getStockMin() : 0;
+                return hasStock ? plugin.getDataConfig().getStockMin() : 0;
             });
             maxStock = priceData.maxStock.orElseGet(() -> {
                 boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-                return hasStock ? DynaShopPlugin.getInstance().getDataConfig().getStockMax() : Integer.MAX_VALUE;
+                return hasStock ? plugin.getDataConfig().getStockMax() : Integer.MAX_VALUE;
             });
             stockBuyModifier = priceData.stockBuyModifier.orElseGet(() -> {
                 boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-                return hasStock ? DynaShopPlugin.getInstance().getDataConfig().getStockBuyModifier() : 1.0;
+                return hasStock ? plugin.getDataConfig().getStockBuyModifier() : 1.0;
             });
         }
 
         if (sellTypeDynaShop == DynaShopType.RECIPE) {
-            DynamicPrice recipePrice = DynaShopPlugin.getInstance().getPriceRecipe().createRecipePrice(shopID, itemID, itemStack);
+            DynamicPrice recipePrice = plugin.getPriceRecipe().createRecipePrice(shopID, itemID);
             sellPrice = recipePrice.getSellPrice();
             minSell = recipePrice.getMinSellPrice();
             maxSell = recipePrice.getMaxSellPrice();
             growthSell = recipePrice.getGrowthSell();
             decaySell = recipePrice.getDecaySell();
         } else if (sellTypeDynaShop == DynaShopType.STOCK) {
-            DynamicPrice stockPrice = DynaShopPlugin.getInstance().getPriceStock().createStockPrice(shopID, itemID);
+            DynamicPrice stockPrice = plugin.getPriceStock().createStockPrice(shopID, itemID);
             sellPrice = stockPrice.getSellPrice();
             minSell = stockPrice.getMinSellPrice();
             maxSell = stockPrice.getMaxSellPrice();
@@ -962,7 +960,7 @@ public class DynaShopListener implements Listener {
             maxStock = stockPrice.getMaxStock();
             // stockSellModifier = stockPrice.getStockSellModifier();
         } else if (typeDynaShop == DynaShopType.STATIC_STOCK) {
-            DynamicPrice staticStockPrice = DynaShopPlugin.getInstance().getPriceStock().createStaticStockPrice(shopID, itemID);
+            DynamicPrice staticStockPrice = plugin.getPriceStock().createStaticStockPrice(shopID, itemID);
             sellPrice = staticStockPrice.getSellPrice();
             minSell = staticStockPrice.getMinSellPrice();
             maxSell = staticStockPrice.getMaxSellPrice();
@@ -1003,7 +1001,7 @@ public class DynaShopListener implements Listener {
             }
         } else {
             // Charger les prix dynamiques depuis la base de données
-            Optional<DynamicPrice> priceFromDatabase = DynaShopPlugin.getInstance().getItemDataManager().getItemValues(shopID, itemID);
+            Optional<DynamicPrice> priceFromDatabase = plugin.getItemDataManager().getItemValues(shopID, itemID);
             
             // Charger les données supplémentaires depuis les fichiers de configuration
             ItemPriceData priceData = shopConfigManager.getItemAllValues(shopID, itemID);
@@ -1014,36 +1012,36 @@ public class DynaShopListener implements Listener {
 
             growthSell = priceData.growthSell.orElseGet(() -> {
                 boolean hasSellDynamic = shopConfigManager.hasSection(shopID, itemID, "sellDynamic");
-                return hasSellDynamic ? DynaShopPlugin.getInstance().getDataConfig().getSellGrowthRate() : 1.0;
+                return hasSellDynamic ? plugin.getDataConfig().getSellGrowthRate() : 1.0;
             });
 
             decaySell = priceData.decaySell.orElseGet(() -> {
                 boolean hasSellDynamic = shopConfigManager.hasSection(shopID, itemID, "sellDynamic");
-                return hasSellDynamic ? DynaShopPlugin.getInstance().getDataConfig().getSellDecayRate() : 1.0;
+                return hasSellDynamic ? plugin.getDataConfig().getSellDecayRate() : 1.0;
             });
 
             // stock = priceFromDatabase.map(DynamicPrice::getStock).orElse(priceData.stock.orElse(0));
             // minStock = priceData.minStock.orElseGet(() -> {
             //     boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-            //     return hasStock ? DynaShopPlugin.getInstance().getDataConfig().getStockMin() : 0;
+            //     return hasStock ? plugin.getDataConfig().getStockMin() : 0;
             // });
             // maxStock = priceData.maxStock.orElseGet(() -> {
             //     boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-            //     return hasStock ? DynaShopPlugin.getInstance().getDataConfig().getStockMax() : Integer.MAX_VALUE;
+            //     return hasStock ? plugin.getDataConfig().getStockMax() : Integer.MAX_VALUE;
             // });
             stockSellModifier = priceData.stockSellModifier.orElseGet(() -> {
                 boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-                return hasStock ? DynaShopPlugin.getInstance().getDataConfig().getStockSellModifier() : 1.0;
+                return hasStock ? plugin.getDataConfig().getStockSellModifier() : 1.0;
             });
         }
 
         // // Traiter les prix basés sur les recettes
         // if (typeDynaShop == DynaShopType.RECIPE) {
-        //     price = DynaShopPlugin.getInstance().getPriceRecipe().createRecipePrice(shopID, itemID, itemStack);
+        //     price = plugin.getPriceRecipe().createRecipePrice(shopID, itemID, itemStack);
         // } else if (typeDynaShop == DynaShopType.STOCK) {
-        //     price = DynaShopPlugin.getInstance().getPriceStock().createStockPrice(shopID, itemID);
+        //     price = plugin.getPriceStock().createStockPrice(shopID, itemID);
         // } else if (typeDynaShop == DynaShopType.STATIC_STOCK) {
-        //     price = DynaShopPlugin.getInstance().getPriceStock().createStaticStockPrice(shopID, itemID);
+        //     price = plugin.getPriceStock().createStaticStockPrice(shopID, itemID);
         // } else if (typeDynaShop == DynaShopType.LINK) {
         //     // Récupérer l'item lié
         //     String linkedItemID = shopConfigManager.getItemValue(shopID, itemID, "link", String.class)
@@ -1067,7 +1065,7 @@ public class DynaShopListener implements Listener {
         // } else {
         //     // Pour les types DYNAMIC et autres
         //     // Charger les prix depuis la base de données
-        //     Optional<DynamicPrice> priceFromDatabase = DynaShopPlugin.getInstance().getItemDataManager().getItemValues(shopID, itemID);
+        //     Optional<DynamicPrice> priceFromDatabase = plugin.getItemDataManager().getItemValues(shopID, itemID);
         
         //     // Charger les données supplémentaires depuis les fichiers de configuration
         //     ItemPriceData priceData = shopConfigManager.getItemAllValues(shopID, itemID);
@@ -1154,7 +1152,7 @@ public class DynaShopListener implements Listener {
             .getItemValue(shopID, itemID, "dynaShop.enchantment", Boolean.class)
             .orElse(false);
         if (enchantmentEnabled && itemStack != null && price != null) {
-            double multiplier = DynaShopPlugin.getInstance().getPriceRecipe().getEnchantMultiplier(itemStack);
+            double multiplier = plugin.getPriceRecipe().getEnchantMultiplier(itemStack);
             if (multiplier != 1.0) {
                 price.setBuyPrice(price.getBuyPrice() * multiplier);
                 price.setSellPrice(price.getSellPrice() * multiplier);
@@ -1169,7 +1167,7 @@ public class DynaShopListener implements Listener {
     }
 
 
-    private void applyGrowthOrDecayToIngredients(String shopID, String itemID, ItemStack itemStack, int amount, boolean isGrowth, List<String> visitedItems, int depth) {
+    private void applyGrowthOrDecayToIngredients(String shopID, String itemID, int amount, boolean isGrowth, List<String> visitedItems, int depth) {
         // Limiter la profondeur de récursion
         if (depth > 5) return;
 
@@ -1177,18 +1175,18 @@ public class DynaShopListener implements Listener {
         String itemKey = shopID + ":" + itemID;
 
         if (visitedItems.contains(itemKey)) {
-            // DynaShopPlugin.getInstance().getLogger().info("Boucle de recette détectée pour " + itemKey + ", arrêt de la récursion");
+            // plugin.getLogger().info("Boucle de recette détectée pour " + itemKey + ", arrêt de la récursion");
             return;
         }
         visitedItems.add(itemKey);
         
-        // DynaShopPlugin.getInstance().getLogger().info("Traitement des ingrédients pour " + shopID + ":" + itemID + " (profondeur: " + depth + ")");
+        // plugin.getLogger().info("Traitement des ingrédients pour " + shopID + ":" + itemID + " (profondeur: " + depth + ")");
 
         // Récupérer directement les ingrédients depuis PriceRecipe
-        List<ItemStack> ingredients = DynaShopPlugin.getInstance().getPriceRecipe().getIngredients(shopID, itemID, itemStack);
+        List<ItemStack> ingredients = plugin.getPriceRecipe().getIngredients(shopID, itemID);
         
         if (ingredients.isEmpty()) {
-            // DynaShopPlugin.getInstance().getLogger().warning("Aucun ingrédient trouvé pour " + shopID + ":" + itemID);
+            // plugin.getLogger().warning("Aucun ingrédient trouvé pour " + shopID + ":" + itemID);
             return;
         }
 
@@ -1197,9 +1195,9 @@ public class DynaShopListener implements Listener {
             if (ingredient == null || ingredient.getType() == Material.AIR) continue;
 
             // Rechercher l'ID du shop et de l'item pour cet ingrédient
-            FoundItem foundItem = DynaShopPlugin.getInstance().getPriceRecipe().findItemInShops(shopID, ingredient);
+            FoundItem foundItem = plugin.getPriceRecipe().findItemInShops(shopID, ingredient);
             if (!foundItem.isFound()) {
-                // DynaShopPlugin.getInstance().getLogger().warning("Impossible de trouver l'ingrédient " + ingredient.getType() + " dans les shops");
+                // plugin.getLogger().warning("Impossible de trouver l'ingrédient " + ingredient.getType() + " dans les shops");
                 continue;
             }
 
@@ -1207,23 +1205,23 @@ public class DynaShopListener implements Listener {
             String ingredientID = foundItem.getItemID();
             int ingredientQuantity = ingredient.getAmount() * amount;
             
-            // DynaShopPlugin.getInstance().getLogger().info("Ingrédient trouvé: " + ingredientShopID + ":" + ingredientID + " x" + ingredientQuantity);
+            // plugin.getLogger().info("Ingrédient trouvé: " + ingredientShopID + ":" + ingredientID + " x" + ingredientQuantity);
 
             // Vérifier si l'ingrédient est lui-même une recette
-            // boolean isIngredientRecipe = DynaShopPlugin.getInstance().getShopConfigManager().getTypeDynaShop(ingredientShopID, ingredientID) == DynaShopType.RECIPE;
+            // boolean isIngredientRecipe = plugin.getShopConfigManager().getTypeDynaShop(ingredientShopID, ingredientID) == DynaShopType.RECIPE;
             
-            // DynaShopType ingredientType = DynaShopPlugin.getInstance().getShopConfigManager().getTypeDynaShop(ingredientShopID, ingredientID);
+            // DynaShopType ingredientType = plugin.getShopConfigManager().getTypeDynaShop(ingredientShopID, ingredientID);
             DynamicPrice ingredientPrice = getOrLoadPrice(ingredientShopID, ingredientID, ingredient);
             
             if (ingredientPrice == null) {
-                // DynaShopPlugin.getInstance().getLogger().warning("Prix non trouvé pour " + ingredientShopID + ":" + ingredientID);
+                // plugin.getLogger().warning("Prix non trouvé pour " + ingredientShopID + ":" + ingredientID);
                 continue;
             }
             DynaShopType ingredientType = ingredientPrice.getDynaShopType();
 
             // // Si l'ingrédient est une recette, appliquer la récursion d'abord
             // if (isIngredientRecipe) {
-            //     // DynaShopPlugin.getInstance().getLogger().info("Ingrédient " + ingredientID + " est une recette, récursion");
+            //     // plugin.getLogger().info("Ingrédient " + ingredientID + " est une recette, récursion");
             //     applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, ingredient, ingredientQuantity, isGrowth, new ArrayList<>(visitedItems), depth + 1);
             // }
 
@@ -1232,20 +1230,20 @@ public class DynaShopListener implements Listener {
             
             // // Sauvegarder les modifications si ce n'est pas une recette
             // if (!isIngredientRecipe) {
-            //     // DynaShopPlugin.getInstance().getLogger().info("Sauvegarde des modifications pour " + ingredientShopID + ":" + ingredientID);
-            //     DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice);
+            //     // plugin.getLogger().info("Sauvegarde des modifications pour " + ingredientShopID + ":" + ingredientID);
+            //     plugin.getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice);
             // }
             // Si l'ingrédient est une recette, appliquer la récursion d'abord
             // if (isIngredientRecipe) {
             if (ingredientType == DynaShopType.RECIPE) {
                 // Appliquer la récursion uniquement, sans modifier le prix directement
-                applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, ingredient, ingredientQuantity, isGrowth, new ArrayList<>(visitedItems), depth + 1);
+                applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, ingredientQuantity, isGrowth, new ArrayList<>(visitedItems), depth + 1);
             } else {
                 // Traiter selon le type d'ingrédient (uniquement pour les non-recettes)
                 processIngredient(ingredientShopID, ingredientID, ingredientPrice, ingredientType, ingredientQuantity, isGrowth);
                 
                 // Sauvegarder les modifications
-                DynaShopPlugin.getInstance().getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice, true);
+                plugin.getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice, true);
             }
         }
     }
@@ -1257,10 +1255,10 @@ public class DynaShopListener implements Listener {
         if (type == DynaShopType.STOCK || type == DynaShopType.STATIC_STOCK) {
             if (isGrowth) {
                 // Achat: diminuer le stock des ingrédients
-                DynaShopPlugin.getInstance().getPriceStock().processBuyTransaction(shopID, itemID, quantity);
+                plugin.getPriceStock().processBuyTransaction(shopID, itemID, quantity);
             } else {
                 // Vente: augmenter le stock des ingrédients
-                DynaShopPlugin.getInstance().getPriceStock().processSellTransaction(shopID, itemID, quantity);
+                plugin.getPriceStock().processSellTransaction(shopID, itemID, quantity);
             }
             
             // Mettre à jour l'objet price
@@ -1279,12 +1277,12 @@ public class DynaShopListener implements Listener {
      * Met à jour un prix dynamique avec les valeurs actuelles du stock
      */
     private void updatePriceFromStock(String shopID, String itemID, DynamicPrice price) {
-        double newBuyPrice = DynaShopPlugin.getInstance().getPriceStock().calculatePrice(shopID, itemID, "buyPrice");
-        double newSellPrice = DynaShopPlugin.getInstance().getPriceStock().calculatePrice(shopID, itemID, "sellPrice");
+        double newBuyPrice = plugin.getPriceStock().calculatePrice(shopID, itemID, "buyPrice");
+        double newSellPrice = plugin.getPriceStock().calculatePrice(shopID, itemID, "sellPrice");
         
         price.setBuyPrice(newBuyPrice);
         price.setSellPrice(newSellPrice);
-        price.setStock(DynaShopPlugin.getInstance().getItemDataManager().getStock(shopID, itemID).orElse(0));
+        price.setStock(plugin.getItemDataManager().getStock(shopID, itemID).orElse(0));
     }
 
     // // Méthode utilitaire pour formater le temps
@@ -1498,6 +1496,8 @@ public class DynaShopListener implements Listener {
                 });
                 
             } catch (Exception e) {
+            // } catch (InterruptedException e) {
+            //     Thread.currentThread().interrupt(); // Restaurer l'état d'interruption
                 plugin.getLogger().severe("Error retrieving limits: " + e.getMessage());
             }
         });
