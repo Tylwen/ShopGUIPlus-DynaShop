@@ -650,7 +650,7 @@ public class DynaShopListener implements Listener {
                     ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkShop).getShopItem(linkItem).getItem();
                     // double linkedMin = getOrLoadPrice(linkShop, linkItem, linkedItemStack).getMinBuyPrice();
                     double linkedMin = getOrLoadPrice(linkShop, linkItem, linkedItemStack).getBuyPrice();
-                    DynaShopPlugin.getInstance().getLogger().info("Linked minBuy for " + itemID + " in shop " + shopID + ": " + linkedMin);
+                    DynaShopPlugin.getInstance().getLogger().info("Linked minBuy for " + itemID + " in shop " + shopID + ": " + linkedMin);  
                     minBuy = Math.max(minBuy, linkedMin);
                 }
             }
