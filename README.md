@@ -345,6 +345,8 @@ shopItemLoreFormat:
 
 **Tip:**  
 Lines with placeholders are automatically hidden if the value is "N/A" or "-1" (see `hideBuyPriceForUnbuyable` and `hideSellPriceForUnsellable` in your config).
+
+**Note:**  
 You can also use any PlaceholderAPI placeholders in your item lores, buttons, and GUIs.  
 If PlaceholderAPI is installed, all `%placeholder%` variables (from any supported plugin) will be replaced automatically in the lore, alongside DynaShop placeholders.
 
