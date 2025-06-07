@@ -242,6 +242,140 @@ In item lores (in shops or selection menus), you can use:
 
 **Lines with placeholders will be automatically hidden if the value is "N/A" or "-1" (configurable).**
 
+Collecte des informations sur l’espace de travailVoici un guide clair pour configurer le GUI de ShopGUIPlus **avec les placeholders dynamiques DynaShop** en anglais, basé sur ton config.yml.  
+Ce guide explique comment personnaliser les lores et boutons pour afficher les prix dynamiques, le stock, etc.
+
+---
+
+## 🛒 ShopGUIPlus GUI & DynaShop Placeholders Setup
+
+### 1. Lore format for items (shop, buy, sell, sell all)
+
+Replace the default `%buy%` and `%sell%` with DynaShop placeholders for dynamic prices and stock:
+
+```yaml
+shopItemLoreFormat:
+  # Lore for items in the main shop GUI
+  item:
+    - ""
+    - "&7&l» &fBuy price: &c%dynashop_current_buy%"
+    - "&7&l» &fSell price: &a%dynashop_current_sell%"
+    - "&7&l» &fStock: &a%dynashop_current_colored_stock_ratio%"
+    - ""
+    - "&f➢ Right-click to &asell"
+    - "&f➤ Middle-click to &bsell all"
+    - "&f➣ Left-click to &cbuy"
+    - ""
+  # Lore for items in the buy GUI (amount selection)
+  itemBuyGUI:
+    - ""
+    - "&7&l» &fBuy price: &c%dynashop_current_buy%"
+    - "&7&l» &fStock: &a%dynashop_current_colored_stock_ratio%"
+    - ""
+  # Lore for items in the sell GUI (amount selection)
+  itemSellGUI:
+    - ""
+    - "&7&l» &fSell price: &a%dynashop_current_sell%"
+    - "&7&l» &fStock: &a%dynashop_current_colored_stock_ratio%"
+    - ""
+  # Lore for the sell all button in the sell GUI
+  itemSellGUISellAll:
+    - ""
+    - "&7&l» &fSell all for: &a%dynashop_current_sell%"
+    - "&7&l» &fStock: &a%dynashop_current_colored_stock_ratio%"
+    - ""
+    - "&f➤ Click to &bsell all"
+    - ""
+```
+
+### 2. Placeholders you can use
+
+- `%dynashop_current_buyPrice%` : Raw buy price
+- `%dynashop_current_sellPrice%` : Raw sell price
+- `%dynashop_current_buyMinPrice%` / `%dynashop_current_buyMaxPrice%`
+- `%dynashop_current_sellMinPrice%` / `%dynashop_current_sellMaxPrice%`
+- `%dynashop_current_buy%` / `%dynashop_current_sell%` : Formatted price (with min/max if applicable)
+- `%dynashop_current_stock%` : Current stock
+- `%dynashop_current_maxstock%` : Max stock
+- `%dynashop_current_stock_ratio%` : Current/max stock
+- `%dynashop_current_colored_stock_ratio%` : Current/max stock with color
+
+**Tip:**  
+Lines with placeholders are automatically hidden if the value is "N/A" or "-1" (see `hideBuyPriceForUnbuyable` and `hideSellPriceForUnsellable` in your config).
+
+---
+
+### 3. Buttons and GUI elements
+
+You can also use DynaShop placeholders in the lore of your custom buttons (for example, in bulk buy/sell GUIs):
+
+```yaml
+amountSelectionGUIBulkBuy:
+  buttons:
+    buy1:
+      item:
+        material: CHEST
+        quantity: 1
+        name: "&aBuy 1 stack"
+        lore:
+          - "&7Price: &c%dynashop_current_buy%"
+      value: 1
+      slot: 0
+    # ...repeat for buy2, buy3, etc.
+    cancel:
+      item:
+        material: RED_STAINED_GLASS
+        quantity: 1
+        name: "&c&lCancel"
+      slot: 13
+```
+
+Same for `amountSelectionGUIBulkSell` (replace `%buy%`/`%sell%` with `%dynashop_current_buy%`/`%dynashop_current_sell%`).
+
+---
+
+### 4. Example for the main menu categories
+
+You can customize the main menu items as usual, but you can also add dynamic info in the lore if you want:
+
+```yaml
+shopMenuItems:
+  1:
+    item:
+      material: GRASS_BLOCK
+      quantity: 1
+      name: "&9&lBlocks"
+      lore:
+        - "&7Click to open the blocks shop!"
+    shop: "blocks"
+    slot: 11
+  # ...etc.
+```
+
+---
+
+### 5. Advanced: Show min/max prices
+
+If you want to show min/max prices, add these lines in your lore:
+
+```yaml
+- "&7Min: &a%dynashop_current_buyMinPrice% &7/ Max: &c%dynashop_current_buyMaxPrice%"
+- "&7Min: &a%dynashop_current_sellMinPrice% &7/ Max: &c%dynashop_current_sellMaxPrice%"
+```
+
+---
+
+### 6. Tips
+
+- You can use all DynaShop placeholders in any lore or button.
+- Placeholders work in all GUIs: shop, buy, sell, bulk buy/sell.
+- For more info, see your config.yml and the [ShopGUIPlus documentation](https://docs.brcdev.net/#/shopgui/shops-items-setup).
+
+---
+
+**Result:**  
+Your GUIs will always display up-to-date prices and stock, and your players will see dynamic info everywhere!
+
 ---
 
 ## Limits & Cooldowns
