@@ -21,6 +21,7 @@ import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.item.ShopItem;
+import net.brcdev.shopgui.shop.item.ShopItemType;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 import net.brcdev.shopgui.exception.player.PlayerDataNotLoadedException;
 
@@ -199,6 +200,13 @@ public class ShopItemPlaceholderListener implements Listener {
             // DynaShopPlugin.getInstance().getLogger().info("TEST 1: " + fullShopId);
             AmountSelectionInfo info = extractAmountSelectionInfo(view, fullShopId);
             if (info == null) return;
+
+            // DynaShopPlugin.getInstance().getLogger().info("TEST 2: " + view.getTitle() + " | Item ID: " + info.getItemId() + " | Shop ID: " + info.getShopId());
+            
+            // // Correction : mettre à jour openShopMap avec l'itemId si connu
+            // if (info.getItemId() != null) {
+            //     openShopMap.put(player.getUniqueId(), new SimpleEntry<>(info.getShopId(), info.getItemId()));
+            // }
             
             // Stocker les informations pour ce menu
             amountSelectionMenus.put(player.getUniqueId(), info);
@@ -340,12 +348,13 @@ public class ShopItemPlaceholderListener implements Listener {
         if (!(event.getWhoClicked() instanceof Player)) return;
 
         Player player = (Player) event.getWhoClicked();
-        // Obtenir le shopId actuel
-        SimpleEntry<String, String> shopData = openShopMap.get(player.getUniqueId());
-        if (shopData == null) return;
+        // // Obtenir le shopId actuel
+        // SimpleEntry<String, String> shopData = openShopMap.get(player.getUniqueId());
+        // if (shopData == null) return;
         
-        String shopId = shopData.getKey();
-        if (shopId == null) return;
+        String shopId;
+        // String shopId = shopData.getKey();
+        // if (shopId == null) return;
         
         // Vérifier si c'est un click dans l'inventaire du haut (le shop)
         if (event.getClickedInventory() != event.getView().getTopInventory()) return;
@@ -413,21 +422,21 @@ public class ShopItemPlaceholderListener implements Listener {
                     );
 
                     updateAmountSelectionInventory(player, event.getView(), newInfo, originalLores);
+                } else if (slot == ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUI.buttons.buyMore.slot")
+                    || slot == ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("amountSelectionGUI.buttons.sellMore.slot")) {
+                    pendingBulkMenuOpens.put(player.getUniqueId(), System.currentTimeMillis());
                 }
                 return;
-            // } else if (menuType != null && menuType.equals("AMOUNT_SELECTION")) {
-                // // Si le joueur clique sur le bouton "BULK" dans un menu de sélection
-                // // if (event.getCurrentItem() != null && event.getCurrentItem().getType() != Material.AIR) {
-                //     ItemMeta meta = event.getCurrentItem().getItemMeta();
-                //     if (meta != null && meta.hasDisplayName()) {
-                //         String bulkButton = ChatColor.translateAlternateColorCodes('&', ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("GENERAL.BULK"));
-                //         // Si c'est un bouton BULK, marquer le joueur comme passant au menu BULK
-                //         if (meta.getDisplayName().contains(bulkButton)) {
-                //             pendingBulkMenuOpens.put(player.getUniqueId(), System.currentTimeMillis());
-                //             // plugin.getLogger().info("Player " + player.getName() + " is opening a BULK menu, preventing shop reopening");
-                //         }
-                //     }
-                // // }
+            } else if (menuType != null && menuType.equals("AMOUNT_SELECTION_BULK")) {
+                return;
+            } else if (menuType != null) {
+                // On veut extracter le shopId complet (avec numéro de page)
+                shopId = menuType;
+            } else {
+                // Si on n'est pas dans un menu de sélection, on peut continuer
+                SimpleEntry<String, String> shopData = openShopMap.get(player.getUniqueId());
+                if (shopData == null) return;
+                shopId = shopData.getKey();
             }
 
             // // Tenter de récupérer l'ID de l'item à partir du slot
@@ -463,15 +472,20 @@ public class ShopItemPlaceholderListener implements Listener {
             if (shop == null) return;
             
             ShopItem shopItem = shop.getShopItem(page, event.getSlot());
+            if (shopItem == null || shopItem.getType() == ShopItemType.DUMMY) {
+                // Si l'item est vide, on ne fait rien
+                return;
+            }
             // ShopItem shopItem = shop.getShopItem(page, shopData.getValue() != null ? Integer.parseInt(shopData.getValue()) : event.getSlot());
 
-            if (shopItem != null) {
-                // Mettre à jour l'itemId dans la map
-                openShopMap.put(player.getUniqueId(), new SimpleEntry<>(shopId, shopItem.getId()));
-                
-                // Mettre également à jour lastShopMap pour éviter de perdre l'information
-                lastShopMap.put(player.getUniqueId(), new SimpleEntry<>(shopId, shopItem.getId()));
-            }
+            // if (shopItem != null) {
+            // DynaShopPlugin.getInstance().getLogger().info("Clicked item in shop: " + shopId + ":" + shopItem.getId() + " for player " + player.getName());
+            // Mettre à jour l'itemId dans la map
+            openShopMap.put(player.getUniqueId(), new SimpleEntry<>(shopId, shopItem.getId()));
+            
+            // Mettre également à jour lastShopMap pour éviter de perdre l'information
+            lastShopMap.put(player.getUniqueId(), new SimpleEntry<>(shopId, shopItem.getId()));
+            // }
         } catch (Exception e) {
             // Ignorer les erreurs - garder la dernière valeur connue
         }
@@ -1943,6 +1957,9 @@ public class ShopItemPlaceholderListener implements Listener {
                                 quantity,
                                 true // forceRefresh
                             );
+
+                            // DynaShopPlugin.getInstance().info("Processing slot " + slot + " with quantity: " + quantity + ", prices: " + prices);
+                            // DynaShopPlugin.getInstance().info("Info for slot " + info.getItemId() + ": " + info);
                             
                             // Appliquer les remplacements
                             List<String> newLore = replacePlaceholders(originalLore, prices, player);

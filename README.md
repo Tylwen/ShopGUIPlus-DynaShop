@@ -1,1 +1,1 @@
-# dynashop
+# ShopGUI+ DynaShop (Addon)
