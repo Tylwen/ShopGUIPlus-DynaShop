@@ -13,7 +13,7 @@ A complete **wiki** for ShopGUIPlus-DynaShop, covering all main features, operat
 - General Configuration
 - Item Configuration by Mode
 - Cache & Performance Management
-- Dynamic Placeholders
+- ShopGUIPlus GUI & DynaShop Placeholders Setup
 - Limits & Cooldowns
 - Reload & Best Practices
 - Example ShopGUIPlus Config
@@ -226,32 +226,11 @@ For testing or highly dynamic shops, use `realtime`.
 
 ---
 
-## Dynamic Placeholders
-
-In item lores (in shops or selection menus), you can use:
-
-- `%dynashop_current_buyPrice%`: Current buy price
-- `%dynashop_current_sellPrice%`: Current sell price
-- `%dynashop_current_buyMinPrice%` / `%dynashop_current_buyMaxPrice%`
-- `%dynashop_current_sellMinPrice%` / `%dynashop_current_sellMaxPrice%`
-- `%dynashop_current_buy%` / `%dynashop_current_sell%`: Formatted price (with min/max if applicable)
-- `%dynashop_current_stock%`: Current stock
-- `%dynashop_current_maxstock%`: Max stock
-- `%dynashop_current_stock_ratio%`: Current/max stock
-- `%dynashop_current_colored_stock_ratio%`: Current/max stock with color based on level
-
-**Lines with placeholders will be automatically hidden if the value is "N/A" or "-1" (configurable).**
-
-Collecte des informations sur l’espace de travailVoici un guide clair pour configurer le GUI de ShopGUIPlus **avec les placeholders dynamiques DynaShop** en anglais, basé sur ton config.yml.  
-Ce guide explique comment personnaliser les lores et boutons pour afficher les prix dynamiques, le stock, etc.
-
----
-
 ## 🛒 ShopGUIPlus GUI & DynaShop Placeholders Setup
 
 ### 1. Lore format for items (shop, buy, sell, sell all)
 
-Replace the default `%buy%` and `%sell%` with DynaShop placeholders for dynamic prices and stock:
+Replace the default `%buy%` and `%sell%` with DynaShop placeholders for dynamic prices and stock in file `plugins/ShopGUIPlus/config.yml`:
 
 ```yaml
 shopItemLoreFormat:
