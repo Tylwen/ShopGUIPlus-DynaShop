@@ -8,9 +8,13 @@ public class ItemPriceData {
 
     public Optional<Double> minBuy = Optional.empty();
     public Optional<Double> maxBuy = Optional.empty();
+    public Optional<String> minBuyLink = Optional.empty();
+    public Optional<String> maxBuyLink = Optional.empty();
 
     public Optional<Double> minSell = Optional.empty();
     public Optional<Double> maxSell = Optional.empty();
+    public Optional<String> minSellLink = Optional.empty();
+    public Optional<String> maxSellLink = Optional.empty();
 
     public Optional<Double> growthBuy = Optional.empty();
     public Optional<Double> decayBuy = Optional.empty();

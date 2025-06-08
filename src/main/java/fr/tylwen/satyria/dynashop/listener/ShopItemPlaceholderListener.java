@@ -33,6 +33,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -341,7 +342,7 @@ public class ShopItemPlaceholderListener implements Listener {
         //     // Mettre à jour l'inventaire du shop
         //     updateShopInventory(player, event.getView(), finalShopId);
         // }, 1L);
-        updateShopInventory(player, view, shopId, page, originalLores);
+        // updateShopInventory(player, view, shopId, page, originalLores);
         
         // Démarrer l'actualisation continue
         startContinuousRefresh(player, view, shopId, page, originalLores);
@@ -556,6 +557,15 @@ public class ShopItemPlaceholderListener implements Listener {
         //     }, 20L); // 20 ticks de délai (1s) pour s'assurer qu'un nouveau menu n'est pas ouvert
         // }
         // // openShopMap.remove(player.getUniqueId());
+        
+        // Toujours arrêter la tâche de refresh (shop ou sélection)
+        BukkitTask t1 = playerRefreshBukkitTasks.remove(playerId);
+        if (t1 != null) t1.cancel();
+        playerRefreshTasks.remove(playerId);
+
+        BukkitTask t2 = playerSelectionRefreshBukkitTasks.remove(playerId);
+        if (t2 != null) t2.cancel();
+        playerSelectionRefreshTasks.remove(playerId);
 
         // // amountSelectionMenus.remove(player.getUniqueId());
         // // Ne pas vider amountSelectionMenus si on est dans un menu de sélection
@@ -1175,21 +1185,26 @@ public class ShopItemPlaceholderListener implements Listener {
             // plugin.invalidatePriceCache(cacheKey);
         }
         
+        // CRUCIAL : Créer le set partagé ici
+        Set<String> visited = new HashSet<>();
+        Map<String, DynamicPrice> lastResults = new HashMap<>();
+        
         // Utiliser le CacheManager au lieu de la vérification manuelle du cache
         return plugin.getDisplayPriceCache().get(cacheKey, () -> {
             // Calculer les prix si non trouvés dans le cache
-            return computePrices(player, finalBaseShopId, itemId, itemStack, quantity);
+            return computePrices(player, finalBaseShopId, itemId, itemStack, quantity, visited, lastResults);
         });
     }
 
-    private Map<String, String> computePrices(Player player, String shopId, String itemId, ItemStack itemStack, int quantity) {
+    private Map<String, String> computePrices(Player player, String shopId, String itemId, ItemStack itemStack, int quantity, Set<String> visited, Map<String, DynamicPrice> lastResults) {
         Map<String, String> prices = new HashMap<>();
         
         // Récupérer le type d'achat et de vente pour cet item
         DynaShopType buyType = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId, "buy");
         DynaShopType sellType = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId, "sell");
 
-        DynamicPrice price = plugin.getDynaShopListener().getOrLoadPrice(player, shopId, itemId, itemStack);
+        // DynamicPrice price = plugin.getDynaShopListener().getOrLoadPrice(player, shopId, itemId, itemStack);
+        DynamicPrice price = plugin.getDynaShopListener().getOrLoadPrice(player, shopId, itemId, itemStack, visited, lastResults);
 
         // String buyPrice, sellPrice, buyMinPrice, buyMaxPrice, sellMinPrice, sellMaxPrice;
         // double buyPriceValue, sellPriceValue, buyMinPriceValue, buyMaxPriceValue, sellMinPriceValue, sellMaxPriceValue;

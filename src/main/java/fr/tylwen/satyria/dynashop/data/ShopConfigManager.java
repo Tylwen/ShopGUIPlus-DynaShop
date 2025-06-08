@@ -691,6 +691,8 @@ public class ShopConfigManager {
             itemPriceData.maxBuy = getOptionalDouble(buyDynamic, "max");
             itemPriceData.growthBuy = getOptionalDouble(buyDynamic, "growth");
             itemPriceData.decayBuy = getOptionalDouble(buyDynamic, "decay");
+            itemPriceData.minBuyLink = getOptionalString(buyDynamic, "minLink");
+            itemPriceData.maxBuyLink = getOptionalString(buyDynamic, "maxLink");
         }
         
         // Section sellDynamic
@@ -700,6 +702,8 @@ public class ShopConfigManager {
             itemPriceData.maxSell = getOptionalDouble(sellDynamic, "max");
             itemPriceData.growthSell = getOptionalDouble(sellDynamic, "growth");
             itemPriceData.decaySell = getOptionalDouble(sellDynamic, "decay");
+            itemPriceData.minSellLink = getOptionalString(sellDynamic, "minLink");
+            itemPriceData.maxSellLink = getOptionalString(sellDynamic, "maxLink");
         }
         
         // Section stock
@@ -744,6 +748,18 @@ public class ShopConfigManager {
 
         int value = section.getInt(actualKey);
         return Optional.of(value);
+    }
+
+    private Optional<String> getOptionalString(ConfigurationSection section, String key) {
+        if (section == null) return Optional.empty();
+
+        String actualKey = findKeyIgnoreCase(section, key);
+        if (actualKey == null) return Optional.empty();
+
+        if (!section.contains(actualKey)) return Optional.empty();
+        
+        String value = section.getString(actualKey);
+        return value != null && !value.isEmpty() ? Optional.of(value) : Optional.empty();
     }
 
     // public ItemStack getItemStack(String shopID, String itemID) {

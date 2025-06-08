@@ -5,6 +5,7 @@ package fr.tylwen.satyria.dynashop.hook;
 // import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 // import java.sql.SQLException;
 import java.util.Optional;
@@ -770,7 +771,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                 // Calculer le prix via la recette
                 ItemStack itemStack = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem();
                 if (itemStack != null) {
-                    double recipeBuyPrice = priceRecipe.calculateBuyPrice(shopID, itemID, itemStack, new ArrayList<>());
+                    double recipeBuyPrice = priceRecipe.calculatePrice(shopID, itemID, itemStack, "buyPrice", new HashSet<>());
                     return String.valueOf(recipeBuyPrice);
                 }
                 return "N/A"; // Aucun prix disponible via recette
@@ -814,7 +815,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                 // Calculer le prix via la recette
                 ItemStack itemStack = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem();
                 if (itemStack != null) {
-                    double recipeSellPrice = priceRecipe.calculateSellPrice(shopID, itemID, itemStack, new ArrayList<>());
+                    double recipeSellPrice = priceRecipe.calculatePrice(shopID, itemID, itemStack, "sellPrice", new HashSet<>());
                     return String.valueOf(recipeSellPrice);
                 }
                 return "N/A"; // Aucun prix disponible via recette
@@ -850,7 +851,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                 // Calculer le prix minimum via la recette
                 ItemStack itemStack = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem();
                 if (itemStack != null) {
-                    double recipeMinBuyPrice = priceRecipe.calculateBuyPrice(shopID, itemID, itemStack, new ArrayList<>()); // Utilisez un calcul spécifique si nécessaire
+                    double recipeMinBuyPrice = priceRecipe.calculatePrice(shopID, itemID, itemStack, "buyDynamic.min", new HashSet<>()); // Utilisez un calcul spécifique si nécessaire
                     return String.valueOf(recipeMinBuyPrice);
                 }
                 return "N/A"; // Aucun prix disponible via recette
@@ -880,7 +881,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                 // Calculer le prix maximum via la recette
                 ItemStack itemStack = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem();
                 if (itemStack != null) {
-                    double recipeMaxBuyPrice = priceRecipe.calculateBuyPrice(shopID, itemID, itemStack, new ArrayList<>()); // Utilisez un calcul spécifique si nécessaire
+                    double recipeMaxBuyPrice = priceRecipe.calculatePrice(shopID, itemID, itemStack, "buyDynamic.max", new HashSet<>()); // Utilisez un calcul spécifique si nécessaire
                     return String.valueOf(recipeMaxBuyPrice);
                 }
                 return "N/A"; // Aucun prix disponible via recette
@@ -910,7 +911,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                 // Calculer le prix minimum via la recette
                 ItemStack itemStack = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem();
                 if (itemStack != null) {
-                    double recipeMinSellPrice = priceRecipe.calculateSellPrice(shopID, itemID, itemStack, new ArrayList<>()); // Utilisez un calcul spécifique si nécessaire
+                    double recipeMinSellPrice = priceRecipe.calculatePrice(shopID, itemID, itemStack, "sellDynamic.min", new HashSet<>()); // Utilisez un calcul spécifique si nécessaire
                     return String.valueOf(recipeMinSellPrice);
                 }
                 return "N/A"; // Aucun prix disponible via recette
@@ -940,7 +941,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                 // Calculer le prix maximum via la recette
                 ItemStack itemStack = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem();
                 if (itemStack != null) {
-                    double recipeMaxSellPrice = priceRecipe.calculateSellPrice(shopID, itemID, itemStack, new ArrayList<>()); // Utilisez un calcul spécifique si nécessaire
+                    double recipeMaxSellPrice = priceRecipe.calculatePrice(shopID, itemID, itemStack, "sellDynamic.max", new HashSet<>()); // Utilisez un calcul spécifique si nécessaire
                     return String.valueOf(recipeMaxSellPrice);
                 }
                 return "N/A"; // Aucun prix disponible via recette

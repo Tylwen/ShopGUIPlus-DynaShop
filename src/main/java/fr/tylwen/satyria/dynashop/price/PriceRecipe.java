@@ -30,10 +30,12 @@ import net.brcdev.shopgui.shop.item.ShopItem;
 import java.util.ArrayList;
 // import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 // import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -185,7 +187,8 @@ public class PriceRecipe {
         public int getMaxStock() { return maxStock; }
     }
 
-    public RecipeCalculationResult calculateRecipeValues(String shopID, String itemID, List<String> visitedItems) {
+    // public RecipeCalculationResult calculateRecipeValues(String shopID, String itemID, Set<String> visitedItems) {
+    public RecipeCalculationResult calculateRecipeValues(String shopID, String itemID, Set<String> visitedItems, Map<String, DynamicPrice> lastResults) {
         // Récupérer tous les ingrédients une seule fois
         List<ItemStack> ingredients = getIngredients(shopID, itemID);
         ingredients = consolidateIngredients(ingredients);
@@ -221,22 +224,60 @@ public class PriceRecipe {
             }
             String ingredientID = foundItem.getItemID();
             String ingredientShopID = foundItem.getShopID();
+            
+            DynamicPrice ingredientPrice = null;
 
-            // Éviter les boucles infinies
-            if (visitedItems.contains(ingredientID)) {
-                continue;
-            }
-            visitedItems.add(ingredientID);
+            // String cycleKey = ingredientShopID + ":" + ingredientID;
+            // boolean isCycle = false;
+            // // Éviter les boucles infinies
+            // if (visitedItems.contains(cycleKey)) {
+            //     DynamicPrice last = lastResults.get(cycleKey);
+            //     // if (last != null) continue; // Si on a déjà un résultat, on continue
+            //     if (last != null) {
+            //         ingredientPrice = last;
+            //         // continue; // Si on a déjà un résultat, on continue
+            //         isCycle = true;
+            //     } else {
+            //         plugin.getLogger().warning("Cycle détecté pour " + cycleKey + " mais aucun lastResult n'est disponible !");
+            //         continue; // On ne peut rien faire, on saute cet ingrédient
+            //     }
+            // }
+            // visitedItems.add(cycleKey);
             
             // // Obtenir le type de l'ingrédient
             // DynaShopType ingredientType = getIngredientType(ingredient);
-            
-            DynamicPrice ingredientPrice = plugin.getDynaShopListener().getOrLoadPrice(ingredientShopID, ingredientID, ingredient);
-            if (ingredientPrice == null) {
-                plugin.getLogger().warning("Price not found for ingredient " + ingredientID + " in shop " + ingredientShopID);
-                continue; // Passer à l'ingrédient suivant si le prix n'est pas trouvé
-            }
-                
+            // DynamicPrice ingredientPrice = plugin.getDynaShopListener().getOrLoadPrice(ingredientShopID, ingredientID, ingredient);
+            // DynamicPrice ingredientPrice = plugin.getDynaShopListener().getOrLoadPrice(null, ingredientShopID, ingredientID, ingredient, visitedItems, new HashMap<>());
+            // DynamicPrice ingredientPrice = plugin.getDynaShopListener().getOrLoadPrice(null, ingredientShopID, ingredientID, ingredient, new HashSet<>(visitedItems), new HashMap<>(lastResults));
+            // if (!isCycle) {
+            //     visitedItems.add(cycleKey);
+                // try {
+                    // plugin.getLogger().info("Ingredient " + ingredientID + " (" + ingredientShopID + ") (lastResults: " + lastResults + ")" + " visitedItems: " + visitedItems);
+                    // ingredientPrice = plugin.getDynaShopListener().getOrLoadPrice(null, ingredientShopID, ingredientID, ingredient, visitedItems, lastResults);
+                    ingredientPrice = plugin.getDynaShopListener().getOrLoadPriceInternal(null, ingredientShopID, ingredientID, ingredient, visitedItems, lastResults, true);
+                    if (ingredientPrice == null) {
+
+                        plugin.getLogger().warning("Price not found for ingredient " + ingredientID + " in shop " + ingredientShopID);
+                        continue; // Passer à l'ingrédient suivant si le prix n'est pas trouvé
+                    // } else {
+                    //     // Mettre à jour les résultats précédents avec le prix récupéré
+                    //     lastResults.put(cycleKey, ingredientPrice);
+                    }
+                    plugin.getLogger().info("Ingredient " + ingredientID + " (" + ingredientShopID + ") price: " + ingredientPrice.getBuyPrice() + " (lastResults: " + lastResults + ")");
+                // } catch (Exception e) {
+                //     plugin.getLogger().warning("Error retrieving price for ingredient " + ingredientID + " in shop " + ingredientShopID + ": " + e.getMessage());
+                //     // En cas d'erreur, continuer avec les valeurs par défaut
+                //     ingredientPrice = new DynamicPrice(-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1, -1, -1, 1.0, 1.0);
+                // } finally {
+                //     visitedItems.remove(cycleKey);
+                // }
+            // }
+            // // Vérifier si l'ingrédient a un prix valide
+            // if (ingredientPrice == null || ingredientPrice.getBuyPrice() < 0 || ingredientPrice.getSellPrice() < 0) {
+            //     plugin.getLogger().warning("Invalid price for ingredient " + ingredientID + " in shop " + ingredientShopID);
+            //     continue; // Passer à l'ingrédient suivant si le prix est invalide
+            // }
+
             // Utiliser les valeurs récupérées
             double ingredientBuyPrice = ingredientPrice.getBuyPrice();
             double ingredientSellPrice = ingredientPrice.getSellPrice();
@@ -387,13 +428,26 @@ public class PriceRecipe {
     //     });
     // }
 
-    public DynamicPrice createRecipePrice(String shopID, String itemID) {
+    // public DynamicPrice createRecipePrice(String shopID, String itemID, Map<String, DynamicPrice> lastResults) {
+    public DynamicPrice createRecipePrice(String shopID, String itemID, Set<String> visitedItems, Map<String, DynamicPrice> lastResults) {
+        // // Ajoute la clé de cycle
+        // String key = shopID + ":" + itemID;
+        // if (visited.contains(key)) {
+        //     plugin.getLogger().warning("Cycle détecté dans la recette pour " + key + " !");
+        //     // Retourne un prix par défaut ou null
+        //     return null;
+        // }
+        // visited.add(key);
         // // Créer un prix dynamique pour la recette
         // DynamicPrice recipePrice = new DynamicPrice(0.0, 0.0);
         // recipePrice.setDynaShopType(DynaShopType.RECIPE);
         // return recipePrice;
 
-        RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, new ArrayList<>());
+        // RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, new ArrayList<>());
+        // RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, new HashSet<>());
+        // RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, new HashSet<>(), new HashMap<>());
+        // RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, new HashSet<>(), lastResults);
+        RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, visitedItems, lastResults);
 
         // Créer l'objet DynamicPrice avec les valeurs calculées
         DynamicPrice recipePrice = new DynamicPrice(
@@ -423,7 +477,8 @@ public class PriceRecipe {
         // Tâche de calcul avec mécanisme de retry
         Runnable calculationTask = () -> {
             try {
-                RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, new ArrayList<>());
+                RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, new HashSet<>(), new HashMap<>());
+                // RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, new HashSet<>());
                 
                 // Exécuter le callback sur le thread principal de Bukkit
                 Bukkit.getScheduler().runTask(plugin, () -> {
@@ -445,7 +500,7 @@ public class PriceRecipe {
                 } else {
                     // Erreur non récupérable, utiliser des valeurs par défaut
                     Bukkit.getScheduler().runTask(plugin, () -> {
-                        callback.accept(new RecipeCalculationResult(10.0, 8.0, 5.0, 20.0, 4.0, 16.0, 0, 0, 0));
+                        callback.accept(new RecipeCalculationResult(-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1, -1, -1));
                     });
                 }
             }
@@ -510,13 +565,14 @@ public class PriceRecipe {
      */
     private void retryCalculation(String shopID, String itemID, ItemStack item, Consumer<RecipeCalculationResult> callback) {
         try {
-            RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, new ArrayList<>());
+            RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, new HashSet<>(), new HashMap<>());
+            // RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, new HashSet<>());
             Bukkit.getScheduler().runTask(plugin, () -> callback.accept(result));
         } catch (Exception e) {
             // Après l'échec du retry, utiliser les valeurs par défaut
             plugin.getLogger().severe("Retry failed for " + shopID + ":" + itemID + ": " + e.getMessage());
             Bukkit.getScheduler().runTask(plugin, () -> {
-                callback.accept(new RecipeCalculationResult(10.0, 8.0, 5.0, 20.0, 4.0, 16.0, 0, 0, 0));
+                callback.accept(new RecipeCalculationResult(-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1, -1, -1));
             });
         }
     }
@@ -541,18 +597,19 @@ public class PriceRecipe {
         }
     }
 
-    public double calculateBuyPrice(String shopID, String itemID, ItemStack item, List<String> visitedItems) {
-        return calculatePrice(shopID, itemID, item, "buyPrice", visitedItems);
-    }
+    // public double calculateBuyPrice(String shopID, String itemID, ItemStack item, Set<String> visitedItems) {
+    //     return calculatePrice(shopID, itemID, item, "buyPrice", visitedItems);
+    // }
 
-    public double calculateSellPrice(String shopID, String itemID, ItemStack item, List<String> visitedItems) {
-        return calculatePrice(shopID, itemID, item, "sellPrice", visitedItems);
-    }
+    // public double calculateSellPrice(String shopID, String itemID, ItemStack item, Set<String> visitedItems) {
+    //     return calculatePrice(shopID, itemID, item, "sellPrice", visitedItems);
+    // }
 
-    public double calculatePrice(String shopID, String itemID, ItemStack item, String typePrice, List<String> visitedItems) {
+    public double calculatePrice(String shopID, String itemID, ItemStack item, String typePrice, Set<String> visitedItems) {
         List<ItemStack> ingredients = getIngredients(shopID, itemID);
         ingredients = consolidateIngredients(ingredients);
         double basePrice = 0.0;
+        Map<String, DynamicPrice> lastResults = new HashMap<>();
 
         // Calculer le prix de base en fonction des ingrédients
         for (ItemStack ingredient : ingredients) {
@@ -560,9 +617,23 @@ public class PriceRecipe {
                 continue; // Ignorer les ingrédients invalides
             }
             // Copier la liste des items visités pour éviter les modifications dans la récursion
-            List<String> newVisitedItems = new ArrayList<>(visitedItems);
-            double ingredientPrice = getIngredientPrice(shopID, ingredient, typePrice, newVisitedItems);
-            basePrice += ingredientPrice * ingredient.getAmount(); // Multiplier par la quantité de l'ingrédient
+            // Set<String> newVisitedItems = new HashSet<>(visitedItems);
+            // DynamicPrice ingredientPrice = getIngredientPrice(shopID, ingredient, newVisitedItems, lastResults);
+            DynamicPrice ingredientPrice = getIngredientPrice(shopID, ingredient, visitedItems, lastResults);
+            if (ingredientPrice == null) continue;
+            
+            double value;
+            switch (typePrice) {
+                case "buyPrice": value = ingredientPrice.getBuyPrice(); break;
+                case "sellPrice": value = ingredientPrice.getSellPrice(); break;
+                case "buyDynamic.min": value = ingredientPrice.getMinBuyPrice(); break;
+                case "buyDynamic.max": value = ingredientPrice.getMaxBuyPrice(); break;
+                case "sellDynamic.min": value = ingredientPrice.getMinSellPrice(); break;
+                case "sellDynamic.max": value = ingredientPrice.getMaxSellPrice(); break;
+                default: value = -1.0;
+            }
+
+            basePrice += value * ingredient.getAmount(); // Multiplier par la quantité de l'ingrédient
         }
 
         // Appliquer le modificateur en fonction du type de recette
@@ -723,11 +794,11 @@ public class PriceRecipe {
         // Définir le fournisseur de calcul
         Supplier<Double> priceCalculator = () -> {
             try {
-                List<String> visitedItems = new ArrayList<>();
+                Set<String> visitedItems = new HashSet<>();
                 return calculatePrice(shopID, itemID, item, typePrice, visitedItems);
             } catch (Exception e) {
                 plugin.getLogger().warning("Error calculating price for " + shopID + ":" + itemID + ": " + e.getMessage());
-                return 10.0; // Valeur par défaut en cas d'erreur
+                return -1.0; // Valeur par défaut en cas d'erreur
             }
         };
         
@@ -1414,46 +1485,103 @@ public class PriceRecipe {
         return null;
     }
 
-    private double getIngredientPrice(String shopID, ItemStack ingredient, String typePrice, List<String> visitedItems) {
-        // Trouver l'item dans les shops
+    // private double getIngredientPrice(String shopID, ItemStack ingredient, String typePrice, Set<String> visitedItems, Map<String, DynamicPrice> lastResults) {
+    //     // Trouver l'item dans les shops
+    //     FoundItem foundItem = findItemInShops(shopID, ingredient);
+    //     if (!foundItem.isFound()) {
+    //         plugin.getLogger().warning("Unable to find ingredient " + ingredient + " in shop " + shopID);
+    //         return -1.0; // Retourner -1.0 pour indiquer une erreur
+    //     }
+        
+    //     String ingredientID = foundItem.getItemID();
+    //     String ingredientShopID = foundItem.getShopID();
+        
+    //     // Vérifier si l'item a déjà été visité pour éviter les boucles infinies
+    //     String cycleKey = ingredientShopID + ":" + ingredientID;
+    //     if (visitedItems.contains(cycleKey)) {
+    //         // Double last = lastResults.get(cycleKey + ":" + typePrice);
+    //         // if (last != null) return last;
+    //         DynamicPrice last = lastResults.get(cycleKey + ":" + typePrice);
+    //         if (last != null) return last;
+    //         return -1.0; // Retourner -1.0 pour indiquer une erreur de cycle
+    //     }
+    //     visitedItems.add(cycleKey);
+
+    //     // Utiliser getOrLoadPrice pour obtenir toutes les informations de prix
+    //     // DynamicPrice price = plugin.getDynaShopListener().getOrLoadPrice(ingredientShopID, ingredientID, ingredient);
+    //     DynamicPrice price = plugin.getDynaShopListener().getOrLoadPrice(null, ingredientShopID, ingredientID, ingredient, visitedItems, lastResults);
+
+    //     if (price == null) {
+    //         return -1.0; // Retourner -1.0 pour indiquer une erreur
+    //     }
+        
+    //     // // Retourner le prix demandé selon le type
+    //     // if (typePrice.equals("buyPrice")) {
+    //     //     return price.getBuyPrice();
+    //     // } else if (typePrice.equals("sellPrice")) {
+    //     //     return price.getSellPrice();
+    //     // } else if (typePrice.equals("buyDynamic.min")) {
+    //     //     return price.getMinBuyPrice();
+    //     // } else if (typePrice.equals("buyDynamic.max")) {
+    //     //     return price.getMaxBuyPrice();
+    //     // } else if (typePrice.equals("sellDynamic.min")) {
+    //     //     return price.getMinSellPrice();
+    //     // } else if (typePrice.equals("sellDynamic.max")) {
+    //     //     return price.getMaxSellPrice();
+    //     // }
+        
+    //     // return -1.0; // Retourner -1.0 pour indiquer une erreur si le type de prix n'est pas reconnu
+    //     double value;
+    //     if (typePrice.equals("buyPrice")) {
+    //         value = price.getBuyPrice();
+    //     } else if (typePrice.equals("sellPrice")) {
+    //         value = price.getSellPrice();
+    //     } else if (typePrice.equals("buyDynamic.min")) {
+    //         value = price.getMinBuyPrice();
+    //     } else if (typePrice.equals("buyDynamic.max")) {
+    //         value = price.getMaxBuyPrice();
+    //     } else if (typePrice.equals("sellDynamic.min")) {
+    //         value = price.getMinSellPrice();
+    //     } else if (typePrice.equals("sellDynamic.max")) {
+    //         value = price.getMaxSellPrice();
+    //     } else {
+    //         value = -1.0;
+    //     }
+    //     lastResults.put(cycleKey + ":" + typePrice, value);
+    //     return value;
+    // }
+    private DynamicPrice getIngredientPrice(String shopID, ItemStack ingredient, Set<String> visitedItems, Map<String, DynamicPrice> lastResults) {
         FoundItem foundItem = findItemInShops(shopID, ingredient);
         if (!foundItem.isFound()) {
             plugin.getLogger().warning("Unable to find ingredient " + ingredient + " in shop " + shopID);
-            return 0; // Retourner 0 si l'ingrédient n'est pas trouvé
+            return null;
+            // return new DynamicPrice(-1, -1, -1, -1, -1, -1, 1, 1, 1, 1, 0, 0, 0, 1, 1);
         }
-        
+
         String ingredientID = foundItem.getItemID();
         String ingredientShopID = foundItem.getShopID();
-        
-        // Vérifier si l'item a déjà été visité pour éviter les boucles infinies
-        if (visitedItems.contains(ingredientID)) {
-            return 0.0; // Retourner 0 pour éviter une boucle infinie
+        String cycleKey = ingredientShopID + ":" + ingredientID;
+
+        if (visitedItems.contains(cycleKey)) {
+            DynamicPrice last = lastResults.get(cycleKey);
+            if (last != null) return last;
+            plugin.getLogger().warning("Cycle détecté pour " + cycleKey + " mais aucun lastResult n'est disponible !");
+            return null;
         }
-        visitedItems.add(ingredientID);
-        
-        // Utiliser getOrLoadPrice pour obtenir toutes les informations de prix
-        DynamicPrice price = plugin.getDynaShopListener().getOrLoadPrice(ingredientShopID, ingredientID, ingredient);
-        
-        if (price == null) {
-            return 10.0; // Valeur par défaut en cas d'erreur
+        visitedItems.add(cycleKey);
+
+        try {
+            DynamicPrice price = plugin.getDynaShopListener().getOrLoadPrice(null, ingredientShopID, ingredientID, ingredient, visitedItems, lastResults);
+
+            if (price != null) {
+                lastResults.put(cycleKey, price);
+            } else {
+                plugin.getLogger().warning("Price not found for " + cycleKey);
+            }
+            return price;
+        } finally {
+            visitedItems.remove(cycleKey);
         }
-        
-        // Retourner le prix demandé selon le type
-        if (typePrice.equals("buyPrice")) {
-            return price.getBuyPrice();
-        } else if (typePrice.equals("sellPrice")) {
-            return price.getSellPrice();
-        } else if (typePrice.equals("buyDynamic.min")) {
-            return price.getMinBuyPrice();
-        } else if (typePrice.equals("buyDynamic.max")) {
-            return price.getMaxBuyPrice();
-        } else if (typePrice.equals("sellDynamic.min")) {
-            return price.getMinSellPrice();
-        } else if (typePrice.equals("sellDynamic.max")) {
-            return price.getMaxSellPrice();
-        }
-        
-        return 10.0; // Valeur par défaut si le type de prix n'est pas reconnu
     }
 
     // // Méthodes auxiliaires extraites:

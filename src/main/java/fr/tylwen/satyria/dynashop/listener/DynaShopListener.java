@@ -3,8 +3,11 @@ package fr.tylwen.satyria.dynashop.listener;
 import java.time.Duration;
 // import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 // import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 // import java.util.Map;
 // import java.util.Map;
 // import java.util.Map;
@@ -19,6 +22,7 @@ import java.util.Optional;
 // import java.util.concurrent.atomic.AtomicBoolean;
 // import java.util.concurrent.TimeUnit;
 // import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
 
 // import javax.swing.text.StyledEditorKit.BoldAction;
 
@@ -136,7 +140,8 @@ public class DynaShopListener implements Listener {
 
         // DynaShopType typeDynaShop = shopConfigManager.getTypeDynaShop(shopID, itemID);
 
-        DynamicPrice price = getOrLoadPrice(shopID, itemID, itemStack);
+        // DynamicPrice price = getOrLoadPrice(shopID, itemID, itemStack);
+        DynamicPrice price = getOrLoadPriceInternal(null, shopID, itemID, itemStack, new HashSet<>(), new HashMap<>(), false);
         if (price == null) {
             return;
         }
@@ -293,7 +298,8 @@ public class DynaShopListener implements Listener {
         //     return; // Ignorer les items sans les sections requises
         // }
 
-        DynamicPrice price = getOrLoadPrice(shopID, itemID, itemStack);
+        // DynamicPrice price = getOrLoadPrice(shopID, itemID, itemStack);
+        DynamicPrice price = getOrLoadPriceInternal(null, shopID, itemID, itemStack, new HashSet<>(), new HashMap<>(), false);
         if (price == null) {
             // plugin.warning(itemID + " : Pas de prix dynamique trouvé dans le shop " + shopID);
             return;
@@ -392,7 +398,7 @@ public class DynaShopListener implements Listener {
             //         priceCache.remove(key);
             //     }
             // }
-            applyGrowthOrDecayToIngredients(shopID, itemID, amount, isGrowth, new ArrayList<>(), 0);
+            applyGrowthOrDecayToIngredients(shopID, itemID, amount, isGrowth, new HashSet<>(), new HashMap<>(), 0);
         });
     }
 
@@ -437,7 +443,8 @@ public class DynaShopListener implements Listener {
                 String linkedItemID = parts[1];
                 
                 // Charger le prix du shop lié
-                DynamicPrice linkedPrice = getOrLoadPrice(linkedShopID, linkedItemID, itemStack);
+                // DynamicPrice linkedPrice = getOrLoadPrice(linkedShopID, linkedItemID, itemStack);
+                DynamicPrice linkedPrice = getOrLoadPriceInternal(null, linkedShopID, linkedItemID, itemStack, new HashSet<>(), new HashMap<>(), false);
                 if (linkedPrice != null) {
                     DynaShopType linkedType = shopConfigManager.resolveTypeDynaShop(linkedShopID, linkedItemID, ShopAction.BUY == action);
                     if (linkedType == DynaShopType.DYNAMIC) {
@@ -493,70 +500,118 @@ public class DynaShopListener implements Listener {
         }
     }
     
-    public DynamicPrice getOrLoadPrice(String shopID, String itemID, ItemStack itemStack) {
-        return getOrLoadPrice(null, shopID, itemID, itemStack);
+    // public DynamicPrice getOrLoadPrice(String shopID, String itemID, ItemStack itemStack) {
+    //     return getOrLoadPrice(null, shopID, itemID, itemStack);
+    // }
+
+    // public DynamicPrice getOrLoadPrice(Player player, String shopID, String itemID, ItemStack itemStack) {
+    //     return getOrLoadPriceInternal(player, shopID, itemID, itemStack, new HashSet<>(), false);
+    // }
+    public DynamicPrice getOrLoadPrice(Player player, String shopID, String itemID, ItemStack itemStack, Set<String> visited, Map<String, DynamicPrice> lastResults) {
+        return getOrLoadPriceInternal(player, shopID, itemID, itemStack, visited, lastResults, false);
     }
+    
+    // Version interne avec bypass cache et détection de cycle
+    public DynamicPrice getOrLoadPriceInternal(Player player, String shopID, String itemID, ItemStack itemStack, Set<String> visited, Map<String, DynamicPrice> lastResults, boolean bypassCache) {
+        // String key = shopID + ":" + itemID + (player != null ? ":" + player.getUniqueId().toString() : "");
+        String key = shopID + ":" + itemID;
+        if (visited.contains(key)) {
+            DynamicPrice last = lastResults.get(key);
+            if (last != null) return last;
+            plugin.getLogger().warning("Cycle détecté pour " + key + " (lien ou recette) !");
+            return null;
+        }
+        visited.add(key);
 
-    public DynamicPrice getOrLoadPrice(Player player, String shopID, String itemID, ItemStack itemStack) {
-        // Créer une clé unique incluant le joueur si nécessaire
-        final String cacheKey = player != null 
-            ? shopID + ":" + itemID + ":" + player.getUniqueId().toString()
-            : shopID + ":" + itemID;
-        
-        // if (plugin.isRealTimeMode()) {
-        //     // Toujours recalculer, ne pas utiliser le cache
-        //     // return loadPriceFromSource(shopID, itemID, itemStack);
-        //     DynamicPrice price = loadPriceFromSource(shopID, itemID, itemStack);
-
-        //     // Appliquer les modificateurs spécifiques au joueur
-        //     if (price != null && player != null) {
-        //         price.applyShopGuiPlusModifiers(player, shopID, itemID);
-        //     }
-
-        //     return price;
-        // } else {
-        //     // Utiliser le cache manager pour récupérer le prix
-        //     return plugin.getPriceCache().get(cacheKey, () -> {
-        //         // Cette fonction n'est exécutée que si le prix n'est pas en cache
-        //         DynamicPrice price = loadPriceFromSource(shopID, itemID, itemStack);
-                
-        //         // Appliquer les modificateurs spécifiques au joueur
+        // try {
+        //     if (!bypassCache) {
+        //         // Utiliser le cache
+        //         // final String cacheKey = player != null 
+        //         //     ? shopID + ":" + itemID + ":" + player.getUniqueId().toString()
+        //         //     : shopID + ":" + itemID;
+        //         final String cacheKey = shopID + ":" + itemID + (player != null ? ":" + player.getUniqueId().toString() : "");
+        //         return plugin.getPriceCache().get(cacheKey, () -> {
+        //             // DynaShopPlugin.getInstance().getLogger().info("1: visited: " + visited);
+        //             // Set<String> visitedCopy = new HashSet<>(visited);
+        //             // visitedCopy.add(key);
+        //             DynamicPrice price = loadPriceFromSourceInternal(player, shopID, itemID, itemStack, visited);
+        //             if (price != null && player != null) {
+        //                 price.applyShopGuiPlusModifiers(player, shopID, itemID);
+        //             }
+        //             return price;
+        //         });
+        //     } else {
+        //         // DynaShopPlugin.getInstance().getLogger().info("2: visited: " + visited);
+        //         // Set<String> visitedCopy = new HashSet<>(visited);
+        //         // visitedCopy.add(key);
+        //         // Bypass le cache pour ce calcul spécifique
+        //         DynamicPrice price = loadPriceFromSourceInternal(player, shopID, itemID, itemStack, visited);
         //         if (price != null && player != null) {
         //             price.applyShopGuiPlusModifiers(player, shopID, itemID);
         //         }
-                
         //         return price;
-        //     });
-        // }
-
-        // if (plugin.isRealTimeMode()) {
-        //     // Toujours recalculer, ne pas utiliser le cache
-        //     // return loadPriceFromSource(shopID, itemID, itemStack);
-        //     DynamicPrice price = loadPriceFromSource(shopID, itemID, itemStack);
-
-        //     // Appliquer les modificateurs spécifiques au joueur
-        //     if (price != null && player != null) {
-        //         price.applyShopGuiPlusModifiers(player, shopID, itemID);
         //     }
-
-        //     return price;
+        // } finally {
+        //     visited.remove(key); // <-- Pour éviter les effets de bord sur d'autres branches
         // }
-
-        // Utiliser le cache manager pour récupérer le prix
-        return plugin.getPriceCache().get(cacheKey, () -> {
-            // Cette fonction n'est exécutée que si le prix n'est pas en cache
-            DynamicPrice price = loadPriceFromSource(shopID, itemID, itemStack);
-            
-            // Appliquer les modificateurs spécifiques au joueur
-            if (price != null && player != null) {
-                price.applyShopGuiPlusModifiers(player, shopID, itemID);
+        try {
+            DynamicPrice price;
+            if (!bypassCache) {
+                // final String cacheKey = key;
+                final String cacheKey = shopID + ":" + itemID + (player != null ? ":" + player.getUniqueId().toString() : "");
+                price = plugin.getPriceCache().get(cacheKey, () -> {
+                    DynamicPrice p = loadPriceFromSourceInternal(player, shopID, itemID, itemStack, visited, lastResults);
+                    if (p != null && player != null) {
+                        p.applyShopGuiPlusModifiers(player, shopID, itemID);
+                    }
+                    return p;
+                });
+            } else {
+                price = loadPriceFromSourceInternal(player, shopID, itemID, itemStack, visited, lastResults);
+                if (price != null && player != null) {
+                    price.applyShopGuiPlusModifiers(player, shopID, itemID);
+                }
             }
-            
+            if (price != null) {
+                lastResults.put(key, price);
+            // } else {
+            //     visited.remove(key); // Retirer la clé si le prix est null pour éviter les cycles
+            }
             return price;
-        });
+        } catch (Exception e) {
+            // En cas d'exception, retourner la dernière valeur connue si possible
+            DynamicPrice last = lastResults.get(key);
+            if (last != null) return last;
+            plugin.getLogger().warning("Erreur lors du calcul du prix pour " + key + " : " + e.getMessage());
+            return null;
+        } finally {
+            visited.remove(key);
+        }
     }
 
-    private DynamicPrice loadPriceFromSource(String shopID, String itemID, ItemStack itemStack) {
+    // public DynamicPrice getOrLoadPrice(Player player, String shopID, String itemID, ItemStack itemStack) {
+    //     // Créer une clé unique incluant le joueur si nécessaire
+    //     final String cacheKey = player != null 
+    //         ? shopID + ":" + itemID + ":" + player.getUniqueId().toString()
+    //         : shopID + ":" + itemID;
+
+    //     // Utiliser le cache manager pour récupérer le prix
+    //     return plugin.getPriceCache().get(cacheKey, () -> {
+    //         // Cette fonction n'est exécutée que si le prix n'est pas en cache
+    //         DynamicPrice price = loadPriceFromSource(shopID, itemID, itemStack);
+    //         // DynamicPrice price = loadPriceFromSource(shopID, itemID, itemStack, visited);
+            
+    //         // Appliquer les modificateurs spécifiques au joueur
+    //         if (price != null && player != null) {
+    //             price.applyShopGuiPlusModifiers(player, shopID, itemID);
+    //         }
+            
+    //         return price;
+    //     });
+    // }
+
+    // private DynamicPrice loadPriceFromSource(String shopID, String itemID, ItemStack itemStack) {
+    private DynamicPrice loadPriceFromSourceInternal(Player player, String shopID, String itemID, ItemStack itemStack, Set<String> visited, Map<String, DynamicPrice> lastResults) {
         // Déterminer le type de l'item
         DynaShopType typeDynaShop = shopConfigManager.getTypeDynaShop(shopID, itemID);
         DynaShopType buyTypeDynaShop = shopConfigManager.getTypeDynaShop(shopID, itemID, "buy");
@@ -574,7 +629,10 @@ public class DynaShopListener implements Listener {
         int stock = 0, minStock = 0, maxStock = 0;
 
         if (buyTypeDynaShop == DynaShopType.RECIPE) {
-            DynamicPrice recipePrice = plugin.getPriceRecipe().createRecipePrice(shopID, itemID);
+            // DynamicPrice recipePrice = plugin.getPriceRecipe().createRecipePrice(shopID, itemID);
+            // DynamicPrice recipePrice = plugin.getPriceRecipe().createRecipePrice(shopID, itemID, lastResults);
+            DynamicPrice recipePrice = plugin.getPriceRecipe().createRecipePrice(shopID, itemID, visited, lastResults);
+            // DynamicPrice recipePrice = plugin.getPriceRecipe().createRecipePrice(shopID, itemID, new HashSet<>(), lastResults);
             buyPrice = recipePrice.getBuyPrice();
             minBuy = recipePrice.getMinBuyPrice();
             maxBuy = recipePrice.getMaxBuyPrice();
@@ -612,7 +670,9 @@ public class DynaShopListener implements Listener {
                     
                     // Récupérer le prix de l'item lié
                     ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkedShopID).getShopItem(linkedItemID2).getItem();
-                    DynamicPrice linkedPrice = getOrLoadPrice(linkedShopID, linkedItemID2, linkedItemStack);
+                    // DynamicPrice linkedPrice = getOrLoadPrice(linkedShopID, linkedItemID2, linkedItemStack);
+                    DynamicPrice linkedPrice = getOrLoadPriceInternal(player, linkedShopID, linkedItemID2, linkedItemStack, visited, lastResults, true);
+                    DynaShopPlugin.getInstance().getLogger().info("Chargement du prix lié pour l'item " + itemID + " dans le shop " + shopID + " (linkedShop: " + linkedShopID + ", linkedItem: " + linkedItemID2 + ")");
                     if (linkedPrice != null) {
                         buyPrice = linkedPrice.getBuyPrice();
                         minBuy = linkedPrice.getMinBuyPrice();
@@ -640,32 +700,167 @@ public class DynaShopListener implements Listener {
             minBuy = priceData.minBuy.orElse(buyPrice);
             maxBuy = priceData.maxBuy.orElse(buyPrice);
             
-            // Ajout : lecture des minLink/maxLink
-            Optional<String> minBuyLink = shopConfigManager.getItemValue(shopID, itemID, "buyDynamic.minLink", String.class);
-            if (minBuyLink.isPresent() && minBuyLink.get().contains(":")) {
-                String[] parts = minBuyLink.get().split(":");
+            if (priceData.minBuyLink.isPresent() && priceData.minBuyLink.get().contains(":")) {
+                String[] parts = priceData.minBuyLink.get().split(":");
                 if (parts.length == 2) {
                     String linkShop = parts[0];
                     String linkItem = parts[1];
                     ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkShop).getShopItem(linkItem).getItem();
-                    // double linkedMin = getOrLoadPrice(linkShop, linkItem, linkedItemStack).getMinBuyPrice();
-                    double linkedMin = getOrLoadPrice(linkShop, linkItem, linkedItemStack).getBuyPrice();
-                    DynaShopPlugin.getInstance().getLogger().info("Linked minBuy for " + itemID + " in shop " + shopID + ": " + linkedMin);  
-                    minBuy = Math.max(minBuy, linkedMin);
+                    DynamicPrice linkedPrice = getOrLoadPriceInternal(player, linkShop, linkItem, linkedItemStack, visited, lastResults, true);
+                    if (linkedPrice != null) {
+                        double linkedMin = linkedPrice.getMinBuyPrice();
+                        DynaShopPlugin.getInstance().getLogger().info("Linked minBuy for " + itemID + " in shop " + shopID + ": " + linkedMin);  
+                        if (linkedMin > 0) {
+                            minBuy = Math.max(minBuy, linkedMin);
+                        }
+                    }
                 }
             }
-            Optional<String> maxBuyLink = shopConfigManager.getItemValue(shopID, itemID, "buyDynamic.maxLink", String.class);
-            if (maxBuyLink.isPresent() && maxBuyLink.get().contains(":")) {
-                String[] parts = maxBuyLink.get().split(":");
+            if (priceData.maxBuyLink.isPresent() && priceData.maxBuyLink.get().contains(":")) {
+                String[] parts = priceData.maxBuyLink.get().split(":");
                 if (parts.length == 2) {
                     String linkShop = parts[0];
                     String linkItem = parts[1];
                     ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkShop).getShopItem(linkItem).getItem();
-                    // double linkedMax = getOrLoadPrice(linkShop, linkItem, linkedItemStack).getMaxBuyPrice();
-                    double linkedMax = getOrLoadPrice(linkShop, linkItem, linkedItemStack).getBuyPrice();
-                    maxBuy = Math.min(maxBuy, linkedMax);
+                    DynamicPrice linkedPrice = getOrLoadPriceInternal(player, linkShop, linkItem, linkedItemStack, visited, lastResults, true);
+                    if (linkedPrice != null) {
+                        double linkedMax = linkedPrice.getMaxBuyPrice();
+                        DynaShopPlugin.getInstance().getLogger().info("Linked maxBuy for " + itemID + " in shop " + shopID + ": " + linkedMax);
+                        if (linkedMax > 0) {
+                            maxBuy = Math.min(maxBuy, linkedMax);
+                        }
+                    }
                 }
             }
+            // // Ajout : lecture des minLink/maxLink
+            // Optional<String> minBuyLink = shopConfigManager.getItemValue(shopID, itemID, "buyDynamic.minLink", String.class);
+            // if (minBuyLink.isPresent() && minBuyLink.get().contains(":")) {
+            //     String[] parts = minBuyLink.get().split(":");
+            //     if (parts.length == 2) {
+            //         String linkShop = parts[0];
+            //         String linkItem = parts[1];
+            //         ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkShop).getShopItem(linkItem).getItem();
+            //         // double linkedMin = getOrLoadPrice(linkShop, linkItem, linkedItemStack).getMinBuyPrice();
+            //         double linkedMin = getOrLoadPrice(linkShop, linkItem, linkedItemStack).getBuyPrice();
+            //         DynaShopPlugin.getInstance().getLogger().info("Linked minBuy for " + itemID + " in shop " + shopID + ": " + linkedMin);  
+            //         minBuy = Math.max(minBuy, linkedMin);
+            //     }
+            // }
+            // Optional<String> maxBuyLink = shopConfigManager.getItemValue(shopID, itemID, "buyDynamic.maxLink", String.class);
+            // if (maxBuyLink.isPresent() && maxBuyLink.get().contains(":")) {
+            //     String[] parts = maxBuyLink.get().split(":");
+            //     if (parts.length == 2) {
+            //         String linkShop = parts[0];
+            //         String linkItem = parts[1];
+            //         ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkShop).getShopItem(linkItem).getItem();
+            //         // double linkedMax = getOrLoadPrice(linkShop, linkItem, linkedItemStack).getMaxBuyPrice();
+            //         double linkedMax = getOrLoadPrice(linkShop, linkItem, linkedItemStack).getBuyPrice();
+            //         maxBuy = Math.min(maxBuy, linkedMax);
+            //     }
+            // }
+            // if (priceData.minBuyLink.isPresent() && priceData.minBuyLink.get().contains(":")) {
+            //     String[] parts = priceData.minBuyLink.get().split(":");
+            //     if (parts.length == 2) {
+            //         String linkShop = parts[0];
+            //         String linkItem = parts[1];
+            //         ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkShop).getShopItem(linkItem).getItem();
+            //         // Passe le set visited pour éviter les cycles
+            //         // double linkedMin = getOrLoadPrice(null, linkShop, linkItem, linkedItemStack, visited).getMinBuyPrice();
+            //         // double linkedMin = getOrLoadPrice(linkShop, linkItem, linkedItemStack).getMinBuyPrice();
+            //         DynamicPrice linkedPrice = getOrLoadPrice(null, linkShop, linkItem, linkedItemStack, visited);
+            //         double linkedMin = (linkedPrice != null) ? linkedPrice.getMinBuyPrice() : minBuy; // ou une valeur par défaut
+            //         DynaShopPlugin.getInstance().getLogger().info("Linked minBuy for " + itemID + " in shop " + shopID + ": " + linkedMin);  
+            //         minBuy = Math.max(minBuy, linkedMin);
+            //     }
+            // }
+            // if (priceData.minBuyLink.isPresent() && priceData.minBuyLink.get().contains(":")) {
+            //     String[] parts = priceData.minBuyLink.get().split(":");
+            //     if (parts.length == 2) {
+            //         String linkShop = parts[0];
+            //         String linkItem = parts[1];
+            //         ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkShop).getShopItem(linkItem).getItem();
+            //         // DynamicPrice linkedPrice = getOrLoadPrice(null, linkShop, linkItem, linkedItemStack, visited);
+            //         DynamicPrice linkedPrice = getOrLoadPriceInternal(linkShop, linkItem, linkedItemStack, visited);
+            //         // if (linkedPrice == null) {
+            //         //     plugin.getLogger().warning("Cycle ou erreur lors du calcul du minBuy link pour " + itemID + " in shop " + shopID + " (lien: " + linkShop + ":" + linkItem + ")");
+            //         //     // On ne touche pas à minBuy, on sort de la logique de lien
+            //         //     return null;
+            //         // } else {
+            //         //     double linkedMin = linkedPrice.getMinBuyPrice();
+            //         //     // STOPPE TOUT si la valeur est -1.0 (valeur par défaut)
+            //         //     if (linkedMin == -1.0) {
+            //         //         plugin.getLogger().warning("Valeur -1.0 détectée pour minBuy link " + linkShop + ":" + linkItem + " (cycle ou erreur probable)");
+            //         //         return null;
+            //         //     }
+            //         //     DynaShopPlugin.getInstance().getLogger().info("Linked minBuy for " + itemID + " in shop " + shopID + ": " + linkedMin + " (lien: " + linkShop + ":" + linkItem + ")" + visited);
+            //         //     minBuy = Math.max(minBuy, linkedMin);
+            //         // }
+            //         if (linkedPrice != null) {
+            //             double linkedMin = linkedPrice.getMinBuyPrice();
+            //             if (linkedMin > 0) {
+            //                 minBuy = Math.max(minBuy, linkedMin);
+            //                 DynaShopPlugin.getInstance().getLogger().info("Linked minBuy for " + itemID + " in shop " + shopID + ": " + linkedMin + " (lien: " + linkShop + ":" + linkItem + ")" + visited);
+            //             } else {
+            //                 plugin.getLogger().warning("minBuy link " + linkShop + ":" + linkItem + " non exploitable (cycle ou valeur négative)");
+            //                 // On garde la valeur locale
+            //             }
+            //         } else {
+            //             plugin.getLogger().warning("minBuy link " + linkShop + ":" + linkItem + " non exploitable (cycle ou erreur)");
+            //             // On garde la valeur locale
+            //         }
+            //     }
+            // }
+            // if (priceData.maxBuyLink.isPresent() && priceData.maxBuyLink.get().contains(":")) {
+            //     String[] parts = priceData.maxBuyLink.get().split(":");
+            //     if (parts.length == 2) {
+            //         String linkShop = parts[0];
+            //         String linkItem = parts[1];
+            //         ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkShop).getShopItem(linkItem).getItem();
+            //         // double linkedMax = getOrLoadPrice(null, linkShop, linkItem, linkedItemStack, visited).getMaxBuyPrice();
+            //         // double linkedMax = getOrLoadPrice(linkShop, linkItem, linkedItemStack).getMaxBuyPrice();
+            //         DynamicPrice linkedPrice = getOrLoadPrice(null, linkShop, linkItem, linkedItemStack, visited);
+            //         double linkedMax = (linkedPrice != null) ? linkedPrice.getMaxBuyPrice() : maxBuy; // ou une valeur par défaut
+            //         DynaShopPlugin.getInstance().getLogger().info("Linked maxBuy for " + itemID + " in shop " + shopID + ": " + linkedMax);
+            //         maxBuy = Math.min(maxBuy, linkedMax);
+            //     }
+            // }
+            // if (priceData.maxBuyLink.isPresent() && priceData.maxBuyLink.get().contains(":")) {
+            //     String[] parts = priceData.maxBuyLink.get().split(":");
+            //     if (parts.length == 2) {
+            //         String linkShop = parts[0];
+            //         String linkItem = parts[1];
+            //         ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkShop).getShopItem(linkItem).getItem();
+            //         // DynamicPrice linkedPrice = getOrLoadPrice(null, linkShop, linkItem, linkedItemStack, visited);
+            //         DynamicPrice linkedPrice = getOrLoadPriceInternal(linkShop, linkItem, linkedItemStack, visited);
+            //         // if (linkedPrice == null) {
+            //         //     plugin.getLogger().warning("Cycle ou erreur lors du calcul du maxBuy link pour " + itemID + " in shop " + shopID + " (lien: " + linkShop + ":" + linkItem + ")");
+            //         //     // On ne touche pas à maxBuy, on sort de la logique de lien
+            //         //     return null;
+            //         // } else {
+            //         //     double linkedMax = linkedPrice.getMaxBuyPrice();
+            //         //     // STOPPE TOUT si la valeur est -1.0 (valeur par défaut)
+            //         //     if (linkedMax == -1.0) {
+            //         //         plugin.getLogger().warning("Valeur -1.0 détectée pour maxBuy link " + linkShop + ":" + linkItem + " (cycle ou erreur probable)");
+            //         //         return null;
+            //         //     }
+            //         //     DynaShopPlugin.getInstance().getLogger().info("Linked maxBuy for " + itemID + " in shop " + shopID + ": " + linkedMax);
+            //         //     maxBuy = Math.min(maxBuy, linkedMax);
+            //         // }
+            //         if (linkedPrice != null) {
+            //             double linkedMax = linkedPrice.getMaxBuyPrice();
+            //             if (linkedMax > 0) {
+            //                 maxBuy = Math.min(maxBuy, linkedMax);
+            //                 DynaShopPlugin.getInstance().getLogger().info("Linked maxBuy for " + itemID + " in shop " + shopID + ": " + linkedMax + " (lien: " + linkShop + ":" + linkItem + ")" + visited);
+            //             } else {
+            //                 plugin.getLogger().warning("maxBuy link " + linkShop + ":" + linkItem + " non exploitable (cycle ou valeur négative)");
+            //                 // On garde la valeur locale
+            //             }
+            //         } else {
+            //             plugin.getLogger().warning("maxBuy link " + linkShop + ":" + linkItem + " non exploitable (cycle ou erreur)");
+            //             // On garde la valeur locale
+            //         }
+            //     }
+            // }
 
             growthBuy = priceData.growthBuy.orElseGet(() -> {
                 boolean hasBuyDynamic = shopConfigManager.hasSection(shopID, itemID, "buyDynamic");
@@ -693,7 +888,10 @@ public class DynaShopListener implements Listener {
         }
 
         if (sellTypeDynaShop == DynaShopType.RECIPE) {
-            DynamicPrice recipePrice = plugin.getPriceRecipe().createRecipePrice(shopID, itemID);
+            // DynamicPrice recipePrice = plugin.getPriceRecipe().createRecipePrice(shopID, itemID);
+            // DynamicPrice recipePrice = plugin.getPriceRecipe().createRecipePrice(shopID, itemID,lastResults);
+            DynamicPrice recipePrice = plugin.getPriceRecipe().createRecipePrice(shopID, itemID, visited, lastResults);
+            // DynamicPrice recipePrice = plugin.getPriceRecipe().createRecipePrice(shopID, itemID, new HashSet<>(), lastResults);
             sellPrice = recipePrice.getSellPrice();
             minSell = recipePrice.getMinSellPrice();
             maxSell = recipePrice.getMaxSellPrice();
@@ -731,7 +929,8 @@ public class DynaShopListener implements Listener {
                     
                     // Récupérer le prix de l'item lié
                     ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkedShopID).getShopItem(linkedItemID2).getItem();
-                    DynamicPrice linkedPrice = getOrLoadPrice(linkedShopID, linkedItemID2, linkedItemStack);
+                    // DynamicPrice linkedPrice = getOrLoadPrice(linkedShopID, linkedItemID2, linkedItemStack);
+                    DynamicPrice linkedPrice = getOrLoadPriceInternal(player, linkedShopID, linkedItemID2, linkedItemStack, visited, lastResults, true);
                     if (linkedPrice != null) {
                         sellPrice = linkedPrice.getSellPrice();
                         minSell = linkedPrice.getMinSellPrice();
@@ -916,7 +1115,7 @@ public class DynaShopListener implements Listener {
     }
 
 
-    private void applyGrowthOrDecayToIngredients(String shopID, String itemID, int amount, boolean isGrowth, List<String> visitedItems, int depth) {
+    private void applyGrowthOrDecayToIngredients(String shopID, String itemID, int amount, boolean isGrowth, Set<String> visitedItems, Map<String, DynamicPrice> lastResults, int depth) {
         // Limiter la profondeur de récursion
         if (depth > 5) return;
 
@@ -960,8 +1159,9 @@ public class DynaShopListener implements Listener {
             // boolean isIngredientRecipe = plugin.getShopConfigManager().getTypeDynaShop(ingredientShopID, ingredientID) == DynaShopType.RECIPE;
             
             // DynaShopType ingredientType = plugin.getShopConfigManager().getTypeDynaShop(ingredientShopID, ingredientID);
-            DynamicPrice ingredientPrice = getOrLoadPrice(ingredientShopID, ingredientID, ingredient);
-            
+            // DynamicPrice ingredientPrice = getOrLoadPrice(ingredientShopID, ingredientID, ingredient);
+            DynamicPrice ingredientPrice = getOrLoadPriceInternal(null, ingredientShopID, ingredientID, ingredient, new HashSet<>(visitedItems), lastResults, false);
+
             if (ingredientPrice == null) {
                 // plugin.getLogger().warning("Prix non trouvé pour " + ingredientShopID + ":" + ingredientID);
                 continue;
@@ -986,7 +1186,7 @@ public class DynaShopListener implements Listener {
             // if (isIngredientRecipe) {
             if (ingredientType == DynaShopType.RECIPE) {
                 // Appliquer la récursion uniquement, sans modifier le prix directement
-                applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, ingredientQuantity, isGrowth, new ArrayList<>(visitedItems), depth + 1);
+                applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, ingredientQuantity, isGrowth, new HashSet<>(visitedItems), lastResults, depth + 1);
             } else {
                 // Traiter selon le type d'ingrédient (uniquement pour les non-recettes)
                 processIngredient(ingredientShopID, ingredientID, ingredientPrice, ingredientType, ingredientQuantity, isGrowth);

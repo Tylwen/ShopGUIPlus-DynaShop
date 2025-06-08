@@ -579,4 +579,32 @@ public class DynamicPrice {
     public void setSellTypeDynaShop(DynaShopType type) {
         this.sellTypeDynaShop = type;
     }
+
+    // public double getPrice(String typePrice) {
+    //     switch (typePrice.toUpperCase()) {
+    //         case "BUY":
+    //             return buyPrice;
+    //         case "SELL":
+    //             return sellPrice;
+    //         case "MINBUY":
+    //             return minBuy;
+    //         case "MAXBUY":
+    //             return maxBuy;
+    //         case "MINSELL":
+    //             return minSell;
+    //         case "MAXSELL":
+    //             return maxSell;
+    //         case "GROWTHBUY":
+    //             return growthBuy;
+    //         case "DECAYBUY":
+    //             return decayBuy;
+    //         case "GROWTHSELL":
+    //             return growthSell;
+    //         case "DECAYSELL":
+    //             return decaySell;
+    //         default:
+    //             // Si le type de prix n'est pas reconnu, retourner -1.0
+    //             return -1.0; // Indique un prix désactivé
+    //     }
+    // }
 }

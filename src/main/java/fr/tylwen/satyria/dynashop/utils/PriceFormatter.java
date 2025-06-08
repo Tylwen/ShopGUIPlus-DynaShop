@@ -8,6 +8,7 @@ import net.brcdev.shopgui.ShopGuiPlusApi;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Optional;
 
 import org.bukkit.inventory.ItemStack;
@@ -112,7 +113,7 @@ public class PriceFormatter {
                     // Utiliser le cache pour récupérer le prix d'achat d'une recette
                     final ItemStack finalItem = itemStack;
                     double recipePrice = plugin.getCalculatedPriceCache().get(shopID + ":" + itemID + ":buyPrice", 
-                        () -> plugin.getPriceRecipe().calculatePrice(shopID, itemID, finalItem, "buyPrice", new ArrayList<>()));
+                        () -> plugin.getPriceRecipe().calculatePrice(shopID, itemID, finalItem, "buyPrice", new HashSet<>()));
 
                     if (recipePrice >= 0) {
                         return formatPrice(recipePrice);
@@ -140,7 +141,7 @@ public class PriceFormatter {
 
                     final ItemStack finalItem = itemStack;
                     double recipePrice = plugin.getCalculatedPriceCache().get(shopID + ":" + itemID + ":sellPrice", 
-                        () -> plugin.getPriceRecipe().calculatePrice(shopID, itemID, finalItem, "sellPrice", new ArrayList<>()));
+                        () -> plugin.getPriceRecipe().calculatePrice(shopID, itemID, finalItem, "sellPrice", new HashSet<>()));
                     if (recipePrice >= 0) {
                         return formatPrice(recipePrice);
                     }
@@ -167,7 +168,7 @@ public class PriceFormatter {
                     // double recipePrice = plugin.getCachedRecipePrice(shopID, itemID, "buyDynamic.min");
                     final ItemStack finalItem = itemStack;
                     double recipePrice = plugin.getCalculatedPriceCache().get(shopID + ":" + itemID + ":buyDynamic.min", 
-                        () -> plugin.getPriceRecipe().calculatePrice(shopID, itemID, finalItem, "buyDynamic.min", new ArrayList<>()));
+                        () -> plugin.getPriceRecipe().calculatePrice(shopID, itemID, finalItem, "buyDynamic.min", new HashSet<>()));
                     if (recipePrice >= 0) {
                         return formatPrice(recipePrice);
                     }
@@ -188,7 +189,7 @@ public class PriceFormatter {
                     // double recipePrice = plugin.getCachedRecipePrice(shopID, itemID, "sellDynamic.min");
                     final ItemStack finalItem = itemStack;
                     double recipePrice = plugin.getCalculatedPriceCache().get(shopID + ":" + itemID + ":sellDynamic.min", 
-                        () -> plugin.getPriceRecipe().calculatePrice(shopID, itemID, finalItem, "sellDynamic.min", new ArrayList<>()));
+                        () -> plugin.getPriceRecipe().calculatePrice(shopID, itemID, finalItem, "sellDynamic.min", new HashSet<>()));
                     if (recipePrice >= 0) {
                         return formatPrice(recipePrice);
                     }
@@ -209,7 +210,7 @@ public class PriceFormatter {
                     // double recipePrice = plugin.getCachedRecipePrice(shopID, itemID, "buyDynamic.max");
                     final ItemStack finalItem = itemStack;
                     double recipePrice = plugin.getCalculatedPriceCache().get(shopID + ":" + itemID + ":buyDynamic.max", 
-                        () -> plugin.getPriceRecipe().calculatePrice(shopID, itemID, finalItem, "buyDynamic.max", new ArrayList<>()));
+                        () -> plugin.getPriceRecipe().calculatePrice(shopID, itemID, finalItem, "buyDynamic.max", new HashSet<>()));
                     if (recipePrice >= 0) {
                         return formatPrice(recipePrice);
                     }
@@ -230,7 +231,7 @@ public class PriceFormatter {
                     // double recipePrice = plugin.getCachedRecipePrice(shopID, itemID, "sellDynamic.max");
                     final ItemStack finalItem = itemStack;
                     double recipePrice = plugin.getCalculatedPriceCache().get(shopID + ":" + itemID + ":sellDynamic.max", 
-                        () -> plugin.getPriceRecipe().calculatePrice(shopID, itemID, finalItem, "sellDynamic.max", new ArrayList<>()));
+                        () -> plugin.getPriceRecipe().calculatePrice(shopID, itemID, finalItem, "sellDynamic.max", new HashSet<>()));
                     if (recipePrice >= 0) {
                         return formatPrice(recipePrice);
                     }
