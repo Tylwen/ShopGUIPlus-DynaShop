@@ -30,6 +30,7 @@ A complete **wiki** for ShopGUIPlus-DynaShop, covering all main features, operat
 - **Dynamic placeholders**: Display prices, stock, min/max, etc. in item lores.
 - **Transaction limits**: Per-player buy/sell limits per period.
 - **Full ShopGUI+ compatibility**: Supports all shop types, pages, selection menus, etc.
+- **minLink / maxLink**: Allows an item's min/max price to be linked to another item (even from another shop), for advanced price synchronization.
 
 ---
 
@@ -211,6 +212,37 @@ items:
 If not set, the plugin uses the general `typeDynaShop` for both buy and sell.
 
 **This allows you to, for example, have a fixed price for selling but a dynamic price for buying, or use stock only for one direction.**
+
+---
+
+### Advanced: minLink and maxLink
+
+You can link the minimum or maximum price of an item to another item (even from another shop) using `minLink` and `maxLink`:
+
+```yaml
+items:
+  diamond:
+    typeDynaShop: DYNAMIC
+    buyPrice: 1000
+    buyDynamic:
+      min: 800
+      max: 1200
+      minLink: minerais:1      # Link min price to item 1 in shop 'minerais'
+      maxLink: shop2:diamond   # Link max price to 'diamond' in shop2
+      growth: 1.01
+      decay: 0.99
+    sellPrice: 900
+    sellDynamic:
+      min: 700
+      max: 1100
+```
+
+- `minLink`: The minimum price will always be at least the min price of the linked item.
+- `maxLink`: The maximum price will never exceed the max price of the linked item.
+- You can use `shopID:itemID` syntax to reference any item in any shop.
+
+**Tip:**  
+This is useful to synchronize price floors/ceilings between related items (for example, ores and ingots).
 
 ---
 
