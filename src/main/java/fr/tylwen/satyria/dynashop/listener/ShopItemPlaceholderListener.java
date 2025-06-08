@@ -342,7 +342,7 @@ public class ShopItemPlaceholderListener implements Listener {
         //     // Mettre à jour l'inventaire du shop
         //     updateShopInventory(player, event.getView(), finalShopId);
         // }, 1L);
-        // updateShopInventory(player, view, shopId, page, originalLores);
+        updateShopInventory(player, view, shopId, page, originalLores);
         
         // Démarrer l'actualisation continue
         startContinuousRefresh(player, view, shopId, page, originalLores);

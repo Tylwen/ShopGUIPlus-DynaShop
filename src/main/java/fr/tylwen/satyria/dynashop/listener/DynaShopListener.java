@@ -672,7 +672,7 @@ public class DynaShopListener implements Listener {
                     ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkedShopID).getShopItem(linkedItemID2).getItem();
                     // DynamicPrice linkedPrice = getOrLoadPrice(linkedShopID, linkedItemID2, linkedItemStack);
                     DynamicPrice linkedPrice = getOrLoadPriceInternal(player, linkedShopID, linkedItemID2, linkedItemStack, visited, lastResults, true);
-                    DynaShopPlugin.getInstance().getLogger().info("Chargement du prix lié pour l'item " + itemID + " dans le shop " + shopID + " (linkedShop: " + linkedShopID + ", linkedItem: " + linkedItemID2 + ")");
+                    // DynaShopPlugin.getInstance().getLogger().info("Chargement du prix lié pour l'item " + itemID + " dans le shop " + shopID + " (linkedShop: " + linkedShopID + ", linkedItem: " + linkedItemID2 + ")");
                     if (linkedPrice != null) {
                         buyPrice = linkedPrice.getBuyPrice();
                         minBuy = linkedPrice.getMinBuyPrice();
@@ -709,7 +709,7 @@ public class DynaShopListener implements Listener {
                     DynamicPrice linkedPrice = getOrLoadPriceInternal(player, linkShop, linkItem, linkedItemStack, visited, lastResults, true);
                     if (linkedPrice != null) {
                         double linkedMin = linkedPrice.getMinBuyPrice();
-                        DynaShopPlugin.getInstance().getLogger().info("Linked minBuy for " + itemID + " in shop " + shopID + ": " + linkedMin);  
+                        // DynaShopPlugin.getInstance().getLogger().info("Linked minBuy for " + itemID + " in shop " + shopID + ": " + linkedMin);
                         if (linkedMin > 0) {
                             minBuy = Math.max(minBuy, linkedMin);
                         }
@@ -722,10 +722,12 @@ public class DynaShopListener implements Listener {
                     String linkShop = parts[0];
                     String linkItem = parts[1];
                     ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkShop).getShopItem(linkItem).getItem();
+                    // DynaShopPlugin.getInstance().getLogger().info("Linking maxBuy for " + itemID + " in shop " + shopID + ": " + linkShop + ":" + linkItem + " (visited: " + visited + ")" + " (lastResults: " + lastResults + ")");
                     DynamicPrice linkedPrice = getOrLoadPriceInternal(player, linkShop, linkItem, linkedItemStack, visited, lastResults, true);
+                    // DynaShopPlugin.getInstance().getLogger().info("2: (visited: " + visited + ")" + " (lastResults: " + lastResults + ")");
                     if (linkedPrice != null) {
                         double linkedMax = linkedPrice.getMaxBuyPrice();
-                        DynaShopPlugin.getInstance().getLogger().info("Linked maxBuy for " + itemID + " in shop " + shopID + ": " + linkedMax);
+                        // DynaShopPlugin.getInstance().getLogger().info("Linked maxBuy for " + itemID + " in shop " + shopID + ": " + linkedMax);
                         if (linkedMax > 0) {
                             maxBuy = Math.min(maxBuy, linkedMax);
                         }
@@ -957,6 +959,41 @@ public class DynaShopListener implements Listener {
             sellPrice = priceFromDatabase.map(DynamicPrice::getSellPrice).orElse(priceData.sellPrice.orElse(-1.0));
             minSell = priceData.minSell.orElse(sellPrice);
             maxSell = priceData.maxSell.orElse(sellPrice);
+
+            if (priceData.minSellLink.isPresent() && priceData.minSellLink.get().contains(":")) {
+                String[] parts = priceData.minSellLink.get().split(":");
+                if (parts.length == 2) {
+                    String linkShop = parts[0];
+                    String linkItem = parts[1];
+                    ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkShop).getShopItem(linkItem).getItem();
+                    DynamicPrice linkedPrice = getOrLoadPriceInternal(player, linkShop, linkItem, linkedItemStack, visited, lastResults, true);
+                    if (linkedPrice != null) {
+                        double linkedMin = linkedPrice.getMinSellPrice();
+                        // DynaShopPlugin.getInstance().getLogger().info("Linked minSell for " + itemID + " in shop " + shopID + ": " + linkedMin);  
+                        if (linkedMin > 0) {
+                            minSell = Math.max(minSell, linkedMin);
+                        }
+                    }
+                }
+            }
+            if (priceData.maxSellLink.isPresent() && priceData.maxSellLink.get().contains(":")) {
+                String[] parts = priceData.maxSellLink.get().split(":");
+                if (parts.length == 2) {
+                    String linkShop = parts[0];
+                    String linkItem = parts[1];
+                    ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkShop).getShopItem(linkItem).getItem();
+                    // DynaShopPlugin.getInstance().getLogger().info("Linking maxSell for " + itemID + " in shop " + shopID + ": " + linkShop + ":" + linkItem + " (visited: " + visited + ")" + " (lastResults: " + lastResults + ")");
+                    DynamicPrice linkedPrice = getOrLoadPriceInternal(player, linkShop, linkItem, linkedItemStack, visited, lastResults, true);
+                    // DynaShopPlugin.getInstance().getLogger().info("2: (visited: " + visited + ")" + " (lastResults: " + lastResults + ")");
+                    if (linkedPrice != null) {
+                        double linkedMax = linkedPrice.getMaxSellPrice();
+                        // DynaShopPlugin.getInstance().getLogger().info("Linked maxSell for " + itemID + " in shop " + shopID + ": " + linkedMax);
+                        if (linkedMax > 0) {
+                            maxSell = Math.min(maxSell, linkedMax);
+                        }
+                    }
+                }
+            }
 
             growthSell = priceData.growthSell.orElseGet(() -> {
                 boolean hasSellDynamic = shopConfigManager.hasSection(shopID, itemID, "sellDynamic");

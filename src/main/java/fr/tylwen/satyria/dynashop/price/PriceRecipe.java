@@ -257,13 +257,13 @@ public class PriceRecipe {
                     ingredientPrice = plugin.getDynaShopListener().getOrLoadPriceInternal(null, ingredientShopID, ingredientID, ingredient, visitedItems, lastResults, true);
                     if (ingredientPrice == null) {
 
-                        plugin.getLogger().warning("Price not found for ingredient " + ingredientID + " in shop " + ingredientShopID);
+                        // plugin.getLogger().warning("Price not found for ingredient " + ingredientID + " in shop " + ingredientShopID);
                         continue; // Passer à l'ingrédient suivant si le prix n'est pas trouvé
                     // } else {
                     //     // Mettre à jour les résultats précédents avec le prix récupéré
                     //     lastResults.put(cycleKey, ingredientPrice);
                     }
-                    plugin.getLogger().info("Ingredient " + ingredientID + " (" + ingredientShopID + ") price: " + ingredientPrice.getBuyPrice() + " (lastResults: " + lastResults + ")");
+                    // plugin.getLogger().info("Ingredient " + ingredientID + " (" + ingredientShopID + ") price: " + ingredientPrice.getBuyPrice() + " (lastResults: " + lastResults + ")");
                 // } catch (Exception e) {
                 //     plugin.getLogger().warning("Error retrieving price for ingredient " + ingredientID + " in shop " + ingredientShopID + ": " + e.getMessage());
                 //     // En cas d'erreur, continuer avec les valeurs par défaut
@@ -1565,7 +1565,7 @@ public class PriceRecipe {
         if (visitedItems.contains(cycleKey)) {
             DynamicPrice last = lastResults.get(cycleKey);
             if (last != null) return last;
-            plugin.getLogger().warning("Cycle détecté pour " + cycleKey + " mais aucun lastResult n'est disponible !");
+            // plugin.getLogger().warning("Cycle détecté pour " + cycleKey + " mais aucun lastResult n'est disponible !");
             return null;
         }
         visitedItems.add(cycleKey);
@@ -1575,8 +1575,8 @@ public class PriceRecipe {
 
             if (price != null) {
                 lastResults.put(cycleKey, price);
-            } else {
-                plugin.getLogger().warning("Price not found for " + cycleKey);
+            // } else {
+                // plugin.getLogger().warning("Price not found for " + cycleKey);
             }
             return price;
         } finally {
