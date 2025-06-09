@@ -15,6 +15,8 @@ A complete **wiki** for ShopGUIPlus-DynaShop, covering all main features, operat
 - Cache & Performance Management
 - ShopGUIPlus GUI & DynaShop Placeholders Setup
 - Limits & Cooldowns
+- Taxation System
+- Inflation System
 - Reload & Best Practices
 - Example ShopGUIPlus Config
 - FAQ
@@ -26,6 +28,8 @@ A complete **wiki** for ShopGUIPlus-DynaShop, covering all main features, operat
 - **Dynamic pricing**: Buy/sell prices evolve based on supply and demand.
 - **Dynamic stock**: Items can have limited stock, affecting price.
 - **Recipe-based pricing**: Automatic price calculation based on crafting recipe.
+- **Taxation system**: Collect taxes on transactions with configurable rates.
+- **Inflation system**: Simulate a realistic economy with prices changing over time.
 - **Configurable cache system**: Choose between performance (`full` cache) and real-time data (`realtime`).
 - **Dynamic placeholders**: Display prices, stock, min/max, etc. in item lores.
 - **Transaction limits**: Per-player buy/sell limits per period.
@@ -540,6 +544,163 @@ items:
 **Note:**  
 Limits are enforced even if the server restarts.  
 You can monitor and clean up old transaction data automatically (see plugin logs for details).
+
+---
+
+## Taxation System
+
+The plugin includes a flexible taxation system that automatically applies a tax percentage to all transactions. The collected taxes can be sent to a player account, a system account, or simply removed from the economy.
+
+### Configuration
+
+```yaml
+# Tax system configuration
+tax:
+  enabled: false
+  # Destination mode for taxes: "player", "system" or "remove"
+  # player: Sends the tax to a real player (must have played on the server)
+  # system: Sends the tax to a system account (works even if it's not a real player)
+  # remove: Simply removes the money from the economy (does not assign it to anyone)
+  mode: "system"
+  # Name of the player or account who will receive the taxes
+  receiver: "DynaShopBank"
+  # Percentage of tax applied on purchases
+  buy-rate: 5.0
+  # Percentage of tax applied on sales
+  sell-rate: 3.0
+  # Log transactions in the console
+  log-transactions: true
+```
+
+### How it works
+
+1. When a player makes a transaction (buy or sell), a percentage of the price is deducted as tax.
+2. The tax amount is calculated based on the `buy-rate` (for purchases) or `sell-rate` (for sales).
+3. The tax is then:
+   - Sent to a real player's account (if `mode` is "player")
+   - Sent to a system account (if `mode` is "system")
+   - Simply removed from the economy (if `mode` is "remove")
+4. The player receives a message indicating the tax amount and destination.
+5. If `log-transactions` is enabled, all tax transactions are logged in the console.
+
+### Examples
+
+**Example 1: Bank account**
+```yaml
+tax:
+  enabled: true
+  mode: "system"
+  receiver: "ServerBank"
+  buy-rate: 5.0
+  sell-rate: 2.0
+  log-transactions: true
+```
+
+**Example 2: Tax collector player**
+```yaml
+tax:
+  enabled: true
+  mode: "player"
+  receiver: "Tylwen"
+  buy-rate: 7.5
+  sell-rate: 3.5
+  log-transactions: true
+```
+
+**Example 3: Economic sink (just removes money)**
+```yaml
+tax:
+  enabled: true
+  mode: "remove"
+  receiver: "Treasury"  # This is just for the message, money is not sent anywhere
+  buy-rate: 3.0
+  sell-rate: 1.0
+  log-transactions: false
+```
+
+---
+
+## Inflation System
+
+The plugin includes a sophisticated inflation system that simulates a realistic economy with changing prices over time. The inflation rate is affected by several factors including time, transaction volume, and total money in the economy.
+
+### Configuration
+
+```yaml
+# Inflation system configuration
+inflation:
+  enabled: false
+  base-rate: 0.5 # Base inflation rate (% per day)
+  transaction-multiplier: 0.001 # Inflation factor based on transactions (% per transaction)
+  money-threshold: 1000000 # Money mass threshold
+  money-rate: 0.1 # Inflation rate based on money mass (% per million above threshold)
+  deflation-rate: 0.05 # Automatic deflation rate (% per day)
+  update-interval: 24 # Inflation update interval (in hours)
+  max-factor: 5.0 # Maximum inflation factor
+  
+  # Specific inflation rates by category
+  categories:
+    food: 0.3 # Food items inflate more slowly
+    minerals: 0.8 # Minerals inflate more quickly
+    rare_items: 1.2 # Rare items inflate even more quickly
+  
+  # Specific inflation rates by item (format: shopID:itemID)
+  items:
+    resource:diamond: 1.5 # Diamonds inflate very quickly
+    farm:wheat: 0.2 # Wheat inflates very slowly
+```
+
+### How it works
+
+1. The plugin calculates an inflation factor based on several components:
+   - **Time-based inflation**: Prices naturally increase over time.
+   - **Transaction-based inflation**: More transactions lead to higher inflation.
+   - **Money mass inflation**: When the total money in the economy exceeds a threshold, prices increase.
+   - **Automatic deflation**: A small deflation counterbalances inflation to stabilize prices in the long run.
+
+2. Different item categories or specific items can have different inflation rates.
+
+3. The inflation factor is applied to all prices in the shop (buy and sell).
+
+4. The system updates the inflation factor periodically (defined by `update-interval`).
+
+### Commands
+
+- `/dynashop inflation info` - Display current inflation information
+- `/dynashop inflation enable` - Enable the inflation system
+- `/dynashop inflation disable` - Disable the inflation system
+- `/dynashop inflation reset` - Reset the inflation factor to 1.0
+- `/dynashop inflation update` - Force an immediate inflation update
+
+### Setting up item categories
+
+To categorize items for inflation purposes, add a `category` property to your item or shop:
+
+```yaml
+myshop:
+  name: "My Shop"
+  # Optional shop-wide category (all items inherit this)
+  category: "general"
+  items:
+    bread:
+      type: item
+      # Item-specific category (overrides shop category)
+      category: "food"
+      item:
+        material: BREAD
+        quantity: 1
+      typeDynaShop: DYNAMIC
+      buyPrice: 10
+```
+
+When the inflation system calculates prices, it will:
+1. Check if the item has a specific inflation rate in the `items` section.
+2. If not, check if the item's category has a specific rate in the `categories` section.
+3. If not, use the base inflation rate.
+
+### Example
+
+If you have bread in the "food" category with a 0.3% inflation rate, and the base rate is 0.5%, bread prices will increase more slowly than other items.
 
 ---
 
