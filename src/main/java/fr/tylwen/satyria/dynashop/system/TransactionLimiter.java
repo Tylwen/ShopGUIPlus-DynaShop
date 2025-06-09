@@ -1,6 +1,7 @@
 package fr.tylwen.satyria.dynashop.system;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import fr.tylwen.satyria.dynashop.system.TransactionLimiter.LimitPeriod;
 import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionLimit;
 
 // import org.bukkit.configuration.file.FileConfiguration;
@@ -794,131 +795,192 @@ public class TransactionLimiter {
     //     # OU
     //     # cooldown: DAILY  # Période prédéfinie (DAILY, WEEKLY, MONTHLY, YEARLY, FOREVER)
     
+    /**
+     * Obtient les limites de transaction pour un item spécifique
+     * Optimisé pour utiliser le cache interne du plugin
+     */
     public TransactionLimit getTransactionLimit(String shopId, String itemId, boolean isBuy) {
-        String cacheKey = shopId + ":" + itemId + ":" + (isBuy ? "buy" : "sell");
+        // Clé de cache standardisée
+        final String cacheKey = shopId + ":" + itemId + ":" + (isBuy ? "buy" : "sell") + ":limit";
         
-        // Vérifier le cache
-        if (limitCache.containsKey(cacheKey)) {
-            Long timestamp = limitCacheTimestamps.get(cacheKey);
-            if (timestamp != null && System.currentTimeMillis() - timestamp < CACHE_DURATION) {
-                return limitCache.get(cacheKey);
-            } else {
-                // Cache expiré, nettoyer
-                limitCache.remove(cacheKey);
-                limitCacheTimestamps.remove(cacheKey);
-            }
-        }
-
-        try {
-            String limitPath = isBuy ? "limit.buy" : "limit.sell";
-            int amount = plugin.getShopConfigManager().getItemValue(shopId, itemId, limitPath, Integer.class).orElse(0);
-            if (amount <= 0) {
-                // Pas de limite
-                return null;
-            }
-            
-            // CHANGEMENT PRINCIPAL: Récupérer le paramètre cooldown qui peut être soit un nombre soit une période
-            // Object cooldownConfig = plugin.getShopConfigManager().getItemValue(shopId, itemId, "limit.cooldown", Object.class).orElse(0);
-            // plugin.getLogger().info("Cooldown config: " + cooldownConfig);
-            int cooldownSeconds = 0;
-            Optional<Integer> cooldownInt = plugin.getShopConfigManager().getItemValue(shopId, itemId, "limit.cooldown", Integer.class);
-            if (cooldownInt.isPresent()) {
-                // Si c'est un nombre, utiliser directement
-                cooldownSeconds = cooldownInt.get();
-                // plugin.getLogger().info("Cooldown trouvé (nombre): " + cooldownSeconds);
-            } else {
-                // Si ce n'est pas un nombre, essayer comme une chaîne
-                Optional<String> cooldownStr = plugin.getShopConfigManager().getItemValue(shopId, itemId, "limit.cooldown", String.class);
-                if (cooldownStr.isPresent()) {
-                    String periodStr = cooldownStr.get().toUpperCase();
-                    // plugin.getLogger().info("Cooldown trouvé (texte): " + periodStr);
-                    
-                    try {
-                        // Essayer de l'interpréter comme une période prédéfinie
-                        LimitPeriod period = LimitPeriod.valueOf(periodStr);
-                        cooldownSeconds = period.getSeconds();
-                    } catch (IllegalArgumentException e) {
-                        // Essayer de l'interpréter comme un nombre en texte
+        // Utiliser le cache intégré du plugin
+        return plugin.getLimitCache().get(cacheKey, () -> {
+            try {
+                // Si l'item n'est pas dans le cache, charger depuis la config
+                String limitPath = isBuy ? "limit.buy" : "limit.sell";
+                int amount = plugin.getShopConfigManager().getItemValue(shopId, itemId, limitPath, Integer.class).orElse(0);
+                
+                if (amount <= 0) {
+                    // Pas de limite - retourner null mais garder en cache pour éviter des recherches répétées
+                    // plugin.getLogger().info("Aucune limite définie pour " + shopId + ":" + itemId + " (" + limitPath + ")");
+                    return null;
+                }
+                plugin.getLogger().info("Limite trouvée pour " + shopId + ":" + itemId + " (" + limitPath + "): " + amount);
+                
+                // Traiter le cooldown (peut être un nombre ou une période)
+                int cooldownSeconds = 0;
+                
+                // Essayer d'abord comme un entier
+                Optional<Integer> cooldownInt = plugin.getShopConfigManager().getItemValue(shopId, itemId, "limit.cooldown", Integer.class);
+                if (cooldownInt.isPresent()) {
+                    cooldownSeconds = cooldownInt.get();
+                    plugin.getLogger().info("Cooldown trouvé pour " + shopId + ":" + itemId + " (" + limitPath + "): " + cooldownSeconds);
+                } else {
+                    // Essayer comme une chaîne (période ou nombre en texte)
+                    Optional<String> cooldownStr = plugin.getShopConfigManager().getItemValue(shopId, itemId, "limit.cooldown", String.class);
+                    if (cooldownStr.isPresent()) {
+                        String periodStr = cooldownStr.get().toUpperCase();
+                        
                         try {
-                            cooldownSeconds = Integer.parseInt(periodStr);
-                        } catch (NumberFormatException ex) {
-                            // Ce n'est ni une période ni un nombre, utiliser 0
-                            cooldownSeconds = 0;
+                            // Essayer comme période prédéfinie (DAILY, WEEKLY, etc.)
+                            LimitPeriod period = LimitPeriod.valueOf(periodStr);
+                            cooldownSeconds = period.getSeconds();
+                        } catch (IllegalArgumentException e) {
+                            // Essayer comme nombre en texte
+                            try {
+                                cooldownSeconds = Integer.parseInt(periodStr);
+                            } catch (NumberFormatException ex) {
+                                cooldownSeconds = 0;
+                            }
                         }
                     }
                 }
+                
+                // Créer et retourner la limite (sera mise en cache automatiquement)
+                return new TransactionLimit(amount, cooldownSeconds);
+                
+            } catch (Exception e) {
+                plugin.getLogger().severe("Erreur lors de la récupération des limites pour " + shopId + ":" + itemId + ": " + e.getMessage());
+                return null;
             }
-
-            // // LimitPeriod period = LimitPeriod.NONE;
-            
-            // // if (cooldownConfig instanceof Number) {
-            // //     // C'est un cooldown en secondes
-            // //     cooldownSeconds = ((Number) cooldownConfig).intValue();
-            // //     period = LimitPeriod.NONE; // Pas de période spécifique
-            // // } else if (cooldownConfig instanceof String) {
-            // //     // C'est une période prédéfinie
-            // //     String periodStr = ((String) cooldownConfig).toUpperCase();
-            // //     try {
-            // //         period = LimitPeriod.valueOf(periodStr);
-                    
-            // //         // Calculer le cooldown en secondes en fonction de la période
-            // //         switch (period) {
-            // //             case DAILY:
-            // //                 cooldownSeconds = 86400; // 24 heures
-            // //                 break;
-            // //             case WEEKLY:
-            // //                 cooldownSeconds = 604800; // 7 jours
-            // //                 break;
-            // //             case MONTHLY:
-            // //                 cooldownSeconds = 2592000; // 30 jours
-            // //                 break;
-            // //             case YEARLY:
-            // //                 cooldownSeconds = 31536000; // 365 jours
-            // //                 break;
-            // //             case FOREVER:
-            // //                 cooldownSeconds = Integer.MAX_VALUE;
-            // //                 break;
-            // //             default:
-            // //                 cooldownSeconds = 0;
-            // //                 break;
-            // //         }
-            // //     } catch (IllegalArgumentException e) {
-            // //         // Période non reconnue, utiliser NONE
-            // //         period = LimitPeriod.NONE;
-            // //     }
-            // // }
-            // if (cooldownConfig instanceof Number) {
-            //     // C'est directement un nombre de secondes
-            //     cooldownSeconds = ((Number) cooldownConfig).intValue();
-            // } else if (cooldownConfig instanceof String) {
-            //     // C'est soit une période prédéfinie, soit un nombre sous forme de chaîne
-            //     String cooldownStr = ((String) cooldownConfig).toUpperCase();
-            //     try {
-            //         // Essayer de l'interpréter comme une période prédéfinie
-            //         LimitPeriod period = LimitPeriod.valueOf(cooldownStr);
-            //         cooldownSeconds = period.getSeconds();
-            //     } catch (IllegalArgumentException e) {
-            //         // Essayer de l'interpréter comme un nombre
-            //         try {
-            //             cooldownSeconds = Integer.parseInt(cooldownStr);
-            //         } catch (NumberFormatException ex) {
-            //             // Ce n'est ni une période ni un nombre, utiliser 0
-            //             cooldownSeconds = 0;
-            //         }
-            //     }
-            // }
-            
-            // Créer et mettre en cache le résultat
-            TransactionLimit limit = new TransactionLimit(amount, cooldownSeconds);
-            limitCache.put(cacheKey, limit);
-            limitCacheTimestamps.put(cacheKey, System.currentTimeMillis());
-            
-            return limit;
-        } catch (Exception e) {
-            plugin.getLogger().severe("Erreur lors de la récupération des limites pour " + shopId + ":" + itemId + ": " + e.getMessage());
-            return null;
-        }
+        });
     }
+
+    // public TransactionLimit getTransactionLimit(String shopId, String itemId, boolean isBuy) {
+    //     String cacheKey = shopId + ":" + itemId + ":" + (isBuy ? "buy" : "sell");
+        
+    //     // Vérifier le cache
+    //     if (limitCache.containsKey(cacheKey)) {
+    //         Long timestamp = limitCacheTimestamps.get(cacheKey);
+    //         if (timestamp != null && System.currentTimeMillis() - timestamp < CACHE_DURATION) {
+    //             return limitCache.get(cacheKey);
+    //         } else {
+    //             // Cache expiré, nettoyer
+    //             limitCache.remove(cacheKey);
+    //             limitCacheTimestamps.remove(cacheKey);
+    //         }
+    //     }
+
+    //     try {
+    //         String limitPath = isBuy ? "limit.buy" : "limit.sell";
+    //         int amount = plugin.getShopConfigManager().getItemValue(shopId, itemId, limitPath, Integer.class).orElse(0);
+    //         if (amount <= 0) {
+    //             // Pas de limite
+    //             return null;
+    //         }
+            
+    //         // CHANGEMENT PRINCIPAL: Récupérer le paramètre cooldown qui peut être soit un nombre soit une période
+    //         // Object cooldownConfig = plugin.getShopConfigManager().getItemValue(shopId, itemId, "limit.cooldown", Object.class).orElse(0);
+    //         // plugin.getLogger().info("Cooldown config: " + cooldownConfig);
+    //         int cooldownSeconds = 0;
+    //         Optional<Integer> cooldownInt = plugin.getShopConfigManager().getItemValue(shopId, itemId, "limit.cooldown", Integer.class);
+    //         if (cooldownInt.isPresent()) {
+    //             // Si c'est un nombre, utiliser directement
+    //             cooldownSeconds = cooldownInt.get();
+    //             // plugin.getLogger().info("Cooldown trouvé (nombre): " + cooldownSeconds);
+    //         } else {
+    //             // Si ce n'est pas un nombre, essayer comme une chaîne
+    //             Optional<String> cooldownStr = plugin.getShopConfigManager().getItemValue(shopId, itemId, "limit.cooldown", String.class);
+    //             if (cooldownStr.isPresent()) {
+    //                 String periodStr = cooldownStr.get().toUpperCase();
+    //                 // plugin.getLogger().info("Cooldown trouvé (texte): " + periodStr);
+                    
+    //                 try {
+    //                     // Essayer de l'interpréter comme une période prédéfinie
+    //                     LimitPeriod period = LimitPeriod.valueOf(periodStr);
+    //                     cooldownSeconds = period.getSeconds();
+    //                 } catch (IllegalArgumentException e) {
+    //                     // Essayer de l'interpréter comme un nombre en texte
+    //                     try {
+    //                         cooldownSeconds = Integer.parseInt(periodStr);
+    //                     } catch (NumberFormatException ex) {
+    //                         // Ce n'est ni une période ni un nombre, utiliser 0
+    //                         cooldownSeconds = 0;
+    //                     }
+    //                 }
+    //             }
+    //         }
+
+    //         // // LimitPeriod period = LimitPeriod.NONE;
+            
+    //         // // if (cooldownConfig instanceof Number) {
+    //         // //     // C'est un cooldown en secondes
+    //         // //     cooldownSeconds = ((Number) cooldownConfig).intValue();
+    //         // //     period = LimitPeriod.NONE; // Pas de période spécifique
+    //         // // } else if (cooldownConfig instanceof String) {
+    //         // //     // C'est une période prédéfinie
+    //         // //     String periodStr = ((String) cooldownConfig).toUpperCase();
+    //         // //     try {
+    //         // //         period = LimitPeriod.valueOf(periodStr);
+                    
+    //         // //         // Calculer le cooldown en secondes en fonction de la période
+    //         // //         switch (period) {
+    //         // //             case DAILY:
+    //         // //                 cooldownSeconds = 86400; // 24 heures
+    //         // //                 break;
+    //         // //             case WEEKLY:
+    //         // //                 cooldownSeconds = 604800; // 7 jours
+    //         // //                 break;
+    //         // //             case MONTHLY:
+    //         // //                 cooldownSeconds = 2592000; // 30 jours
+    //         // //                 break;
+    //         // //             case YEARLY:
+    //         // //                 cooldownSeconds = 31536000; // 365 jours
+    //         // //                 break;
+    //         // //             case FOREVER:
+    //         // //                 cooldownSeconds = Integer.MAX_VALUE;
+    //         // //                 break;
+    //         // //             default:
+    //         // //                 cooldownSeconds = 0;
+    //         // //                 break;
+    //         // //         }
+    //         // //     } catch (IllegalArgumentException e) {
+    //         // //         // Période non reconnue, utiliser NONE
+    //         // //         period = LimitPeriod.NONE;
+    //         // //     }
+    //         // // }
+    //         // if (cooldownConfig instanceof Number) {
+    //         //     // C'est directement un nombre de secondes
+    //         //     cooldownSeconds = ((Number) cooldownConfig).intValue();
+    //         // } else if (cooldownConfig instanceof String) {
+    //         //     // C'est soit une période prédéfinie, soit un nombre sous forme de chaîne
+    //         //     String cooldownStr = ((String) cooldownConfig).toUpperCase();
+    //         //     try {
+    //         //         // Essayer de l'interpréter comme une période prédéfinie
+    //         //         LimitPeriod period = LimitPeriod.valueOf(cooldownStr);
+    //         //         cooldownSeconds = period.getSeconds();
+    //         //     } catch (IllegalArgumentException e) {
+    //         //         // Essayer de l'interpréter comme un nombre
+    //         //         try {
+    //         //             cooldownSeconds = Integer.parseInt(cooldownStr);
+    //         //         } catch (NumberFormatException ex) {
+    //         //             // Ce n'est ni une période ni un nombre, utiliser 0
+    //         //             cooldownSeconds = 0;
+    //         //         }
+    //         //     }
+    //         // }
+            
+    //         // Créer et mettre en cache le résultat
+    //         TransactionLimit limit = new TransactionLimit(amount, cooldownSeconds);
+    //         limitCache.put(cacheKey, limit);
+    //         limitCacheTimestamps.put(cacheKey, System.currentTimeMillis());
+            
+    //         return limit;
+    //     } catch (Exception e) {
+    //         plugin.getLogger().severe("Erreur lors de la récupération des limites pour " + shopId + ":" + itemId + ": " + e.getMessage());
+    //         return null;
+    //     }
+    // }
     
     // public CompletableFuture<Long> getNextAvailableTime(Player player, String shopId, String itemId, boolean isBuy) {
     //     TransactionLimit limit = getTransactionLimit(shopId, itemId, isBuy);

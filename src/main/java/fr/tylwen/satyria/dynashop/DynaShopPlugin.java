@@ -54,6 +54,7 @@ import fr.tylwen.satyria.dynashop.price.PriceStock;
 import fr.tylwen.satyria.dynashop.system.InflationManager;
 import fr.tylwen.satyria.dynashop.system.TaxService;
 import fr.tylwen.satyria.dynashop.system.TransactionLimiter;
+import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionLimit;
 // import fr.tylwen.satyria.dynashop.packet.ItemPacketInterceptor;
 // import fr.tylwen.satyria.dynashop.utils.CommentedConfiguration;
 // import fr.tylwen.satyria.dynashop.task.ReloadDatabaseTask;
@@ -125,6 +126,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private CacheManager<String, Double> calculatedPriceCache;
     private CacheManager<String, Integer> stockCache;
     private CacheManager<String, Map<String, String>> displayPriceCache;
+    private CacheManager<String, TransactionLimit> limitCache;
     private CacheManager<String, Integer> limitRemainingAmountCache;
     private CacheManager<String, Long> limitNextAvailableTimeCache;
 
@@ -382,6 +384,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         this.calculatedPriceCache = new CacheManager<>(this, "calculatedPriceCache", 5, TimeUnit.MINUTES, 10);
         this.stockCache = new CacheManager<>(this, "stockCache", 5, TimeUnit.MINUTES, 5);
         this.displayPriceCache = new CacheManager<>(this, "displayPriceCache", 2, TimeUnit.MINUTES, 20);
+        this.limitCache = new CacheManager<>(this, "limitCache", 5, TimeUnit.MINUTES, 10);
         this.limitRemainingAmountCache = new CacheManager<>(this, "limitRemainingAmountCache", 5, TimeUnit.MINUTES, 10);
         this.limitNextAvailableTimeCache = new CacheManager<>(this, "limitNextAvailableTimeCache", 5, TimeUnit.MINUTES, 10);
 
@@ -418,6 +421,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         int recipeDuration = configMain.getInt("cache.durations.recipe", 300);
         int stockDuration = configMain.getInt("cache.durations.stock", 20);
         int calculatedDuration = configMain.getInt("cache.durations.calculated", 60);
+        int limitDuration = configMain.getInt("cache.durations.limit", 30); // Durée pour le cache des limites
         int limitRemainingAmountDuration = configMain.getInt("cache.durations.limit", 30); // Durée pour le cache des limites
         int limitNextAvailableTimeDuration = configMain.getInt("cache.durations.limit", 30); // Durée pour le cache des temps d'attente
         
@@ -429,6 +433,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
             // recipeDuration = 10;
             stockDuration = 5;
             calculatedDuration = 10;
+            limitDuration = 5; // Durée pour le cache des limites
             limitRemainingAmountDuration = 5; // Durée pour le cache des limites
             limitNextAvailableTimeDuration = 5; // Durée pour le cache des temps d'attente
         }
@@ -437,6 +442,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         calculatedPriceCache = new CacheManager<>(this, "CalculatedPriceCache", calculatedDuration, TimeUnit.SECONDS, 5);
         stockCache = new CacheManager<>(this, "StockCache", stockDuration, TimeUnit.SECONDS, 10);
         displayPriceCache = new CacheManager<>(this, "DisplayPriceCache", displayDuration, TimeUnit.SECONDS, 15);
+        limitCache = new CacheManager<>(this, "LimitCache", limitDuration, TimeUnit.SECONDS, 10);
         limitRemainingAmountCache = new CacheManager<>(this, "LimitRemainingAmountCache", limitRemainingAmountDuration, TimeUnit.SECONDS, 10);
         limitNextAvailableTimeCache = new CacheManager<>(this, "LimitNextAvailableTimeCache", limitNextAvailableTimeDuration, TimeUnit.SECONDS, 10);
 
@@ -469,7 +475,10 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         return displayPriceCache;
     }
 
-    // public CacheManager<String, Integer> getLimitCache() {
+    public CacheManager<String, TransactionLimit> getLimitCache() {
+        return limitCache;
+    }
+
     public CacheManager<String, Integer> getLimitRemainingAmountCache() {
         return limitRemainingAmountCache;
     }
@@ -495,6 +504,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         priceCache.invalidateWithPrefix(baseKey);
         calculatedPriceCache.invalidateWithPrefix(baseKey);
         displayPriceCache.invalidateWithPrefix(baseKey);
+        limitCache.invalidateWithPrefix(baseKey);
         limitRemainingAmountCache.invalidateWithPrefix(baseKey);
         limitNextAvailableTimeCache.invalidateWithPrefix(baseKey);
         stockCache.invalidateWithPrefix(baseKey);
@@ -692,6 +702,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         calculatedPriceCache.clear();
         stockCache.clear();
         displayPriceCache.clear();
+        limitCache.clear();
         limitRemainingAmountCache.clear();
         limitNextAvailableTimeCache.clear();
 

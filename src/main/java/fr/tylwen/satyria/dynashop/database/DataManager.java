@@ -1228,8 +1228,12 @@ public class DataManager {
             stmt.setString(1, shopId);
             stmt.setString(2, itemId);
             
+            plugin.getLogger().info("Récupération de l'historique des prix pour " + shopId + ":" + itemId);
+            
             ResultSet rs = stmt.executeQuery();
+            int pointCount = 0;
             while (rs.next()) {
+                pointCount++;
                 LocalDateTime timestamp = rs.getTimestamp("timestamp").toLocalDateTime();
                 
                 // Prix d'achat
@@ -1249,8 +1253,11 @@ public class DataManager {
                     openBuyPrice, closeBuyPrice, highBuyPrice, lowBuyPrice,
                     openSellPrice, closeSellPrice, highSellPrice, lowSellPrice
                 );
-                history.getDataPoints().add(point);
+                // history.getDataPoints().add(point);
+                history.addDataPointFromDB(point);
             }
+            
+            plugin.getLogger().info("Historique récupéré: " + pointCount + " points trouvés");
             
         } catch (SQLException e) {
             plugin.getLogger().severe("Erreur lors de la récupération de l'historique des prix: " + e.getMessage());

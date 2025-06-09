@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
+// import java.util.UUID;
 
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 
@@ -65,6 +65,18 @@ public class PriceHistory implements ConfigurationSerializable {
     public void addDataPoint(double openPrice, double closePrice, double highPrice, double lowPrice) {
         // On suppose que c'est un prix d'achat par défaut
         addDataPoint(openPrice, closePrice, highPrice, lowPrice, 0, 0, 0, 0);
+    }
+
+    public void addDataPointFromDB(PriceDataPoint dataPoint) {
+        dataPoints.add(dataPoint);
+        
+        // Limiter la taille de l'historique
+        if (dataPoints.size() > maxDataPoints) {
+            dataPoints.remove(0);
+        }
+        
+        // // Sauvegarder l'historique dans la base de données
+        // DynaShopPlugin.getInstance().getDataManager().savePriceHistory(this);
     }
     
     public List<PriceDataPoint> getDataPoints() {

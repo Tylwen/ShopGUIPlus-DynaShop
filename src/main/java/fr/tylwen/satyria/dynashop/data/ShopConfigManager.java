@@ -6,8 +6,12 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 // import org.bukkit.plugin.Plugin;
 // import org.bukkit.inventory.ItemStack;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import fr.tylwen.satyria.dynashop.cache.CacheManager;
+import fr.tylwen.satyria.dynashop.compatibility.ItemNameManager;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.data.param.RecipeType;
 import fr.tylwen.satyria.dynashop.price.DynamicPrice;
@@ -17,6 +21,7 @@ import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.item.ShopItem;
 
 import java.io.File;
+import java.io.IOException;
 // import java.io.ObjectInputFilter.Config;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,21 +29,17 @@ import java.util.Map;
 // import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 public class ShopConfigManager {
 
     private final DynaShopPlugin plugin;
-
     private final File shopConfigFolder;
     private final Map<ShopItem, DynamicPrice> priceMap = new HashMap<>();
-    private final Map<String, RecipeType> recipeTypeCache = new ConcurrentHashMap<>();
-
-    // Cache pour les configurations YAML
-    private final Map<String, YamlConfiguration> shopConfigCache = new ConcurrentHashMap<>();
-    private final Map<File, Long> fileLastModifiedCache = new ConcurrentHashMap<>();
     
-    // Cache pour les sections de configuration
-    private final Map<String, ConfigurationSection> sectionCache = new ConcurrentHashMap<>();
+    private CacheManager<String, YamlConfiguration> shopConfigCache;
+    private CacheManager<String, ConfigurationSection> sectionCache;
+    private CacheManager<String, RecipeType> recipeTypeCache;
 
     /**
      * Constructeur qui initialise le répertoire de configuration des shops.
@@ -50,6 +51,10 @@ public class ShopConfigManager {
         this.plugin = plugin;
         // this.shopConfigFolder = shopConfigFolder;
         this.shopConfigFolder = new File(Bukkit.getPluginManager().getPlugin("ShopGUIPlus").getDataFolder(), "shops/");
+        
+        this.shopConfigCache = new CacheManager<>(plugin, "ShopConfigCache", 1, TimeUnit.DAYS, 5);
+        this.sectionCache = new CacheManager<>(plugin, "SectionCache", 1, TimeUnit.DAYS, 10);
+        this.recipeTypeCache = new CacheManager<>(plugin, "RecipeTypeCache", 1, TimeUnit.DAYS, 5);
     }
 
     /**
@@ -59,56 +64,54 @@ public class ShopConfigManager {
      * @return La configuration YAML du shop.
      */
     public YamlConfiguration getShopConfig(String shopID) {
-        return shopConfigCache.computeIfAbsent(shopID, id -> {
-            File shopFile = ShopFile.getFileByShopID(id);
+        return shopConfigCache.get(shopID, () -> {
+            File shopFile = ShopFile.getFileByShopID(shopID);
             if (shopFile == null || !shopFile.exists()) {
                 return new YamlConfiguration();
             }
-            YamlConfiguration config = YamlConfiguration.loadConfiguration(shopFile);
-            fileLastModifiedCache.put(shopFile, shopFile.lastModified());
-            return config;
+            return YamlConfiguration.loadConfiguration(shopFile);
         });
     }
     
-    /**
-     * Vérifie si la configuration en cache est à jour et la recharge si nécessaire.
-     *
-     * @param shopID L'ID du shop.
-     * @return La configuration YAML à jour.
-     */
-    public YamlConfiguration getOrUpdateShopConfig(String shopID) {
-        File shopFile = ShopFile.getFileByShopID(shopID);
-        if (shopFile == null || !shopFile.exists()) {
-            return new YamlConfiguration();
-        }
+    // /**
+    //  * Vérifie si la configuration en cache est à jour et la recharge si nécessaire.
+    //  *
+    //  * @param shopID L'ID du shop.
+    //  * @return La configuration YAML à jour.
+    //  */
+    // public YamlConfiguration getOrUpdateShopConfig(String shopID) {
+    //     File shopFile = ShopFile.getFileByShopID(shopID);
+    //     if (shopFile == null || !shopFile.exists()) {
+    //         return new YamlConfiguration();
+    //     }
         
-        // Vérifier si le fichier a été modifié depuis la dernière fois
-        Long lastCachedModified = fileLastModifiedCache.get(shopFile);
-        long currentModified = shopFile.lastModified();
+    //     // Vérifier si le fichier a été modifié depuis la dernière fois
+    //     Long lastCachedModified = fileLastModifiedCache.get(shopFile);
+    //     long currentModified = shopFile.lastModified();
         
-        if (lastCachedModified == null || currentModified > lastCachedModified) {
-            // Le fichier a été modifié, recharger la configuration
-            YamlConfiguration config = YamlConfiguration.loadConfiguration(shopFile);
-            shopConfigCache.put(shopID, config);
-            fileLastModifiedCache.put(shopFile, currentModified);
+    //     if (lastCachedModified == null || currentModified > lastCachedModified) {
+    //         // Le fichier a été modifié, recharger la configuration
+    //         YamlConfiguration config = YamlConfiguration.loadConfiguration(shopFile);
+    //         shopConfigCache.put(shopID, config);
+    //         fileLastModifiedCache.put(shopFile, currentModified);
             
-            // Vider le cache des sections pour ce shop
-            clearSectionCacheForShop(shopID);
+    //         // Vider le cache des sections pour ce shop
+    //         clearSectionCacheForShop(shopID);
             
-            return config;
-        }
+    //         return config;
+    //     }
         
-        return shopConfigCache.getOrDefault(shopID, YamlConfiguration.loadConfiguration(shopFile));
-    }
+    //     return shopConfigCache.getOrDefault(shopID, YamlConfiguration.loadConfiguration(shopFile));
+    // }
     
-    /**
-     * Nettoie le cache des sections pour un shop spécifique.
-     *
-     * @param shopID L'ID du shop.
-     */
-    private void clearSectionCacheForShop(String shopID) {
-        sectionCache.keySet().removeIf(key -> key.startsWith(shopID + ":"));
-    }
+    // /**
+    //  * Nettoie le cache des sections pour un shop spécifique.
+    //  *
+    //  * @param shopID L'ID du shop.
+    //  */
+    // private void clearSectionCacheForShop(String shopID) {
+    //     sectionCache.keySet().removeIf(key -> key.startsWith(shopID + ":"));
+    // }
     
     /**
      * Récupère une section de configuration avec mise en cache.
@@ -120,8 +123,8 @@ public class ShopConfigManager {
      */
     public ConfigurationSection getCachedSection(String shopID, String itemID, String section) {
         String cacheKey = shopID + ":" + itemID + ":" + section;
-        return sectionCache.computeIfAbsent(cacheKey, key -> {
-            YamlConfiguration config = getOrUpdateShopConfig(shopID);
+        return sectionCache.get(cacheKey, () -> {
+            YamlConfiguration config = getShopConfig(shopID);
             ConfigurationSection shopSection = config.getConfigurationSection(shopID);
             if (shopSection == null) return null;
             
@@ -158,8 +161,8 @@ public class ShopConfigManager {
      */
     public void reloadCache() {
         shopConfigCache.clear();
-        fileLastModifiedCache.clear();
         sectionCache.clear();
+        recipeTypeCache.clear();
         
         // Recharger les fichiers de shop
         File shopDir = getShopDirectory();
@@ -168,7 +171,7 @@ public class ShopConfigManager {
             
             // Précharger les configurations des shops fréquemment utilisés
             for (String shopID : ShopFile.getAllShopIDs()) {
-                getOrUpdateShopConfig(shopID);
+                getShopConfig(shopID);
             }
         }
     }
@@ -419,7 +422,7 @@ public class ShopConfigManager {
     //     return hasSection(shopID, itemID, "recipe.pattern");
     // }
     public boolean hasRecipePattern(String shopID, String itemID) {
-        YamlConfiguration config = getOrUpdateShopConfig(shopID);
+        YamlConfiguration config = getShopConfig(shopID);
         if (config == null) return false;
         
         // Chemin complet vers la clé pattern
@@ -509,7 +512,7 @@ public class ShopConfigManager {
     public RecipeType getTypeRecipe(String shopID, String itemID) {
         String key = shopID + ":" + itemID;
 
-        return recipeTypeCache.computeIfAbsent(key, k -> {
+        return recipeTypeCache.get(key, () -> {
             String type = getItemValue(shopID, itemID, "recipe.type", String.class).orElse("NONE");
             try {
                 return RecipeType.valueOf(type.toUpperCase());
@@ -536,7 +539,7 @@ public class ShopConfigManager {
     
         // Charger la configuration YAML du fichier
         // YamlConfiguration config = YamlConfiguration.loadConfiguration(shopFile);
-        YamlConfiguration config = getOrUpdateShopConfig(shopID);
+        YamlConfiguration config = getShopConfig(shopID);
     
         ConfigurationSection shopSection = config.getConfigurationSection(shopID);
         if (shopSection == null) {
@@ -627,7 +630,7 @@ public class ShopConfigManager {
         }
         
         // Ensuite, essayer de récupérer la catégorie depuis la configuration du shop
-        YamlConfiguration config = getOrUpdateShopConfig(shopId);
+        YamlConfiguration config = getShopConfig(shopId);
         ConfigurationSection shopSection = config.getConfigurationSection(shopId);
         if (shopSection != null) {
             String shopCategory = shopSection.getString("category");
@@ -680,8 +683,8 @@ public class ShopConfigManager {
         
         // Récupérer la section de l'item directement (une seule navigation)
         String cacheKey = shopID + ":" + itemID;
-        ConfigurationSection itemSection = sectionCache.computeIfAbsent(cacheKey, k -> {
-            YamlConfiguration config = getOrUpdateShopConfig(shopID);
+        ConfigurationSection itemSection = sectionCache.get(cacheKey, () -> {
+            YamlConfiguration config = getShopConfig(shopID);
             
             // Naviguer jusqu'à la section shop
             ConfigurationSection shopSection = config.getConfigurationSection(shopID);
@@ -810,7 +813,7 @@ public class ShopConfigManager {
      * @return La section de configuration, ou null si elle n'existe pas.
      */
     public ConfigurationSection getSection(String shopID, String itemID, String section) {
-        YamlConfiguration config = getOrUpdateShopConfig(shopID);
+        YamlConfiguration config = getShopConfig(shopID);
         ConfigurationSection shopSection = config.getConfigurationSection(shopID);
         ConfigurationSection itemsSection = shopSection.getConfigurationSection("items");
         if (itemsSection == null) {
@@ -866,7 +869,10 @@ public class ShopConfigManager {
      * @param itemId L'ID de l'item
      * @return Le nom de l'item, ou l'itemId si non disponible
      */
-    public String getItemName(String shopId, String itemId) {
+    /**
+     * Récupère le nom d'affichage d'un item.
+     */
+    public String getItemName(Player player, String shopId, String itemId) {
         Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
         if (shop == null) {
             return itemId;
@@ -877,29 +883,146 @@ public class ShopConfigManager {
             return itemId;
         }
         
-        // Essayer d'obtenir le nom de l'item
+        // 1. Essayer d'obtenir le nom personnalisé
         if (shopItem.getItem().hasItemMeta() && shopItem.getItem().getItemMeta() != null) {
-            // Vérifier si l'item a un nom personnalisé
             String displayName = shopItem.getItem().getItemMeta().getDisplayName();
             if (displayName != null && !displayName.isEmpty()) {
-                // Enlever les codes couleur pour un affichage plus propre sur la carte
                 return ChatColor.stripColor(displayName);
             }
         }
-        // String displayName = shopItem.getItem().getItemMeta().getDisplayName();
-        // if (displayName != null && !displayName.isEmpty()) {
-        //     // Enlever les codes couleur pour un affichage plus propre sur la carte
-        //     return ChatColor.stripColor(displayName);
-        // }
         
-        // Si pas de nom personnalisé, utiliser le nom du matériau
-        if (shopItem.getItem() != null && shopItem.getItem().getType() != null) {
-            String materialName = shopItem.getItem().getType().name();
-            return formatMaterialName(materialName);
+        // 2. Utiliser le système multi-version pour obtenir le nom localisé
+        if (player != null) {
+            String localizedName = ItemNameManager.getLocalizedName(shopItem.getItem(), player);
+            if (localizedName != null && !localizedName.isEmpty()) {
+                return localizedName;
+            }
         }
         
-        return itemId;
+        // 3. Fallback: formatage du nom de matériau
+        return formatMaterialName(shopItem.getItem().getType().name());
     }
+
+
+    // public String getItemName(Player player, String shopId, String itemId) {
+    //     Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
+    //     if (shop == null) {
+    //         return itemId;
+    //     }
+        
+    //     ShopItem shopItem = shop.getShopItem(itemId);
+    //     if (shopItem == null) {
+    //         return itemId;
+    //     }
+        
+    //     // 1. Essayer d'obtenir le nom personnalisé (déjà potentiellement traduit)
+    //     if (shopItem.getItem().hasItemMeta() && shopItem.getItem().getItemMeta() != null) {
+    //         String displayName = shopItem.getItem().getItemMeta().getDisplayName();
+    //         if (displayName != null && !displayName.isEmpty()) {
+    //             return ChatColor.stripColor(displayName);
+    //         }
+    //     }
+        
+    //     // 2. Utiliser l'API de localisation de Minecraft pour obtenir le nom en français
+    //     try {
+    //         // // Récupérer le joueur pour accéder à ses paramètres de langue
+    //         // // Note: Utilise un joueur en ligne qui a le jeu en français
+    //         // Player frenchPlayer = null;
+    //         // for (Player player : Bukkit.getOnlinePlayers()) {
+    //         //     // On prend le premier joueur, en supposant qu'il a le jeu en français
+    //         //     frenchPlayer = player;
+    //         //     break;
+    //         // }
+            
+    //         // if (frenchPlayer != null) {
+    //         if (player != null) {
+    //             // Créer un ItemStack temporaire pour la traduction
+    //             ItemStack itemStack = shopItem.getItem().clone();
+                
+    //             // Utiliser la méthode de localisation de Bukkit/Spigot
+    //             net.minecraft.server.v1_16_R3.ItemStack nmsItem = org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack.asNMSCopy(itemStack);
+    //             String localizedName = nmsItem.getName().getString();
+                
+    //             if (localizedName != null && !localizedName.isEmpty()) {
+    //                 return localizedName;
+    //             }
+    //         }
+    //     } catch (Exception e) {
+    //         plugin.getLogger().warning("Erreur lors de la récupération du nom localisé: " + e.getMessage());
+    //     }
+        
+    //     // 3. Solution alternative: fichier de traduction personnalisé
+    //     String materialName = shopItem.getItem().getType().name();
+    //     // String translatedName = getTranslationFromFile(materialName);
+    //     // if (translatedName != null) {
+    //     //     return translatedName;
+    //     // }
+        
+    //     // 4. Fallback: formatage du nom de matériau
+    //     return formatMaterialName(materialName);
+    // }
+
+    // /**
+    //  * Récupère la traduction d'un matériau depuis un fichier de configuration
+    //  */
+    // private String getTranslationFromFile(String materialName) {
+    //     // Créer le fichier s'il n'existe pas
+    //     File translationFile = new File(plugin.getDataFolder(), "translations.yml");
+    //     if (!translationFile.exists()) {
+    //         try {
+    //             translationFile.createNewFile();
+    //             YamlConfiguration defaultTranslations = new YamlConfiguration();
+    //             // Ajouter quelques traductions par défaut
+    //             defaultTranslations.set("DIAMOND_SWORD", "Épée en diamant");
+    //             defaultTranslations.set("IRON_PICKAXE", "Pioche en fer");
+    //             // Sauvegarder le fichier
+    //             defaultTranslations.save(translationFile);
+    //         } catch (IOException e) {
+    //             plugin.getLogger().warning("Impossible de créer le fichier de traductions: " + e.getMessage());
+    //             return null;
+    //         }
+    //     }
+        
+    //     // Charger les traductions
+    //     YamlConfiguration translations = YamlConfiguration.loadConfiguration(translationFile);
+    //     return translations.getString(materialName, null);
+    // }
+
+
+    // public String getItemName(String shopId, String itemId) {
+    //     Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
+    //     if (shop == null) {
+    //         return itemId;
+    //     }
+        
+    //     ShopItem shopItem = shop.getShopItem(itemId);
+    //     if (shopItem == null) {
+    //         return itemId;
+    //     }
+        
+    //     // Essayer d'obtenir le nom de l'item
+    //     if (shopItem.getItem().hasItemMeta() && shopItem.getItem().getItemMeta() != null) {
+    //         // Vérifier si l'item a un nom personnalisé
+    //         String displayName = shopItem.getItem().getItemMeta().getDisplayName();
+    //         if (displayName != null && !displayName.isEmpty()) {
+    //             // Enlever les codes couleur pour un affichage plus propre sur la carte
+    //             return ChatColor.stripColor(displayName);
+    //         }
+    //     }
+    //     // String displayName = shopItem.getItem().getItemMeta().getDisplayName();
+    //     // if (displayName != null && !displayName.isEmpty()) {
+    //     //     // Enlever les codes couleur pour un affichage plus propre sur la carte
+    //     //     return ChatColor.stripColor(displayName);
+    //     // }
+        
+    //     // Si pas de nom personnalisé, utiliser le nom du matériau
+    //     if (shopItem.getItem() != null && shopItem.getItem().getType() != null) {
+    //         String materialName = shopItem.getItem().getType().name();
+    //         return formatMaterialName(materialName);
+    //     }
+        
+    //     return itemId;
+    // }
 
     /**
      * Formate le nom d'un matériau pour un affichage plus lisible

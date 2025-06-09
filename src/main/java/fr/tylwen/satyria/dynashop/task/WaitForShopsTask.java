@@ -34,13 +34,21 @@
 // }
 package fr.tylwen.satyria.dynashop.task;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.HashSet;
+
 import org.bukkit.scheduler.BukkitTask;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
+import fr.tylwen.satyria.dynashop.price.DynamicPrice;
+import fr.tylwen.satyria.dynashop.system.chart.PriceHistory;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 import net.brcdev.shopgui.exception.shop.ShopsNotLoadedException;
+import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.ShopManager;
+import net.brcdev.shopgui.shop.item.ShopItem;
 
 public class WaitForShopsTask implements Runnable {
     private final DynaShopPlugin plugin;
@@ -141,5 +149,38 @@ public class WaitForShopsTask implements Runnable {
         
         // Autres tâches dépendantes...
         plugin.getServer().getScheduler().runTask(plugin, plugin::setupMetrics);
+
+        plugin.getServer().getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+            try {
+                for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
+                    for (ShopItem item : shop.getShopItems()) {
+                        try {
+                            DynamicPrice price = plugin.getDynaShopListener().getOrLoadPrice(null, shop.getId(), item.getId(), item.getItem(), new HashSet<>(), new HashMap<>());
+                            if (price != null) {
+                                // Récupérer l'historique existant
+                                PriceHistory history = plugin.getDataManager().getPriceHistory(shop.getId(), item.getId());
+                                
+                                // Ajouter un nouveau point toutes les heures
+                                LocalDateTime now = LocalDateTime.now();
+                                if (history.getDataPoints().isEmpty() || 
+                                    history.getDataPoints().get(history.getDataPoints().size() - 1).getTimestamp().plusHours(1).isBefore(now)) {
+                                    
+                                    history.addDataPoint(
+                                        price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(),
+                                        price.getSellPrice(), price.getSellPrice(), price.getSellPrice(), price.getSellPrice()
+                                    );
+                                    
+                                    plugin.getLogger().info("Point d'historique ajouté pour " + shop.getId() + ":" + item.getId());
+                                }
+                            }
+                        } catch (Exception e) {
+                            plugin.getLogger().warning("Erreur lors de l'enregistrement de l'historique pour " + shop.getId() + ":" + item.getId() + ": " + e.getMessage());
+                        }
+                    }
+                }
+            } catch (ShopsNotLoadedException e) {
+                e.printStackTrace();
+            }
+        }, 20 * 60 * 5, 20 * 60 * 60); // Démarrer après 5 minutes, puis toutes les heures
     }
 }

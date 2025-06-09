@@ -36,53 +36,49 @@
                 <configuration>
                     <source>21</source>
                     <target>21</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.30</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
-            <!-- Ajouter le plugin Shade -->
+            
             <!-- <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.1</version>
+                <groupId>net.md-5</groupId>
+                <artifactId>specialsource-maven-plugin</artifactId>
+                <version>2.0.2</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
                         <goals>
-                            <goal>shade</goal>
+                            <goal>remap</goal>
                         </goals>
+                        <id>remap-obf</id>
                         <configuration>
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <relocations>
-                                <relocation>
-                                    <pattern>com.zaxxer.hikari</pattern>
-                                    <shadedPattern>fr.tylwen.satyria.dynashop.libs.hikari</shadedPattern>
-                                </relocation>
-                            </relocations>
+                            <srgIn>org.spigotmc:minecraft-server:1.20.6-R0.1-SNAPSHOT:txt:maps-mojang</srgIn>
+                            <reverse>true</reverse>
+                            <remappedDependencies>org.spigotmc:spigot:1.20.6-R0.1-SNAPSHOT:jar:remapped-mojang</remappedDependencies>
+                            <remappedArtifactAttached>true</remappedArtifactAttached>
+                            <remappedClassifierName>remapped-obf</remappedClassifierName>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>remap</goal>
+                        </goals>
+                        <id>remap-spigot</id>
+                        <configuration>
+                            <inputFile>${project.build.directory}/${project.artifactId}-${project.version}-remapped-obf.jar</inputFile>
+                            <srgIn>org.spigotmc:minecraft-server:1.20.6-R0.1-SNAPSHOT:csrg:maps-spigot</srgIn>
+                            <remappedDependencies>org.spigotmc:spigot:1.20.6-R0.1-SNAPSHOT:jar:remapped-obf</remappedDependencies>
                         </configuration>
                     </execution>
                 </executions>
             </plugin> -->
-            <!-- <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.1</version>
-                <configuration>
-                    <relocations>
-                    <relocation>
-                        <pattern>org.bstats</pattern>
-                        <shadedPattern>fr.tylwen.satyria.dynashop.libs.bstats</shadedPattern>
-                    </relocation>
-                    </relocations>
-                </configuration>
-                <executions>
-                    <execution>
-                    <phase>package</phase>
-                    <goals>
-                        <goal>shade</goal>
-                    </goals>
-                    </execution>
-                </executions>
-            </plugin> -->
-            <!-- Remplacer les deux plugins shade par un seul configuré correctement -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -125,6 +121,15 @@
         <repository>
             <id>spigot-repo</id>
             <url>https://hub.spigotmc.org/nexus/content/groups/public/</url>
+            <!-- <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url> -->
+        </repository>
+        <repository>
+            <id>codemc-nms-repository</id>
+            <url>https://repo.codemc.io/repository/nms/</url>
+        </repository>
+        <repository>
+            <id>codemc-repo</id>
+            <url>https://repo.codemc.io/repository/maven-public/</url>
         </repository>
         <repository>
             <id>jitpack.io</id>
@@ -135,18 +140,58 @@
 			<url>https://repo.extendedclip.com/content/repositories/placeholderapi/</url>
 		</repository>
         <!-- <repository>
-            <id>codemc-repo</id>
-            <url>https://repo.codemc.io/repository/maven-public/</url>
+            <id>papermc</id>
+            <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository> -->
     </repositories>
 
     <dependencies>
-		<dependency>
+        <dependency>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot</artifactId>
+            <version>1.20.6-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+            <!-- <classifier>remapped-mojang</classifier> Important! -->
+        </dependency>
+        <!-- Spigot API -->
+		<!-- <dependency>
 			<groupId>org.spigotmc</groupId>
 			<artifactId>spigot-api</artifactId>
-			<version>1.19.2-R0.1-SNAPSHOT</version>
+			<version>1.20.4-R0.1-SNAPSHOT</version>
+            <classifier>remapped-mojang</classifier>
 			<scope>provided</scope>
-		</dependency>
+		</dependency> -->
+        <!-- <dependency>
+            <groupId>fr.tylwen.satyria.dynashop.server</groupId>
+            <artifactId>server</artifactId>
+            <version>1.0</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/src/main/resources/spigot.jar</systemPath>
+        </dependency> -->
+        <!-- <dependency>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot</artifactId>
+            <version>1.17-R0.1-SNAPSHOT</version>
+            <classifier>remapped-mojang</classifier>
+            <scope>provided</scope>
+        </dependency> -->
+        
+        <!-- Remplacer la dépendance Spigot par Paper -->
+        <!-- <dependency>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <version>1.20.4-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency> -->
+        
+        <!-- Pour avoir accès aux classes CraftBukkit -->
+        <!-- <dependency>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-server</artifactId>
+            <version>1.20.4-R0.1-SNAPSHOT</version>
+            <classifier>mojang-mapped</classifier>
+            <scope>provided</scope>
+        </dependency> -->
         <dependency>
             <groupId>com.github.brcdev-minecraft</groupId>
 	        <artifactId>shopgui-api</artifactId>
@@ -182,5 +227,11 @@
             <artifactId>item-nbt-api</artifactId>
             <version>2.15.0</version>
         </dependency> -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.30</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 </project>
