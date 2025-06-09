@@ -20,6 +20,7 @@ public class DynaShopCommand implements CommandExecutor {
         registerSubCommand(new ReloadSubCommand(plugin));
         registerSubCommand(new InflationSubCommand(plugin));
         registerSubCommand(new LimitSubCommand(plugin));
+        registerSubCommand(new MarketChartSubCommand(plugin));
         // Ajouter d'autres sous-commandes ici
     }
     

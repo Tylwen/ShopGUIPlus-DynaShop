@@ -99,3 +99,6 @@ permissions:
   dynashop.admin.limit:
     description: Permet de gérer les limites de transaction
     default: op
+  dynashop.chart:
+    description: Permet d'obtenir une carte de marché
+    default: op

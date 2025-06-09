@@ -1,6 +1,7 @@
 package fr.tylwen.satyria.dynashop.listener;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 // import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -52,6 +53,8 @@ import fr.tylwen.satyria.dynashop.data.ShopConfigManager;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.price.PriceRecipe;
 import fr.tylwen.satyria.dynashop.price.PriceRecipe.FoundItem;
+import fr.tylwen.satyria.dynashop.system.chart.PriceHistory;
+import fr.tylwen.satyria.dynashop.system.chart.PriceHistory.PriceDataPoint;
 // import fr.tylwen.satyria.dynashop.price.PriceRecipe.RecipeCalculationResult;
 // import fr.tylwen.satyria.dynashop.data.param.RecipeType;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
@@ -294,6 +297,22 @@ public class DynaShopListener implements Listener {
         if (plugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
             plugin.getTransactionLimiter().recordTransaction(player, shopID, itemID, isBuy, amount);
         }
+
+        // // Enregistrer la transaction dans les logs
+        // plugin.getLogger().info(String.format(
+        //     "%s %s %d de %s dans le shop %s (item: %s:%s, prix: %.2f)",
+        //     player.getName(),
+        //     isBuy ? "a acheté" : "a vendu",
+        //     amount,
+        //     plugin.getPriceFormatter().formatPrice(resultPrice),
+        //     shopID,
+        //     item.getShop().getName(),
+        //     itemID,
+        //     resultPrice
+        // ));
+
+        recordPriceForHistory(shopID, itemID, resultPrice);
+            
     }
     
     private void invalidateRecipeIngredients(String shopId, String itemId) {
@@ -1515,6 +1534,36 @@ public class DynaShopListener implements Listener {
                 plugin.getLogger().severe("Error retrieving limits: " + e.getMessage());
             }
         });
+    }
+
+    private void recordPriceForHistory(String shopId, String itemId, double price) {
+        // Récupérer l'historique existant
+        PriceHistory history = plugin.getDataManager().getPriceHistory(shopId, itemId);
+        
+        // Si aucun point de données n'existe encore, utiliser le prix actuel comme référence
+        if (history.getDataPoints().isEmpty()) {
+            history.addDataPoint(price, price, price, price);
+            return;
+        }
+        
+        // Récupérer le dernier point de données
+        PriceDataPoint lastPoint = history.getDataPoints().get(history.getDataPoints().size() - 1);
+        
+        // Si le dernier point date de moins d'une heure, mettre à jour ce point
+        LocalDateTime now = LocalDateTime.now();
+        if (lastPoint.getTimestamp().plusHours(1).isAfter(now)) {
+            double open = lastPoint.getOpenPrice();
+            double close = price;
+            double high = Math.max(lastPoint.getHighPrice(), price);
+            double low = Math.min(lastPoint.getLowPrice(), price);
+            
+            // Supprimer le dernier point et ajouter le point mis à jour
+            history.getDataPoints().remove(history.getDataPoints().size() - 1);
+            history.addDataPoint(open, close, high, low);
+        } else {
+            // Sinon, ajouter un nouveau point
+            history.addDataPoint(lastPoint.getClosePrice(), price, Math.max(lastPoint.getClosePrice(), price), Math.min(lastPoint.getClosePrice(), price));
+        }
     }
 
 }

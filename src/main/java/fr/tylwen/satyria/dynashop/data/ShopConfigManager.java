@@ -1,6 +1,7 @@
 package fr.tylwen.satyria.dynashop.data;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 // import org.bukkit.plugin.Plugin;
@@ -823,4 +824,100 @@ public class ShopConfigManager {
     
         return itemSection.getConfigurationSection(section);
     }
+
+    // public String getItemName(String shopID, String itemID) {
+    //     YamlConfiguration config = getOrUpdateShopConfig(shopID);
+    //     ConfigurationSection shopSection = config.getConfigurationSection(shopID);
+    //     if (shopSection == null) return null;
+        
+    //     ConfigurationSection itemsSection = shopSection.getConfigurationSection("items");
+    //     if (itemsSection == null) return null;
+        
+    //     ConfigurationSection itemSection = itemsSection.getConfigurationSection(itemID);
+    //     if (itemSection == null) return null;
+        
+    //     return itemSection.getString("name", itemID); // Retourne l'ID si le nom n'est pas défini
+    // }
+
+    /**
+     * Vérifie si un item existe dans un shop donné.
+     * 
+     * @param shopId L'ID du shop
+     * @param itemId L'ID de l'item
+     * @return true si l'item existe dans le shop, false sinon
+     */
+    public boolean shopItemExists(String shopId, String itemId) {
+        // Obtenir le shop de ShopGUIPlus
+        Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
+        if (shop == null) {
+            return false;
+        }
+        
+        // Vérifier si l'item existe dans le shop
+        ShopItem shopItem = shop.getShopItem(itemId);
+        return shopItem != null;
+    }
+
+    /**
+     * Récupère le nom d'affichage d'un item.
+     * Utilisé pour les cartes de marché.
+     * 
+     * @param shopId L'ID du shop
+     * @param itemId L'ID de l'item
+     * @return Le nom de l'item, ou l'itemId si non disponible
+     */
+    public String getItemName(String shopId, String itemId) {
+        Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
+        if (shop == null) {
+            return itemId;
+        }
+        
+        ShopItem shopItem = shop.getShopItem(itemId);
+        if (shopItem == null) {
+            return itemId;
+        }
+        
+        // Essayer d'obtenir le nom de l'item
+        if (shopItem.getItem().hasItemMeta() && shopItem.getItem().getItemMeta() != null) {
+            // Vérifier si l'item a un nom personnalisé
+            String displayName = shopItem.getItem().getItemMeta().getDisplayName();
+            if (displayName != null && !displayName.isEmpty()) {
+                // Enlever les codes couleur pour un affichage plus propre sur la carte
+                return ChatColor.stripColor(displayName);
+            }
+        }
+        // String displayName = shopItem.getItem().getItemMeta().getDisplayName();
+        // if (displayName != null && !displayName.isEmpty()) {
+        //     // Enlever les codes couleur pour un affichage plus propre sur la carte
+        //     return ChatColor.stripColor(displayName);
+        // }
+        
+        // Si pas de nom personnalisé, utiliser le nom du matériau
+        if (shopItem.getItem() != null && shopItem.getItem().getType() != null) {
+            String materialName = shopItem.getItem().getType().name();
+            return formatMaterialName(materialName);
+        }
+        
+        return itemId;
+    }
+
+    /**
+     * Formate le nom d'un matériau pour un affichage plus lisible
+     */
+    private String formatMaterialName(String materialName) {
+        // Remplacer les underscores par des espaces et mettre en majuscule la première lettre de chaque mot
+        String[] words = materialName.toLowerCase().split("_");
+        StringBuilder result = new StringBuilder();
+        
+        for (String word : words) {
+            if (word.length() > 0) {
+                result.append(Character.toUpperCase(word.charAt(0)))
+                    .append(word.substring(1))
+                    .append(" ");
+            }
+        }
+        
+        return result.toString().trim();
+    }
+
 }
