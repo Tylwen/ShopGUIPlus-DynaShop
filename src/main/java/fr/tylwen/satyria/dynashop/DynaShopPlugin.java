@@ -57,6 +57,7 @@ import fr.tylwen.satyria.dynashop.price.PriceStock;
 // import fr.tylwen.satyria.dynashop.task.ReloadDatabaseTask;
 // import fr.tylwen.satyria.dynashop.task.DynamicPricesTask;
 import fr.tylwen.satyria.dynashop.task.WaitForShopsTask;
+import fr.tylwen.satyria.dynashop.tax.TaxService;
 import fr.tylwen.satyria.dynashop.utils.PriceFormatter;
 // import fr.tylwen.satyria.dynashop.data.ShopFile;
 // import net.brcdev.shopgui.ShopGuiPlugin;
@@ -105,6 +106,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private ShopItemPlaceholderListener shopItemPlaceholderListener;
     private DynaShopExpansion placeholderExpansion;
     private TransactionLimiter transactionLimiter;
+    private TaxService taxService;
     // private ShopRefreshManager shopRefreshManager;
     // private ItemPacketInterceptor packetInterceptor;
     private PriceFormatter priceFormatter;
@@ -216,6 +218,10 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
 
     public TransactionLimiter getTransactionLimiter() {
         return this.transactionLimiter;
+    }
+
+    public TaxService getTaxService() {
+        return this.taxService;
     }
 
     // public CustomIngredientsManager getCustomIngredientsManager() {
@@ -383,6 +389,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         this.itemDataManager = new ItemDataManager(this.dataManager);
         this.batchDatabaseUpdater = new BatchDatabaseUpdater(this);
         this.transactionLimiter = new TransactionLimiter(this);
+        this.taxService = new TaxService(this);
         // this.recipeCacheManager = new RecipeCacheManager(15 * 60 * 1000L); // 15 minutes en ms
         this.priceFormatter = new PriceFormatter(this);
         // this.customIngredientsManager = new CustomIngredientsManager();
@@ -475,6 +482,9 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         this.dataConfig = new DataConfig(this.configMain);
         this.langConfig = new LangConfig(this.configLang);
         reloadConfigAndCacheMode();
+        if (this.taxService != null) {
+            this.taxService.loadConfig();
+        }
         // Lang.setConfig(this.configLang);
         // Settings.setConfig(this.configMain);
         // Settings.load();

@@ -1,6 +1,7 @@
 package fr.tylwen.satyria.dynashop.config;
 
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.entity.Player;
 
 public class LangConfig {
     // Variables pour la configuration de la langue
@@ -35,6 +36,9 @@ public class LangConfig {
     private final String placeholderLimitSellReached;
     private final String placeholderLimitRemaining;
 
+    // private final String msgTaxBuy;
+    // private final String msgTaxSell;
+
     public LangConfig(FileConfiguration config) {
         // // Load the language configuration
         // this.lang = config.getString("lang", "en");
@@ -67,7 +71,30 @@ public class LangConfig {
         this.placeholderLimitBuyReached = config.getString("limit.placeholder.buy_reached", "&cLimit reached! Next buy in %time%");
         this.placeholderLimitSellReached = config.getString("limit.placeholder.sell_reached", "&cLimit reached! Next sell in %time%");
         this.placeholderLimitRemaining = config.getString("limit.placeholder.remaining", "&aRemaining: %limit%");
+
+        // this.msgTaxBuy = config.getString("tax.buy", "&aYou paid &e%tax% &afor the tax on this purchase.");
+        // // this.msgTaxSell = config.getString("tax.sell", "&aYou paid &e%tax% &afor the tax on this sale.");
+        // this.msgTaxBuy = config.getString("tax.buy", "&7A tax of &c%amount%$ &7(%rate%%) was charged on your purchase.");
+        // this.msgTaxSell = config.getString("tax.sell", "&7A tax of &c%amount%$ &7(%rate%%) was charged on your sale.");
     }
+
+    // /**
+    //  * Envoie un message au joueur avec remplacement de variables
+    //  * @param player Le joueur à qui envoyer le message
+    //  * @param key La clé du message dans le fichier de langue
+    //  * @param replacements Tableau de paires [variable, valeur] à remplacer
+    //  */
+    // public void sendMessage(Player player, String key, String[][] replacements) {
+    //     String message = getMsgString(key, "");
+    //     if (message.isEmpty()) return;
+        
+    //     // Effectuer les remplacements
+    //     for (String[] replacement : replacements) {
+    //         message = message.replace(replacement[0], replacement[1]);
+    //     }
+        
+    //     player.sendMessage(ChatColor.translateAlternateColorCodes('&', message));
+    // }
 
     // Getters for the messages
     // public String getLang() {
@@ -112,4 +139,11 @@ public class LangConfig {
     public String getPlaceholderLimitRemaining() {
         return this.placeholderLimitRemaining;
     }
+
+    // public String getMsgTaxBuy() {
+    //     return msgTaxBuy;
+    // }
+    // public String getMsgTaxSell() {
+    //     return msgTaxSell;
+    // }
 }

@@ -61,6 +61,23 @@ cache:
     stock: 20
     calculated: 60
 
+# Configuration du système de taxes
+tax:
+  enabled: false
+  # Destination mode for taxes: "player", "system" or "remove"
+  # player: Sends the tax to a real player (must have played on the server)
+  # system: Sends the tax to a system account (works even if it's not a real player)
+  # remove: Simply removes the money from the economy (does not assign it to anyone)
+  mode: "system"
+  # Name of the player who will receive the taxes (if mode is "player" or "system"), if mode is "remove", this field is ignored
+  receiver: "DynaShopBank"
+  # Percentage of tax applied on purchases
+  buy-rate: 5.0
+  # Percentage of tax applied on sales
+  sell-rate: 0.0
+  # Log transactions in the console
+  log-transactions: false
+
 # Enchants value multipliers, for every level (if the item has this enchant, its value will be multiplied by the specified multiplier)
 # Those values are cumulative if an item has multiples enchants ; they'll be applied after the value of the item stack was calculated ; they won't apply if the item value already has that enchantment
 enchant_multipliers:

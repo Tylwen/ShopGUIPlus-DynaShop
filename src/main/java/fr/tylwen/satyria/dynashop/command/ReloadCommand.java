@@ -96,7 +96,7 @@ public class ReloadCommand implements CommandExecutor {
             return true;
         }
 
-        sender.sendMessage("§eRechargement du plugin DynaShop...");
+        // sender.sendMessage("§eRechargement du plugin DynaShop...");
 
         try {
 

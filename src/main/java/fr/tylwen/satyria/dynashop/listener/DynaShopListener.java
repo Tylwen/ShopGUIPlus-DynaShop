@@ -240,8 +240,33 @@ public class DynaShopListener implements Listener {
         final String itemID = item.getId();
         final ItemStack itemStack = item.getItem().clone(); // Cloner pour éviter des problèmes de concurrence
         final ShopAction action = event.getResult().getShopAction();
-        // final double resultPrice = event.getResult().getPrice();
+        final double resultPrice = event.getResult().getPrice();
         final boolean isBuy = action == ShopAction.BUY;
+
+        // AJOUTEZ LE CODE DE TAXATION ICI
+        if (plugin.getTaxService() != null && plugin.getTaxService().isEnabled()) {
+            // double taxAmount = 0;
+            if (isBuy) {
+                // taxAmount = plugin.getTaxService().applyBuyTax(player, resultPrice, shopID, itemID);
+                plugin.getTaxService().applyBuyTax(player, resultPrice, shopID, itemID);
+            } else {
+                // taxAmount = plugin.getTaxService().applySellTax(player, resultPrice, shopID, itemID);
+                plugin.getTaxService().applySellTax(player, resultPrice, shopID, itemID);
+            }
+            
+            // // Enregistrer dans les logs si la taxe est significative
+            // if (taxAmount > 0) {
+            //     plugin.getLogger().info(String.format(
+            //         "Taxe de %.2f appliquée sur une transaction %s de %s par %s (item: %s:%s)",
+            //         taxAmount,
+            //         isBuy ? "d'achat" : "de vente",
+            //         plugin.getPriceFormatter().formatPrice(resultPrice),
+            //         player.getName(),
+            //         shopID,
+            //         itemID
+            //     ));
+            // }
+        }
         
         // Après avoir modifié le prix
         // Bukkit.getScheduler().runTask(plugin, () -> {
