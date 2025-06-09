@@ -519,7 +519,8 @@ public class DataManager {
     // }
     public Optional<Double> getPrice(String shopId, String itemId, String priceType) {
         String tablePrefix = dataConfig.getDatabaseTablePrefix();
-        String column = priceType.equals("buyPrice") ? "price" : "price";
+        // String column = priceType.equals("buyPrice") ? "price" : "price";
+        String column = "price";
         String tableName = priceType.equals("buyPrice") ? tablePrefix + "_buy_prices" : tablePrefix + "_sell_prices";
         
         String sql = "SELECT " + column + " FROM " + tableName + " WHERE shopID = ? AND itemID = ?";
@@ -1030,8 +1031,8 @@ public class DataManager {
 
     public double getInflationFactor() {
         try (Connection conn = getConnection();
-            PreparedStatement stmt = conn.prepareStatement("SELECT value FROM " + dataConfig.getDatabaseTablePrefix() + "_metadata WHERE key = 'inflation_factor'")) {
-            
+            PreparedStatement stmt = conn.prepareStatement("SELECT value FROM " + dataConfig.getDatabaseTablePrefix() + "_metadata WHERE meta_key = 'inflation_factor'")) {
+
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 return rs.getDouble("value");
@@ -1044,7 +1045,7 @@ public class DataManager {
 
     public long getLastInflationUpdate() {
         try (Connection conn = getConnection();
-            PreparedStatement stmt = conn.prepareStatement("SELECT value FROM " + dataConfig.getDatabaseTablePrefix() + "_metadata WHERE key = 'last_inflation_update'")) {
+            PreparedStatement stmt = conn.prepareStatement("SELECT value FROM " + dataConfig.getDatabaseTablePrefix() + "_metadata WHERE meta_key = 'last_inflation_update'")) {
             
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
@@ -1061,14 +1062,14 @@ public class DataManager {
             // S'assurer que la table metadata existe
             PreparedStatement createStmt = conn.prepareStatement(
                 "CREATE TABLE IF NOT EXISTS " + dataConfig.getDatabaseTablePrefix() + "_metadata (" +
-                "key VARCHAR(50) PRIMARY KEY, " +
+                "meta_key VARCHAR(50) PRIMARY KEY, " +
                 "value TEXT NOT NULL)"
             );
             createStmt.executeUpdate();
             
             // Sauvegarder le facteur d'inflation
             PreparedStatement factorStmt = conn.prepareStatement(
-                "INSERT INTO " + dataConfig.getDatabaseTablePrefix() + "_metadata (key, value) VALUES ('inflation_factor', ?) " +
+                "INSERT INTO " + dataConfig.getDatabaseTablePrefix() + "_metadata (meta_key, value) VALUES ('inflation_factor', ?) " +
                 "ON DUPLICATE KEY UPDATE value = ?"
             );
             factorStmt.setString(1, String.valueOf(factor));
@@ -1077,7 +1078,7 @@ public class DataManager {
             
             // Sauvegarder le timestamp du dernier update
             PreparedStatement timeStmt = conn.prepareStatement(
-                "INSERT INTO " + dataConfig.getDatabaseTablePrefix() + "_metadata (key, value) VALUES ('last_inflation_update', ?) " +
+                "INSERT INTO " + dataConfig.getDatabaseTablePrefix() + "_metadata (meta_key, value) VALUES ('last_inflation_update', ?) " +
                 "ON DUPLICATE KEY UPDATE value = ?"
             );
             timeStmt.setString(1, String.valueOf(timestamp));
@@ -1090,6 +1091,174 @@ public class DataManager {
     }
 
     
+    // /**
+    //  * Sauvegarde l'historique des prix d'un item
+    //  */
+    // public void savePriceHistory(PriceHistory history) {
+    //     try (Connection conn = getConnection()) {
+    //         // S'assurer que la table existe
+    //         PreparedStatement createTable = conn.prepareStatement(
+    //             "CREATE TABLE IF NOT EXISTS " + dataConfig.getDatabaseTablePrefix() + "_price_history (" +
+    //             "id INT AUTO_INCREMENT PRIMARY KEY, " +
+    //             "shop_id VARCHAR(100) NOT NULL, " +
+    //             "item_id VARCHAR(100) NOT NULL, " +
+    //             "timestamp TIMESTAMP NOT NULL, " +
+    //             "open_price DOUBLE NOT NULL, " +
+    //             "close_price DOUBLE NOT NULL, " +
+    //             "high_price DOUBLE NOT NULL, " +
+    //             "low_price DOUBLE NOT NULL, " +
+    //             "INDEX (shop_id, item_id))"
+    //         );
+    //         createTable.executeUpdate();
+            
+    //         // Insertion des points de données
+    //         PreparedStatement insertStmt = conn.prepareStatement(
+    //             "INSERT INTO " + dataConfig.getDatabaseTablePrefix() + "_price_history " +
+    //             "(shop_id, item_id, timestamp, open_price, close_price, high_price, low_price) " +
+    //             "VALUES (?, ?, ?, ?, ?, ?, ?)"
+    //         );
+            
+    //         for (PriceDataPoint point : history.getDataPoints()) {
+    //             insertStmt.setString(1, history.getShopId());
+    //             insertStmt.setString(2, history.getItemId());
+    //             insertStmt.setTimestamp(3, Timestamp.valueOf(point.getTimestamp()));
+    //             insertStmt.setDouble(4, point.getOpenPrice());
+    //             insertStmt.setDouble(5, point.getClosePrice());
+    //             insertStmt.setDouble(6, point.getHighPrice());
+    //             insertStmt.setDouble(7, point.getLowPrice());
+    //             insertStmt.addBatch();
+    //         }
+            
+    //         insertStmt.executeBatch();
+            
+    //     } catch (SQLException e) {
+    //         plugin.getLogger().severe("Erreur lors de la sauvegarde de l'historique des prix: " + e.getMessage());
+    //     }
+    // }
+
+    // /**
+    //  * Récupère l'historique des prix d'un item
+    //  */
+    // public PriceHistory getPriceHistory(String shopId, String itemId) {
+    //     PriceHistory history = new PriceHistory(shopId, itemId);
+        
+    //     try (Connection conn = getConnection()) {
+    //         // // S'assurer que la table existe AVANT la lecture
+    //         // PreparedStatement createTable = conn.prepareStatement(
+    //         //     "CREATE TABLE IF NOT EXISTS " + dataConfig.getDatabaseTablePrefix() + "_price_history (" +
+    //         //     "id INT AUTO_INCREMENT PRIMARY KEY, " +
+    //         //     "shop_id VARCHAR(100) NOT NULL, " +
+    //         //     "item_id VARCHAR(100) NOT NULL, " +
+    //         //     "timestamp TIMESTAMP NOT NULL, " +
+    //         //     "open_price DOUBLE NOT NULL, " +
+    //         //     "close_price DOUBLE NOT NULL, " +
+    //         //     "high_price DOUBLE NOT NULL, " +
+    //         //     "low_price DOUBLE NOT NULL, " +
+    //         //     "INDEX (shop_id, item_id))"
+    //         // );
+    //         // createTable.executeUpdate();
+
+    //         PreparedStatement stmt = conn.prepareStatement(
+    //             "SELECT timestamp, open_price, close_price, high_price, low_price " +
+    //             "FROM " + dataConfig.getDatabaseTablePrefix() + "_price_history " +
+    //             "WHERE shop_id = ? AND item_id = ? " +
+    //             "ORDER BY timestamp ASC"
+    //         );
+            
+    //         stmt.setString(1, shopId);
+    //         stmt.setString(2, itemId);
+            
+    //         ResultSet rs = stmt.executeQuery();
+    //         while (rs.next()) {
+    //             LocalDateTime timestamp = rs.getTimestamp("timestamp").toLocalDateTime();
+    //             double openPrice = rs.getDouble("open_price");
+    //             double closePrice = rs.getDouble("close_price");
+    //             double highPrice = rs.getDouble("high_price");
+    //             double lowPrice = rs.getDouble("low_price");
+                
+    //             PriceDataPoint point = new PriceDataPoint(timestamp, openPrice, closePrice, highPrice, lowPrice);
+    //             history.getDataPoints().add(point);
+    //         }
+            
+    //     } catch (SQLException e) {
+    //         plugin.getLogger().severe("Erreur lors de la récupération de l'historique des prix: " + e.getMessage());
+    //     }
+        
+    //     return history;
+    // }
+
+    /**
+     * Récupère l'historique des prix d'un item
+     */
+    public PriceHistory getPriceHistory(String shopId, String itemId) {
+        PriceHistory history = new PriceHistory(shopId, itemId);
+        
+        try (Connection conn = getConnection()) {
+            // S'assurer que la table existe AVANT la lecture
+            PreparedStatement createTable = conn.prepareStatement(
+                "CREATE TABLE IF NOT EXISTS " + dataConfig.getDatabaseTablePrefix() + "_price_history (" +
+                "id INT AUTO_INCREMENT PRIMARY KEY, " +
+                "shop_id VARCHAR(100) NOT NULL, " +
+                "item_id VARCHAR(100) NOT NULL, " +
+                "timestamp TIMESTAMP NOT NULL, " +
+                // Colonnes pour les prix d'achat
+                "open_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                "close_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                "high_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                "low_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                // Colonnes pour les prix de vente
+                "open_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                "close_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                "high_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                "low_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                "INDEX (shop_id, item_id))"
+            );
+            createTable.executeUpdate();
+
+            // Récupérer les données avec la nouvelle structure
+            PreparedStatement stmt = conn.prepareStatement(
+                "SELECT timestamp, " +
+                "open_buy_price, close_buy_price, high_buy_price, low_buy_price, " +
+                "open_sell_price, close_sell_price, high_sell_price, low_sell_price " +
+                "FROM " + dataConfig.getDatabaseTablePrefix() + "_price_history " +
+                "WHERE shop_id = ? AND item_id = ? " +
+                "ORDER BY timestamp ASC"
+            );
+            
+            stmt.setString(1, shopId);
+            stmt.setString(2, itemId);
+            
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                LocalDateTime timestamp = rs.getTimestamp("timestamp").toLocalDateTime();
+                
+                // Prix d'achat
+                double openBuyPrice = rs.getDouble("open_buy_price");
+                double closeBuyPrice = rs.getDouble("close_buy_price");
+                double highBuyPrice = rs.getDouble("high_buy_price");
+                double lowBuyPrice = rs.getDouble("low_buy_price");
+                
+                // Prix de vente
+                double openSellPrice = rs.getDouble("open_sell_price");
+                double closeSellPrice = rs.getDouble("close_sell_price");
+                double highSellPrice = rs.getDouble("high_sell_price");
+                double lowSellPrice = rs.getDouble("low_sell_price");
+                
+                PriceDataPoint point = new PriceDataPoint(
+                    timestamp, 
+                    openBuyPrice, closeBuyPrice, highBuyPrice, lowBuyPrice,
+                    openSellPrice, closeSellPrice, highSellPrice, lowSellPrice
+                );
+                history.getDataPoints().add(point);
+            }
+            
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Erreur lors de la récupération de l'historique des prix: " + e.getMessage());
+        }
+        
+        return history;
+    }
+
     /**
      * Sauvegarde l'historique des prix d'un item
      */
@@ -1102,10 +1271,16 @@ public class DataManager {
                 "shop_id VARCHAR(100) NOT NULL, " +
                 "item_id VARCHAR(100) NOT NULL, " +
                 "timestamp TIMESTAMP NOT NULL, " +
-                "open_price DOUBLE NOT NULL, " +
-                "close_price DOUBLE NOT NULL, " +
-                "high_price DOUBLE NOT NULL, " +
-                "low_price DOUBLE NOT NULL, " +
+                // Colonnes pour les prix d'achat
+                "open_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                "close_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                "high_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                "low_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                // Colonnes pour les prix de vente
+                "open_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                "close_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                "high_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                "low_sell_price DOUBLE NOT NULL DEFAULT 0, " +
                 "INDEX (shop_id, item_id))"
             );
             createTable.executeUpdate();
@@ -1113,18 +1288,29 @@ public class DataManager {
             // Insertion des points de données
             PreparedStatement insertStmt = conn.prepareStatement(
                 "INSERT INTO " + dataConfig.getDatabaseTablePrefix() + "_price_history " +
-                "(shop_id, item_id, timestamp, open_price, close_price, high_price, low_price) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?)"
+                "(shop_id, item_id, timestamp, " +
+                "open_buy_price, close_buy_price, high_buy_price, low_buy_price, " +
+                "open_sell_price, close_sell_price, high_sell_price, low_sell_price) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
             
             for (PriceDataPoint point : history.getDataPoints()) {
                 insertStmt.setString(1, history.getShopId());
                 insertStmt.setString(2, history.getItemId());
                 insertStmt.setTimestamp(3, Timestamp.valueOf(point.getTimestamp()));
-                insertStmt.setDouble(4, point.getOpenPrice());
-                insertStmt.setDouble(5, point.getClosePrice());
-                insertStmt.setDouble(6, point.getHighPrice());
-                insertStmt.setDouble(7, point.getLowPrice());
+                
+                // Prix d'achat
+                insertStmt.setDouble(4, point.getOpenBuyPrice());
+                insertStmt.setDouble(5, point.getCloseBuyPrice());
+                insertStmt.setDouble(6, point.getHighBuyPrice());
+                insertStmt.setDouble(7, point.getLowBuyPrice());
+                
+                // Prix de vente
+                insertStmt.setDouble(8, point.getOpenSellPrice());
+                insertStmt.setDouble(9, point.getCloseSellPrice());
+                insertStmt.setDouble(10, point.getHighSellPrice());
+                insertStmt.setDouble(11, point.getLowSellPrice());
+                
                 insertStmt.addBatch();
             }
             
@@ -1133,41 +1319,5 @@ public class DataManager {
         } catch (SQLException e) {
             plugin.getLogger().severe("Erreur lors de la sauvegarde de l'historique des prix: " + e.getMessage());
         }
-    }
-
-    /**
-     * Récupère l'historique des prix d'un item
-     */
-    public PriceHistory getPriceHistory(String shopId, String itemId) {
-        PriceHistory history = new PriceHistory(shopId, itemId);
-        
-        try (Connection conn = getConnection()) {
-            PreparedStatement stmt = conn.prepareStatement(
-                "SELECT timestamp, open_price, close_price, high_price, low_price " +
-                "FROM " + dataConfig.getDatabaseTablePrefix() + "_price_history " +
-                "WHERE shop_id = ? AND item_id = ? " +
-                "ORDER BY timestamp ASC"
-            );
-            
-            stmt.setString(1, shopId);
-            stmt.setString(2, itemId);
-            
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                LocalDateTime timestamp = rs.getTimestamp("timestamp").toLocalDateTime();
-                double openPrice = rs.getDouble("open_price");
-                double closePrice = rs.getDouble("close_price");
-                double highPrice = rs.getDouble("high_price");
-                double lowPrice = rs.getDouble("low_price");
-                
-                PriceDataPoint point = new PriceDataPoint(timestamp, openPrice, closePrice, highPrice, lowPrice);
-                history.getDataPoints().add(point);
-            }
-            
-        } catch (SQLException e) {
-            plugin.getLogger().severe("Erreur lors de la récupération de l'historique des prix: " + e.getMessage());
-        }
-        
-        return history;
     }
 }

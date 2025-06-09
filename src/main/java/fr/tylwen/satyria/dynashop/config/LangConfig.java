@@ -1,7 +1,7 @@
 package fr.tylwen.satyria.dynashop.config;
 
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.entity.Player;
+// import org.bukkit.entity.Player;
 
 public class LangConfig {
     // Variables pour la configuration de la langue

@@ -1,7 +1,7 @@
 package fr.tylwen.satyria.dynashop.command;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
-import fr.tylwen.satyria.dynashop.system.TransactionLimiter;
+// import fr.tylwen.satyria.dynashop.system.TransactionLimiter;
 import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionLimit;
 
 import org.bukkit.Bukkit;
@@ -60,7 +60,7 @@ public class LimitSubCommand implements SubCommand {
             
             plugin.getTransactionLimiter().resetLimits(target, shopID, itemID)
                 .thenAccept(success -> {
-                    if (success) {
+                    if (Boolean.TRUE.equals(success)) {
                         sender.sendMessage(ChatColor.GREEN + "Limites réinitialisées pour " + target.getName() + " sur " + shopID + ":" + itemID);
                     } else {
                         sender.sendMessage(ChatColor.RED + "Erreur lors de la réinitialisation des limites.");

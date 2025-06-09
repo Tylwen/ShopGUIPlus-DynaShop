@@ -125,6 +125,8 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private CacheManager<String, Double> calculatedPriceCache;
     private CacheManager<String, Integer> stockCache;
     private CacheManager<String, Map<String, String>> displayPriceCache;
+    private CacheManager<String, Integer> limitRemainingAmountCache;
+    private CacheManager<String, Long> limitNextAvailableTimeCache;
 
     // public DynaShopPlugin() {
     //     this.config = new CommentedConfiguration();
@@ -380,6 +382,8 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         this.calculatedPriceCache = new CacheManager<>(this, "calculatedPriceCache", 5, TimeUnit.MINUTES, 10);
         this.stockCache = new CacheManager<>(this, "stockCache", 5, TimeUnit.MINUTES, 5);
         this.displayPriceCache = new CacheManager<>(this, "displayPriceCache", 2, TimeUnit.MINUTES, 20);
+        this.limitRemainingAmountCache = new CacheManager<>(this, "limitRemainingAmountCache", 5, TimeUnit.MINUTES, 10);
+        this.limitNextAvailableTimeCache = new CacheManager<>(this, "limitNextAvailableTimeCache", 5, TimeUnit.MINUTES, 10);
 
         // this.shopConfigManager = new ShopConfigManager(new File(Bukkit.getPluginManager().getPlugin("ShopGUIPlus").getDataFolder(), "shops/"));
         // this.shopConfigManager = new ShopConfigManager(new File(ShopGuiPlusApi.getPlugin().getConfigShops().getConfig().getCurrentPath(), "shops/"));
@@ -414,6 +418,8 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         int recipeDuration = configMain.getInt("cache.durations.recipe", 300);
         int stockDuration = configMain.getInt("cache.durations.stock", 20);
         int calculatedDuration = configMain.getInt("cache.durations.calculated", 60);
+        int limitRemainingAmountDuration = configMain.getInt("cache.durations.limit", 30); // Durée pour le cache des limites
+        int limitNextAvailableTimeDuration = configMain.getInt("cache.durations.limit", 30); // Durée pour le cache des temps d'attente
         
         // Initialiser les caches avec ces durées
         if (cacheMode.equalsIgnoreCase("realtime")) {
@@ -423,12 +429,16 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
             // recipeDuration = 10;
             stockDuration = 5;
             calculatedDuration = 10;
+            limitRemainingAmountDuration = 5; // Durée pour le cache des limites
+            limitNextAvailableTimeDuration = 5; // Durée pour le cache des temps d'attente
         }
         priceCache = new CacheManager<>(this, "PriceCache", priceDuration, TimeUnit.SECONDS, 10);
         recipeCache = new CacheManager<>(this, "RecipeCache", recipeDuration, TimeUnit.SECONDS, 5);
         calculatedPriceCache = new CacheManager<>(this, "CalculatedPriceCache", calculatedDuration, TimeUnit.SECONDS, 5);
         stockCache = new CacheManager<>(this, "StockCache", stockDuration, TimeUnit.SECONDS, 10);
         displayPriceCache = new CacheManager<>(this, "DisplayPriceCache", displayDuration, TimeUnit.SECONDS, 15);
+        limitRemainingAmountCache = new CacheManager<>(this, "LimitRemainingAmountCache", limitRemainingAmountDuration, TimeUnit.SECONDS, 10);
+        limitNextAvailableTimeCache = new CacheManager<>(this, "LimitNextAvailableTimeCache", limitNextAvailableTimeDuration, TimeUnit.SECONDS, 10);
 
         // // Initialisation des caches avec des durées adaptées
         // priceCache = new CacheManager<>(this, "PriceCache", 30, TimeUnit.SECONDS, 10);
@@ -459,6 +469,15 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         return displayPriceCache;
     }
 
+    // public CacheManager<String, Integer> getLimitCache() {
+    public CacheManager<String, Integer> getLimitRemainingAmountCache() {
+        return limitRemainingAmountCache;
+    }
+
+    public CacheManager<String, Long> getLimitNextAvailableTimeCache() {
+        return limitNextAvailableTimeCache;
+    }
+
     public void invalidatePriceCache(String shopId, String itemId, Player player) {
         String baseKey = shopId + ":" + itemId;
         
@@ -467,6 +486,8 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
             String playerKey = baseKey + ":" + player.getUniqueId().toString();
             priceCache.invalidate(playerKey);
             displayPriceCache.invalidate(playerKey);
+            // limitRemainingAmountCache.invalidate(playerKey);
+            // limitNextAvailableTimeCache.invalidate(playerKey);
         }
         
         // Invalider également les caches généraux (sans joueur spécifique)
@@ -474,6 +495,9 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         priceCache.invalidateWithPrefix(baseKey);
         calculatedPriceCache.invalidateWithPrefix(baseKey);
         displayPriceCache.invalidateWithPrefix(baseKey);
+        limitRemainingAmountCache.invalidateWithPrefix(baseKey);
+        limitNextAvailableTimeCache.invalidateWithPrefix(baseKey);
+        stockCache.invalidateWithPrefix(baseKey);
         
         // Si c'est une recette, invalider le cache des ingrédients aussi
         if (getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.RECIPE) {
@@ -668,6 +692,8 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         calculatedPriceCache.clear();
         stockCache.clear();
         displayPriceCache.clear();
+        limitRemainingAmountCache.clear();
+        limitNextAvailableTimeCache.clear();
 
         // HandlerList.unregisterAll(this);
 

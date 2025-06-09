@@ -1,6 +1,7 @@
 package fr.tylwen.satyria.dynashop.system;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionLimit;
 
 // import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -639,6 +640,151 @@ public class TransactionLimiter {
                 return limit.getAmount();
             }
         });
+    }
+
+    /**
+     * Version synchrone de getRemainingAmount, utilise le cache pour de meilleures performances
+     */
+    public int getRemainingAmountSync(Player player, String shopId, String itemId, boolean isBuy) {
+        // Clé de cache standardisée
+        final String cacheKey = shopId + ":" + itemId + ":" + (isBuy ? "buy" : "sell") + ":remaining:" + player.getUniqueId();
+        
+        return plugin.getLimitRemainingAmountCache().get(cacheKey, () -> {
+            TransactionLimit limit = getTransactionLimit(shopId, itemId, isBuy);
+            if (limit == null || limit.getAmount() <= 0) {
+                return Integer.MAX_VALUE; // Pas de limite
+            }
+            
+            // Logique de vérification synchrone directe
+            String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
+            String transactionType = isBuy ? "BUY" : "SELL";
+            
+            // Déterminer la date de début en fonction de la période ou du cooldown
+            LocalDateTime startDate = getStartDateForPeriod(limit.getPeriodEquivalent());
+            
+            try (Connection connection = plugin.getDataManager().getConnection();
+                PreparedStatement stmt = connection.prepareStatement(
+                    "SELECT SUM(amount) as total FROM " + tablePrefix + "_transactions_view " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+                    "AND transaction_time >= ?")) {
+                
+                stmt.setString(1, player.getUniqueId().toString());
+                stmt.setString(2, shopId);
+                stmt.setString(3, itemId);
+                stmt.setString(4, transactionType);
+                stmt.setTimestamp(5, java.sql.Timestamp.valueOf(startDate));
+                
+                ResultSet rs = stmt.executeQuery();
+                if (rs.next()) {
+                    int currentTotal = rs.getInt("total");
+                    if (rs.wasNull()) {
+                        currentTotal = 0;
+                    }
+                    
+                    int remaining = Math.max(0, limit.getAmount() - currentTotal);
+                    // Mettre en cache pour 5 secondes
+                    plugin.getLimitRemainingAmountCache().put(cacheKey, remaining);
+                    return remaining;
+                }
+            } catch (SQLException e) {
+                plugin.getLogger().warning("Erreur SQL dans getRemainingAmountSync: " + e.getMessage());
+            }
+            
+            return limit.getAmount(); // Valeur par défaut
+        });
+    }
+
+    /**
+     * Version synchrone de getNextAvailableTime, plus rapide
+     */
+    public long getNextAvailableTimeSync(Player player, String shopId, String itemId, boolean isBuy) {
+        // Clé de cache
+        final String cacheKey = shopId + ":" + itemId + ":" + (isBuy ? "buy" : "sell") + ":nexttime:" + player.getUniqueId();
+
+        return plugin.getLimitNextAvailableTimeCache().get(cacheKey, () -> {
+            TransactionLimit limit = getTransactionLimit(shopId, itemId, isBuy);
+            if (limit == null) {
+                return 0L; // Pas de limite
+            }
+            
+            // Logique synchrone
+            String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
+            String transactionType = isBuy ? "BUY" : "SELL";
+            
+            try (Connection connection = plugin.getDataManager().getConnection();
+                 PreparedStatement stmt = connection.prepareStatement(
+                     "SELECT MAX(transaction_time) as latest FROM " + tablePrefix + "_transactions_view " +
+                     "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?")) {
+                
+                stmt.setString(1, player.getUniqueId().toString());
+                stmt.setString(2, shopId);
+                stmt.setString(3, itemId);
+                stmt.setString(4, transactionType);
+                
+                ResultSet rs = stmt.executeQuery();
+                if (rs.next() && rs.getTimestamp("latest") != null) {
+                    java.sql.Timestamp latestTime = rs.getTimestamp("latest");
+                    
+                    long now = System.currentTimeMillis();
+                    LocalDateTime nextAvailable = latestTime.toLocalDateTime().plusSeconds(limit.getCooldown());
+                    long nextTimeMillis = nextAvailable.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+                    
+                    long result = Math.max(0L, nextTimeMillis - now);
+                    // Mettre en cache pour 5 secondes
+                    plugin.getLimitNextAvailableTimeCache().put(cacheKey, result);
+                    return result;
+                }
+            } catch (SQLException e) {
+                plugin.getLogger().warning("Erreur SQL dans getNextAvailableTimeSync: " + e.getMessage());
+            }
+            
+            return 0L; // Pas de transactions précédentes
+        });
+
+
+        // // Vérifier si on a une valeur en cache (expire après 5 secondes)
+        // Object cachedValue = plugin.getLimitCache().get(cacheKey);
+        // if (cachedValue != null) {
+        //     return (long) cachedValue;
+        // }
+        
+        // TransactionLimit limit = getTransactionLimit(shopId, itemId, isBuy);
+        // if (limit == null) {
+        //     return 0L;
+        // }
+        
+        // // Logique synchrone
+        // String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
+        // String transactionType = isBuy ? "BUY" : "SELL";
+        
+        // try (Connection connection = plugin.getDataManager().getConnection();
+        //     PreparedStatement stmt = connection.prepareStatement(
+        //         "SELECT MAX(transaction_time) as latest FROM " + tablePrefix + "_transactions_view " +
+        //         "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?")) {
+            
+        //     stmt.setString(1, player.getUniqueId().toString());
+        //     stmt.setString(2, shopId);
+        //     stmt.setString(3, itemId);
+        //     stmt.setString(4, transactionType);
+            
+        //     ResultSet rs = stmt.executeQuery();
+        //     if (rs.next() && rs.getTimestamp("latest") != null) {
+        //         java.sql.Timestamp latestTime = rs.getTimestamp("latest");
+                
+        //         long now = System.currentTimeMillis();
+        //         LocalDateTime nextAvailable = latestTime.toLocalDateTime().plusSeconds(limit.getCooldown());
+        //         long nextTimeMillis = nextAvailable.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+                
+        //         long result = Math.max(0L, nextTimeMillis - now);
+        //         // Mettre en cache pour 5 secondes
+        //         plugin.getCache().put(cacheKey, result, 5);
+        //         return result;
+        //     }
+        // } catch (SQLException e) {
+        //     plugin.getLogger().warning("Erreur SQL dans getNextAvailableTimeSync: " + e.getMessage());
+        // }
+        
+        // return 0L;
     }
 
     // limit:
