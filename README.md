@@ -367,6 +367,12 @@ shopItemLoreFormat:
 - `%dynashop_current_maxstock%` : Max stock
 - `%dynashop_current_stock_ratio%` : Current/max stock
 - `%dynashop_current_colored_stock_ratio%` : Current/max stock with color
+- `%dynashop_current_buy_limit%` : Remaining buy limit
+- `%dynashop_current_sell_limit%` : Remaining sell limit
+- `%dynashop_current_buy_reset_time%` : Time until buy limit reset
+- `%dynashop_current_sell_reset_time%` : Time until sell limit reset
+- `%dynashop_current_buy_limit_status%` : Complete status message for buy limit
+- `%dynashop_current_sell_limit_status%` : Complete status message for sell limit
 
 **Tip:**  
 Lines with placeholders are automatically hidden if the value is "N/A" or "-1" (see `hideBuyPriceForUnbuyable` and `hideSellPriceForUnsellable` in your config).
