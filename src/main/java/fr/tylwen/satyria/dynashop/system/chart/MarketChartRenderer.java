@@ -321,11 +321,107 @@ public class MarketChartRenderer extends MapRenderer {
 //         return image;
 //     }
 
+    // private BufferedImage renderChart(Player player) {
+    //     BufferedImage image = new BufferedImage(MAP_WIDTH, MAP_HEIGHT, BufferedImage.TYPE_INT_ARGB);
+    //     Graphics2D g = image.createGraphics();
+
+    //     // Antialiasing
+    //     g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+    //     // Fond blanc
+    //     g.setColor(Color.WHITE);
+    //     g.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+
+    //     // Grille
+    //     g.setColor(new Color(230, 230, 230));
+    //     int numGridX = 6, numGridY = 6;
+    //     for (int i = 0; i <= numGridX; i++) {
+    //         int x = MARGIN + i * (MAP_WIDTH - 2 * MARGIN) / numGridX;
+    //         g.drawLine(x, MARGIN, x, MAP_HEIGHT - MARGIN);
+    //     }
+    //     for (int i = 0; i <= numGridY; i++) {
+    //         int y = MARGIN + i * (MAP_HEIGHT - 2 * MARGIN) / numGridY;
+    //         g.drawLine(MARGIN, y, MAP_WIDTH - MARGIN, y);
+    //     }
+
+    //     // Cadre
+    //     g.setColor(Color.BLACK);
+    //     g.drawRect(MARGIN, MARGIN, MAP_WIDTH - 2 * MARGIN, MAP_HEIGHT - 2 * MARGIN);
+
+    //     // Données
+    //     PriceHistory history = plugin.getDataManager().getPriceHistory(shopId, itemId);
+    //     List<PriceDataPoint> dataPoints = history.getDataPoints();
+    //     if (dataPoints.isEmpty()) {
+    //         g.setColor(Color.BLACK);
+    //         g.drawString("Pas de données", 15, MAP_HEIGHT / 2);
+    //         g.dispose();
+    //         return image;
+    //     }
+
+    //     // Axe Y : min/max
+    //     double minPrice = Double.MAX_VALUE, maxPrice = Double.MIN_VALUE;
+    //     for (PriceDataPoint point : dataPoints) {
+    //         minPrice = Math.min(minPrice, point.getLowBuyPrice());
+    //         maxPrice = Math.max(maxPrice, point.getHighBuyPrice());
+    //     }
+    //     if (maxPrice == minPrice) maxPrice = minPrice + 1;
+    //     double priceRange = maxPrice - minPrice;
+    //     double yScale = (MAP_HEIGHT - 2 * MARGIN) / priceRange;
+
+    //     // Axe X : combien de chandeliers ?
+    //     int maxCandles = (MAP_WIDTH - 2 * MARGIN) / (CANDLE_WIDTH + CANDLE_SPACING);
+    //     int startIndex = Math.max(0, dataPoints.size() - maxCandles);
+
+    //     // Chandeliers
+    //     for (int i = startIndex; i < dataPoints.size(); i++) {
+    //         PriceDataPoint point = dataPoints.get(i);
+    //         int x = MARGIN + (i - startIndex) * (CANDLE_WIDTH + CANDLE_SPACING);
+
+    //         int openY = MAP_HEIGHT - MARGIN - (int)((point.getOpenBuyPrice() - minPrice) * yScale);
+    //         int closeY = MAP_HEIGHT - MARGIN - (int)((point.getCloseBuyPrice() - minPrice) * yScale);
+    //         int highY = MAP_HEIGHT - MARGIN - (int)((point.getHighBuyPrice() - minPrice) * yScale);
+    //         int lowY = MAP_HEIGHT - MARGIN - (int)((point.getLowBuyPrice() - minPrice) * yScale);
+
+    //         // Mèche
+    //         g.setColor(Color.DARK_GRAY);
+    //         g.drawLine(x + CANDLE_WIDTH / 2, highY, x + CANDLE_WIDTH / 2, lowY);
+
+    //         // Corps
+    //         boolean isUp = point.getCloseBuyPrice() >= point.getOpenBuyPrice();
+    //         g.setColor(isUp ? new Color(34, 139, 34) : new Color(220, 50, 47));
+    //         int bodyTop = Math.min(openY, closeY);
+    //         int bodyHeight = Math.max(1, Math.abs(closeY - openY));
+    //         g.fillRect(x, bodyTop, CANDLE_WIDTH, bodyHeight);
+    //         g.setColor(Color.BLACK);
+    //         g.drawRect(x, bodyTop, CANDLE_WIDTH, bodyHeight);
+    //     }
+
+    //     // Graduation Y
+    //     g.setFont(new Font("SansSerif", Font.PLAIN, 8));
+    //     g.setColor(Color.GRAY);
+    //     int numLevels = 6;
+    //     for (int i = 0; i <= numLevels; i++) {
+    //         double price = minPrice + (priceRange * i / numLevels);
+    //         int y = MAP_HEIGHT - MARGIN - (int)((price - minPrice) * yScale);
+    //         String priceText = String.format("%.1f", price);
+    //         g.drawString(priceText, 2, y + 3);
+    //     }
+
+    //     // Nom de l'item
+    //     String itemName = plugin.getShopConfigManager().getItemName(player, shopId, itemId);
+    //     if (itemName == null) itemName = itemId;
+    //     g.setColor(Color.BLACK);
+    //     g.setFont(new Font("SansSerif", Font.BOLD, 10));
+    //     g.drawString(itemName, MARGIN, MARGIN - 2);
+
+    //     g.dispose();
+    //     return image;
+    // }
+
     private BufferedImage renderChart(Player player) {
         BufferedImage image = new BufferedImage(MAP_WIDTH, MAP_HEIGHT, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = image.createGraphics();
 
-        // Antialiasing
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
         // Fond blanc
@@ -334,13 +430,13 @@ public class MarketChartRenderer extends MapRenderer {
 
         // Grille
         g.setColor(new Color(230, 230, 230));
-        int numGridX = 6, numGridY = 6;
-        for (int i = 0; i <= numGridX; i++) {
-            int x = MARGIN + i * (MAP_WIDTH - 2 * MARGIN) / numGridX;
+        int gridX = 6, gridY = 6;
+        for (int i = 0; i <= gridX; i++) {
+            int x = MARGIN + i * (MAP_WIDTH - 2 * MARGIN) / gridX;
             g.drawLine(x, MARGIN, x, MAP_HEIGHT - MARGIN);
         }
-        for (int i = 0; i <= numGridY; i++) {
-            int y = MARGIN + i * (MAP_HEIGHT - 2 * MARGIN) / numGridY;
+        for (int i = 0; i <= gridY; i++) {
+            int y = MARGIN + i * (MAP_HEIGHT - 2 * MARGIN) / gridY;
             g.drawLine(MARGIN, y, MAP_WIDTH - MARGIN, y);
         }
 
@@ -413,6 +509,11 @@ public class MarketChartRenderer extends MapRenderer {
         g.setColor(Color.BLACK);
         g.setFont(new Font("SansSerif", Font.BOLD, 10));
         g.drawString(itemName, MARGIN, MARGIN - 2);
+
+        // Dernier prix à droite
+        PriceDataPoint lastPoint = dataPoints.get(dataPoints.size() - 1);
+        String priceText = String.format("%.1f", lastPoint.getCloseBuyPrice());
+        g.drawString(priceText, MAP_WIDTH - MARGIN - g.getFontMetrics().stringWidth(priceText) - 2, MARGIN + 10);
 
         g.dispose();
         return image;
