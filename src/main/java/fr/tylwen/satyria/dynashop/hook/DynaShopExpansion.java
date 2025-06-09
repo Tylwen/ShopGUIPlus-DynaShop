@@ -1,5 +1,8 @@
 package fr.tylwen.satyria.dynashop.hook;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 // import java.lang.foreign.Linker.Option;
 // import java.text.DecimalFormat;
 // import java.text.DecimalFormatSymbols;
@@ -9,6 +12,7 @@ import java.util.HashSet;
 import java.util.Map;
 // import java.sql.SQLException;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 // import org.bukkit.Bukkit;
 // import org.bukkit.Bukkit;
@@ -23,6 +27,8 @@ import fr.tylwen.satyria.dynashop.data.ShopConfigManager;
 // import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 // import fr.tylwen.satyria.dynashop.database.DataManager;
 import fr.tylwen.satyria.dynashop.database.ItemDataManager;
+import fr.tylwen.satyria.dynashop.limit.TransactionLimiter.TransactionLimit;
+import fr.tylwen.satyria.dynashop.limit.TransactionLimiter.LimitPeriod;
 // import fr.tylwen.satyria.dynashop.listener.DynaShopListener;
 import fr.tylwen.satyria.dynashop.listener.ShopItemPlaceholderListener;
 import fr.tylwen.satyria.dynashop.price.DynamicPrice;
@@ -34,22 +40,22 @@ import net.brcdev.shopgui.ShopGuiPlusApi;
 
 public class DynaShopExpansion extends PlaceholderExpansion {
 
-    private final DynaShopPlugin mainPlugin;
+    private final DynaShopPlugin plugin;
     // private DataManager dataManager;
     // ItemDataManager itemDataManager = new ItemDataManager(dataManager);
     private final ItemDataManager itemDataManager;
     private final ShopConfigManager shopConfigManager;
     private final PriceRecipe priceRecipe;
 
-    public DynaShopExpansion(DynaShopPlugin mainPlugin) {
-        this.mainPlugin = mainPlugin;
-        this.itemDataManager = mainPlugin.getItemDataManager();
-        this.shopConfigManager = mainPlugin.getShopConfigManager();
-        this.priceRecipe = mainPlugin.getPriceRecipe();
+    public DynaShopExpansion(DynaShopPlugin plugin) {
+        this.plugin = plugin;
+        this.itemDataManager = plugin.getItemDataManager();
+        this.shopConfigManager = plugin.getShopConfigManager();
+        this.priceRecipe = plugin.getPriceRecipe();
     }
 
     // public DynaShopExpansion(ItemDataManager itemDataManager, ShopConfigManager shopConfigManager, PriceRecipe priceRecipe) {
-    //     // this.mainPlugin = DynaShopPlugin.getInstance();
+    //     // this.plugin = DynaShopPlugin.getInstance();
     //     this.itemDataManager = itemDataManager;
     //     this.shopConfigManager = shopConfigManager;
     //     this.priceRecipe = priceRecipe;
@@ -64,7 +70,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
     }
     
     public String getVersion() {
-        return this.mainPlugin.getDescription().getVersion();
+        return this.plugin.getDescription().getVersion();
     }
 
     public boolean persist() {
@@ -85,13 +91,13 @@ public class DynaShopExpansion extends PlaceholderExpansion {
         
     //     // Enregistrer notre placeholder générique avec ShopGUI+
     //     if (registered) {
-    //         mainPlugin.getLogger().info("Enregistrement des placeholders génériques pour ShopGUI+...");
+    //         plugin.getLogger().info("Enregistrement des placeholders génériques pour ShopGUI+...");
     //         try {
     //             // Cette ligne dépend de la façon dont ShopGUI+ permet d'enregistrer des placeholders
     //             // Si ShopGUI+ a une méthode, utilisez-la ici
     //             ShopGuiPlusApi.registerPlaceholderHook("dynashop", this);
     //         } catch (Exception e) {
-    //             mainPlugin.getLogger().warning("Impossible d'enregistrer les placeholders avec ShopGUI+: " + e.getMessage());
+    //             plugin.getLogger().warning("Impossible d'enregistrer les placeholders avec ShopGUI+: " + e.getMessage());
     //         }
     //     }
         
@@ -104,20 +110,20 @@ public class DynaShopExpansion extends PlaceholderExpansion {
         
         // Log informationnel
         if (registered) {
-            mainPlugin.getLogger().info("Placeholders DynaShop enregistrés avec succès");
-            // mainPlugin.getLogger().info("Utilisez %dynashop_current_buyPrice% pour obtenir le prix d'achat actuel");
-            // mainPlugin.getLogger().info("Utilisez %dynashop_current_buyMinPrice% pour obtenir le prix d'achat minimum actuel");
-            // mainPlugin.getLogger().info("Utilisez %dynashop_current_buyMaxPrice% pour obtenir le prix d'achat maximum actuel");
-            // mainPlugin.getLogger().info("Utilisez %dynashop_current_sellPrice% pour obtenir le prix de vente actuel");
-            // mainPlugin.getLogger().info("Utilisez %dynashop_current_sellMinPrice% pour obtenir le prix de vente minimum actuel");
-            // mainPlugin.getLogger().info("Utilisez %dynashop_current_sellMaxPrice% pour obtenir le prix de vente maximum actuel");
-            // mainPlugin.getLogger().info("Utilisez %dynashop_buy_price_shopID:itemID% pour obtenir le prix d'achat d'un item dans un shop");
+            plugin.getLogger().info("Placeholders DynaShop enregistrés avec succès");
+            // plugin.getLogger().info("Utilisez %dynashop_current_buyPrice% pour obtenir le prix d'achat actuel");
+            // plugin.getLogger().info("Utilisez %dynashop_current_buyMinPrice% pour obtenir le prix d'achat minimum actuel");
+            // plugin.getLogger().info("Utilisez %dynashop_current_buyMaxPrice% pour obtenir le prix d'achat maximum actuel");
+            // plugin.getLogger().info("Utilisez %dynashop_current_sellPrice% pour obtenir le prix de vente actuel");
+            // plugin.getLogger().info("Utilisez %dynashop_current_sellMinPrice% pour obtenir le prix de vente minimum actuel");
+            // plugin.getLogger().info("Utilisez %dynashop_current_sellMaxPrice% pour obtenir le prix de vente maximum actuel");
+            // plugin.getLogger().info("Utilisez %dynashop_buy_price_shopID:itemID% pour obtenir le prix d'achat d'un item dans un shop");
             // try {
             //     // Enregistrer notre placeholder générique avec ShopGUI+
-            //     mainPlugin.getLogger().info("Enregistrement des placeholders génériques pour ShopGUI+...");
+            //     plugin.getLogger().info("Enregistrement des placeholders génériques pour ShopGUI+...");
             //     ShopGuiPlusApi.registerPlaceholderHook("dynashop", this);
             // } catch (Exception e) {
-            //     mainPlugin.getLogger().warning("Impossible d'enregistrer les placeholders avec ShopGUI+: " + e.getMessage());
+            //     plugin.getLogger().warning("Impossible d'enregistrer les placeholders avec ShopGUI+: " + e.getMessage());
             // }
         }
         
@@ -295,7 +301,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
     //         case "buy_min":
     //             if (useRecipe && itemStack != null) {
     //                 // Utiliser la valeur en cache si disponible
-    //                 double cachedMin = mainPlugin.getCachedRecipePrice(shopID, itemID, "buyDynamic.min");
+    //                 double cachedMin = plugin.getCachedRecipePrice(shopID, itemID, "buyDynamic.min");
     //                 if (cachedMin >= 0) {
     //                     // return String.format("%.3f", cachedMin);
     //                     return formatPrice(cachedMin);
@@ -314,7 +320,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                     
     //         case "buy_max":
     //             if (useRecipe && itemStack != null) {
-    //                 double cachedMax = mainPlugin.getCachedRecipePrice(shopID, itemID, "buyDynamic.max");
+    //                 double cachedMax = plugin.getCachedRecipePrice(shopID, itemID, "buyDynamic.max");
     //                 if (cachedMax >= 0) {
     //                     // return String.format("%.3f", cachedMax);
     //                     return formatPrice(cachedMax);
@@ -332,7 +338,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                     
     //         case "sell_min":
     //             if (useRecipe && itemStack != null) {
-    //                 double cachedMin = mainPlugin.getCachedRecipePrice(shopID, itemID, "sellDynamic.min");
+    //                 double cachedMin = plugin.getCachedRecipePrice(shopID, itemID, "sellDynamic.min");
     //                 if (cachedMin >= 0) {
     //                     // return String.format("%.3f", cachedMin);
     //                     return formatPrice(cachedMin);
@@ -350,7 +356,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                     
     //         case "sell_max":
     //             if (useRecipe && itemStack != null) {
-    //                 double cachedMax = mainPlugin.getCachedRecipePrice(shopID, itemID, "sellDynamic.max");
+    //                 double cachedMax = plugin.getCachedRecipePrice(shopID, itemID, "sellDynamic.max");
     //                 if (cachedMax >= 0) {
     //                     // return String.format("%.3f", cachedMax);
     //                     return formatPrice(cachedMax);
@@ -387,7 +393,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
     //         case "stock":
     //             // if (useRecipe && itemStack != null) {
     //             //     // Utiliser la valeur en cache si disponible
-    //             //     double cachedStock = mainPlugin.getCachedRecipePrice(shopID, itemID, "stock");
+    //             //     double cachedStock = plugin.getCachedRecipePrice(shopID, itemID, "stock");
     //             //     if (cachedStock >= 0) {
     //             //         return String.valueOf((int) cachedStock);
     //             //     }
@@ -403,7 +409,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
     //             return "N/A";
     //         case "stock_min":
     //             // if (useRecipe && itemStack != null) {
-    //             //     double cachedMinStock = mainPlugin.getCachedRecipePrice(shopID, itemID, "stock.min");
+    //             //     double cachedMinStock = plugin.getCachedRecipePrice(shopID, itemID, "stock.min");
     //             //     if (cachedMinStock >= 0) {
     //             //         return String.valueOf((int) cachedMinStock);
     //             //     }
@@ -415,7 +421,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
     //             return "N/A";
     //         case "stock_max":
     //             // if (useRecipe && itemStack != null) {
-    //             //     double cachedMaxStock = mainPlugin.getCachedRecipePrice(shopID, itemID, "stock.max");
+    //             //     double cachedMaxStock = plugin.getCachedRecipePrice(shopID, itemID, "stock.max");
     //             //     if (cachedMaxStock >= 0) {
     //             //         return String.valueOf((int) cachedMaxStock);
     //             //     }
@@ -430,55 +436,57 @@ public class DynaShopExpansion extends PlaceholderExpansion {
     //     }
     // }
 
-    /**
-     * Récupère tous les prix et valeurs pour un item spécifique en UNE SEULE opération de base de données.
-     * Beaucoup plus efficace qu'appeler getPriceByType() plusieurs fois.
-     * 
-     * @param shopID ID du shop
-     * @param itemID ID de l'item
-     * @return Map contenant toutes les valeurs formatées
-     */
-    public Map<String, String> getAllItemValues(String shopID, String itemID) {
-        Map<String, String> values = new HashMap<>();
+    // /**
+    //  * Récupère tous les prix et valeurs pour un item spécifique en UNE SEULE opération de base de données.
+    //  * Beaucoup plus efficace qu'appeler getPriceByType() plusieurs fois.
+    //  * 
+    //  * @param shopID ID du shop
+    //  * @param itemID ID de l'item
+    //  * @return Map contenant toutes les valeurs formatées
+    //  */
+    // private Map<String, String> getAllItemValues(String shopID, String itemID) {
+    //     Map<String, String> values = new HashMap<>();
         
-        // UN SEUL accès à la base de données pour récupérer toutes les informations
-        Optional<DynamicPrice> priceData = this.itemDataManager.getItemValues(shopID, itemID);
+    //     // // UN SEUL accès à la base de données pour récupérer toutes les informations
+    //     // Optional<DynamicPrice> priceData = this.itemDataManager.getItemValues(shopID, itemID);
         
-        // UN SEUL accès aux fichiers de config pour récupérer les infos manquantes
-        ItemPriceData configData = shopConfigManager.getItemAllValues(shopID, itemID);
+    //     // // UN SEUL accès aux fichiers de config pour récupérer les infos manquantes
+    //     // ItemPriceData configData = shopConfigManager.getItemAllValues(shopID, itemID);
         
-        // // Formatage numérique
-        // int maximumFractionDigits = 8;
-        // if (ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains("numberFormat.maximumFractionDigits")) {
-        //     maximumFractionDigits = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("numberFormat.maximumFractionDigits");
-        // }
+    //     // // // Formatage numérique
+    //     // // int maximumFractionDigits = 8;
+    //     // // if (ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().contains("numberFormat.maximumFractionDigits")) {
+    //     // //     maximumFractionDigits = ShopGuiPlusApi.getPlugin().getConfigMain().getConfig().getInt("numberFormat.maximumFractionDigits");
+    //     // // }
         
-        // Extraire toutes les valeurs en une fois
-        double buyPrice = priceData.map(DynamicPrice::getBuyPrice).orElse(configData.buyPrice.orElse(0.0));
-        double sellPrice = priceData.map(DynamicPrice::getSellPrice).orElse(configData.sellPrice.orElse(0.0));
-        double minBuy = configData.minBuy.orElse(buyPrice * 0.5);
-        double maxBuy = configData.maxBuy.orElse(buyPrice * 2.0);
-        double minSell = configData.minSell.orElse(sellPrice * 0.5);
-        double maxSell = configData.maxSell.orElse(sellPrice * 2.0);
-        
-        // Formatter toutes les valeurs en texte
-        values.put("buy", mainPlugin.getPriceFormatter().formatPrice(buyPrice));
-        values.put("sell", mainPlugin.getPriceFormatter().formatPrice(sellPrice));
-        values.put("buy_min", mainPlugin.getPriceFormatter().formatPrice(minBuy));
-        values.put("buy_max", mainPlugin.getPriceFormatter().formatPrice(maxBuy));
-        values.put("sell_min", mainPlugin.getPriceFormatter().formatPrice(minSell));
-        values.put("sell_max", mainPlugin.getPriceFormatter().formatPrice(maxSell));
-        
-        // Valeurs pour "N/A" ou zéro
-        if (buyPrice <= 0.001) values.put("buy", "N/A");
-        if (sellPrice <= 0.001) values.put("sell", "N/A");
-        if (minBuy <= 0.001) values.put("buy_min", "N/A");
-        if (maxBuy <= 0.001) values.put("buy_max", "N/A");
-        if (minSell <= 0.001) values.put("sell_min", "N/A");
-        if (maxSell <= 0.001) values.put("sell_max", "N/A");
-        
-        return values;
-    }
+    //     // // Extraire toutes les valeurs en une fois
+    //     // double buyPrice = priceData.map(DynamicPrice::getBuyPrice).orElse(configData.buyPrice.orElse(0.0));
+    //     // double sellPrice = priceData.map(DynamicPrice::getSellPrice).orElse(configData.sellPrice.orElse(0.0));
+    //     // double minBuy = configData.minBuy.orElse(buyPrice * 0.5);
+    //     // double maxBuy = configData.maxBuy.orElse(buyPrice * 2.0);
+    //     // double minSell = configData.minSell.orElse(sellPrice * 0.5);
+    //     // double maxSell = configData.maxSell.orElse(sellPrice * 2.0);
+
+    //     DynamicPrice price = plugin.getDynaShopListener().getOrLoadPrice(player, shopID, itemID);
+
+    //     // Formatter toutes les valeurs en texte
+    //     values.put("buy", plugin.getPriceFormatter().formatPrice(price.getBuyPrice()));
+    //     values.put("sell", plugin.getPriceFormatter().formatPrice(price.getSellPrice()));
+    //     values.put("buy_min", plugin.getPriceFormatter().formatPrice(price.getMinBuy()));
+    //     values.put("buy_max", plugin.getPriceFormatter().formatPrice(price.getMaxBuy()));
+    //     values.put("sell_min", plugin.getPriceFormatter().formatPrice(price.getMinSell()));
+    //     values.put("sell_max", plugin.getPriceFormatter().formatPrice(price.getMaxSell()));
+
+    //     // Valeurs pour "N/A" ou zéro
+    //     if (price.getBuyPrice() <= 0.001) values.put("buy", "N/A");
+    //     if (price.getSellPrice() <= 0.001) values.put("sell", "N/A");
+    //     if (price.getMinBuy() <= 0.001) values.put("buy_min", "N/A");
+    //     if (price.getMaxBuy() <= 0.001) values.put("buy_max", "N/A");
+    //     if (price.getMinSell() <= 0.001) values.put("sell_min", "N/A");
+    //     if (price.getMaxSell() <= 0.001) values.put("sell_max", "N/A");
+
+    //     return values;
+    // }
 
     // /**
     // * Formate un prix en respectant les paramètres de configuration de ShopGUI+
@@ -542,16 +550,16 @@ public class DynaShopExpansion extends PlaceholderExpansion {
         // %dynashop_current_buy%
         if (identifier.equals("current_buy") && player instanceof Player p) {
             // Player p = (Player) player;
-            ShopItemPlaceholderListener listener = mainPlugin.getShopItemPlaceholderListener();
+            ShopItemPlaceholderListener listener = plugin.getShopItemPlaceholderListener();
 
             String shopId = listener.getCurrentShopId(p);
             String itemId = listener.getCurrentItemId(p);
 
             if (shopId != null && itemId != null) {
                 // Récupérer le prix actuel
-                String buyPrice = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy");
-                String buyMinPrice = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_min");
-                String buyMaxPrice = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_max");
+                String buyPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy");
+                String buyMinPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_min");
+                String buyMaxPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_max");
 
                 if (buyPrice != null && buyMinPrice != null && buyMaxPrice != null) {
                     return String.format("%s (%s - %s)", buyPrice, buyMinPrice, buyMaxPrice);
@@ -566,22 +574,22 @@ public class DynaShopExpansion extends PlaceholderExpansion {
         // %dynashop_current_buyPrice%
         if (identifier.equals("current_buyPrice") && player instanceof Player p) {
             // Player p = (Player) player;
-            ShopItemPlaceholderListener listener = mainPlugin.getShopItemPlaceholderListener();
+            ShopItemPlaceholderListener listener = plugin.getShopItemPlaceholderListener();
             
             // Vérification de nullité
             if (listener == null) {
-                mainPlugin.getLogger().warning("ShopItemPlaceholderListener est null dans DynaShopExpansion.onRequest()");
+                plugin.getLogger().warning("ShopItemPlaceholderListener est null dans DynaShopExpansion.onRequest()");
                 return "N/A";
             }
             
             String shopId = listener.getCurrentShopId(p);
             String itemId = listener.getCurrentItemId(p);
 
-            // mainPlugin.getLogger().info("Shop ID: " + shopId + ", Item ID: " + itemId);
+            // plugin.getLogger().info("Shop ID: " + shopId + ", Item ID: " + itemId);
             
             if (shopId != null && itemId != null) {
                 // Récupérer le prix actuel
-                String price = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy");
+                String price = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy");
                 return price != null ? price : "N/A"; // Si le prix est null, retourner "N/A"
             }
             
@@ -591,11 +599,11 @@ public class DynaShopExpansion extends PlaceholderExpansion {
         // %dynashop_current_buyMinPrice%
         if (identifier.equals("current_buyMinPrice") && player instanceof Player p) {
             // Player p = (Player) player;
-            ShopItemPlaceholderListener listener = mainPlugin.getShopItemPlaceholderListener();
+            ShopItemPlaceholderListener listener = plugin.getShopItemPlaceholderListener();
             
             // Vérification de nullité
             if (listener == null) {
-                mainPlugin.getLogger().warning("ShopItemPlaceholderListener est null dans DynaShopExpansion.onRequest()");
+                plugin.getLogger().warning("ShopItemPlaceholderListener est null dans DynaShopExpansion.onRequest()");
                 return "N/A";
             }
             
@@ -604,7 +612,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             
             if (shopId != null && itemId != null) {
                 // Récupérer le prix actuel
-                String price = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_min");
+                String price = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_min");
                 return price != null ? price : "N/A"; // Si le prix est null, retourner "N/A"
             }
             
@@ -614,11 +622,11 @@ public class DynaShopExpansion extends PlaceholderExpansion {
         // %dynashop_current_buyMaxPrice%
         if (identifier.equals("current_buyMaxPrice") && player instanceof Player p) {
             // Player p = (Player) player;
-            ShopItemPlaceholderListener listener = mainPlugin.getShopItemPlaceholderListener();
+            ShopItemPlaceholderListener listener = plugin.getShopItemPlaceholderListener();
             
             // Vérification de nullité
             if (listener == null) {
-                mainPlugin.getLogger().warning("ShopItemPlaceholderListener est null dans DynaShopExpansion.onRequest()");
+                plugin.getLogger().warning("ShopItemPlaceholderListener est null dans DynaShopExpansion.onRequest()");
                 return "N/A";
             }
             
@@ -627,7 +635,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             
             if (shopId != null && itemId != null) {
                 // Récupérer le prix actuel
-                String price = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_max");
+                String price = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "buy_max");
                 return price != null ? price : "N/A"; // Si le prix est null, retourner "N/A"
             }
             
@@ -637,16 +645,16 @@ public class DynaShopExpansion extends PlaceholderExpansion {
         // %dynashop_current_sell%
         if (identifier.equals("current_sell") && player instanceof Player p) {
             // Player p = (Player) player;
-            ShopItemPlaceholderListener listener = mainPlugin.getShopItemPlaceholderListener();
+            ShopItemPlaceholderListener listener = plugin.getShopItemPlaceholderListener();
 
             String shopId = listener.getCurrentShopId(p);
             String itemId = listener.getCurrentItemId(p);
 
             if (shopId != null && itemId != null) {
                 // Récupérer le prix actuel
-                String sellPrice = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell");
-                String sellMinPrice = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_min");
-                String sellMaxPrice = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_max");
+                String sellPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell");
+                String sellMinPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_min");
+                String sellMaxPrice = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_max");
 
                 if (sellPrice != null && sellMinPrice != null && sellMaxPrice != null) {
                     return String.format("%s (%s - %s)", sellPrice, sellMinPrice, sellMaxPrice);
@@ -661,11 +669,11 @@ public class DynaShopExpansion extends PlaceholderExpansion {
         // %dynashop_current_sellPrice%
         if (identifier.equals("current_sellPrice") && player instanceof Player p) {
             // Player p = (Player) player;
-            ShopItemPlaceholderListener listener = mainPlugin.getShopItemPlaceholderListener();
+            ShopItemPlaceholderListener listener = plugin.getShopItemPlaceholderListener();
             
             // Vérification de nullité
             if (listener == null) {
-                mainPlugin.getLogger().warning("ShopItemPlaceholderListener est null dans DynaShopExpansion.onRequest()");
+                plugin.getLogger().warning("ShopItemPlaceholderListener est null dans DynaShopExpansion.onRequest()");
                 return "N/A";
             }
             
@@ -674,7 +682,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             
             if (shopId != null && itemId != null) {
                 // Récupérer le prix actuel
-                String price = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell");
+                String price = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell");
                 return price != null ? price : "N/A"; // Si le prix est null, retourner "N/A"
             }
 
@@ -684,11 +692,11 @@ public class DynaShopExpansion extends PlaceholderExpansion {
         // %dynashop_current_sellMinPrice%
         if (identifier.equals("current_sellMinPrice") && player instanceof Player p) {
             // Player p = (Player) player;
-            ShopItemPlaceholderListener listener = mainPlugin.getShopItemPlaceholderListener();
+            ShopItemPlaceholderListener listener = plugin.getShopItemPlaceholderListener();
             
             // Vérification de nullité
             if (listener == null) {
-                mainPlugin.getLogger().warning("ShopItemPlaceholderListener est null dans DynaShopExpansion.onRequest()");
+                plugin.getLogger().warning("ShopItemPlaceholderListener est null dans DynaShopExpansion.onRequest()");
                 return "N/A";
             }
             
@@ -697,7 +705,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             
             if (shopId != null && itemId != null) {
                 // Récupérer le prix actuel
-                String price = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_min");
+                String price = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_min");
                 return price != null ? price : "N/A"; // Si le prix est null, retourner "N/A"
             }
             
@@ -707,11 +715,11 @@ public class DynaShopExpansion extends PlaceholderExpansion {
         // %dynashop_current_sellMaxPrice%
         if (identifier.equals("current_sellMaxPrice") && player instanceof Player p) {
             // Player p = (Player) player;
-            ShopItemPlaceholderListener listener = mainPlugin.getShopItemPlaceholderListener();
+            ShopItemPlaceholderListener listener = plugin.getShopItemPlaceholderListener();
             
             // Vérification de nullité
             if (listener == null) {
-                mainPlugin.getLogger().warning("ShopItemPlaceholderListener est null dans DynaShopExpansion.onRequest()");
+                plugin.getLogger().warning("ShopItemPlaceholderListener est null dans DynaShopExpansion.onRequest()");
                 return "N/A";
             }
             
@@ -720,7 +728,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             
             if (shopId != null && itemId != null) {
                 // Récupérer le prix actuel
-                String price = mainPlugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_max");
+                String price = plugin.getPriceFormatter().getPriceByType(shopId, itemId, "sell_max");
                 return price != null ? price : "N/A"; // Si le prix est null, retourner "N/A"
             }
             
@@ -967,7 +975,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             if (!(player instanceof Player)) return "N/A";
             
             try {
-                int remaining = mainPlugin.getTransactionLimiter()
+                int remaining = plugin.getTransactionLimiter()
                                     .getRemainingAmount((Player)player, shopID, itemID, true)
                                     .get();
                 return String.valueOf(remaining);
@@ -987,7 +995,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             if (!(player instanceof Player)) return "N/A";
             
             try {
-                int remaining = mainPlugin.getTransactionLimiter()
+                int remaining = plugin.getTransactionLimiter()
                                     .getRemainingAmount((Player)player, shopID, itemID, false)
                                     .get();
                 return String.valueOf(remaining);
@@ -996,6 +1004,91 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             }
         }
 
+        if (player != null) {
+            // Limite d'achat pour un item spécifique
+            if (identifier.startsWith("buy_limit_")) {
+                String itemInfo = identifier.substring("buy_limit_".length());
+                String[] parts = itemInfo.split("_");
+                if (parts.length == 2) {
+                    String shopId = parts[0];
+                    String itemId = parts[1];
+                    TransactionLimit limit = plugin.getTransactionLimiter().getTransactionLimit(shopId, itemId, true);
+                    if (limit == null || limit.getAmount() <= 0) {
+                        return plugin.getLangConfig().getPlaceholderNoLimit();
+                    }
+            
+                    try {
+                        int remaining = plugin.getTransactionLimiter().getRemainingAmount((Player) player, shopId, itemId, true).get();
+                        return String.valueOf(remaining);
+                    } catch (Exception e) {
+                        return "N/A";
+                    }
+                }
+            }
+            
+            // Limite de vente pour un item spécifique
+            if (identifier.startsWith("sell_limit_")) {
+                String itemInfo = identifier.substring("sell_limit_".length());
+                String[] parts = itemInfo.split("_");
+                if (parts.length == 2) {
+                    String shopId = parts[0];
+                    String itemId = parts[1];
+                    TransactionLimit limit = plugin.getTransactionLimiter().getTransactionLimit(shopId, itemId, false);
+                    if (limit == null || limit.getAmount() <= 0) {
+                        return plugin.getLangConfig().getPlaceholderNoLimit();
+                    }
+                    
+                    try {
+                        int remaining = plugin.getTransactionLimiter().getRemainingAmount((Player) player, shopId, itemId, false).get();
+                        return String.valueOf(remaining);
+                    } catch (Exception e) {
+                        return "N/A";
+                    }
+                }
+            }
+            
+            // Temps avant prochain reset pour un achat
+            if (identifier.startsWith("next_buy_reset_")) {
+                String itemInfo = identifier.substring("next_buy_reset_".length());
+                String[] parts = itemInfo.split("_");
+                if (parts.length == 2) {
+                    String shopId = parts[0];
+                    String itemId = parts[1];
+                    TransactionLimit limit = plugin.getTransactionLimiter().getTransactionLimit(shopId, itemId, true);
+                    if (limit == null || limit.getAmount() <= 0) {
+                        return plugin.getLangConfig().getPlaceholderNoLimit();
+                    }
+                    
+                    try {
+                        long millisRemaining = plugin.getTransactionLimiter().getNextAvailableTime((Player) player, shopId, itemId, true).get();
+                        return formatTimeRemaining(millisRemaining, limit);
+                    } catch (Exception e) {
+                        return "N/A";
+                    }
+                }
+            }
+            
+            // Temps avant prochain reset pour une vente
+            if (identifier.startsWith("next_sell_reset_")) {
+                String itemInfo = identifier.substring("next_sell_reset_".length());
+                String[] parts = itemInfo.split("_");
+                if (parts.length == 2) {
+                    String shopId = parts[0];
+                    String itemId = parts[1];
+                    TransactionLimit limit = plugin.getTransactionLimiter().getTransactionLimit(shopId, itemId, false);
+                    if (limit == null || limit.getAmount() <= 0) {
+                        return plugin.getLangConfig().getPlaceholderNoLimit();
+                    }
+                    
+                    try {
+                        long millisRemaining = plugin.getTransactionLimiter().getNextAvailableTime((Player) player, shopId, itemId, false).get();
+                        return formatTimeRemaining(millisRemaining, limit);
+                    } catch (Exception e) {
+                        return "N/A";
+                    }
+                }
+            }
+        }
         return null; // Placeholder non reconnu
 
         // // %dynashop_buy_min_price_shopID:itemID%
@@ -1064,6 +1157,49 @@ public class DynaShopExpansion extends PlaceholderExpansion {
         // return "";
     }
 
+    /**
+     * Formate un temps en millisecondes en une chaîne lisible
+     * @param millisRemaining Temps restant en millisecondes
+     * @return Chaîne formatée (ex: "04.03.2023 00:00:00" ou "01h 30m 45s")
+     */
+    private String formatTimeRemaining(long millisRemaining, TransactionLimit limit) {
+        if (millisRemaining <= 0) {
+            return plugin.getLangConfig().getPlaceholderNoLimit();
+        }
+        
+        // // Vérifier si c'est un reset basé sur une période (DAILY, WEEKLY, etc.)
+        // // Dans ce cas, on affiche la date complète
+        // LocalDateTime resetTime = LocalDateTime.now().plus(millisRemaining, ChronoUnit.MILLIS);
+        
+        // // Si le reset est à minuit pile ou début de semaine/mois, c'est probablement un reset périodique
+        // if (resetTime.getHour() == 0 && resetTime.getMinute() == 0 && resetTime.getSecond() == 0) {
+        //     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
+        //     return resetTime.format(formatter);
+        // }
+        
+        // Si c'est une période prédéfinie (DAILY, WEEKLY, etc.), on affiche la date complète
+        LimitPeriod period = limit.getPeriodEquivalent();
+        if (period != LimitPeriod.NONE) {
+            LocalDateTime resetTime = LocalDateTime.now().plus(millisRemaining, ChronoUnit.MILLIS);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
+            return resetTime.format(formatter);
+        }
+        
+        // Sinon c'est un cooldown numérique, on affiche juste le temps restant
+        long secondsRemaining = millisRemaining / 1000;
+        long hours = secondsRemaining / 3600;
+        long minutes = (secondsRemaining % 3600) / 60;
+        long seconds = secondsRemaining % 60;
+        
+        if (hours > 0) {
+            return String.format("%02dh %02dm %02ds", hours, minutes, seconds);
+        } else if (minutes > 0) {
+            return String.format("%02dm %02ds", minutes, seconds);
+        } else {
+            return String.format("%02ds", seconds);
+        }
+    }
+
     public String setPlaceholders(Player player, String identifier) {
         return PlaceholderAPI.setPlaceholders(player, identifier);
     }
@@ -1097,7 +1233,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
     //             // Maintenant que nous avons le shopID et itemID, on peut obtenir le prix
     //             return getPriceByType(shopID, itemID, priceType);
     //         } catch (Exception e) {
-    //             mainPlugin.getLogger().warning("Erreur lors de la récupération du contexte ShopGUI+: " + e.getMessage());
+    //             plugin.getLogger().warning("Erreur lors de la récupération du contexte ShopGUI+: " + e.getMessage());
     //             return "Erreur";
     //         }
     //     }

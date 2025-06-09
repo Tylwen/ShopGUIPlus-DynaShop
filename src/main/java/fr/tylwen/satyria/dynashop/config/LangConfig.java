@@ -30,6 +30,10 @@ public class LangConfig {
     private final String msgLimitCannotBuy;
     private final String msgLimitCannotSell;
     // private final String msgLimitExceeded;
+    private final String placeholderNoLimit;
+    private final String placeholderLimitBuyReached;
+    private final String placeholderLimitSellReached;
+    private final String placeholderLimitRemaining;
 
     public LangConfig(FileConfiguration config) {
         // // Load the language configuration
@@ -52,13 +56,17 @@ public class LangConfig {
         // this.messageNoShopItemPriceMaxMultiply = config.getString("messages.no-shop-item-price-max-multiply", "&cThe maximum price multiply for the shop item must be greater than 0.");
         this.msgOutOfStock = config.getString("stock.out-of-stock", "&cThis item is out of stock.");
         this.msgFullStock = config.getString("stock.full-stock", "&cThis item is full stock we cannot sell more.");
-        this.placeholderOutOfStock = config.getString("placeholder.out-of-stock", "&cOut of stock");
+        this.placeholderOutOfStock = config.getString("placeholder.out-of-stock", "&cOut of stock"); // "&cÉpuisé"
 
         this.msgLimitReached = config.getString("limit.reached", "&cYou have reached your limit. Try again in %time%");
         this.msgLimit = config.getString("limit.limit", "&cYou have reached your limit for this item.");
-
         this.msgLimitCannotBuy = config.getString("limit.cannotbuy", "&cLimit reached! You can only buy %limit% more of this item at this time.");
         this.msgLimitCannotSell = config.getString("limit.cannotSell", "&cLimit reached! You can only sell %limit% more of this item at this time.");
+        // this.placeholderNoLimit = config.getString("placeholder.no-limit", "&aNo limit");
+        this.placeholderNoLimit = config.getString("limit.placeholder.no-limit", "∞");
+        this.placeholderLimitBuyReached = config.getString("limit.placeholder.buy_reached", "&cLimit reached! Next buy in %time%");
+        this.placeholderLimitSellReached = config.getString("limit.placeholder.sell_reached", "&cLimit reached! Next sell in %time%");
+        this.placeholderLimitRemaining = config.getString("limit.placeholder.remaining", "&aRemaining: %limit%");
     }
 
     // Getters for the messages
@@ -90,5 +98,18 @@ public class LangConfig {
     }
     public String getMsgLimitCannotSell() {
         return msgLimitCannotSell;
+    }
+
+    public String getPlaceholderNoLimit() {
+        return this.placeholderNoLimit;
+    }
+    public String getPlaceholderLimitBuyReached() {
+        return this.placeholderLimitBuyReached;
+    }
+    public String getPlaceholderLimitSellReached() {
+        return this.placeholderLimitSellReached;
+    }
+    public String getPlaceholderLimitRemaining() {
+        return this.placeholderLimitRemaining;
     }
 }

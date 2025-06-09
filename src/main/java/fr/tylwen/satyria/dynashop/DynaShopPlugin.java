@@ -133,11 +133,11 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     }
 
     public DynaShopListener getDynaShopListener() {
-        return dynaShopListener;
+        return this.dynaShopListener;
     }
 
     public ShopItemPlaceholderListener getShopItemPlaceholderListener() {
-        return shopItemPlaceholderListener;
+        return this.shopItemPlaceholderListener;
     }
 
     public YamlConfiguration getConfigMain() {
@@ -211,11 +211,11 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     
     // Getter pour l'expansion PlaceholderAPI
     public DynaShopExpansion getPlaceholderExpansion() {
-        return placeholderExpansion;
+        return this.placeholderExpansion;
     }
 
     public TransactionLimiter getTransactionLimiter() {
-        return transactionLimiter;
+        return this.transactionLimiter;
     }
 
     // public CustomIngredientsManager getCustomIngredientsManager() {

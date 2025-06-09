@@ -17,6 +17,9 @@ import org.bukkit.inventory.InventoryView;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
+// import fr.tylwen.satyria.dynashop.limit.TransactionLimit;
+import fr.tylwen.satyria.dynashop.limit.TransactionLimiter.LimitPeriod;
+import fr.tylwen.satyria.dynashop.limit.TransactionLimiter.TransactionLimit;
 import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.brcdev.shopgui.shop.Shop;
@@ -25,6 +28,9 @@ import net.brcdev.shopgui.shop.item.ShopItemType;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 import net.brcdev.shopgui.exception.player.PlayerDataNotLoadedException;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 // import java.util.Collections;
@@ -1018,63 +1024,68 @@ public class ShopItemPlaceholderListener implements Listener {
 
             // Vérifier si la ligne contient des placeholders spécifiques
             if (line.contains("%dynashop_current_")) {
-                // Vérifier les placeholders individuels
-                // if (line.contains("%dynashop_current_buyPrice%") && 
-                //     (prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0"))) {
-                //     skipLine = true;
-                // }
                 if (line.contains("%dynashop_current_buyPrice%") &&
                     hideBuyPriceForUnbuyable &&
                     (prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0") || prices.get("buy").equals("-1"))) {
                     skipLine = true;
                 }
                 
-                // if (line.contains("%dynashop_current_sellPrice%") && 
-                //     (prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0"))) {
-                //     skipLine = true;
-                // }
                 if (line.contains("%dynashop_current_sellPrice%") && 
                     hideSellPriceForUnsellable &&
                     (prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0") || prices.get("sell").equals("-1"))) {
                     skipLine = true;
                 }
                 
-                // Vérifier le placeholder composite buy
-                // if (line.contains("%dynashop_current_buy%") && 
-                //     (prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0"))) {
-                //     skipLine = true;
-                // }
                 if (line.contains("%dynashop_current_buy%") && 
                     hideBuyPriceForUnbuyable &&
                     (prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0") || prices.get("buy").equals("-1"))) {
                     skipLine = true;
                 }
                 
-                // Vérifier le placeholder composite sell
-                // if (line.contains("%dynashop_current_sell%") && 
-                //     (prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0"))) {
-                //     skipLine = true;
-                // }
                 if (line.contains("%dynashop_current_sell%") && 
                     hideSellPriceForUnsellable &&
                     (prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0") || prices.get("sell").equals("-1"))) {
                     skipLine = true;
                 }
 
-                // // Vérifier les placeholders de stock
-                // if (line.contains("%dynashop_current_stock%") && 
-                //     // (prices.get("stock").equals("N/A") || prices.get("stock").equals("0"))) {
-                //     (prices.get("stock").equals("N/A"))) {
-                //     skipLine = true;
-                // }
-                // if (line.contains("%dynashop_current_stock_ratio%") && 
-                //     // (prices.get("stock").equals("N/A") || prices.get("stock").equals("0"))) {
-                //     (prices.get("stock").equals("N/A"))) {
-                //     skipLine = true;
-                // }
                 // Vérifier les placeholders de stock - Ajouter une vérification du mode STOCK
                 if ((line.contains("%dynashop_current_stock%") || line.contains("%dynashop_current_maxstock%") || line.contains("%dynashop_current_stock_ratio%") || line.contains("%dynashop_current_colored_stock_ratio%")) && 
                     ((!Boolean.parseBoolean(prices.get("is_stock_mode")) && !Boolean.parseBoolean(prices.get("is_static_stock_mode"))) || prices.get("stock").equals("N/A"))) {
+                    skipLine = true;
+                }
+                
+                // Vérifier les placeholders de limite d'achat
+                if (line.contains("%dynashop_current_buy_limit%") && 
+                    (prices.get("buy_limit").equals("∞"))) {
+                    skipLine = true;
+                }
+                
+                // Vérifier les placeholders de limite de vente
+                if (line.contains("%dynashop_current_sell_limit%") && 
+                    (prices.get("sell_limit").equals("∞"))) {
+                    skipLine = true;
+                }
+                
+                // Vérifier les placeholders de temps avant reset d'achat
+                if (line.contains("%dynashop_current_buy_reset_time%") && 
+                    (prices.get("buy_reset_time").equals("∞"))) {
+                    skipLine = true;
+                }
+                
+                // Vérifier les placeholders de temps avant reset de vente
+                if (line.contains("%dynashop_current_sell_reset_time%") && 
+                    (prices.get("sell_reset_time").equals("∞"))) {
+                    skipLine = true;
+                }
+                
+                // Ajouter les conditions pour les statuts de limite
+                if (line.contains("%dynashop_current_buy_limit_status%") && 
+                    (prices.get("buy_reset_time").equals("∞") || prices.get("buy_limit").equals("∞"))) {
+                    skipLine = true;
+                }
+                
+                if (line.contains("%dynashop_current_sell_limit_status%") && 
+                    (prices.get("sell_reset_time").equals("∞") || prices.get("sell_limit").equals("∞"))) {
                     skipLine = true;
                 }
                 
@@ -1091,7 +1102,40 @@ public class ShopItemPlaceholderListener implements Listener {
                         .replace("%dynashop_current_stock%", prices.get("stock"))
                         .replace("%dynashop_current_maxstock%", prices.get("stock_max"))
                         .replace("%dynashop_current_stock_ratio%", prices.get("base_stock"))
-                        .replace("%dynashop_current_colored_stock_ratio%", prices.get("colored_stock_ratio"));
+                        .replace("%dynashop_current_colored_stock_ratio%", prices.get("colored_stock_ratio"))
+                        .replace("%dynashop_current_buy_limit%", prices.get("buy_limit"))
+                        .replace("%dynashop_current_sell_limit%", prices.get("sell_limit"))
+                        .replace("%dynashop_current_buy_reset_time%", prices.get("buy_reset_time"))
+                        .replace("%dynashop_current_sell_reset_time%", prices.get("sell_reset_time"));
+                        
+                    // Remplacements conditionnels pour les limites atteintes
+                    if (prices.get("buy_limit_reached").equals("true")) {
+                        line = line.replace("%dynashop_current_buy_limit_status%", 
+                            // ChatColor.translateAlternateColorCodes('&', "&cLimite atteinte! Prochain achat dans: " + prices.get("buy_reset_time")));
+                            ChatColor.translateAlternateColorCodes('&', 
+                                plugin.getLangConfig().getPlaceholderLimitBuyReached()
+                                    .replace("%time%", prices.get("buy_reset_time"))));
+                    } else {
+                        line = line.replace("%dynashop_current_buy_limit_status%", 
+                            // ChatColor.translateAlternateColorCodes('&', "&aRestant: " + prices.get("buy_limit")));
+                            ChatColor.translateAlternateColorCodes('&', 
+                                plugin.getLangConfig().getPlaceholderLimitRemaining()
+                                    .replace("%limit%", prices.get("buy_limit"))));
+                    }
+                    
+                    if (prices.get("sell_limit_reached").equals("true")) {
+                        line = line.replace("%dynashop_current_sell_limit_status%", 
+                            // ChatColor.translateAlternateColorCodes('&', "&cLimite atteinte! Prochaine vente dans: " + prices.get("sell_reset_time")));
+                            ChatColor.translateAlternateColorCodes('&', 
+                                plugin.getLangConfig().getPlaceholderLimitSellReached()
+                                    .replace("%time%", prices.get("sell_reset_time"))));
+                    } else {
+                        line = line.replace("%dynashop_current_sell_limit_status%", 
+                            // ChatColor.translateAlternateColorCodes('&', "&aRestant: " + prices.get("sell_limit")));
+                            ChatColor.translateAlternateColorCodes('&', 
+                                plugin.getLangConfig().getPlaceholderLimitRemaining()
+                                    .replace("%limit%", prices.get("sell_limit"))));
+                    }
                 }
             }
             
@@ -1358,6 +1402,67 @@ public class ShopItemPlaceholderListener implements Listener {
                 }
             }
         }
+
+        // Ajouter les informations de limites de transaction
+        if (player != null) {
+            // Récupérer les limites d'achat
+            TransactionLimit buyLimit = plugin.getTransactionLimiter().getTransactionLimit(shopId, itemId, true);
+            if (buyLimit != null && buyLimit.getAmount() > 0) {
+                try {
+                    int buyRemaining = plugin.getTransactionLimiter().getRemainingAmount(player, shopId, itemId, true).get();
+                    prices.put("buy_limit", String.valueOf(buyRemaining));
+                    
+                    // Récupérer le temps avant reset pour achat
+                    long buyResetTime = plugin.getTransactionLimiter().getNextAvailableTime(player, shopId, itemId, true).get();
+                    prices.put("buy_reset_time", formatTimeRemaining(buyResetTime, buyLimit));
+                    
+                    // Ajouter un indicateur si la limite est atteinte
+                    if (buyRemaining <= 0) {
+                        prices.put("buy_limit_reached", "true");
+                    } else {
+                        prices.put("buy_limit_reached", "false");
+                    }
+                } catch (Exception e) {
+                    prices.put("buy_limit", "N/A");
+                    prices.put("buy_reset_time", "N/A");
+                    prices.put("buy_limit_reached", "false");
+                }
+            } else {
+                // Pas de limite
+                prices.put("buy_limit", "∞");
+                prices.put("buy_reset_time", "∞");
+                prices.put("buy_limit_reached", "false");
+            }
+            
+            // Récupérer les limites de vente
+            TransactionLimit sellLimit = plugin.getTransactionLimiter().getTransactionLimit(shopId, itemId, false);
+            if (sellLimit != null && sellLimit.getAmount() > 0) {
+                try {
+                    int sellRemaining = plugin.getTransactionLimiter().getRemainingAmount(player, shopId, itemId, false).get();
+                    prices.put("sell_limit", String.valueOf(sellRemaining));
+                    
+                    // Récupérer le temps avant reset pour vente
+                    long sellResetTime = plugin.getTransactionLimiter().getNextAvailableTime(player, shopId, itemId, false).get();
+                    prices.put("sell_reset_time", formatTimeRemaining(sellResetTime, sellLimit));
+                    
+                    // Ajouter un indicateur si la limite est atteinte
+                    if (sellRemaining <= 0) {
+                        prices.put("sell_limit_reached", "true");
+                    } else {
+                        prices.put("sell_limit_reached", "false");
+                    }
+                } catch (Exception e) {
+                    prices.put("sell_limit", "N/A");
+                    prices.put("sell_reset_time", "N/A");
+                    prices.put("sell_limit_reached", "false");
+                }
+            } else {
+                // Pas de limite
+                prices.put("sell_limit", "∞");
+                prices.put("sell_reset_time", "∞");
+                prices.put("sell_limit_reached", "false");
+            }
+        }
         
         // Si pas en cache ou expiré, calculer et mettre en cache
         String currencyPrefix = "";
@@ -1455,7 +1560,13 @@ public class ShopItemPlaceholderListener implements Listener {
                     .replace("%dynashop_current_stock%", "Loading...")
                     .replace("%dynashop_current_maxstock%", "Loading...")
                     .replace("%dynashop_current_stock_ratio%", "Loading...")
-                    .replace("%dynashop_current_colored_stock_ratio%", "Loading...");
+                    .replace("%dynashop_current_colored_stock_ratio%", "Loading...")
+                    .replace("%dynashop_current_buy_limit%", "Loading...")
+                    .replace("%dynashop_current_sell_limit%", "Loading...")
+                    .replace("%dynashop_current_buy_reset_time%", "Loading...")
+                    .replace("%dynashop_current_sell_reset_time%", "Loading...")
+                    .replace("%dynashop_current_buy_limit_status%", "Loading...")
+                    .replace("%dynashop_current_sell_limit_status%", "Loading...");
                 processed.add(tempLine);
             } else {
                 processed.add(line);
@@ -2074,6 +2185,40 @@ public class ShopItemPlaceholderListener implements Listener {
     //         return 0.0;
     //     }
     // }
+
+    /**
+     * Formate un temps en millisecondes en une chaîne lisible selon le type de limite
+     * @param millisRemaining Temps restant en millisecondes
+     * @param limit La limite de transaction pour déterminer le format
+     * @return Chaîne formatée (ex: "04.03.2023 00:00:00" ou "01h 30m 45s")
+     */
+    private String formatTimeRemaining(long millisRemaining, TransactionLimit limit) {
+        if (millisRemaining <= 0) {
+            return "∞";
+        }
+        
+        // Si c'est une période prédéfinie (DAILY, WEEKLY, etc.), afficher la date complète
+        LimitPeriod period = limit.getPeriodEquivalent();
+        if (period != LimitPeriod.NONE) {
+            LocalDateTime resetTime = LocalDateTime.now().plus(millisRemaining, ChronoUnit.MILLIS);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
+            return resetTime.format(formatter);
+        }
+        
+        // Sinon c'est un cooldown numérique, on affiche juste le temps restant
+        long secondsRemaining = millisRemaining / 1000;
+        long hours = secondsRemaining / 3600;
+        long minutes = (secondsRemaining % 3600) / 60;
+        long seconds = secondsRemaining % 60;
+        
+        if (hours > 0) {
+            return String.format("%02dh %02dm %02ds", hours, minutes, seconds);
+        } else if (minutes > 0) {
+            return String.format("%02dm %02ds", minutes, seconds);
+        } else {
+            return String.format("%02ds", seconds);
+        }
+    }
 
     public void shutdown() {
         // if (refreshTask != null) {

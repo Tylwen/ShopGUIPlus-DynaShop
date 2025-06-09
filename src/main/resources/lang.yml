@@ -9,3 +9,8 @@ limit:
   cannotSell: "&cLimit reached! You can only sell %limit% more of this item at this time."
   reached: "&cYou have reached your limit. Try again in %time%"
   limit:  "&cYou have reached your limit for this item."
+  placeholders:
+    no_limit: "∞"
+    buy_reached: "&cLimit reached! Next buy in %time%"
+    sell_reached: "&cLimit reached! Next sell in %time%"
+    remaining: "&aRemaining: %limit%"

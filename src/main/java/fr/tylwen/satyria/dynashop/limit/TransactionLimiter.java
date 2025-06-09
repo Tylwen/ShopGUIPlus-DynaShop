@@ -648,7 +648,7 @@ public class TransactionLimiter {
     //     # OU
     //     # cooldown: DAILY  # Période prédéfinie (DAILY, WEEKLY, MONTHLY, YEARLY, FOREVER)
     
-    private TransactionLimit getTransactionLimit(String shopId, String itemId, boolean isBuy) {
+    public TransactionLimit getTransactionLimit(String shopId, String itemId, boolean isBuy) {
         String cacheKey = shopId + ":" + itemId + ":" + (isBuy ? "buy" : "sell");
         
         // Vérifier le cache
@@ -1275,7 +1275,7 @@ public class TransactionLimiter {
     //         return cooldown;
     //     }
     // }
-    private static class TransactionLimit {
+    public static class TransactionLimit {
         private final int amount;
         private final int cooldownSeconds;
         
