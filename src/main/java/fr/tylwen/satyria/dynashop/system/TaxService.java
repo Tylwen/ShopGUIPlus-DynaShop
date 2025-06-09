@@ -1,4 +1,4 @@
-package fr.tylwen.satyria.dynashop.tax;
+package fr.tylwen.satyria.dynashop.system;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import net.milkbowl.vault.economy.Economy;
@@ -257,5 +257,9 @@ public class TaxService {
 
     public String getTaxMode() {
         return taxMode;
+    }
+
+    public Economy getEconomy() {
+        return economy;
     }
 }

@@ -1024,4 +1024,65 @@ public class DataManager {
             // plugin.getLogger().info("Migration des données de prix vers le nouveau schéma réussie!");
         }
     }
+
+    public double getInflationFactor() {
+        try (Connection conn = getConnection();
+            PreparedStatement stmt = conn.prepareStatement("SELECT value FROM " + dataConfig.getDatabaseTablePrefix() + "_metadata WHERE key = 'inflation_factor'")) {
+            
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getDouble("value");
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Error loading inflation factor: " + e.getMessage());
+        }
+        return 1.0; // Valeur par défaut
+    }
+
+    public long getLastInflationUpdate() {
+        try (Connection conn = getConnection();
+            PreparedStatement stmt = conn.prepareStatement("SELECT value FROM " + dataConfig.getDatabaseTablePrefix() + "_metadata WHERE key = 'last_inflation_update'")) {
+            
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return Long.parseLong(rs.getString("value"));
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Error loading last inflation update: " + e.getMessage());
+        }
+        return 0L; // Valeur par défaut
+    }
+
+    public void saveInflationData(double factor, long timestamp) {
+        try (Connection conn = getConnection()) {
+            // S'assurer que la table metadata existe
+            PreparedStatement createStmt = conn.prepareStatement(
+                "CREATE TABLE IF NOT EXISTS " + dataConfig.getDatabaseTablePrefix() + "_metadata (" +
+                "key VARCHAR(50) PRIMARY KEY, " +
+                "value TEXT NOT NULL)"
+            );
+            createStmt.executeUpdate();
+            
+            // Sauvegarder le facteur d'inflation
+            PreparedStatement factorStmt = conn.prepareStatement(
+                "INSERT INTO " + dataConfig.getDatabaseTablePrefix() + "_metadata (key, value) VALUES ('inflation_factor', ?) " +
+                "ON DUPLICATE KEY UPDATE value = ?"
+            );
+            factorStmt.setString(1, String.valueOf(factor));
+            factorStmt.setString(2, String.valueOf(factor));
+            factorStmt.executeUpdate();
+            
+            // Sauvegarder le timestamp du dernier update
+            PreparedStatement timeStmt = conn.prepareStatement(
+                "INSERT INTO " + dataConfig.getDatabaseTablePrefix() + "_metadata (key, value) VALUES ('last_inflation_update', ?) " +
+                "ON DUPLICATE KEY UPDATE value = ?"
+            );
+            timeStmt.setString(1, String.valueOf(timestamp));
+            timeStmt.setString(2, String.valueOf(timestamp));
+            timeStmt.executeUpdate();
+            
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Error saving inflation data: " + e.getMessage());
+        }
+    }
 }

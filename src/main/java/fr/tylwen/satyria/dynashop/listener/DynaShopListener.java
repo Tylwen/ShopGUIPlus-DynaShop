@@ -844,7 +844,7 @@ public class DynaShopListener implements Listener {
             //         String linkItem = parts[1];
             //         ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkShop).getShopItem(linkItem).getItem();
             //         // double linkedMax = getOrLoadPrice(null, linkShop, linkItem, linkedItemStack, visited).getMaxBuyPrice();
-            //         // double linkedMax = getOrLoadPrice(linkShop, linkItem, linkedItemStack).getMaxBuyPrice();
+            //         // double linkedMax = getOrLoadPrice(linkShop, linkItem, linkedItemStack).getBuyPrice();
             //         DynamicPrice linkedPrice = getOrLoadPrice(null, linkShop, linkItem, linkedItemStack, visited);
             //         double linkedMax = (linkedPrice != null) ? linkedPrice.getMaxBuyPrice() : maxBuy; // ou une valeur par défaut
             //         DynaShopPlugin.getInstance().getLogger().info("Linked maxBuy for " + itemID + " in shop " + shopID + ": " + linkedMax);
@@ -1033,11 +1033,11 @@ public class DynaShopListener implements Listener {
             // stock = priceFromDatabase.map(DynamicPrice::getStock).orElse(priceData.stock.orElse(0));
             // minStock = priceData.minStock.orElseGet(() -> {
             //     boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-            //     return hasStock ? plugin.getDataConfig().getStockMin() : 0;
+            //     return hasStock ? dataConfig.getStockMin() : 0;
             // });
             // maxStock = priceData.maxStock.orElseGet(() -> {
             //     boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-            //     return hasStock ? plugin.getDataConfig().getStockMax() : Integer.MAX_VALUE;
+            //     return hasStock ? dataConfig.getStockMax() : Integer.MAX_VALUE;
             // });
             stockSellModifier = priceData.stockSellModifier.orElseGet(() -> {
                 boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
@@ -1172,6 +1172,9 @@ public class DynaShopListener implements Listener {
                 price.setMaxSellPrice(price.getMaxSellPrice() * multiplier);
             }
         }
+        
+        // Appliquer l'inflation après le chargement du prix
+        price.applyInflation(shopID, itemID);
         
         return price;
     }

@@ -17,10 +17,9 @@ import org.bukkit.inventory.InventoryView;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
-// import fr.tylwen.satyria.dynashop.limit.TransactionLimit;
-import fr.tylwen.satyria.dynashop.limit.TransactionLimiter.LimitPeriod;
-import fr.tylwen.satyria.dynashop.limit.TransactionLimiter.TransactionLimit;
 import fr.tylwen.satyria.dynashop.price.DynamicPrice;
+import fr.tylwen.satyria.dynashop.system.TransactionLimiter.LimitPeriod;
+import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionLimit;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.item.ShopItem;

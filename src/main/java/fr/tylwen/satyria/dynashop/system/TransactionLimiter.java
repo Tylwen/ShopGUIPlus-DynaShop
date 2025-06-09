@@ -1,4 +1,4 @@
-package fr.tylwen.satyria.dynashop.limit;
+package fr.tylwen.satyria.dynashop.system;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 
@@ -1354,6 +1354,45 @@ public class TransactionLimiter {
         // Combiner tous les résultats
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
                 .thenApply(v -> futures.stream().allMatch(CompletableFuture::join));
+    }
+
+    /**
+     * Réinitialise toutes les limites pour un joueur
+     * @param playerUuid UUID du joueur
+     * @return Un CompletableFuture contenant le nombre d'entrées supprimées
+     */
+    public CompletableFuture<Integer> resetAllLimits(UUID playerUuid) {
+        String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
+        
+        // Liste des tables à nettoyer
+        String[] tables = {
+            tablePrefix + "_tx_daily",
+            tablePrefix + "_tx_weekly",
+            tablePrefix + "_tx_monthly",
+            tablePrefix + "_tx_yearly",
+            tablePrefix + "_tx_forever",
+            tablePrefix + "_transaction_limits" // Table principale aussi
+        };
+        
+        // CompletableFuture pour attendre toutes les opérations
+        CompletableFuture<Integer> totalDeleted = CompletableFuture.completedFuture(0);
+        
+        for (String table : tables) {
+            String query = "DELETE FROM " + table + " WHERE player_uuid = ?";
+            
+            CompletableFuture<Integer> tableFuture = plugin.getDataManager().executeAsync(() -> {
+                try (Connection connection = plugin.getDataManager().getConnection();
+                    PreparedStatement stmt = connection.prepareStatement(query)) {
+                    stmt.setString(1, playerUuid.toString());
+                    return stmt.executeUpdate();
+                }
+            });
+            
+            // Additionner les résultats
+            totalDeleted = totalDeleted.thenCombine(tableFuture, Integer::sum);
+        }
+        
+        return totalDeleted;
     }
 
     // public void recordBulkTransactions(List<TransactionRecord> records) {

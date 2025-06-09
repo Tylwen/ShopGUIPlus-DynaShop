@@ -28,8 +28,8 @@ import org.bukkit.scheduler.BukkitTask;
 
 import fr.tylwen.satyria.dynashop.cache.CacheManager;
 import fr.tylwen.satyria.dynashop.command.DynaShopCommand;
-import fr.tylwen.satyria.dynashop.command.LimitResetCommand;
-import fr.tylwen.satyria.dynashop.command.ReloadCommand;
+// import fr.tylwen.satyria.dynashop.command.LimitResetCommand;
+// import fr.tylwen.satyria.dynashop.command.ReloadSubCommand;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
 import fr.tylwen.satyria.dynashop.config.LangConfig;
 import fr.tylwen.satyria.dynashop.price.DynamicPrice;
@@ -46,18 +46,19 @@ import fr.tylwen.satyria.dynashop.database.ItemDataManager;
 import fr.tylwen.satyria.dynashop.hook.DynaShopExpansion;
 // import fr.tylwen.satyria.dynashop.hook.DynaShopItemProvider;
 import fr.tylwen.satyria.dynashop.hook.ShopGUIPlusHook;
-import fr.tylwen.satyria.dynashop.limit.TransactionLimiter;
 // import fr.tylwen.satyria.dynashop.hook.ShopItemProcessor;
 import fr.tylwen.satyria.dynashop.listener.DynaShopListener;
 import fr.tylwen.satyria.dynashop.listener.ShopItemPlaceholderListener;
 import fr.tylwen.satyria.dynashop.price.PriceRecipe;
 import fr.tylwen.satyria.dynashop.price.PriceStock;
+import fr.tylwen.satyria.dynashop.system.InflationManager;
+import fr.tylwen.satyria.dynashop.system.TaxService;
+import fr.tylwen.satyria.dynashop.system.TransactionLimiter;
 // import fr.tylwen.satyria.dynashop.packet.ItemPacketInterceptor;
 // import fr.tylwen.satyria.dynashop.utils.CommentedConfiguration;
 // import fr.tylwen.satyria.dynashop.task.ReloadDatabaseTask;
 // import fr.tylwen.satyria.dynashop.task.DynamicPricesTask;
 import fr.tylwen.satyria.dynashop.task.WaitForShopsTask;
-import fr.tylwen.satyria.dynashop.tax.TaxService;
 import fr.tylwen.satyria.dynashop.utils.PriceFormatter;
 // import fr.tylwen.satyria.dynashop.data.ShopFile;
 // import net.brcdev.shopgui.ShopGuiPlugin;
@@ -107,6 +108,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private DynaShopExpansion placeholderExpansion;
     private TransactionLimiter transactionLimiter;
     private TaxService taxService;
+    private InflationManager inflationManager;
     // private ShopRefreshManager shopRefreshManager;
     // private ItemPacketInterceptor packetInterceptor;
     private PriceFormatter priceFormatter;
@@ -224,6 +226,10 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         return this.taxService;
     }
 
+    public InflationManager getInflationManager() {
+        return this.inflationManager;
+    }
+
     // public CustomIngredientsManager getCustomIngredientsManager() {
     //     return this.customIngredientsManager;
     // }
@@ -287,8 +293,8 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(this.shopItemPlaceholderListener, this);
 
         getCommand("dynashop").setExecutor(new DynaShopCommand(this));
-        getCommand("dynashop").setExecutor(new LimitResetCommand(this));
-        getCommand("dynashop").setExecutor(new ReloadCommand(this));
+        // getCommand("dynashop").setExecutor(new LimitResetCommand(this));
+        // getCommand("dynashop").setExecutor(new ReloadSubCommand(this));
         // getCommand("dynashop").setTabCompleter(new ReloadCommand(this));
 
         this.dataManager.initDatabase();
@@ -390,6 +396,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         this.batchDatabaseUpdater = new BatchDatabaseUpdater(this);
         this.transactionLimiter = new TransactionLimiter(this);
         this.taxService = new TaxService(this);
+        this.inflationManager = new InflationManager(this);
         // this.recipeCacheManager = new RecipeCacheManager(15 * 60 * 1000L); // 15 minutes en ms
         this.priceFormatter = new PriceFormatter(this);
         // this.customIngredientsManager = new CustomIngredientsManager();

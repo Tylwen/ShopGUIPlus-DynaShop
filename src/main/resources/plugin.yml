@@ -17,17 +17,59 @@ commands:
     usage: /<command> <action> [args]
     aliases: [ ds, dshop ]
     permission: dynashop.command
-    permission-message: '&cVous n''avez pas la permission d''utiliser cette commande.'
+    # permission-message: '&cVous n''avez pas la permission d''utiliser cette commande.'
     children:
       reload:
         description: Recharger la configuration de DynaShop
         usage: /<command> reload
         permission: dynashop.reload
-        permission-message: '&cVous n''avez pas la permission d''utiliser cette commande.'
-      resetlimits:
-        description: Réinitialise les limites d'achat/vente d'un joueur
-        usage: /<command> resetlimits <joueur> <shopID> <itemID>
-        permission: dynashop.admin.resetlimits
+        # permission-message: '&cVous n''avez pas la permission d''utiliser cette commande.'
+      # resetlimits:
+      #   description: Réinitialise les limites d'achat/vente d'un joueur
+      #   usage: /<command> resetlimits <joueur> <shopID> <itemID>
+      #   permission: dynashop.admin.resetlimits
+      limit:
+        description: Gérer les limites d'achat/vente
+        usage: /<command> limit <action> [args]
+        permission: dynashop.admin.limit
+        children:
+          info:
+            description: Afficher les limites d'achat/vente d'un joueur
+            usage: /<command> limit info <player> <shopID> <itemID>
+            permission: dynashop.admin.limit.info
+          reset:
+            description: Réinitialiser les limites d'achat/vente
+            usage: /<command> limit reset <player> <shopID> <itemID>
+            permission: dynashop.admin.limit.reset
+          resetall:
+            description: Réinitialiser toutes les limites d'achat/vente
+            usage: /<command> limit resetall <player>
+            permission: dynashop.admin.limit.resetall
+      inflation:
+        description: Gérer l'inflation
+        usage: /<command> inflation <action> [args]
+        permission: dynashop.admin.inflation
+        children:
+          info:
+            description: Afficher les informations sur l'inflation
+            usage: /<command> inflation info
+            permission: dynashop.admin.inflation.info
+          enable:
+            description: Activer l'inflation
+            usage: /<command> inflation enable
+            permission: dynashop.admin.inflation.enable
+          disable:
+            description: Désactiver l'inflation
+            usage: /<command> inflation disable
+            permission: dynashop.admin.inflation.disable
+          reset:
+            description: Réinitialiser l'inflation
+            usage: /<command> inflation reset
+            permission: dynashop.admin.inflation.reset
+          update:
+            description: Mettre à jour l'inflation
+            usage: /<command> inflation update
+            permission: dynashop.admin.inflation.update
 
 # permission:
 #   dynashop.*:
@@ -53,3 +95,7 @@ commands:
 #   dynashop.shop.*:
 #     default: true
 #   dynashop.set:
+permissions:
+  dynashop.admin.limit:
+    description: Permet de gérer les limites de transaction
+    default: op

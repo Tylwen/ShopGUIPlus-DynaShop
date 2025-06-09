@@ -41,8 +41,7 @@ public class LimitResetCommand implements CommandExecutor {
             plugin.getTransactionLimiter().resetLimits(target, shopID, itemID)
                 .thenAccept(success -> {
                     if (success) {
-                        sender.sendMessage(ChatColor.GREEN + "Limites réinitialisées pour " + target.getName() + 
-                                          " sur " + shopID + ":" + itemID);
+                        sender.sendMessage(ChatColor.GREEN + "Limites réinitialisées pour " + target.getName() + " sur " + shopID + ":" + itemID);
                     } else {
                         sender.sendMessage(ChatColor.RED + "Erreur lors de la réinitialisation des limites.");
                     }

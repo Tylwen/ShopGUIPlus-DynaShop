@@ -611,6 +611,35 @@ public class ShopConfigManager {
     }
 
     /**
+     * Récupère la catégorie d'un item dans un shop.
+     * Cette information est utilisée pour appliquer des taux d'inflation spécifiques.
+     *
+     * @param shopId L'ID du shop
+     * @param itemId L'ID de l'item
+     * @return La catégorie de l'item, ou null si non définie
+     */
+    public String getItemCategory(String shopId, String itemId) {
+        // D'abord, essayer de récupérer la catégorie depuis la configuration de l'item
+        Optional<String> categoryFromItem = getItemValue(shopId, itemId, "category", String.class);
+        if (categoryFromItem.isPresent()) {
+            return categoryFromItem.get();
+        }
+        
+        // Ensuite, essayer de récupérer la catégorie depuis la configuration du shop
+        YamlConfiguration config = getOrUpdateShopConfig(shopId);
+        ConfigurationSection shopSection = config.getConfigurationSection(shopId);
+        if (shopSection != null) {
+            String shopCategory = shopSection.getString("category");
+            if (shopCategory != null && !shopCategory.isEmpty()) {
+                return shopCategory;
+            }
+        }
+        
+        // Si aucune catégorie n'est définie, utiliser l'ID du shop comme catégorie par défaut
+        return shopId;
+    }
+
+    /**
      * Trouve une section dans une ConfigurationSection en ignorant la casse
      */
     private ConfigurationSection findSectionIgnoreCase(ConfigurationSection parent, String sectionName) {

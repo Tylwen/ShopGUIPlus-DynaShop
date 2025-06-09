@@ -78,6 +78,28 @@ tax:
   # Log transactions in the console
   log-transactions: false
 
+# Configuration du système d'inflation
+inflation:
+  enabled: false
+  base-rate: 0.5 # Taux d'inflation de base (% par jour)
+  transaction-multiplier: 0.001 # Facteur d'inflation basé sur les transactions (% par transaction)
+  money-threshold: 1000000 # Seuil de masse monétaire
+  money-rate: 0.1 # Taux d'inflation basé sur la masse monétaire (% par million au-delà du seuil)
+  deflation-rate: 0.05 # Taux de déflation automatique (% par jour)
+  update-interval: 24 # Intervalle de mise à jour de l'inflation (en heures)
+  max-factor: 5.0 # Facteur d'inflation maximum
+  
+  # Taux d'inflation spécifiques par catégorie
+  categories:
+    food: 0.3 # Les aliments s'inflatent moins rapidement
+    minerals: 0.8 # Les minéraux s'inflatent plus rapidement
+    rare_items: 1.2 # Les objets rares s'inflatent encore plus rapidement
+  
+  # Taux d'inflation spécifiques par item (format: shopID:itemID)
+  items:
+    resource:diamond: 1.5 # Les diamants s'inflatent très rapidement
+    farm:wheat: 0.2 # Le blé s'inflate très lentement
+
 # Enchants value multipliers, for every level (if the item has this enchant, its value will be multiplied by the specified multiplier)
 # Those values are cumulative if an item has multiples enchants ; they'll be applied after the value of the item stack was calculated ; they won't apply if the item value already has that enchantment
 enchant_multipliers:

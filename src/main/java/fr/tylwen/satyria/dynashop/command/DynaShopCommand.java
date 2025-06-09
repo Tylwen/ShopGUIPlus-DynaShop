@@ -1,5 +1,8 @@
 package fr.tylwen.satyria.dynashop.command;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -8,22 +11,66 @@ import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 
 public class DynaShopCommand implements CommandExecutor {
     private final DynaShopPlugin plugin;
-
+    private final Map<String, SubCommand> subCommands = new HashMap<>();
+    
     public DynaShopCommand(DynaShopPlugin plugin) {
         this.plugin = plugin;
+        
+        // Enregistrer les sous-commandes
+        registerSubCommand(new ReloadSubCommand(plugin));
+        registerSubCommand(new InflationSubCommand(plugin));
+        registerSubCommand(new LimitSubCommand(plugin));
+        // Ajouter d'autres sous-commandes ici
     }
-
+    
+    private void registerSubCommand(SubCommand subCommand) {
+        subCommands.put(subCommand.getName().toLowerCase(), subCommand);
+    }
+    
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0) {
             sender.sendMessage("§eDynaShop Plugin - Version " + plugin.getDescription().getVersion());
-            sender.sendMessage("§eUse /dynashop help for a list of commands.");
+            sender.sendMessage("§eUtilisez /dynashop help pour la liste des commandes.");
             return true;
         }
-
-        // Handle subcommands here (e.g., /dynashop reload, /dynashop shop, etc.)
-        // Example: if (args[0].equalsIgnoreCase("reload")) { ... }
-
-        return false; // Command not recognized
+        
+        String subCommandName = args[0].toLowerCase();
+        
+        if (subCommandName.equals("help")) {
+            showHelp(sender);
+            return true;
+        }
+        
+        SubCommand subCommand = subCommands.get(subCommandName);
+        
+        if (subCommand == null) {
+            sender.sendMessage("§cCommande inconnue. Utilisez /dynashop help pour la liste des commandes.");
+            return true;
+        }
+        
+        // Vérifier la permission
+        if (!subCommand.getPermission().isEmpty() && !sender.hasPermission(subCommand.getPermission())) {
+            sender.sendMessage("§cVous n'avez pas la permission d'utiliser cette commande.");
+            return true;
+        }
+        
+        // Créer un nouveau tableau d'arguments sans le premier (qui est le nom de la sous-commande)
+        String[] subArgs = new String[args.length - 1];
+        System.arraycopy(args, 1, subArgs, 0, args.length - 1);
+        
+        // Exécuter la sous-commande
+        return subCommand.execute(sender, subArgs);
+    }
+    
+    private void showHelp(CommandSender sender) {
+        sender.sendMessage("§e--- DynaShop Commands ---");
+        
+        for (SubCommand subCommand : subCommands.values()) {
+            // Afficher uniquement les commandes pour lesquelles le joueur a la permission
+            if (subCommand.getPermission().isEmpty() || sender.hasPermission(subCommand.getPermission())) {
+                sender.sendMessage("§e" + subCommand.getUsage() + " §7- " + subCommand.getDescription());
+            }
+        }
     }
 }

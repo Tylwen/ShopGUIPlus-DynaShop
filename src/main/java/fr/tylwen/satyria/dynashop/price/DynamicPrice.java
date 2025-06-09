@@ -4,6 +4,7 @@ import org.bukkit.entity.Player;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
+import fr.tylwen.satyria.dynashop.system.InflationManager;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 import net.brcdev.shopgui.modifier.PriceModifier;
 import net.brcdev.shopgui.modifier.PriceModifierActionType;
@@ -607,4 +608,30 @@ public class DynamicPrice {
     //             return -1.0; // Indique un prix désactivé
     //     }
     // }
+
+    /**
+     * Applique le facteur d'inflation aux prix
+     * @param shopID L'ID du shop
+     * @param itemID L'ID de l'item
+     * @return this (pour permettre le chaînage de méthodes)
+     */
+    public DynamicPrice applyInflation(String shopID, String itemID) {
+        InflationManager inflationManager = DynaShopPlugin.getInstance().getInflationManager();
+        if (inflationManager != null && inflationManager.isEnabled()) {
+            // Appliquer l'inflation au prix d'achat s'il est positif
+            if (this.buyPrice > 0) {
+                this.buyPrice = inflationManager.applyInflationToPrice(shopID, itemID, this.buyPrice);
+                this.minBuy = inflationManager.applyInflationToPrice(shopID, itemID, this.minBuy);
+                this.maxBuy = inflationManager.applyInflationToPrice(shopID, itemID, this.maxBuy);
+            }
+            
+            // Appliquer l'inflation au prix de vente s'il est positif
+            if (this.sellPrice > 0) {
+                this.sellPrice = inflationManager.applyInflationToPrice(shopID, itemID, this.sellPrice);
+                this.minSell = inflationManager.applyInflationToPrice(shopID, itemID, this.minSell);
+                this.maxSell = inflationManager.applyInflationToPrice(shopID, itemID, this.maxSell);
+            }
+        }
+        return this;
+    }
 }
