@@ -375,8 +375,8 @@ public class DynaShopListener implements Listener {
             handleDynamicPrice(price, action, amount); // Gérer les prix dynamiques
         } else if (buyTypeDynaShop == DynaShopType.RECIPE) {
             handleRecipePrice(shopID, itemID, amount, action); // Gérer les prix basés sur les recettes
-        } else if (buyTypeDynaShop == DynaShopType.STOCK || buyTypeDynaShop == DynaShopType.STATIC_STOCK) {
-            handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
+        // } else if (buyTypeDynaShop == DynaShopType.STOCK || buyTypeDynaShop == DynaShopType.STATIC_STOCK) {
+        //     handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
         } else if (buyTypeDynaShop == DynaShopType.LINK) {
             handleLinkedPrice(shopID, itemID, itemStack, action, amount);
         }
@@ -385,10 +385,14 @@ public class DynaShopListener implements Listener {
             handleDynamicPrice(price, action, amount); // Gérer les prix dynamiques
         } else if (sellTypeDynaShop == DynaShopType.RECIPE) {
             handleRecipePrice(shopID, itemID, amount, action); // Gérer les prix basés sur les recettes
-        } else if (sellTypeDynaShop == DynaShopType.STOCK || sellTypeDynaShop == DynaShopType.STATIC_STOCK) {
-            handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
+        // } else if (sellTypeDynaShop == DynaShopType.STOCK || sellTypeDynaShop == DynaShopType.STATIC_STOCK) {
+        //     handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
         } else if (sellTypeDynaShop == DynaShopType.LINK) {
             handleLinkedPrice(shopID, itemID, itemStack, action, amount);
+        }
+
+        if (typeDynaShop == DynaShopType.STOCK || typeDynaShop == DynaShopType.STATIC_STOCK) {
+            handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
         }
 
 
@@ -405,10 +409,13 @@ public class DynaShopListener implements Listener {
         //     plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
         // }
         // plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price);
-        if (buyTypeDynaShop != DynaShopType.RECIPE) {
-            plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
-        }
-        if (sellTypeDynaShop != DynaShopType.RECIPE) {
+        // if (buyTypeDynaShop != DynaShopType.RECIPE) {
+        //     plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
+        // }
+        // if (sellTypeDynaShop != DynaShopType.RECIPE) {
+        //     plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
+        // }
+        if (sellTypeDynaShop != DynaShopType.RECIPE || buyTypeDynaShop != DynaShopType.RECIPE) {
             plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
         }
     }
@@ -1506,9 +1513,10 @@ public class DynaShopListener implements Listener {
         // Extraire les informations de limite de manière asynchrone
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
-                int remaining = plugin.getTransactionLimiter()
-                        .getRemainingAmount(player, shopID, itemID, isBuy)
-                        .get();
+                // int remaining = plugin.getTransactionLimiter()
+                //         .getRemainingAmount(player, shopID, itemID, isBuy)
+                //         .get();
+                int remaining = plugin.getTransactionLimiter().getRemainingAmountSync(player, shopID, itemID, isBuy);
                 
                 final String message;
                 if (remaining > 0) {
@@ -1516,10 +1524,11 @@ public class DynaShopListener implements Listener {
                         ? ChatColor.translateAlternateColorCodes('&', plugin.getLangConfig().getMsgLimitCannotBuy().replace("%limit%", String.valueOf(remaining)))
                         : ChatColor.translateAlternateColorCodes('&', plugin.getLangConfig().getMsgLimitCannotSell().replace("%limit%", String.valueOf(remaining)));
                 } else {
-                    long nextAvailable = plugin.getTransactionLimiter()
-                            .getNextAvailableTime(player, shopID, itemID, isBuy)
-                            .get();
-                    
+                    // long nextAvailable = plugin.getTransactionLimiter()
+                    //         .getNextAvailableTime(player, shopID, itemID, isBuy)
+                    //         .get();
+                    long nextAvailable = plugin.getTransactionLimiter().getNextAvailableTimeSync(player, shopID, itemID, isBuy);
+
                     if (nextAvailable > 0) {
                         long seconds = nextAvailable / 1000;
                         message = ChatColor.translateAlternateColorCodes('&', plugin.getLangConfig().getMsgLimitReached().replace("%time%", formatTime(seconds)));

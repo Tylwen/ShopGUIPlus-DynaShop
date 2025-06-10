@@ -1174,12 +1174,19 @@ public class ShopItemPlaceholderListener implements Listener {
                 int sellRemaining = plugin.getTransactionLimiter().getRemainingAmountSync(player, shopId, itemId, false);
                 prices.put("sell_limit", String.valueOf(sellRemaining));
                 
+                // if (sellRemaining <= 0) {
+                //     long sellResetTime = plugin.getTransactionLimiter().getNextAvailableTimeSync(player, shopId, itemId, false);
+                //     prices.put("sell_reset_time", formatTimeRemaining(sellResetTime, sellLimit));
+                //     prices.put("sell_limit_reached", "true");
+                // } else {
+                //     prices.put("sell_reset_time", "∞");
+                //     prices.put("sell_limit_reached", "false");
+                // }
+                long sellResetTime = plugin.getTransactionLimiter().getNextAvailableTimeSync(player, shopId, itemId, false);
+                prices.put("sell_reset_time", formatTimeRemaining(sellResetTime, sellLimit));
                 if (sellRemaining <= 0) {
-                    long sellResetTime = plugin.getTransactionLimiter().getNextAvailableTimeSync(player, shopId, itemId, false);
-                    prices.put("sell_reset_time", formatTimeRemaining(sellResetTime, sellLimit));
                     prices.put("sell_limit_reached", "true");
                 } else {
-                    prices.put("sell_reset_time", "∞");
                     prices.put("sell_limit_reached", "false");
                 }
             } catch (Exception e) {

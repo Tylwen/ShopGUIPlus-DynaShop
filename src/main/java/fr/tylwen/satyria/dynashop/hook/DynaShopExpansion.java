@@ -975,9 +975,8 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             if (!(player instanceof Player)) return "N/A";
             
             try {
-                int remaining = plugin.getTransactionLimiter()
-                                    .getRemainingAmount((Player)player, shopID, itemID, true)
-                                    .get();
+                // int remaining = plugin.getTransactionLimiter().getRemainingAmount((Player)player, shopID, itemID, true).get();
+                int remaining = plugin.getTransactionLimiter().getRemainingAmountSync((Player)player, shopID, itemID, true);
                 return String.valueOf(remaining);
             } catch (Exception e) {
                 return "Erreur";
@@ -995,9 +994,8 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             if (!(player instanceof Player)) return "N/A";
             
             try {
-                int remaining = plugin.getTransactionLimiter()
-                                    .getRemainingAmount((Player)player, shopID, itemID, false)
-                                    .get();
+                // int remaining = plugin.getTransactionLimiter().getRemainingAmount((Player)player, shopID, itemID, false).get();
+                int remaining = plugin.getTransactionLimiter().getRemainingAmountSync((Player)player, shopID, itemID, false);
                 return String.valueOf(remaining);
             } catch (Exception e) {
                 return "Erreur";
@@ -1018,7 +1016,8 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                     }
             
                     try {
-                        int remaining = plugin.getTransactionLimiter().getRemainingAmount((Player) player, shopId, itemId, true).get();
+                        // int remaining = plugin.getTransactionLimiter().getRemainingAmount((Player) player, shopId, itemId, true).get();
+                        int remaining = plugin.getTransactionLimiter().getRemainingAmountSync((Player) player, shopId, itemId, true);
                         return String.valueOf(remaining);
                     } catch (Exception e) {
                         return "N/A";
@@ -1039,7 +1038,8 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                     }
                     
                     try {
-                        int remaining = plugin.getTransactionLimiter().getRemainingAmount((Player) player, shopId, itemId, false).get();
+                        // int remaining = plugin.getTransactionLimiter().getRemainingAmount((Player) player, shopId, itemId, false).get();
+                        int remaining = plugin.getTransactionLimiter().getRemainingAmountSync((Player) player, shopId, itemId, false);
                         return String.valueOf(remaining);
                     } catch (Exception e) {
                         return "N/A";
@@ -1060,7 +1060,8 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                     }
                     
                     try {
-                        long millisRemaining = plugin.getTransactionLimiter().getNextAvailableTime((Player) player, shopId, itemId, true).get();
+                        // long millisRemaining = plugin.getTransactionLimiter().getNextAvailableTime((Player) player, shopId, itemId, true).get();
+                        long millisRemaining = plugin.getTransactionLimiter().getNextAvailableTimeSync((Player) player, shopId, itemId, true);
                         return formatTimeRemaining(millisRemaining, limit);
                     } catch (Exception e) {
                         return "N/A";
@@ -1081,7 +1082,8 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                     }
                     
                     try {
-                        long millisRemaining = plugin.getTransactionLimiter().getNextAvailableTime((Player) player, shopId, itemId, false).get();
+                        // long millisRemaining = plugin.getTransactionLimiter().getNextAvailableTime((Player) player, shopId, itemId, false).get();
+                        long millisRemaining = plugin.getTransactionLimiter().getNextAvailableTimeSync((Player) player, shopId, itemId, false);
                         return formatTimeRemaining(millisRemaining, limit);
                     } catch (Exception e) {
                         return "N/A";

@@ -100,6 +100,8 @@ public class LimitSubCommand implements SubCommand {
             if (buyLimit != null && buyLimit.getAmount() > 0) {
                 CompletableFuture<Integer> remainingBuy = plugin.getTransactionLimiter().getRemainingAmount(target, shopID, itemID, true);
                 CompletableFuture<Long> nextAvailableBuy = plugin.getTransactionLimiter().getNextAvailableTime(target, shopID, itemID, true);
+                // Integer remainingBuy = plugin.getTransactionLimiter().getRemainingAmountSync(target, shopID, itemID, true);
+                // Long nextAvailableBuy = plugin.getTransactionLimiter().getNextAvailableTimeSync(target, shopID, itemID, true);
                 
                 remainingBuy.thenCombine(nextAvailableBuy, (remaining, nextTime) -> {
                     sender.sendMessage(ChatColor.YELLOW + "Limites d'achat pour " + target.getName() + " sur " + shopID + ":" + itemID + ":");
