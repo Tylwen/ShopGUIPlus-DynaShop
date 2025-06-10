@@ -311,7 +311,7 @@ public class DynaShopListener implements Listener {
         //     resultPrice
         // ));
 
-        recordPriceForHistory(shopID, itemID, resultPrice, isBuy);
+        recordPriceForHistory(shopID, itemID, resultPrice, isBuy, amount);
             
     }
     
@@ -1557,17 +1557,18 @@ public class DynaShopListener implements Listener {
      * @param itemId ID de l'item
      * @param price Le prix à enregistrer
      * @param isBuy true pour un prix d'achat, false pour un prix de vente
+ * @param amount Quantité échangée (volume)
      */
-    public void recordPriceForHistory(String shopId, String itemId, double price, boolean isBuy) {
+    public void recordPriceForHistory(String shopId, String itemId, double price, boolean isBuy, double amount) {
         // Récupérer l'historique existant
         PriceHistory history = DynaShopPlugin.getInstance().getDataManager().getPriceHistory(shopId, itemId);
         
         // Si aucun point de données n'existe encore, utiliser le prix actuel comme référence
         if (history.getDataPoints().isEmpty()) {
             if (isBuy) {
-                history.addDataPoint(price, price, price, price, 0, 0, 0, 0);
+                history.addDataPoint(price, price, price, price, 0, 0, 0, 0, amount);
             } else {
-                history.addDataPoint(0, 0, 0, 0, price, price, price, price);
+                history.addDataPoint(0, 0, 0, 0, price, price, price, price, amount);
             }
             return;
         }
@@ -1588,6 +1589,8 @@ public class DynaShopListener implements Listener {
             double closeSell = lastPoint.getCloseSellPrice(); 
             double highSell = lastPoint.getHighSellPrice();
             double lowSell = lastPoint.getLowSellPrice();
+
+            double volume = lastPoint.getVolume() + amount;
             
             if (isBuy) {
                 // Mise à jour des valeurs d'achat uniquement
@@ -1605,7 +1608,7 @@ public class DynaShopListener implements Listener {
             
             // Supprimer le dernier point et ajouter le point mis à jour
             history.getDataPoints().remove(history.getDataPoints().size() - 1);
-            history.addDataPoint(openBuy, closeBuy, highBuy, lowBuy, openSell, closeSell, highSell, lowSell);
+            history.addDataPoint(openBuy, closeBuy, highBuy, lowBuy, openSell, closeSell, highSell, lowSell, volume);
         } else {
             // Sinon, ajouter un nouveau point en conservant les dernières valeurs de l'autre type
             if (isBuy) {
@@ -1617,7 +1620,8 @@ public class DynaShopListener implements Listener {
                     lastPoint.getCloseSellPrice(),
                     lastPoint.getCloseSellPrice(),
                     lastPoint.getHighSellPrice(),
-                    lastPoint.getLowSellPrice()
+                    lastPoint.getLowSellPrice(),
+                    amount
                 );
             } else {
                 history.addDataPoint(
@@ -1628,7 +1632,8 @@ public class DynaShopListener implements Listener {
                     lastPoint.getCloseSellPrice() > 0 ? lastPoint.getCloseSellPrice() : price,
                     price,
                     Math.max(lastPoint.getCloseSellPrice() > 0 ? lastPoint.getCloseSellPrice() : price, price),
-                    Math.min(lastPoint.getCloseSellPrice() > 0 ? lastPoint.getCloseSellPrice() : price, price)
+                    Math.min(lastPoint.getCloseSellPrice() > 0 ? lastPoint.getCloseSellPrice() : price, price),
+                    amount
                 );
             }
         }

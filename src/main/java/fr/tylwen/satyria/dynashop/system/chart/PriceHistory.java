@@ -1,6 +1,7 @@
 package fr.tylwen.satyria.dynashop.system.chart;
 
 import java.time.LocalDateTime;
+// import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -19,7 +20,8 @@ public class PriceHistory implements ConfigurationSerializable {
     private final int maxDataPoints;
 
     public PriceHistory(String shopId, String itemId) {
-        this(shopId, itemId, 50); // Par défaut, on garde 50 points de données
+        // this(shopId, itemId, 50); // Par défaut, on garde 50 points de données
+        this(shopId, itemId, 1000); // Par défaut, on garde 1000 points de données
     }
 
     public PriceHistory(String shopId, String itemId, int maxDataPoints) {
@@ -44,11 +46,13 @@ public class PriceHistory implements ConfigurationSerializable {
     //     DynaShopPlugin.getInstance().getDataManager().savePriceHistory(this);
     // }
     public void addDataPoint(double openBuyPrice, double closeBuyPrice, double highBuyPrice, double lowBuyPrice,
-                            double openSellPrice, double closeSellPrice, double highSellPrice, double lowSellPrice) {
+                            double openSellPrice, double closeSellPrice, double highSellPrice, double lowSellPrice,
+                            double volume) {
         PriceDataPoint dataPoint = new PriceDataPoint(
             LocalDateTime.now(), 
             openBuyPrice, closeBuyPrice, highBuyPrice, lowBuyPrice,
-            openSellPrice, closeSellPrice, highSellPrice, lowSellPrice);
+            openSellPrice, closeSellPrice, highSellPrice, lowSellPrice,
+            volume);
         
         dataPoints.add(dataPoint);
         
@@ -59,6 +63,12 @@ public class PriceHistory implements ConfigurationSerializable {
         
         // Sauvegarder l'historique dans la base de données
         DynaShopPlugin.getInstance().getDataManager().savePriceHistory(this);
+    }
+
+    public void addDataPoint(double openBuyPrice, double closeBuyPrice, double highBuyPrice, double lowBuyPrice,
+                            double openSellPrice, double closeSellPrice, double highSellPrice, double lowSellPrice) {
+        addDataPoint(openBuyPrice, closeBuyPrice, highBuyPrice, lowBuyPrice,
+                    openSellPrice, closeSellPrice, highSellPrice, lowSellPrice, 0.0);
     }
 
     // Méthode de compatibilité pour l'ancien format
@@ -124,10 +134,13 @@ public class PriceHistory implements ConfigurationSerializable {
         private final double openBuyPrice, closeBuyPrice, highBuyPrice, lowBuyPrice;
         // Prix de vente
         private final double openSellPrice, closeSellPrice, highSellPrice, lowSellPrice;
+        // Volume
+        private final double volume; 
         
         public PriceDataPoint(LocalDateTime timestamp,
                             double openBuy, double closeBuy, double highBuy, double lowBuy,
-                            double openSell, double closeSell, double highSell, double lowSell) {
+                            double openSell, double closeSell, double highSell, double lowSell,
+                            double volume) {
             this.timestamp = timestamp;
             this.openBuyPrice = openBuy;
             this.closeBuyPrice = closeBuy;
@@ -137,12 +150,11 @@ public class PriceHistory implements ConfigurationSerializable {
             this.closeSellPrice = closeSell;
             this.highSellPrice = highSell;
             this.lowSellPrice = lowSell;
+            this.volume = volume;
         }
 
-        public LocalDateTime getTimestamp() {
-            return timestamp;
-        }
-        
+        public LocalDateTime getTimestamp() { return timestamp; }
+
         // Getters pour les nouveaux champs
         public double getOpenBuyPrice() { return openBuyPrice; }
         public double getCloseBuyPrice() { return closeBuyPrice; }
@@ -158,6 +170,8 @@ public class PriceHistory implements ConfigurationSerializable {
         public double getClosePrice() { return closeBuyPrice > 0 ? closeBuyPrice : closeSellPrice; }
         public double getHighPrice() { return highBuyPrice > 0 ? highBuyPrice : highSellPrice; }
         public double getLowPrice() { return lowBuyPrice > 0 ? lowBuyPrice : lowSellPrice; }
+
+        public double getVolume() { return volume; }
         
         @Override
         public Map<String, Object> serialize() {
@@ -188,7 +202,8 @@ public class PriceHistory implements ConfigurationSerializable {
                 map.containsKey("openSellPrice") ? (double) map.get("openSellPrice") : 0.0,
                 map.containsKey("closeSellPrice") ? (double) map.get("closeSellPrice") : 0.0,
                 map.containsKey("highSellPrice") ? (double) map.get("highSellPrice") : 0.0,
-                map.containsKey("lowSellPrice") ? (double) map.get("lowSellPrice") : 0.0
+                map.containsKey("lowSellPrice") ? (double) map.get("lowSellPrice") : 0.0,
+                map.containsKey("volume") ? (double) map.get("volume") : 0.0
             );
         }
     }

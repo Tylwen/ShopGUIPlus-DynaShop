@@ -49,6 +49,7 @@ import fr.tylwen.satyria.dynashop.hook.DynaShopExpansion;
 import fr.tylwen.satyria.dynashop.hook.ShopGUIPlusHook;
 // import fr.tylwen.satyria.dynashop.hook.ShopItemProcessor;
 import fr.tylwen.satyria.dynashop.listener.DynaShopListener;
+import fr.tylwen.satyria.dynashop.listener.MarketChartZoomListener;
 import fr.tylwen.satyria.dynashop.listener.ShopItemPlaceholderListener;
 import fr.tylwen.satyria.dynashop.price.PriceRecipe;
 import fr.tylwen.satyria.dynashop.price.PriceStock;
@@ -56,6 +57,7 @@ import fr.tylwen.satyria.dynashop.system.InflationManager;
 import fr.tylwen.satyria.dynashop.system.TaxService;
 import fr.tylwen.satyria.dynashop.system.TransactionLimiter;
 import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionLimit;
+import fr.tylwen.satyria.dynashop.system.chart.MarketChartRenderer;
 // import fr.tylwen.satyria.dynashop.packet.ItemPacketInterceptor;
 // import fr.tylwen.satyria.dynashop.utils.CommentedConfiguration;
 // import fr.tylwen.satyria.dynashop.task.ReloadDatabaseTask;
@@ -302,6 +304,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         // Initialiser le listener avant de l'utiliser ailleurs
         this.shopItemPlaceholderListener = new ShopItemPlaceholderListener(this);
         getServer().getPluginManager().registerEvents(this.shopItemPlaceholderListener, this);
+        getServer().getPluginManager().registerEvents(new MarketChartZoomListener(this), this);
 
         getCommand("dynashop").setExecutor(new DynaShopCommand(this));
         // getCommand("dynashop").setExecutor(new LimitResetCommand(this));
@@ -454,6 +457,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         limitNextAvailableTimeCache = new CacheManager<>(this, "LimitNextAvailableTimeCache", limitNextAvailableTimeDuration, TimeUnit.SECONDS, 10);
 
         // initTranslation();
+        MarketChartRenderer.clearMapCache();
     }
     
     // Getters pour les caches
@@ -735,6 +739,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         limitCache.clear();
         limitRemainingAmountCache.clear();
         limitNextAvailableTimeCache.clear();
+        MarketChartRenderer.clearMapCache();
 
         // HandlerList.unregisterAll(this);
 

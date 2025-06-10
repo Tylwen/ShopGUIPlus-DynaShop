@@ -26,6 +26,7 @@ import net.brcdev.shopgui.shop.item.ShopItem;
 import net.brcdev.shopgui.shop.item.ShopItemType;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 import net.brcdev.shopgui.exception.player.PlayerDataNotLoadedException;
+import net.brcdev.shopgui.modifier.PriceModifierActionType;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -484,16 +485,20 @@ public class ShopItemPlaceholderListener implements Listener {
         }
         
         // Vérifier les statuts de limite
-        if ((line.contains("%dynashop_current_buy_limit_status%") && 
-             (prices.get("buy_reset_time").equals("∞") || prices.get("buy_limit").equals("∞"))) ||
-            (line.contains("%dynashop_current_sell_limit_status%") && 
-             (prices.get("sell_reset_time").equals("∞") || prices.get("sell_limit").equals("∞")))) {
+        if ((line.contains("%dynashop_current_buy_limit_status%") && (prices.get("buy_reset_time").equals("∞") || prices.get("buy_limit").equals("∞"))) ||
+            (line.contains("%dynashop_current_sell_limit_status%") && (prices.get("sell_reset_time").equals("∞") || prices.get("sell_limit").equals("∞")))) {
             return true;
         }
-        
+
+        // Vérifier les placeholders de modificateurs
+        if (line.contains("%dynashop_current_buy_modifier%") && prices.get("buy_modifier").equals("100%") ||
+            (line.contains("%dynashop_current_sell_modifier%") && prices.get("sell_modifier").equals("100%"))) {
+            return true;
+        }
+
         return false;
     }
-    
+
     /**
      * Remplace tous les placeholders DynaShop dans une ligne
      */
@@ -514,7 +519,9 @@ public class ShopItemPlaceholderListener implements Listener {
                   .replace("%dynashop_current_buy_limit%", prices.get("buy_limit"))
                   .replace("%dynashop_current_sell_limit%", prices.get("sell_limit"))
                   .replace("%dynashop_current_buy_reset_time%", prices.get("buy_reset_time"))
-                  .replace("%dynashop_current_sell_reset_time%", prices.get("sell_reset_time"));
+                  .replace("%dynashop_current_sell_reset_time%", prices.get("sell_reset_time"))
+                  .replace("%dynashop_current_buy_modifier%", prices.getOrDefault("buy_modifier", "100%"))
+                  .replace("%dynashop_current_sell_modifier%", prices.getOrDefault("sell_modifier", "100%"));
         
         // Remplacements conditionnels pour les statuts de limite
         if (line.contains("%dynashop_current_buy_limit_status%")) {
@@ -581,7 +588,9 @@ public class ShopItemPlaceholderListener implements Listener {
                     .replace("%dynashop_current_buy_reset_time%", "Loading...")
                     .replace("%dynashop_current_sell_reset_time%", "Loading...")
                     .replace("%dynashop_current_buy_limit_status%", "Loading...")
-                    .replace("%dynashop_current_sell_limit_status%", "Loading...");
+                    .replace("%dynashop_current_sell_limit_status%", "Loading...")
+                    .replace("%dynashop_current_buy_modifier%", "Loading...")
+                    .replace("%dynashop_current_sell_modifier%", "Loading...");
                 processed.add(tempLine);
             } else {
                 processed.add(line);
@@ -973,6 +982,7 @@ public class ShopItemPlaceholderListener implements Listener {
         if (price != null) {
             fillBasicPrices(prices, price, quantity);
         }
+        fillModifierInfo(prices, player, shopId, itemId);
 
         // Identifier les modes
         boolean isStockMode = buyType == DynaShopType.STOCK || sellType == DynaShopType.STOCK;
@@ -1010,8 +1020,8 @@ public class ShopItemPlaceholderListener implements Listener {
         }
         
         // Formater les prix pour l'affichage
-        formatDisplayPrices(prices, price, shopId);
-        
+        formatDisplayPrices(prices, shopId);
+
         return prices;
     }
 
@@ -1200,11 +1210,57 @@ public class ShopItemPlaceholderListener implements Listener {
             prices.put("sell_limit_reached", "false");
         }
     }
-    
+
+    // Récupérer les modificateurs ShopGUI+
+    private void fillModifierInfo(Map<String, String> prices, Player player, String shopId, String itemId) {
+        double buyModifier = 1.0;
+        double sellModifier = 1.0;
+        try {
+            Shop shop = ShopGuiPlusApi.getShop(shopId);
+            if (shop != null) {
+                ShopItem shopItem = shop.getShopItem(itemId);
+                if (shopItem != null && player != null) {
+                    buyModifier = ShopGuiPlusApi.getPriceModifier(player, shopItem, PriceModifierActionType.BUY).getModifier();
+                    sellModifier = ShopGuiPlusApi.getPriceModifier(player, shopItem, PriceModifierActionType.SELL).getModifier();
+                }
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        // prices.put("buy_modifier", String.format("%.0f%%", buyModifier * 100));
+        // prices.put("sell_modifier", String.format("%.0f%%", sellModifier * 100));
+        
+        // Achat : +X% en rouge, -X% en vert
+        String buyModStr = "";
+        if (Math.abs(buyModifier - 1.0) > 0.001) {
+            double percent = (buyModifier - 1.0) * 100.0;
+            if (percent > 0) {
+                buyModStr = "&4+" + String.format("%.0f", percent) + "% ";
+            } else {
+                buyModStr = "&2" + String.format("%.0f", percent) + "% ";
+            }
+        }
+
+        // Vente : +X% en vert, -X% en rouge
+        String sellModStr = "";
+        if (Math.abs(sellModifier - 1.0) > 0.001) {
+            double percent = (sellModifier - 1.0) * 100.0;
+            if (percent > 0) {
+                sellModStr = "&2+" + String.format("%.0f", percent) + "% ";
+            } else {
+                sellModStr = "&4" + String.format("%.0f", percent) + "% ";
+            }
+        }
+
+        prices.put("buy_modifier", ChatColor.translateAlternateColorCodes('&', buyModStr));
+        prices.put("sell_modifier", ChatColor.translateAlternateColorCodes('&', sellModStr));
+    }
+
     /**
      * Formate les prix pour l'affichage
      */
-    private void formatDisplayPrices(Map<String, String> prices, DynamicPrice price, String shopId) {
+    private void formatDisplayPrices(Map<String, String> prices, String shopId) {
+    // private void formatDisplayPrices(Map<String, String> prices, DynamicPrice price, String shopId) {
         String currencyPrefix = "";
         String currencySuffix = " $";
         

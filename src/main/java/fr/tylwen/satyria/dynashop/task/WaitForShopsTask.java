@@ -181,6 +181,6 @@ public class WaitForShopsTask implements Runnable {
             } catch (ShopsNotLoadedException e) {
                 e.printStackTrace();
             }
-        }, 20 * 60 * 5, 20 * 60 * 60); // Démarrer après 5 minutes, puis toutes les heures
+        }, 20 * 60 * 5, 20 * 60 * 15); // Démarrer après 5 minutes, puis toutes les 15 minutes
     }
 }

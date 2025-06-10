@@ -928,7 +928,7 @@ public class ShopConfigManager {
         if (player != null && player.getLocale() != null) {
             String locale = player.getLocale().split("_")[0]; // "fr", "en", etc.
             String translated = getTranslatedMaterialName(shopItem.getItem().getType().name(), locale);
-            DynaShopPlugin.getInstance().info(shopItem.getItem().getType().name() + " " + translated);
+            // DynaShopPlugin.getInstance().info(shopItem.getItem().getType().name() + " " + translated);
             if (translated != null && !translated.isEmpty()) {
                 return translated;
             }

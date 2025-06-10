@@ -3,9 +3,11 @@ package fr.tylwen.satyria.dynashop.system.chart;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.time.LocalDateTime;
 import java.awt.Font;
-import java.awt.BasicStroke;
+// import java.awt.BasicStroke;
 import java.awt.RenderingHints;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,12 +16,14 @@ import java.util.Map;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.map.MapCanvas;
 import org.bukkit.map.MapPalette;
 import org.bukkit.map.MapRenderer;
 import org.bukkit.map.MapView;
+import org.bukkit.map.MinecraftFont;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.NamespacedKey;
 
@@ -33,16 +37,23 @@ public class MarketChartRenderer extends MapRenderer {
     
     private static final int MAP_WIDTH = 128;
     private static final int MAP_HEIGHT = 128;
-    private static final int MARGIN = 10;
-    private static final int CANDLE_WIDTH = 3;
-    private static final int CANDLE_SPACING = 2;
-    
+    private static final int MARGIN = 0; // au lieu de 10
+    private static final int CANDLE_WIDTH = 3; // au lieu de 3
+    private static final int CANDLE_SPACING = 1; // au lieu de 2
+
     private final DynaShopPlugin plugin;
     private final String shopId;
     private final String itemId;
     private BufferedImage cachedImage;
     private long lastUpdateTime;
     private static final long UPDATE_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+    private int granularityMinutes = 15; // Par défaut 15 minutes par chandelle
+    public void setGranularityMinutes(int minutes) {
+        this.granularityMinutes = Math.max(1, minutes);
+    }
+    private static final int[] GRANULARITIES = {5, 15, 60, 180, 360, 720, 1440}; // en minutes
+    private int granularityIndex = 1; // index courant dans la liste (par défaut 15min)
     
     private static final Map<String, Integer> mapIdCache = new HashMap<>();
     
@@ -62,14 +73,25 @@ public class MarketChartRenderer extends MapRenderer {
             lastUpdateTime = currentTime;
         }
         
-        // Dessiner l'image sur le canvas
+        // // Dessiner l'image sur le canvas
+        // if (cachedImage != null) {
+        //     for (int x = 0; x < MAP_WIDTH; x++) {
+        //         for (int y = 0; y < MAP_HEIGHT; y++) {
+        //             if (x < cachedImage.getWidth() && y < cachedImage.getHeight()) {
+        //                 Color color = new Color(cachedImage.getRGB(x, y));
+        //                 canvas.setPixel(x, y, MapPalette.matchColor(color.getRed(), color.getGreen(), color.getBlue()));
+        //             }
+        //         }
+        //     }
+        // }
         if (cachedImage != null) {
             for (int x = 0; x < MAP_WIDTH; x++) {
                 for (int y = 0; y < MAP_HEIGHT; y++) {
-                    if (x < cachedImage.getWidth() && y < cachedImage.getHeight()) {
-                        Color color = new Color(cachedImage.getRGB(x, y));
-                        canvas.setPixel(x, y, MapPalette.matchColor(color.getRed(), color.getGreen(), color.getBlue()));
-                    }
+                    int argb = cachedImage.getRGB(x, y);
+                    int alpha = (argb >> 24) & 0xff;
+                    if (alpha < 128) continue; // Ne dessine pas ce pixel (laisse la couleur de la carte vanilla)
+                    Color color = new Color(argb, true);
+                    canvas.setPixel(x, y, MapPalette.matchColor(color.getRed(), color.getGreen(), color.getBlue()));
                 }
             }
         }
@@ -421,39 +443,97 @@ public class MarketChartRenderer extends MapRenderer {
     private BufferedImage renderChart(Player player) {
         BufferedImage image = new BufferedImage(MAP_WIDTH, MAP_HEIGHT, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = image.createGraphics();
+        // g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        // String font = MinecraftFont.Font.toString();
 
-        // Fond blanc
-        g.setColor(Color.WHITE);
-        g.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+        // // Fond blanc
+        // // g.setColor(Color.WHITE);
+        // // g.setColor(new Color(222, 210, 170));
+        // g.setColor(new Color(210, 185, 159));
+        // g.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
 
         // Grille
         g.setColor(new Color(230, 230, 230));
-        int gridX = 5, gridY = 6;
-        for (int i = 0; i <= gridX; i++) {
-            int x = MARGIN + i * (MAP_WIDTH - 2 * MARGIN) / gridX;
-            g.drawLine(x, MARGIN, x, MAP_HEIGHT - MARGIN);
-        }
+        int gridX = 0, gridY = 5;
+        // for (int i = 0; i <= gridX; i++) {
+        //     int x = MARGIN + i * (MAP_WIDTH - 2 * MARGIN) / gridX;
+        //     g.drawLine(x, MARGIN, x, MAP_HEIGHT - MARGIN);
+        // }
         for (int i = 0; i <= gridY; i++) {
             int y = MARGIN + i * (MAP_HEIGHT - 2 * MARGIN) / gridY;
             g.drawLine(MARGIN, y, MAP_WIDTH - MARGIN, y);
         }
 
-        // Cadre
-        g.setColor(Color.BLACK);
-        g.drawRect(MARGIN, MARGIN, MAP_WIDTH - 2 * MARGIN, MAP_HEIGHT - 2 * MARGIN);
+        // // Cadre
+        // g.setColor(Color.BLACK);
+        // g.drawRect(MARGIN, MARGIN, MAP_WIDTH - 2 * MARGIN, MAP_HEIGHT - 2 * MARGIN);
 
         // Données
         PriceHistory history = plugin.getDataManager().getPriceHistory(shopId, itemId);
         List<PriceDataPoint> dataPoints = history.getDataPoints();
         if (dataPoints.isEmpty()) {
             g.setColor(Color.BLACK);
-            g.drawString("Pas de données", 15, MAP_HEIGHT / 2);
+            g.drawString("No Data", 15, MAP_HEIGHT / 2);
             g.dispose();
             return image;
         }
 
+        // === GROUPEMENT PAR INTERVALLE DE TEMPS (granularité) ===
+        List<PriceDataPoint> grouped = new ArrayList<>();
+        if (!dataPoints.isEmpty()) {
+            LocalDateTime bucketStart = dataPoints.get(0).getTimestamp().withSecond(0).withNano(0);
+            LocalDateTime bucketEnd = bucketStart.plusMinutes(granularityMinutes);
+            double openBuy = 0, closeBuy = 0, highBuy = Double.MIN_VALUE, lowBuy = Double.MAX_VALUE;
+            double openSell = 0, closeSell = 0, highSell = Double.MIN_VALUE, lowSell = Double.MAX_VALUE;
+            double volume = 0;
+            boolean first = true;
+
+            for (PriceDataPoint p : dataPoints) {
+                while (p.getTimestamp().isAfter(bucketEnd)) {
+                    if (!first) {
+                        grouped.add(new PriceDataPoint(
+                            bucketStart,
+                            openBuy, closeBuy, highBuy, lowBuy,
+                            openSell, closeSell, highSell, lowSell,
+                            volume
+                        ));
+                    }
+                    // Passe au bucket suivant
+                    bucketStart = bucketEnd;
+                    bucketEnd = bucketStart.plusMinutes(granularityMinutes);
+                    openBuy = 0; closeBuy = 0; highBuy = Double.MIN_VALUE; lowBuy = Double.MAX_VALUE;
+                    openSell = 0; closeSell = 0; highSell = Double.MIN_VALUE; lowSell = Double.MAX_VALUE;
+                    volume = 0;
+                    first = true;
+                }
+                if (first) {
+                    openBuy = p.getOpenBuyPrice();
+                    openSell = p.getOpenSellPrice();
+                    first = false;
+                }
+                closeBuy = p.getCloseBuyPrice();
+                closeSell = p.getCloseSellPrice();
+                highBuy = Math.max(highBuy, p.getHighBuyPrice());
+                lowBuy = Math.min(lowBuy, p.getLowBuyPrice());
+                highSell = Math.max(highSell, p.getHighSellPrice());
+                lowSell = Math.min(lowSell, p.getLowSellPrice());
+                volume += p.getVolume();
+            }
+            // Ajoute le dernier bucket
+            if (!first) {
+                grouped.add(new PriceDataPoint(
+                    bucketStart,
+                    openBuy, closeBuy, highBuy, lowBuy,
+                    openSell, closeSell, highSell, lowSell,
+                    volume
+                ));
+            }
+        }
+        // Utilise grouped à la place de dataPoints pour le rendu
+        dataPoints = grouped;
+
+        int volumeAreaHeight = 24; // hauteur de la zone volume en pixels
         // Axe Y : min/max
         double minPrice = Double.MAX_VALUE, maxPrice = Double.MIN_VALUE;
         for (PriceDataPoint point : dataPoints) {
@@ -462,45 +542,135 @@ public class MarketChartRenderer extends MapRenderer {
         }
         if (maxPrice == minPrice) maxPrice = minPrice + 1;
         double priceRange = maxPrice - minPrice;
-        double yScale = (MAP_HEIGHT - 2 * MARGIN) / priceRange;
+        // double yScale = (MAP_HEIGHT - 2 * MARGIN) / priceRange;
+        double yScale = (MAP_HEIGHT - 2 * MARGIN - volumeAreaHeight) / priceRange;
 
         // Axe X : combien de chandeliers ?
         int maxCandles = (MAP_WIDTH - 2 * MARGIN) / (CANDLE_WIDTH + CANDLE_SPACING);
         int startIndex = Math.max(0, dataPoints.size() - maxCandles);
 
-        // Chandeliers
+        // 1. Calculer le volume max pour l'échelle
+        double maxVolume = 0;
+        for (int i = startIndex; i < dataPoints.size(); i++) {
+            // PriceDataPoint point = dataPoints.get(i);
+            // // À adapter selon ton modèle : ici on suppose point.getVolume() existe
+            // double volume = point.getVolume(); // ou getAmount(), ou autre champ
+            // if (volume > maxVolume) maxVolume = volume;
+            maxVolume = Math.max(maxVolume, dataPoints.get(i).getVolume());
+        }
+
+        // 2. Dessiner les barres de volume
+        // int volumeAreaHeight = 24; // hauteur de la zone volume en pixels
+        int volumeBaseY = MAP_HEIGHT - MARGIN; // base des barres
+        int volumeTopY = volumeBaseY - volumeAreaHeight;
+        Color volumeColor = new Color(120, 120, 180, 180); // gris/bleu translucide
+        final Color SHADOW_COLOR = new Color(0, 0, 0, 80); // Ombre noire semi-transparente
+
         for (int i = startIndex; i < dataPoints.size(); i++) {
             PriceDataPoint point = dataPoints.get(i);
             int x = MARGIN + (i - startIndex) * (CANDLE_WIDTH + CANDLE_SPACING);
 
-            int openY = MAP_HEIGHT - MARGIN - (int)((point.getOpenBuyPrice() - minPrice) * yScale);
-            int closeY = MAP_HEIGHT - MARGIN - (int)((point.getCloseBuyPrice() - minPrice) * yScale);
-            int highY = MAP_HEIGHT - MARGIN - (int)((point.getHighBuyPrice() - minPrice) * yScale);
-            int lowY = MAP_HEIGHT - MARGIN - (int)((point.getLowBuyPrice() - minPrice) * yScale);
+            double volume = point.getVolume(); // ou getAmount(), ou autre champ
+            int barHeight = maxVolume > 0 ? (int) (volume / maxVolume * volumeAreaHeight) : 0;
+            int y = volumeBaseY - barHeight;
+
+            // Barres fines, largeur = CANDLE_WIDTH
+            g.setColor(volumeColor);
+            g.fillRect(x, y, CANDLE_WIDTH, Math.max(1, barHeight));
+            
+            // Ombre (shadow)
+            g.setColor(SHADOW_COLOR);
+            int shadowOffset = 1;
+            int bodyTop = Math.min(volumeBaseY, volumeTopY);
+            int bodyHeight = Math.max(1, Math.abs(volumeTopY - volumeBaseY));
+            g.fillRect(x + shadowOffset, bodyTop + shadowOffset, CANDLE_WIDTH, bodyHeight);
+        }
+
+        // // Graduation du volume à gauche de la zone volume
+        // if (maxVolume > 0) {
+        //     g.setFont(new Font("Serif", Font.PLAIN, 8));
+        //     g.setColor(Color.GRAY);
+        //     int numVolumeLevels = 2; // 2 graduations (haut et milieu)
+        //     for (int i = 0; i <= numVolumeLevels; i++) {
+        //         double vol = maxVolume * (numVolumeLevels - i) / numVolumeLevels;
+        //         int y = volumeBaseY - (int) (vol / maxVolume * volumeAreaHeight);
+        //         String volText = String.format("%.0f", vol);
+        //         g.drawString(volText, 2, y - 2);
+        //         // Petite graduation horizontale
+        //         g.drawLine(MARGIN, y, MARGIN + 4, y);
+        //     }
+        // }
+
+        // final Color GREEN_CANDLE = new Color(102, 255, 102);
+        // final Color RED_CANDLE = new Color(255, 51, 51);
+        final Color GREEN_CANDLE = new Color(138, 194, 38);
+        final Color RED_CANDLE = new Color(192, 57, 56);
+        // final Color SHADOW_COLOR = new Color(0, 0, 0, 80); // Ombre noire semi-transparente
+
+        // final Color GREEN_CANDLE_SHADOW = new Color(57, 104, 34, 80); // Ombre verte semi-transparente
+        // final Color RED_CANDLE_SHADOW = new Color(171, 50, 49, 80); // Ombre rouge semi-transparente
+        final Color GREEN_CANDLE_SHADOW = new Color(57, 104, 34); // Ombre verte
+        final Color RED_CANDLE_SHADOW = new Color(171, 50, 49); // Ombre rouge
+
+        // // Chandeliers
+        // for (int i = startIndex; i < dataPoints.size(); i++) {
+        //     PriceDataPoint point = dataPoints.get(i);
+        //     int x = MARGIN + (i - startIndex) * (CANDLE_WIDTH + CANDLE_SPACING);
+        int candleCount = dataPoints.size();
+        int candleWidth = Math.max(1, (MAP_WIDTH - 2 * MARGIN) / candleCount - CANDLE_SPACING);
+        for (int i = 0; i < candleCount; i++) {
+            int x = MARGIN + i * (candleWidth + CANDLE_SPACING);
+            PriceDataPoint point = dataPoints.get(i);
+
+            // int openY = MAP_HEIGHT - MARGIN - (int)((point.getOpenBuyPrice() - minPrice) * yScale);
+            // int closeY = MAP_HEIGHT - MARGIN - (int)((point.getCloseBuyPrice() - minPrice) * yScale);
+            // int highY = MAP_HEIGHT - MARGIN - (int)((point.getHighBuyPrice() - minPrice) * yScale);
+            // int lowY = MAP_HEIGHT - MARGIN - (int)((point.getLowBuyPrice() - minPrice) * yScale);
+            int openY = volumeBaseY - volumeAreaHeight - (int)((point.getOpenBuyPrice() - minPrice) * yScale);
+            int closeY = volumeBaseY - volumeAreaHeight - (int)((point.getCloseBuyPrice() - minPrice) * yScale);
+            int highY = volumeBaseY - volumeAreaHeight - (int)((point.getHighBuyPrice() - minPrice) * yScale);
+            int lowY = volumeBaseY - volumeAreaHeight - (int)((point.getLowBuyPrice() - minPrice) * yScale);
+
+            boolean isUp = point.getCloseBuyPrice() >= point.getOpenBuyPrice();
+            Color candleColor = isUp ? GREEN_CANDLE : RED_CANDLE;
+            
+            // Ombre (shadow) sous le corps de la chandelle
+            // g.setColor(SHADOW_COLOR);
+            g.setColor(isUp ? GREEN_CANDLE_SHADOW : RED_CANDLE_SHADOW);
+            int shadowOffset = 1;
+            int bodyTop = Math.min(openY, closeY);
+            int bodyHeight = Math.max(1, Math.abs(closeY - openY));
+            g.fillRect(x + shadowOffset, bodyTop + shadowOffset, CANDLE_WIDTH, bodyHeight);
 
             // Mèche
-            g.setColor(Color.DARK_GRAY);
+            // g.setColor(Color.DARK_GRAY);
+            g.setColor(candleColor);
             g.drawLine(x + CANDLE_WIDTH / 2, highY, x + CANDLE_WIDTH / 2, lowY);
 
             // Corps
-            boolean isUp = point.getCloseBuyPrice() >= point.getOpenBuyPrice();
-            g.setColor(isUp ? new Color(34, 139, 34) : new Color(220, 50, 47));
-            int bodyTop = Math.min(openY, closeY);
-            int bodyHeight = Math.max(1, Math.abs(closeY - openY));
+            // boolean isUp = point.getCloseBuyPrice() >= point.getOpenBuyPrice();
+            // g.setColor(isUp ? new Color(34, 139, 34) : new Color(220, 50, 47));
+            // int bodyTop = Math.min(openY, closeY);
+            // int bodyHeight = Math.max(1, Math.abs(closeY - openY));
             g.fillRect(x, bodyTop, CANDLE_WIDTH, bodyHeight);
-            g.setColor(Color.BLACK);
-            g.drawRect(x, bodyTop, CANDLE_WIDTH, bodyHeight);
+            // g.setColor(Color.BLACK);
+            // g.drawRect(x, bodyTop, CANDLE_WIDTH, bodyHeight);
         }
 
         // Graduation Y
         g.setFont(new Font("SansSerif", Font.PLAIN, 8));
+        // g.setFont(new Font("Mojangles", Font.PLAIN, 8));
+        // g.setFont(new Font("Serif", Font.PLAIN, 8));
         g.setColor(Color.GRAY);
-        int numLevels = 6;
+        // int numLevels = 6;
+        int numLevels = 4;
         for (int i = 0; i <= numLevels; i++) {
             double price = minPrice + (priceRange * i / numLevels);
-            int y = MAP_HEIGHT - MARGIN - (int)((price - minPrice) * yScale);
+            // int y = MAP_HEIGHT - MARGIN - (int)((price - minPrice) * yScale);
+            int y = volumeBaseY - volumeAreaHeight - (int)((price - minPrice) * yScale);
             String priceText = String.format("%.1f", price);
-            g.drawString(priceText, 2, y + 3);
+            // g.drawString(priceText, 2, y + 3);
+            g.drawString(priceText, 2, y + 8);
         }
 
         // Nom de l'item
@@ -508,6 +678,8 @@ public class MarketChartRenderer extends MapRenderer {
         if (itemName == null) itemName = itemId;
         g.setColor(Color.BLACK);
         g.setFont(new Font("SansSerif", Font.BOLD, 10));
+        // g.setFont(new Font("Mojangles", Font.BOLD, 10));
+        // g.setFont(new Font(MinecraftFont.Font.toString(), Font.BOLD, 10));
         g.drawString(itemName, MARGIN, MARGIN - 2);
 
         // Dernier prix à droite
@@ -523,31 +695,53 @@ public class MarketChartRenderer extends MapRenderer {
      * Crée et retourne une carte avec le graphique boursier
      */
     public ItemStack createMapItem(Player player) {
+        // MapView view = Bukkit.createMap(player.getWorld());
         MapView view = Bukkit.createMap(player.getWorld());
         
         // Supprimer tous les renderers par défaut et ajouter le nôtre
-        view.getRenderers().clear();
+        // view.getRenderers().clear();
+        // view.getRenderers().removeIf(MarketChartRenderer.class::isInstance);
+        // view.getRenderers().forEach(renderer -> {
+        //     if (renderer instanceof MarketChartRenderer) {
+        //         view.removeRenderer(renderer);
+        //     }
+        // });
+        view.getRenderers().forEach(view::removeRenderer);
         view.addRenderer(this);
         
         // Créer l'item de la carte
         ItemStack mapItem = new ItemStack(Material.FILLED_MAP);
         MapMeta mapMeta = (MapMeta) mapItem.getItemMeta();
         mapMeta.setMapView(view);
-        
+        mapItem.setItemMeta(mapMeta);
+
         // Configurer le nom et la description
         String itemName = plugin.getShopConfigManager().getItemName(player, shopId, itemId);
         if (itemName == null) itemName = itemId;
         
         mapMeta.setDisplayName("§6Marché: §f" + itemName);
         
+        // Ajout de la granularité dans le lore
+        String granularityLabel;
+        if (granularityMinutes < 60) {
+            granularityLabel = granularityMinutes + " min";
+        } else if (granularityMinutes % 60 == 0 && granularityMinutes < 1440) {
+            granularityLabel = (granularityMinutes / 60) + " h";
+        } else if (granularityMinutes == 1440) {
+            granularityLabel = "1 jour";
+        } else {
+            granularityLabel = granularityMinutes + " min";
+        }
+        
         List<String> lore = List.of(
             "§7Graphique d'évolution des prix",
             "§7Item: §f" + itemName,
             "§7Shop: §f" + shopId,
+            "§7Granularité: §f" + granularityLabel,
             "§7Mise à jour: §f" + UPDATE_INTERVAL / (60 * 1000) + " minutes"
         );
         mapMeta.setLore(lore);
-        
+
         // Stocker les métadonnées pour identifier cette carte
         NamespacedKey shopIdKey = new NamespacedKey(plugin, "chart_shop_id");
         NamespacedKey itemIdKey = new NamespacedKey(plugin, "chart_item_id");
@@ -572,10 +766,35 @@ public class MarketChartRenderer extends MapRenderer {
         // // Assurez-vous qu'il y a au moins un point de données dans l'historique
         // ensureHistoryExists(plugin, shopId, itemId);
         
+        // Vérifie si le joueur a déjà la carte dans son inventaire
+        for (ItemStack item : player.getInventory().getContents()) {
+            if (item != null && item.getType() == Material.FILLED_MAP && item.hasItemMeta()) {
+                MapMeta meta = (MapMeta) item.getItemMeta();
+                if (meta.getMapId() == (mapId)) { continue; }
+                if (meta.getPersistentDataContainer().has(new NamespacedKey(plugin, "chart_shop_id"), PersistentDataType.STRING)
+                    && meta.getPersistentDataContainer().has(new NamespacedKey(plugin, "chart_item_id"), PersistentDataType.STRING)) {
+                    String shop = meta.getPersistentDataContainer().get(new NamespacedKey(plugin, "chart_shop_id"), PersistentDataType.STRING);
+                    String itemS = meta.getPersistentDataContainer().get(new NamespacedKey(plugin, "chart_item_id"), PersistentDataType.STRING);
+                    if (shopId.equals(shop) && itemId.equals(itemS)) {
+                        // Le joueur a déjà la carte, on met son curseur dessus s'il est dans la barre d'inventaire
+                        // if (player.getOpenInventory().getType() == InventoryType.CRAFTING) {
+                        if (player.getInventory().getType() == InventoryType.CRAFTING) {
+                            // player.getOpenInventory().setCursor(item);
+                            // player.getOpenInventory().setItem(0, item); // Met la carte dans la barre d'inventaire
+                            player.getInventory().setItem(0, item); // Met la carte dans la barre d'inventaire
+                        }
+                        return item;
+                    }
+                }
+            }
+        }
+        
         if (mapId != null) {
             MapView view = Bukkit.getMap(mapId);
+            // MapView view = Bukkit.createMap(player.getWorld());
             if (view != null) {
                 ItemStack mapItem = new ItemStack(Material.FILLED_MAP);
+                // ItemStack mapItem = new ItemStack(Material.MAP);
                 MapMeta mapMeta = (MapMeta) mapItem.getItemMeta();
                 mapMeta.setMapView(view);
                 mapItem.setItemMeta(mapMeta);
@@ -608,4 +827,52 @@ public class MarketChartRenderer extends MapRenderer {
     //         }
     //     }
     // }
+
+    public void updateMapItemLore(ItemStack mapItem, Player player) {
+        if (mapItem == null || !(mapItem.getItemMeta() instanceof MapMeta mapMeta)) return;
+
+        String itemName = plugin.getShopConfigManager().getItemName(player, shopId, itemId);
+        if (itemName == null) itemName = itemId;
+
+        String granularityLabel;
+        if (granularityMinutes < 60) {
+            granularityLabel = granularityMinutes + " min";
+        } else if (granularityMinutes % 60 == 0 && granularityMinutes < 1440) {
+            granularityLabel = (granularityMinutes / 60) + " h";
+        } else if (granularityMinutes == 1440) {
+            granularityLabel = "1 jour";
+        } else {
+            granularityLabel = granularityMinutes + " min";
+        }
+
+        List<String> lore = List.of(
+            "§7Graphique d'évolution des prix",
+            "§7Item: §f" + itemName,
+            "§7Shop: §f" + shopId,
+            "§7Granularité: §f" + granularityLabel,
+            "§7Mise à jour: §f" + UPDATE_INTERVAL / (60 * 1000) + " minutes"
+        );
+        mapMeta.setLore(lore);
+        mapItem.setItemMeta(mapMeta);
+    }
+
+    public void zoomIn() {
+        if (granularityIndex > 0) {
+            granularityIndex--;
+            setGranularityMinutes(GRANULARITIES[granularityIndex]);
+            cachedImage = null; // force le refresh
+        }
+    }
+
+    public void zoomOut() {
+        if (granularityIndex < GRANULARITIES.length - 1) {
+            granularityIndex++;
+            setGranularityMinutes(GRANULARITIES[granularityIndex]);
+            cachedImage = null; // force le refresh
+        }
+    }
+    
+    public static void clearMapCache() {
+        mapIdCache.clear();
+    }
 }

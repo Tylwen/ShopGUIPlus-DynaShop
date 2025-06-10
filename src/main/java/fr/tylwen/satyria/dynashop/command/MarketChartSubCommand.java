@@ -1,5 +1,6 @@
 package fr.tylwen.satyria.dynashop.command;
 
+import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -39,10 +40,35 @@ public class MarketChartSubCommand implements SubCommand {
         
         // Créer et donner la carte au joueur
         ItemStack mapItem = MarketChartRenderer.getOrCreateMapItem(plugin, player, shopId, itemId);
-        player.getInventory().addItem(mapItem);
+        // player.getInventory().addItem(mapItem);
         
-        player.sendMessage("§aVous avez reçu une carte du marché pour §f" + itemId + "§a du shop §f" + shopId);
+        // player.sendMessage("§aVous avez reçu une carte du marché pour §f" + itemId + "§a du shop §f" + shopId);
         
+        // return true;
+        
+        // // Chercher un slot vide dans la hotbar (slots 0 à 8)
+        // boolean given = false;
+        // for (int i = 0; i < 9; i++) {
+        //     if (player.getInventory().getItem(i) == null || player.getInventory().getItem(i).getType() == Material.AIR) {
+        //         player.getInventory().setItem(i, mapItem);
+        //         given = true;
+        //         break;
+        //     }
+        // }
+
+        // on regarde le slot de la main
+        if (player.getInventory().getItemInMainHand() == null || player.getInventory().getItemInMainHand().getType() == Material.AIR) {
+            player.getInventory().setItemInMainHand(mapItem);
+            player.sendMessage("§aVous avez reçu une carte du marché pour §f" + itemId + "§a du shop §f" + shopId);
+        } else {
+            player.sendMessage("§cVous devez avoir une place libre dans votre barre d'accès rapide (hotbar) pour recevoir la carte du marché.");
+        }
+
+        // if (!given) {
+        //     player.sendMessage("§cVous devez avoir une place libre dans votre barre d'accès rapide (hotbar) pour recevoir la carte du marché.");
+        // } else {
+        //     player.sendMessage("§aVous avez reçu une carte du marché pour §f" + itemId + "§a du shop §f" + shopId);
+        // }
         return true;
     }
 

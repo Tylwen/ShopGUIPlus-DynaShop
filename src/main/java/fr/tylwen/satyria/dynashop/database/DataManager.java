@@ -1211,6 +1211,8 @@ public class DataManager {
                 "close_sell_price DOUBLE NOT NULL DEFAULT 0, " +
                 "high_sell_price DOUBLE NOT NULL DEFAULT 0, " +
                 "low_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                // Ajout du volume
+                "volume DOUBLE NOT NULL DEFAULT 0, " +
                 "INDEX (shop_id, item_id))"
             );
             createTable.executeUpdate();
@@ -1219,7 +1221,8 @@ public class DataManager {
             PreparedStatement stmt = conn.prepareStatement(
                 "SELECT timestamp, " +
                 "open_buy_price, close_buy_price, high_buy_price, low_buy_price, " +
-                "open_sell_price, close_sell_price, high_sell_price, low_sell_price " +
+                "open_sell_price, close_sell_price, high_sell_price, low_sell_price, " +
+                "volume " +
                 "FROM " + dataConfig.getDatabaseTablePrefix() + "_price_history " +
                 "WHERE shop_id = ? AND item_id = ? " +
                 "ORDER BY timestamp ASC"
@@ -1231,9 +1234,9 @@ public class DataManager {
             // plugin.getLogger().info("Récupération de l'historique des prix pour " + shopId + ":" + itemId);
             
             ResultSet rs = stmt.executeQuery();
-            int pointCount = 0;
+            // int pointCount = 0;
             while (rs.next()) {
-                pointCount++;
+                // pointCount++;
                 LocalDateTime timestamp = rs.getTimestamp("timestamp").toLocalDateTime();
                 
                 // Prix d'achat
@@ -1247,11 +1250,15 @@ public class DataManager {
                 double closeSellPrice = rs.getDouble("close_sell_price");
                 double highSellPrice = rs.getDouble("high_sell_price");
                 double lowSellPrice = rs.getDouble("low_sell_price");
+
+                // Volume
+                double volume = rs.getDouble("volume");
                 
                 PriceDataPoint point = new PriceDataPoint(
                     timestamp, 
                     openBuyPrice, closeBuyPrice, highBuyPrice, lowBuyPrice,
-                    openSellPrice, closeSellPrice, highSellPrice, lowSellPrice
+                    openSellPrice, closeSellPrice, highSellPrice, lowSellPrice,
+                    volume
                 );
                 // history.getDataPoints().add(point);
                 history.addDataPointFromDB(point);
@@ -1288,6 +1295,8 @@ public class DataManager {
                 "close_sell_price DOUBLE NOT NULL DEFAULT 0, " +
                 "high_sell_price DOUBLE NOT NULL DEFAULT 0, " +
                 "low_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                // Ajout du volume
+                "volume DOUBLE NOT NULL DEFAULT 0, " +
                 "INDEX (shop_id, item_id))"
             );
             createTable.executeUpdate();
@@ -1297,8 +1306,9 @@ public class DataManager {
                 "INSERT INTO " + dataConfig.getDatabaseTablePrefix() + "_price_history " +
                 "(shop_id, item_id, timestamp, " +
                 "open_buy_price, close_buy_price, high_buy_price, low_buy_price, " +
-                "open_sell_price, close_sell_price, high_sell_price, low_sell_price) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                "open_sell_price, close_sell_price, high_sell_price, low_sell_price, " +
+                "volume) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
             );
             
             for (PriceDataPoint point : history.getDataPoints()) {
@@ -1317,6 +1327,9 @@ public class DataManager {
                 insertStmt.setDouble(9, point.getCloseSellPrice());
                 insertStmt.setDouble(10, point.getHighSellPrice());
                 insertStmt.setDouble(11, point.getLowSellPrice());
+                
+                // Volume
+                insertStmt.setDouble(12, point.getVolume());
                 
                 insertStmt.addBatch();
             }
