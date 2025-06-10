@@ -89,12 +89,14 @@ public class MarketChartZoomListener implements Listener {
                 renderer.zoomIn();
                 renderer.updateMapItemLore(clicked, player);
                 // event.setCancelled(true);
+                // player.getInventory().setItem(event.getSlot(), clicked);
                 player.updateInventory();
                 break;
             case RIGHT:
                 renderer.zoomOut();
                 renderer.updateMapItemLore(clicked, player);
                 // event.setCancelled(true);
+                // player.getInventory().setItem(event.getSlot(), clicked);
                 player.updateInventory();
                 break;
             // case MIDDLE:

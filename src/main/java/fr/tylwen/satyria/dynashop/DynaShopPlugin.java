@@ -291,17 +291,9 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
             getPluginLoader().disablePlugin(this);
             return;
         }
-        // if (getServer().getPluginManager().getPlugin("ProtocolLib") != null) {
-        //     this.packetInterceptor = new ItemPacketInterceptor(this);
-        //     getLogger().info("ProtocolLib détecté, intercepteur de paquets activé!");
-        // } else {
-        //     getLogger().warning("ProtocolLib n'est pas installé, l'intercepteur de paquets est désactivé.");
-        //     getLogger().warning("Installez ProtocolLib pour une expérience optimale avec les placeholders.");
-        // }
 
         // getServer().getPluginManager().registerEvents(new DynaShopListener(this), this);
         getServer().getPluginManager().registerEvents(this.dynaShopListener, this);
-        // Initialiser le listener avant de l'utiliser ailleurs
         this.shopItemPlaceholderListener = new ShopItemPlaceholderListener(this);
         getServer().getPluginManager().registerEvents(this.shopItemPlaceholderListener, this);
         getServer().getPluginManager().registerEvents(new MarketChartZoomListener(this), this);
@@ -321,65 +313,6 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         WaitForShopsTask waitTask = new WaitForShopsTask(this);
         BukkitTask task = getServer().getScheduler().runTaskTimer(this, waitTask, 0L, 20L * 5L);
         waitTask.setSelfTask(task);
-        // getServer().getScheduler().runTaskTimerAsynchronously(this, new SavePricesTask(this), 20L * 60L * 5L, 20L * 60L * 5L); // Toutes les 5 minutes
-        // Modifier cette ligne
-        // getServer().getScheduler().runTaskTimerAsynchronously(this, new DynamicPricesTask(this), 0L, 20L * 60L * 1L);
-
-        // // À ajouter à la fin de onEnable() dans DynaShopPlugin.java
-        // getServer().getScheduler().runTaskAsynchronously(this, () -> {
-        //     getLogger().warning("Test de loadPricesFromDatabase...");
-        //     Map<ShopItem, DynamicPrice> priceMap = getDataManager().loadPricesFromDatabase();
-        //     getLogger().warning("Résultat: " + (priceMap == null ? "null" : priceMap.size() + " éléments"));
-        // });
-
-        // // Nouvelle implémentation avec variable pour suivre la tâche
-        // this.dynamicPricesTaskId = getServer().getScheduler().runTaskTimerAsynchronously(
-        //     this, 
-        //     new DynamicPricesTask(this), 
-        //     20L * 10L, // Délai initial de 10 secondes pour s'assurer que tout est chargé
-        //     20L * 60L  // Une minute entre chaque exécution
-        // ).getTaskId();
-
-        // getLogger().info("Tâche DynamicPricesTask enregistrée avec l'ID: " + dynamicPricesTaskId);
-
-        // Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
-        //     // Précharger les recettes des items populaires
-        //     for (String popularItemKey : configMain.getStringList("popular-items")) {
-        //         String[] parts = popularItemKey.split(":");
-        //         if (parts.length == 2) {
-        //             String shopID = parts[0];
-        //             String itemID = parts[1];
-        //             ItemStack itemStack = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem();
-        //             if (itemStack != null) {
-        //                 priceRecipe.getIngredients(shopID, itemID, itemStack);
-        //             }
-        //         }
-        //     }
-        // }, 20L * 60, 20L * 60 * 15); // Toutes les 15 minutes
-        // // Planifier la précharge périodique des items populaires
-        // Bukkit.getScheduler().runTaskTimerAsynchronously(this, 
-        //     this::preloadPopularItems, 
-        //     20L * 60 * 2,         // Démarrer après 2 minutes
-        //     20L * 60 * 30);   // Répéter toutes les 30 minutes
-
-        // // Ajouter une tâche de nettoyage du cache
-        // Bukkit.getScheduler().runTaskTimerAsynchronously(this, () -> {
-        //     recipeCacheManager.cleanup();
-        // }, 20L * 60L * 15L, 20L * 60L * 15L); // Nettoyage toutes les 15 minutes
-
-        // // Planifier le nettoyage des transactions périmées (toutes les heures)
-        // getServer().getScheduler().runTaskTimerAsynchronously(this, 
-        //     () -> transactionLimiter.cleanupExpiredTransactions(), 
-        //     20L * 60L * 5L, // Délai initial: 5 minutes après le démarrage 
-        //     20L * 60L * 60L // Intervalle: toutes les heures
-        // );
-
-        // // Planifier le nettoyage des cooldowns (toutes les 15 minutes)
-        // getServer().getScheduler().runTaskTimerAsynchronously(this, 
-        //     () -> transactionLimiter.cleanupCooldownTransactions(), 
-        //     20L * 60L * 10L, // Délai initial: 10 minutes après le démarrage
-        //     20L * 60L * 15L // Intervalle: toutes les 15 minutes
-        // );
         // setupMetrics();
 
         getLogger().info("DynaShop activé avec succès !");
