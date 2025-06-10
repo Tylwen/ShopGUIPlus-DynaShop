@@ -26,6 +26,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
+import de.tr7zw.changeme.nbtapi.NBT;
 import fr.tylwen.satyria.dynashop.cache.CacheManager;
 import fr.tylwen.satyria.dynashop.command.DynaShopCommand;
 // import fr.tylwen.satyria.dynashop.command.LimitResetCommand;
@@ -273,6 +274,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         init();
         initCache();
         // load();
+        initTranslation();
         hookIntoShopGUIPlus();
 
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
@@ -281,6 +283,11 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
             this.placeholderExpansion = new DynaShopExpansion(this);
             this.placeholderExpansion.register();
             getLogger().info("Placeholders enregistrés avec PlaceholderAPI !");
+        }
+        if (!NBT.preloadApi()) {
+            getLogger().warning("NBT-API wasn't initialized properly, disabling the plugin");
+            getPluginLoader().disablePlugin(this);
+            return;
         }
         // if (getServer().getPluginManager().getPlugin("ProtocolLib") != null) {
         //     this.packetInterceptor = new ItemPacketInterceptor(this);
@@ -446,12 +453,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         limitRemainingAmountCache = new CacheManager<>(this, "LimitRemainingAmountCache", limitRemainingAmountDuration, TimeUnit.SECONDS, 10);
         limitNextAvailableTimeCache = new CacheManager<>(this, "LimitNextAvailableTimeCache", limitNextAvailableTimeDuration, TimeUnit.SECONDS, 10);
 
-        // // Initialisation des caches avec des durées adaptées
-        // priceCache = new CacheManager<>(this, "PriceCache", 30, TimeUnit.SECONDS, 10);
-        // recipeCache = new CacheManager<>(this, "RecipeCache", 5, TimeUnit.MINUTES, 5);
-        // calculatedPriceCache = new CacheManager<>(this, "CalculatedPriceCache", 1, TimeUnit.MINUTES, 5);
-        // stockCache = new CacheManager<>(this, "StockCache", 20, TimeUnit.SECONDS, 10);
-        // displayPriceCache = new CacheManager<>(this, "DisplayPriceCache", 10, TimeUnit.SECONDS, 15);
+        // initTranslation();
     }
     
     // Getters pour les caches
@@ -526,6 +528,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         if (this.taxService != null) {
             this.taxService.loadConfig();
         }
+        // initTranslation();
         // Lang.setConfig(this.configLang);
         // Settings.setConfig(this.configMain);
         // Settings.load();
@@ -548,6 +551,33 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         this.configMain = YamlConfiguration.loadConfiguration(configFile);
         // this.configMain = new Config(this, "config.yml");
         // this.configLang = new Config(this, "lang.yml");
+    }
+
+    public void initTranslation() {
+        File translationsDir = new File(getDataFolder(), "translations");
+        if (!translationsDir.exists()) {
+            translationsDir.mkdirs();
+            // Optionnel : copier un exemple de base
+            saveResource("translations/translations_en.yml", false);
+            saveResource("translations/translations_fr.yml", false);
+        }
+
+        File[] files = translationsDir.listFiles((dir, name) -> name.endsWith(".yml"));
+        if (files != null) {
+            for (File file : files) {
+                String fileName = file.getName(); // ex: translations_fr.yml
+                // Extraire la locale (ex: "fr" dans "translations_fr.yml")
+                String locale = "default";
+                if (fileName.startsWith("translations_") && fileName.endsWith(".yml")) {
+                    locale = fileName.substring("translations_".length(), fileName.length() - 4);
+                } else {
+                    // fallback: nom sans extension
+                    locale = fileName.replace(".yml", "");
+                }
+                info("fileName" + fileName + " locale: " + locale);
+                getShopConfigManager().loadTranslationFile(locale, "translations/" + fileName);
+            }
+        }
     }
 
     public void setupMetrics() {

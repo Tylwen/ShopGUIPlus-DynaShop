@@ -5,7 +5,7 @@ main: fr.tylwen.satyria.dynashop.DynaShopPlugin
 version: ${dynashop.version}
 description: Plugin de gestion de boutique dynamique pour Minecraft
 api-version: '1.13'
-depend: [ ShopGUIPlus, Vault ]
+depend: [ ShopGUIPlus, Vault, NBTAPI ]
 softdepend: [ PlaceholderAPI ]
 
 commands:

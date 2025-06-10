@@ -430,7 +430,7 @@ public class MarketChartRenderer extends MapRenderer {
 
         // Grille
         g.setColor(new Color(230, 230, 230));
-        int gridX = 6, gridY = 6;
+        int gridX = 5, gridY = 6;
         for (int i = 0; i <= gridX; i++) {
             int x = MARGIN + i * (MAP_WIDTH - 2 * MARGIN) / gridX;
             g.drawLine(x, MARGIN, x, MAP_HEIGHT - MARGIN);

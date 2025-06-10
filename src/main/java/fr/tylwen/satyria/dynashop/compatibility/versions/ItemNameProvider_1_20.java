@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import de.tr7zw.changeme.nbtapi.utils.MinecraftVersion;
 import fr.tylwen.satyria.dynashop.compatibility.ItemNameProvider;
 
 // import org.bukkit.craftbukkit.v1_20_R4.inventory.CraftItemStack; // Import spécifique pour la version 1.20
@@ -12,7 +13,7 @@ import java.lang.reflect.Method;
 
 public class ItemNameProvider_1_20 implements ItemNameProvider {
     
-    private static final String[] POSSIBLE_VERSIONS = {"v1_20_R1", "v1_20_R2", "v1_20_R3", "v1_20_R4"};
+    // private static final String[] POSSIBLE_VERSIONS = {"v1_20_R1", "v1_20_R2", "v1_20_R3", "v1_20_R4"};
     private String detectedVersion;
     private Class<?> craftItemStackClass;
     private Method asNMSCopyMethod;
@@ -23,7 +24,8 @@ public class ItemNameProvider_1_20 implements ItemNameProvider {
     
     public ItemNameProvider_1_20() {
         // Déterminer automatiquement la version exacte
-        detectedVersion = detectServerVersion();
+        // detectedVersion = detectServerVersion();
+        detectedVersion = MinecraftVersion.getVersion().getPackageName();
         
         if (detectedVersion != null) {
             try {
@@ -45,37 +47,37 @@ public class ItemNameProvider_1_20 implements ItemNameProvider {
                 Class<?> componentClass = getDescriptionMethod.getReturnType();
                 getStringMethod = componentClass.getMethod("getString");
                 
-                Bukkit.getLogger().info("[DynaShopGUI+] Version 1.20 détectée: " + detectedVersion);
+                // Bukkit.getLogger().info("[DynaShopGUI+] Version 1.20 détectée: " + detectedVersion);
             } catch (Exception e) {
                 Bukkit.getLogger().warning("[DynaShopGUI+] Échec du chargement du fournisseur 1.20: " + e.getMessage());
-                e.printStackTrace(); // Pour déboguer
+                // e.printStackTrace(); // Pour déboguer
             }
         }
     }
     
     /**
-     * Détecte la version exacte du serveur
-     */
-    private String detectServerVersion() {
-        try {
-            // // Obtenir la version à partir du package de CraftServer
-            String packageName = Bukkit.getServer().getClass().getPackage().getName();
-            // // Retourne seulement la partie version (ex: v1_20_R1)
-            return packageName.substring(packageName.lastIndexOf('.') + 1);
-            // return "v1_20_R4"; // Version par défaut pour les tests, à remplacer par la détection dynamique
-        } catch (Exception e) {
-            // Méthode alternative: essayer explicitement chaque version
-            for (String version : POSSIBLE_VERSIONS) {
-                try {
-                    Class.forName("org.bukkit.craftbukkit." + version + ".CraftServer");
-                    return version;
-                } catch (ClassNotFoundException ignored) {
-                    // Continuer avec la prochaine version
-                }
-            }
-        }
-        return null;
-    }
+    //  * Détecte la version exacte du serveur
+    //  */
+    // private String detectServerVersion() {
+    //     try {
+    //         // // Obtenir la version à partir du package de CraftServer
+    //         String packageName = Bukkit.getServer().getClass().getPackage().getName();
+    //         // // Retourne seulement la partie version (ex: v1_20_R1)
+    //         return packageName.substring(packageName.lastIndexOf('.') + 1);
+    //         // return "v1_20_R4"; // Version par défaut pour les tests, à remplacer par la détection dynamique
+    //     } catch (Exception e) {
+    //         // Méthode alternative: essayer explicitement chaque version
+    //         for (String version : POSSIBLE_VERSIONS) {
+    //             try {
+    //                 Class.forName("org.bukkit.craftbukkit." + version + ".CraftServer");
+    //                 return version;
+    //             } catch (ClassNotFoundException ignored) {
+    //                 // Continuer avec la prochaine version
+    //             }
+    //         }
+    //     }
+    //     return null;
+    // }
     
     @Override
     public String getLocalizedName(ItemStack item, Player player) {
@@ -94,7 +96,7 @@ public class ItemNameProvider_1_20 implements ItemNameProvider {
             // Obtenir la chaîne à partir du Component
             return (String) getStringMethod.invoke(nameComponent);
         } catch (Exception e) {
-            Bukkit.getLogger().warning("[DynaShopGUI+] Erreur lors de l'obtention du nom localisé: " + e.getMessage());
+            // Bukkit.getLogger().warning("[DynaShopGUI+] Erreur lors de l'obtention du nom localisé: " + e.getMessage());
             return null;
         }
     }

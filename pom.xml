@@ -7,10 +7,10 @@
 
 	<groupId>fr.tylwen.satyria.dynashop</groupId>
 	<artifactId>ShopGUIPlus-DynaShop</artifactId>
-	<version>${dynashop.version}</version>
+	<version>1.0.12</version>
 
 	<properties>
-        <dynashop.version>1.0.12</dynashop.version>
+        <dynashop.version>${project.version}</dynashop.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
@@ -22,12 +22,18 @@
         <resources>
             <resource>
                 <targetPath>.</targetPath>
-                <filtering>true</filtering>
+                <filtering>false</filtering>
                 <directory>${basedir}/src/main/resources/</directory>
-                <includes>
+                <!-- <includes>
                     <include>plugin.yml</include>
-                </includes>
+                    <include>config.yml</include>
+                    <include>lang.yml</include>
+                </includes> -->
             </resource>
+            <!-- <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+            </resource> -->
         </resources>
         <plugins>
             <plugin>
@@ -36,13 +42,13 @@
                 <configuration>
                     <source>21</source>
                     <target>21</target>
-                    <annotationProcessorPaths>
+                    <!-- <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
                             <version>1.18.30</version>
                         </path>
-                    </annotationProcessorPaths>
+                    </annotationProcessorPaths> -->
                 </configuration>
             </plugin>
             
@@ -93,12 +99,20 @@
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <relocations>
                                 <relocation>
+                                    <pattern>de.tr7zw.changeme.nbtapi</pattern>
+                                    <shadedPattern>fr.tylwen.satyria.dynashop.libs.nbtapi</shadedPattern>
+                                </relocation>
+                                <relocation>
                                     <pattern>com.zaxxer.hikari</pattern>
                                     <shadedPattern>fr.tylwen.satyria.dynashop.libs.hikari</shadedPattern>
                                 </relocation>
                                 <relocation>
                                     <pattern>org.bstats</pattern>
                                     <shadedPattern>fr.tylwen.satyria.dynashop.libs.bstats</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>org.slf4j</pattern>
+                                    <shadedPattern>fr.tylwen.satyria.dynashop.libs.slf4j</shadedPattern>
                                 </relocation>
                             </relocations>
                             <!-- Exclure explicitement les fichiers source Java -->
@@ -107,6 +121,10 @@
                                     <artifact>*:*</artifact>
                                     <excludes>
                                         <exclude>**/*.java</exclude>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <exclude>META-INF/MANIFEST.MF</exclude>
                                     </excludes>
                                 </filter>
                             </filters>
@@ -123,13 +141,23 @@
             <url>https://hub.spigotmc.org/nexus/content/groups/public/</url>
             <!-- <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url> -->
         </repository>
-        <repository>
-            <id>codemc-nms-repository</id>
-            <url>https://repo.codemc.io/repository/nms/</url>
-        </repository>
+        <!-- CodeMC -->
         <repository>
             <id>codemc-repo</id>
-            <url>https://repo.codemc.io/repository/maven-public/</url>
+            <url>https://repo.codemc.org/repository/maven-public/</url>
+            <layout>default</layout>
+        </repository>
+        <!-- CodeMC NMS -->
+        <repository>
+            <id>codemc-nms-repo</id>
+            <url>https://repo.codemc.org/repository/nms/</url>
+            <layout>default</layout>
+        </repository>
+        <!-- Mojang -->
+        <repository>
+            <id>mojang-libraries</id>
+            <url>https://libraries.minecraft.net/</url>
+            <layout>default</layout>
         </repository>
         <repository>
             <id>jitpack.io</id>
@@ -144,14 +172,35 @@
             <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository> -->
     </repositories>
+    
+    <pluginRepositories>
+        <!-- CodeMC -->
+        <pluginRepository>
+            <id>codemc-repo</id>
+            <url>https://repo.codemc.org/repository/maven-public/</url>
+            <layout>default</layout>
+        </pluginRepository>
+    </pluginRepositories>
 
     <dependencies>
+        <!-- <dependency>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot-api</artifactId>
+            <version>1.16.4-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency> -->
         <dependency>
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot</artifactId>
-            <version>1.20.6-R0.1-SNAPSHOT</version>
+            <version>1.16.4-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
-            <!-- <classifier>remapped-mojang</classifier> Important! -->
+            <!-- <classifier>remapped-mojang</classifier> -->
+        </dependency>
+        <dependency>
+            <groupId>commons-lang</groupId>
+            <artifactId>commons-lang</artifactId>
+            <version>2.6</version>
+            <scope>provided</scope> <!-- Provided by Spigot -->
         </dependency>
         <!-- Spigot API -->
 		<!-- <dependency>
@@ -222,16 +271,19 @@
             <version>1.7</version>
             <scope>provided</scope>
         </dependency>
-        <!-- <dependency>
+        <dependency>
             <groupId>de.tr7zw</groupId>
             <artifactId>item-nbt-api</artifactId>
+            <!-- <artifactId>item-nbt-api-plugin</artifactId> -->
             <version>2.15.0</version>
-        </dependency> -->
-        <dependency>
+            <!-- <scope>provided</scope> -->
+            <!-- <scope>compile</scope> -->
+        </dependency>
+        <!-- <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>1.18.30</version>
             <scope>provided</scope>
-        </dependency>
+        </dependency> -->
     </dependencies>
 </project>

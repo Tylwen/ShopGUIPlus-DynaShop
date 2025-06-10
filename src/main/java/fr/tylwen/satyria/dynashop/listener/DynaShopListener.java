@@ -682,6 +682,9 @@ public class DynaShopListener implements Listener {
             maxBuy = recipePrice.getMaxBuyPrice();
             growthBuy = recipePrice.getGrowthBuy();
             decayBuy = recipePrice.getDecayBuy();
+            stock = recipePrice.getStock();
+            minStock = recipePrice.getMinStock();
+            maxStock = recipePrice.getMaxStock();
         } else if (buyTypeDynaShop == DynaShopType.STOCK) {
             DynamicPrice stockPrice = plugin.getPriceStock().createStockPrice(shopID, itemID);
             buyPrice = stockPrice.getBuyPrice();
@@ -943,6 +946,9 @@ public class DynaShopListener implements Listener {
             maxSell = recipePrice.getMaxSellPrice();
             growthSell = recipePrice.getGrowthSell();
             decaySell = recipePrice.getDecaySell();
+            stock = recipePrice.getStock();
+            minStock = recipePrice.getMinStock();
+            maxStock = recipePrice.getMaxStock();
         } else if (sellTypeDynaShop == DynaShopType.STOCK) {
             DynamicPrice stockPrice = plugin.getPriceStock().createStockPrice(shopID, itemID);
             sellPrice = stockPrice.getSellPrice();

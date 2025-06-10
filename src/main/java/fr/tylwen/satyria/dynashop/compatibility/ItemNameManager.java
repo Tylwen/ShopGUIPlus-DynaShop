@@ -1,22 +1,26 @@
 package fr.tylwen.satyria.dynashop.compatibility;
 
 import org.bukkit.Bukkit;
-import org.bukkit.craftbukkit.v1_20_R4.CraftServer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import de.tr7zw.changeme.nbtapi.utils.MinecraftVersion;
+// import de.tr7zw.changeme.nbtapi.utils.VersionChecker;
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.compatibility.versions.*;
-import net.minecraft.server.MinecraftServer;
+// import net.minecraft.server.MinecraftServer;
 
-import java.util.ArrayList;
-import java.util.List;
+// import org.bukkit.craftbukkit.v1_16_R3.*;
+
+// import java.util.ArrayList;
+// import java.util.List;
 import java.util.logging.Logger;
 
 public class ItemNameManager {
     
     private static ItemNameProvider provider;
     private static final Logger logger = Bukkit.getLogger();
+    private static MinecraftVersion version;
 
 
     // static {
@@ -58,7 +62,8 @@ public class ItemNameManager {
         // MinecraftServer server = ((CraftServer) Bukkit.getServer()).getServer();
         // logger.warning("MinecraftServer: " + server.getClass().getName() + " | Version: " + server.toString());
         
-        String version = getServerVersion();
+        // String version = getServerVersion();
+        String version = MinecraftVersion.getVersion().getPackageName();
         DynaShopPlugin.getInstance().info(version);
         // ItemNameProvider provider = null;
         
@@ -126,23 +131,23 @@ public class ItemNameManager {
     }
 
     
-    private static String getServerVersion() {
-        try {
-            // String packageName = Bukkit.getServer().getClass().getPackage().getName();
-            // return packageName.substring(packageName.lastIndexOf('.') + 1);
-            return Bukkit.getServer().getClass().getPackage().getName().split("\\.")[3];
-            // // Méthode 1: Essayer d'obtenir directement depuis la classe CraftServer
-            // String packageName = Bukkit.getServer().getClass().getPackage().getName();
-            // if (packageName.contains("craftbukkit.v")) {
-            //     // Format attendu: org.bukkit.craftbukkit.v1_XX_RY
-            //     return packageName.substring(packageName.lastIndexOf('.') + 1);
-            // }
-            // Si aucune version n'est trouvée, retourner null
-            // return null;
-        } catch (Exception e) {
-            return null;
-        }
-    }
+    // private static String getServerVersion() {
+    //     try {
+    //         // String packageName = Bukkit.getServer().getClass().getPackage().getName();
+    //         // return packageName.substring(packageName.lastIndexOf('.') + 1);
+    //         return Bukkit.getServer().getClass().getPackage().getName().split("\\.")[3];
+    //         // // Méthode 1: Essayer d'obtenir directement depuis la classe CraftServer
+    //         // String packageName = Bukkit.getServer().getClass().getPackage().getName();
+    //         // if (packageName.contains("craftbukkit.v")) {
+    //         //     // Format attendu: org.bukkit.craftbukkit.v1_XX_RY
+    //         //     return packageName.substring(packageName.lastIndexOf('.') + 1);
+    //         // }
+    //         // Si aucune version n'est trouvée, retourner null
+    //         // return null;
+    //     } catch (Exception e) {
+    //         return null;
+    //     }
+    // }
     // private static String getServerVersion() {
     //     try {
     //         // Obtenir la version de Bukkit (format: "1.20.6-R0.1-SNAPSHOT")

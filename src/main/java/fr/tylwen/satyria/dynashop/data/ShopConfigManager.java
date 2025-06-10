@@ -4,10 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
-// import org.bukkit.plugin.Plugin;
-// import org.bukkit.inventory.ItemStack;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.cache.CacheManager;
@@ -15,20 +12,16 @@ import fr.tylwen.satyria.dynashop.compatibility.ItemNameManager;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.data.param.RecipeType;
 import fr.tylwen.satyria.dynashop.price.DynamicPrice;
+
 import net.brcdev.shopgui.ShopGuiPlusApi;
 // import net.brcdev.shopgui.exception.shop.ShopsNotLoadedException;
 import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.item.ShopItem;
 
 import java.io.File;
-import java.io.IOException;
-// import java.io.ObjectInputFilter.Config;
-import java.util.HashMap;
 import java.util.Map;
-// import java.util.HashMap;
-// import java.util.Map;
+import java.util.HashMap;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 public class ShopConfigManager {
@@ -40,6 +33,8 @@ public class ShopConfigManager {
     private CacheManager<String, YamlConfiguration> shopConfigCache;
     private CacheManager<String, ConfigurationSection> sectionCache;
     private CacheManager<String, RecipeType> recipeTypeCache;
+
+    private CacheManager<String, YamlConfiguration> translationsCache;
 
     /**
      * Constructeur qui initialise le répertoire de configuration des shops.
@@ -55,6 +50,8 @@ public class ShopConfigManager {
         this.shopConfigCache = new CacheManager<>(plugin, "ShopConfigCache", 1, TimeUnit.DAYS, 5);
         this.sectionCache = new CacheManager<>(plugin, "SectionCache", 1, TimeUnit.DAYS, 10);
         this.recipeTypeCache = new CacheManager<>(plugin, "RecipeTypeCache", 1, TimeUnit.DAYS, 5);
+
+        this.translationsCache = new CacheManager<>(plugin, "TranslationsCache", 1, TimeUnit.DAYS, 5);
     }
 
     /**
@@ -174,6 +171,10 @@ public class ShopConfigManager {
                 getShopConfig(shopID);
             }
         }
+        
+        // Vider le cache des traductions
+        translationsCache.clear();
+        plugin.initTranslation();
     }
 
     /**
@@ -862,6 +863,37 @@ public class ShopConfigManager {
     }
 
     /**
+     * Charge un fichier de traduction dans le cache.
+     * @param locale Le code de langue (ex: "fr", "en", "de")
+     * @param fileName Le nom du fichier (ex: "translations_fr.yml")
+     */
+    public void loadTranslationFile(String locale, String fileName) {
+        File file = new File(plugin.getDataFolder(), fileName);
+        if (!file.exists()) {
+            DynaShopPlugin.getInstance().info("Translation file for locale '" + locale + "' not found, creating default.");
+            plugin.saveResource(fileName, false); // Copie depuis le jar si dispo
+        }
+        YamlConfiguration config = YamlConfiguration.loadConfiguration(file);
+        translationsCache.put(locale, config);
+        DynaShopPlugin.getInstance().info("Translation file for locale '" + locale + "' loaded successfully.");
+    }
+
+    /**
+     * Récupère le nom traduit d'un matériau selon la locale du joueur.
+     * @param materialName Le nom du matériau (ex: "GOLD_BLOCK")
+     * @param locale La locale (ex: "fr", "en")
+     * @return Le nom traduit ou null si non trouvé
+     */
+    public String getTranslatedMaterialName(String materialName, String locale) {
+        YamlConfiguration translations = translationsCache.get(locale, () -> null);
+        if (translations == null) {
+            DynaShopPlugin.getInstance().info("Translation file for locale '" + locale + "' not loaded.");
+            return null;
+        }
+        return translations.getString(materialName, null);
+    }
+
+    /**
      * Récupère le nom d'affichage d'un item.
      * Utilisé pour les cartes de marché.
      * 
@@ -891,15 +923,26 @@ public class ShopConfigManager {
             }
         }
         
-        // 2. Utiliser le système multi-version pour obtenir le nom localisé
+        // 2. Traduction via fichier si locale connue
+        // DynaShopPlugin.getInstance().info(player.getLocale());
+        if (player != null && player.getLocale() != null) {
+            String locale = player.getLocale().split("_")[0]; // "fr", "en", etc.
+            String translated = getTranslatedMaterialName(shopItem.getItem().getType().name(), locale);
+            DynaShopPlugin.getInstance().info(shopItem.getItem().getType().name() + " " + translated);
+            if (translated != null && !translated.isEmpty()) {
+                return translated;
+            }
+        }
+        
+        // 3. Système multi-version (anglais vanilla)
         if (player != null) {
             String localizedName = ItemNameManager.getLocalizedName(shopItem.getItem(), player);
             if (localizedName != null && !localizedName.isEmpty()) {
                 return localizedName;
             }
         }
-        
-        // 3. Fallback: formatage du nom de matériau
+
+        // 4. Fallback: formatage du nom de matériau
         return formatMaterialName(shopItem.getItem().getType().name());
     }
 
@@ -1033,7 +1076,7 @@ public class ShopConfigManager {
         StringBuilder result = new StringBuilder();
         
         for (String word : words) {
-            if (word.length() > 0) {
+            if (!word.isEmpty()) {
                 result.append(Character.toUpperCase(word.charAt(0)))
                     .append(word.substring(1))
                     .append(" ");

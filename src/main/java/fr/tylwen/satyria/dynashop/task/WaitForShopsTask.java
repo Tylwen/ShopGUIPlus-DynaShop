@@ -170,7 +170,7 @@ public class WaitForShopsTask implements Runnable {
                                         price.getSellPrice(), price.getSellPrice(), price.getSellPrice(), price.getSellPrice()
                                     );
                                     
-                                    plugin.getLogger().info("Point d'historique ajouté pour " + shop.getId() + ":" + item.getId());
+                                    // plugin.getLogger().info("Point d'historique ajouté pour " + shop.getId() + ":" + item.getId());
                                 }
                             }
                         } catch (Exception e) {
