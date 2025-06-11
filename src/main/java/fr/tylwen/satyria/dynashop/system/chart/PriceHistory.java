@@ -22,6 +22,7 @@ public class PriceHistory implements ConfigurationSerializable {
     public PriceHistory(String shopId, String itemId) {
         // this(shopId, itemId, 50); // Par défaut, on garde 50 points de données
         this(shopId, itemId, 1000); // Par défaut, on garde 1000 points de données
+        // this(shopId, itemId, 100); // Par défaut, on garde 100 points de données
     }
 
     public PriceHistory(String shopId, String itemId, int maxDataPoints) {

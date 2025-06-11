@@ -1,7 +1,11 @@
 package fr.tylwen.satyria.dynashop.listener;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import fr.tylwen.satyria.dynashop.command.DualChartSubCommand;
+import fr.tylwen.satyria.dynashop.system.chart.DualPriceChartRenderer;
 import fr.tylwen.satyria.dynashop.system.chart.MarketChartRenderer;
+import fr.tylwen.satyria.dynashop.system.chart.ZoomableChartRenderer;
+
 import org.bukkit.Material;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
@@ -12,6 +16,7 @@ import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.MapMeta;
+import org.bukkit.map.MapRenderer;
 import org.bukkit.NamespacedKey;
 import org.bukkit.persistence.PersistentDataType;
 
@@ -71,46 +76,115 @@ public class MarketChartZoomListener implements Listener {
         }
 
         // Récupère le renderer associé à cette carte
-        MarketChartRenderer renderer = null;
+        // MarketChartRenderer renderer = null;
+        // if (meta.hasMapView() && meta.getMapView() != null) {
+        //     for (org.bukkit.map.MapRenderer r : meta.getMapView().getRenderers()) {
+        //         if (r instanceof MarketChartRenderer mcr) {
+        //             handleMarketChartZoom(event, clicked, player, mcr);
+        //             return;
+        //         } else if (r instanceof DualPriceChartRenderer dcr) {
+        //             handleDualChartZoom(event, clicked, player, dcr);
+        //             return;
+        //         }
+        //     }
+        // }
         if (meta.hasMapView() && meta.getMapView() != null) {
-            for (org.bukkit.map.MapRenderer r : meta.getMapView().getRenderers()) {
-                if (r instanceof MarketChartRenderer mcr) {
-                    renderer = mcr;
-                    break;
+            for (MapRenderer r : meta.getMapView().getRenderers()) {
+                if (r instanceof ZoomableChartRenderer chart) {
+                    // Clic gauche = zoom in, clic droit = zoom out
+                    switch (event.getClick()) {
+                        case LEFT:
+                            chart.zoomIn();
+                            chart.updateMapItemLore(clicked, player);
+                            player.updateInventory();
+                            break;
+                        case RIGHT:
+                            chart.zoomOut();
+                            chart.updateMapItemLore(clicked, player);
+                            player.updateInventory();
+                            break;
+                        default:
+                            break;
+                    }
+                    return;
                 }
             }
         }
-        if (renderer == null) return;
+        // if (renderer == null) return;
         // plugin.info("Found MarketChartRenderer for shop ID: " + shopId + ", item ID: " + itemId);
 
+        // // Clic gauche = zoom in, clic droit = zoom out
+        // switch (event.getClick()) {
+        //     case LEFT:
+        //         renderer.zoomIn();
+        //         renderer.updateMapItemLore(clicked, player);
+        //         // event.setCancelled(true);
+        //         // player.getInventory().setItem(event.getSlot(), clicked);
+        //         player.updateInventory();
+        //         break;
+        //     case RIGHT:
+        //         renderer.zoomOut();
+        //         renderer.updateMapItemLore(clicked, player);
+        //         // event.setCancelled(true);
+        //         // player.getInventory().setItem(event.getSlot(), clicked);
+        //         player.updateInventory();
+        //         break;
+        //     // case MIDDLE:
+        //     //     renderer.zoomOut();
+        //     //     renderer.updateMapItemLore(clicked, player);
+        //     //     // event.setCancelled(true);
+        //     //     player.updateInventory();
+        //     //     break;
+        //     default:
+        //         // Si un autre clic est effectué, on ne fait rien
+        //         break;
+        // }
+
+        // // Met à jour la carte pour refléter le nouveau zoom
+    }
+    
+    /**
+     * Gère le zoom pour les cartes MarketChartRenderer
+     */
+    private void handleMarketChartZoom(InventoryClickEvent event, ItemStack clicked, Player player, MarketChartRenderer renderer) {
         // Clic gauche = zoom in, clic droit = zoom out
         switch (event.getClick()) {
             case LEFT:
                 renderer.zoomIn();
                 renderer.updateMapItemLore(clicked, player);
-                // event.setCancelled(true);
-                // player.getInventory().setItem(event.getSlot(), clicked);
                 player.updateInventory();
                 break;
             case RIGHT:
                 renderer.zoomOut();
                 renderer.updateMapItemLore(clicked, player);
-                // event.setCancelled(true);
-                // player.getInventory().setItem(event.getSlot(), clicked);
                 player.updateInventory();
                 break;
-            // case MIDDLE:
-            //     renderer.zoomOut();
-            //     renderer.updateMapItemLore(clicked, player);
-            //     // event.setCancelled(true);
-            //     player.updateInventory();
-            //     break;
             default:
                 // Si un autre clic est effectué, on ne fait rien
                 break;
         }
-
-        // Met à jour la carte pour refléter le nouveau zoom
+    }
+    
+    /**
+     * Gère le zoom pour les cartes DualPriceChartRenderer
+     */
+    private void handleDualChartZoom(InventoryClickEvent event, ItemStack clicked, Player player, DualPriceChartRenderer renderer) {
+        // Clic gauche = zoom in, clic droit = zoom out
+        switch (event.getClick()) {
+            case LEFT:
+                renderer.zoomIn();
+                renderer.updateMapItemLore(clicked, player);
+                player.updateInventory();
+                break;
+            case RIGHT:
+                renderer.zoomOut();
+                renderer.updateMapItemLore(clicked, player);
+                player.updateInventory();
+                break;
+            default:
+                // Si un autre clic est effectué, on ne fait rien
+                break;
+        }
     }
 
     @EventHandler

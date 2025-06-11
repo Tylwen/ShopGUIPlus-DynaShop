@@ -15,6 +15,7 @@ import org.bukkit.persistence.PersistentDataType;
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.system.chart.PriceHistory.PriceDataPoint;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.RenderingHints;
@@ -25,13 +26,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class MarketChartRenderer extends MapRenderer implements ZoomableChartRenderer {
+public class DualPriceChartRenderer extends MapRenderer implements ZoomableChartRenderer {
 
     private static final int MAP_WIDTH = 128;
     private static final int MAP_HEIGHT = 128;
     private static final int MARGIN = 10;
-    private static final int CANDLE_WIDTH = 3;
-    private static final int CANDLE_SPACING = 1;
+    private static final int RIGHT_MARGIN = 20; // Marge supplémentaire à droite pour le 2ème axe
 
     private final DynaShopPlugin plugin;
     private final String shopId;
@@ -40,21 +40,21 @@ public class MarketChartRenderer extends MapRenderer implements ZoomableChartRen
     private long lastUpdateTime;
     private static final long UPDATE_INTERVAL = 5 * 60 * 1000; // 5 minutes
     
-    // Couleurs pour les chandeliers
-    private final Color bullishColor = new Color(138, 194, 38); // Vert
-    private final Color bearishColor = new Color(192, 57, 56); // Rouge
-    private final Color volumeColor = new Color(100, 100, 180); // Bleu-gris
+    // Couleurs pour les courbes
+    private final Color sellColor = new Color(0, 153, 51); // Vert
+    private final Color buyColor = new Color(204, 51, 51); // Rouge
     private final Color gridColor = new Color(220, 220, 220); // Gris clair
     private final Color textColor = Color.BLACK;
     
     // Gestion de la granularité
-    private int granularityMinutes = 15; // Par défaut 15 minutes par chandelle
+    private int granularityMinutes = 15; // Par défaut 15 minutes par point
     private static final int[] GRANULARITIES = {5, 15, 60, 180, 360, 720, 1440}; // en minutes
     private int granularityIndex = 1; // index courant dans la liste (par défaut 15min)
     
     private static final Map<String, Integer> mapIdCache = new HashMap<>();
+    private static final String MAP_TYPE_KEY = "dual_price_chart";
     
-    public MarketChartRenderer(DynaShopPlugin plugin, String shopId, String itemId) {
+    public DualPriceChartRenderer(DynaShopPlugin plugin, String shopId, String itemId) {
         this.plugin = plugin;
         this.shopId = shopId;
         this.itemId = itemId;
@@ -113,71 +113,48 @@ public class MarketChartRenderer extends MapRenderer implements ZoomableChartRen
         }
         
         // Grouper les données selon la granularité
-        List<CandleData> candles = groupDataByGranularity(dataPoints);
+        List<PricePoint> points = groupDataByGranularity(dataPoints);
         
-        // Trouver les valeurs min et max pour l'échelle
-        double minPrice = Double.MAX_VALUE;
-        double maxPrice = Double.MIN_VALUE;
-        double maxVolume = 0;
+        // Trouver les valeurs min et max pour les échelles
+        double minSellPrice = Double.MAX_VALUE;
+        double maxSellPrice = Double.MIN_VALUE;
+        double minBuyPrice = Double.MAX_VALUE;
+        double maxBuyPrice = Double.MIN_VALUE;
         
-        for (CandleData candle : candles) {
-            minPrice = Math.min(minPrice, candle.low);
-            maxPrice = Math.max(maxPrice, candle.high);
-            maxVolume = Math.max(maxVolume, candle.volume);
+        for (PricePoint point : points) {
+            if (point.sellPrice > 0) {
+                minSellPrice = Math.min(minSellPrice, point.sellPrice);
+                maxSellPrice = Math.max(maxSellPrice, point.sellPrice);
+            }
+            if (point.buyPrice > 0) {
+                minBuyPrice = Math.min(minBuyPrice, point.buyPrice);
+                maxBuyPrice = Math.max(maxBuyPrice, point.buyPrice);
+            }
         }
         
-        // Ajouter une marge à l'échelle
-        double priceDiff = maxPrice - minPrice;
-        minPrice = Math.max(0, minPrice - priceDiff * 0.1);
-        maxPrice = maxPrice + priceDiff * 0.1;
+        // Ajouter une marge aux échelles
+        double sellPriceDiff = maxSellPrice - minSellPrice;
+        minSellPrice = Math.max(0, minSellPrice - sellPriceDiff * 0.1);
+        maxSellPrice = maxSellPrice + sellPriceDiff * 0.1;
+        
+        double buyPriceDiff = maxBuyPrice - minBuyPrice;
+        minBuyPrice = Math.max(0, minBuyPrice - buyPriceDiff * 0.1);
+        maxBuyPrice = maxBuyPrice + buyPriceDiff * 0.1;
+        
+        // Éviter les divisions par zéro
+        if (minSellPrice == maxSellPrice) maxSellPrice = minSellPrice + 1;
+        if (minBuyPrice == maxBuyPrice) maxBuyPrice = minBuyPrice + 1;
         
         // Dessiner la grille
         drawGrid(g);
         
-        // Dessiner les prix sur l'axe Y
-        drawYAxis(g, minPrice, maxPrice);
+        // Dessiner les axes Y avec les prix
+        drawYAxes(g, minSellPrice, maxSellPrice, minBuyPrice, maxBuyPrice);
         
-        // Définir la zone pour les chandeliers et le volume
-        int volumeAreaHeight = 24;
-        int priceChartHeight = MAP_HEIGHT - 2 * MARGIN - volumeAreaHeight;
-        int volumeBaseY = MAP_HEIGHT - MARGIN;
+        // Dessiner les courbes
+        drawPriceCurves(g, points, minSellPrice, maxSellPrice, minBuyPrice, maxBuyPrice);
         
-        // Dessiner les chandeliers
-        int maxCandlesVisible = (MAP_WIDTH - 2 * MARGIN) / (CANDLE_WIDTH + CANDLE_SPACING);
-        int startIndex = Math.max(0, candles.size() - maxCandlesVisible);
-        
-        for (int i = startIndex; i < candles.size(); i++) {
-            CandleData candle = candles.get(i);
-            int x = MARGIN + (i - startIndex) * (CANDLE_WIDTH + CANDLE_SPACING);
-            
-            // Dessiner le volume
-            if (maxVolume > 0) {
-                int volumeHeight = (int)(volumeAreaHeight * candle.volume / maxVolume);
-                g.setColor(volumeColor);
-                g.fillRect(x, volumeBaseY - volumeHeight, CANDLE_WIDTH, volumeHeight);
-            }
-            
-            // Convertir les prix en coordonnées y
-            double priceRange = maxPrice - minPrice;
-            int openY = MARGIN + (int)(priceChartHeight * (1 - (candle.open - minPrice) / priceRange));
-            int closeY = MARGIN + (int)(priceChartHeight * (1 - (candle.close - minPrice) / priceRange));
-            int highY = MARGIN + (int)(priceChartHeight * (1 - (candle.high - minPrice) / priceRange));
-            int lowY = MARGIN + (int)(priceChartHeight * (1 - (candle.low - minPrice) / priceRange));
-            
-            // Dessiner la mèche
-            g.setColor(Color.BLACK);
-            g.drawLine(x + CANDLE_WIDTH / 2, highY, x + CANDLE_WIDTH / 2, lowY);
-            
-            // Dessiner le corps
-            boolean isBullish = candle.close >= candle.open;
-            g.setColor(isBullish ? bullishColor : bearishColor);
-            
-            int bodyTop = Math.min(openY, closeY);
-            int bodyHeight = Math.max(1, Math.abs(closeY - openY));
-            g.fillRect(x, bodyTop, CANDLE_WIDTH, bodyHeight);
-        }
-        
-        // Dessiner le nom de l'item et le prix actuel
+        // Dessiner le nom de l'item
         String itemName = plugin.getShopConfigManager().getItemName(player, shopId, itemId);
         if (itemName == null) itemName = itemId;
         
@@ -185,11 +162,17 @@ public class MarketChartRenderer extends MapRenderer implements ZoomableChartRen
         g.setFont(new Font("SansSerif", Font.BOLD, 10));
         g.drawString(itemName, MARGIN, MARGIN - 2);
         
-        // Afficher le prix actuel
-        if (!candles.isEmpty()) {
-            CandleData lastCandle = candles.get(candles.size() - 1);
-            String priceText = String.format("%.1f", lastCandle.close);
-            g.drawString(priceText, MAP_WIDTH - MARGIN - g.getFontMetrics().stringWidth(priceText) - 2, MARGIN + 10);
+        // Afficher les prix actuels
+        if (!points.isEmpty()) {
+            PricePoint lastPoint = points.get(points.size() - 1);
+            
+            g.setColor(sellColor);
+            String sellPriceText = String.format("Vente: %.1f", lastPoint.sellPrice);
+            g.drawString(sellPriceText, MARGIN, MARGIN + 10);
+            
+            g.setColor(buyColor);
+            String buyPriceText = String.format("Achat: %.1f", lastPoint.buyPrice);
+            g.drawString(buyPriceText, MARGIN, MARGIN + 22);
         }
         
         g.dispose();
@@ -201,27 +184,116 @@ public class MarketChartRenderer extends MapRenderer implements ZoomableChartRen
         
         // Lignes horizontales
         for (int i = 0; i <= 4; i++) {
-            int y = MARGIN + i * (MAP_HEIGHT - 2 * MARGIN - 24) / 4;
-            g.drawLine(MARGIN, y, MAP_WIDTH - MARGIN, y);
+            int y = MARGIN + i * (MAP_HEIGHT - 2 * MARGIN) / 4;
+            g.drawLine(MARGIN, y, MAP_WIDTH - RIGHT_MARGIN, y);
         }
         
-        // Ligne séparatrice pour la zone de volume
-        g.drawLine(MARGIN, MAP_HEIGHT - MARGIN - 24, MAP_WIDTH - MARGIN, MAP_HEIGHT - MARGIN - 24);
+        // Lignes verticales optionnelles
+        for (int i = 0; i <= 4; i++) {
+            int x = MARGIN + i * (MAP_WIDTH - MARGIN - RIGHT_MARGIN) / 4;
+            g.drawLine(x, MARGIN, x, MAP_HEIGHT - MARGIN);
+        }
     }
     
-    private void drawYAxis(java.awt.Graphics2D g, double minPrice, double maxPrice) {
-        g.setColor(textColor);
+    private void drawYAxes(java.awt.Graphics2D g, double minSellPrice, double maxSellPrice, double minBuyPrice, double maxBuyPrice) {
+        // Axe gauche (prix de vente)
+        g.setColor(sellColor);
         g.setFont(new Font("SansSerif", Font.PLAIN, 8));
         
         for (int i = 0; i <= 4; i++) {
-            double price = minPrice + (maxPrice - minPrice) * (4 - i) / 4;
-            int y = MARGIN + i * (MAP_HEIGHT - 2 * MARGIN - 24) / 4;
+            double price = minSellPrice + (maxSellPrice - minSellPrice) * (4 - i) / 4;
+            int y = MARGIN + i * (MAP_HEIGHT - 2 * MARGIN) / 4;
             g.drawString(String.format("%.1f", price), 2, y + 4);
+        }
+        
+        // Axe droit (prix d'achat)
+        g.setColor(buyColor);
+        
+        for (int i = 0; i <= 4; i++) {
+            double price = minBuyPrice + (maxBuyPrice - minBuyPrice) * (4 - i) / 4;
+            int y = MARGIN + i * (MAP_HEIGHT - 2 * MARGIN) / 4;
+            String priceText = String.format("%.1f", price);
+            int textWidth = g.getFontMetrics().stringWidth(priceText);
+            g.drawString(priceText, MAP_WIDTH - RIGHT_MARGIN + 5, y + 4);
         }
     }
     
-    private List<CandleData> groupDataByGranularity(List<PriceDataPoint> dataPoints) {
-        List<CandleData> grouped = new ArrayList<>();
+    private void drawPriceCurves(java.awt.Graphics2D g, List<PricePoint> points, 
+                            double minSellPrice, double maxSellPrice, 
+                            double minBuyPrice, double maxBuyPrice) {
+        
+        if (points.isEmpty()) return;
+        
+        int chartWidth = MAP_WIDTH - MARGIN - RIGHT_MARGIN;
+        int chartHeight = MAP_HEIGHT - 2 * MARGIN;
+        
+        // Si nous n'avons qu'un seul point, dessiner un point au lieu d'une ligne
+        if (points.size() == 1) {
+            PricePoint point = points.get(0);
+            
+            // Dessiner le point de vente
+            if (point.sellPrice > 0) {
+                g.setColor(sellColor);
+                int y = MARGIN + (int)(chartHeight * (1 - (point.sellPrice - minSellPrice) / (maxSellPrice - minSellPrice)));
+                g.fillOval(MARGIN + chartWidth/2 - 3, y - 3, 6, 6);
+            }
+            
+            // Dessiner le point d'achat
+            if (point.buyPrice > 0) {
+                g.setColor(buyColor);
+                int y = MARGIN + (int)(chartHeight * (1 - (point.buyPrice - minBuyPrice) / (maxBuyPrice - minBuyPrice)));
+                g.fillOval(MARGIN + chartWidth/2 - 3, y - 3, 6, 6);
+            }
+            
+            return;
+        }
+        
+        // Pour plusieurs points, dessiner des lignes
+        g.setColor(sellColor);
+        g.setStroke(new BasicStroke(2.0f));
+        
+        int[] xPoints = new int[points.size()];
+        int[] ySellPoints = new int[points.size()];
+        
+        for (int i = 0; i < points.size(); i++) {
+            PricePoint point = points.get(i);
+            // Calcul sécurisé de la position X
+            xPoints[i] = MARGIN + (points.size() > 1 ? i * chartWidth / (points.size() - 1) : chartWidth / 2);
+            
+            if (point.sellPrice > 0) {
+                ySellPoints[i] = MARGIN + (int)(chartHeight * (1 - (point.sellPrice - minSellPrice) / (maxSellPrice - minSellPrice)));
+            } else {
+                // Si pas de prix de vente, utiliser la dernière valeur valide ou le milieu
+                ySellPoints[i] = (i > 0) ? ySellPoints[i-1] : MARGIN + chartHeight / 2;
+            }
+        }
+        
+        // Dessiner la ligne de vente
+        g.drawPolyline(xPoints, ySellPoints, points.size());
+        
+        // Dessiner la courbe de prix d'achat (rouge)
+        g.setColor(buyColor);
+        g.setStroke(new BasicStroke(2.0f));
+        
+        int[] yBuyPoints = new int[points.size()];
+        
+        for (int i = 0; i < points.size(); i++) {
+            PricePoint point = points.get(i);
+            
+            if (point.buyPrice > 0) {
+                yBuyPoints[i] = MARGIN + (int)(chartHeight * (1 - (point.buyPrice - minBuyPrice) / (maxBuyPrice - minBuyPrice)));
+            } else {
+                // Si pas de prix d'achat, utiliser la dernière valeur valide ou le milieu
+                yBuyPoints[i] = (i > 0) ? yBuyPoints[i-1] : MARGIN + chartHeight / 2;
+            }
+        }
+        
+        // Dessiner la ligne d'achat
+        g.drawPolyline(xPoints, yBuyPoints, points.size());
+    }
+    
+    private List<PricePoint> groupDataByGranularity(List<PriceDataPoint> dataPoints) {
+        List<PricePoint> grouped = new ArrayList<>();
         
         if (dataPoints.isEmpty()) {
             return grouped;
@@ -231,44 +303,51 @@ public class MarketChartRenderer extends MapRenderer implements ZoomableChartRen
         LocalDateTime bucketStart = dataPoints.get(0).getTimestamp().withSecond(0).withNano(0);
         LocalDateTime bucketEnd = bucketStart.plusMinutes(granularityMinutes);
         
-        double openBuy = 0, closeBuy = 0, highBuy = Double.MIN_VALUE, lowBuy = Double.MAX_VALUE;
-        double volume = 0;
+        double sumSellPrice = 0, sumBuyPrice = 0;
+        int countSell = 0, countBuy = 0;
         boolean first = true;
         
         for (PriceDataPoint p : dataPoints) {
             while (p.getTimestamp().isAfter(bucketEnd)) {
                 if (!first) {
-                    grouped.add(new CandleData(openBuy, highBuy, lowBuy, closeBuy, volume));
+                    double avgSellPrice = countSell > 0 ? sumSellPrice / countSell : 0;
+                    double avgBuyPrice = countBuy > 0 ? sumBuyPrice / countBuy : 0;
+                    grouped.add(new PricePoint(bucketStart, avgSellPrice, avgBuyPrice));
                 }
                 // Passe au bucket suivant
                 bucketStart = bucketEnd;
                 bucketEnd = bucketStart.plusMinutes(granularityMinutes);
-                openBuy = 0; closeBuy = 0; highBuy = Double.MIN_VALUE; lowBuy = Double.MAX_VALUE;
-                volume = 0;
+                sumSellPrice = 0; sumBuyPrice = 0;
+                countSell = 0; countBuy = 0;
                 first = true;
             }
             
-            if (first) {
-                openBuy = p.getOpenBuyPrice();
-                first = false;
+            // Ajouter les prix au bucket courant s'ils sont valides
+            if (p.getCloseSellPrice() > 0) {
+                sumSellPrice += p.getCloseSellPrice();
+                countSell++;
             }
             
-            closeBuy = p.getCloseBuyPrice();
-            highBuy = Math.max(highBuy, p.getHighBuyPrice());
-            lowBuy = Math.min(lowBuy, p.getLowBuyPrice());
-            volume += p.getVolume();
+            if (p.getCloseBuyPrice() > 0) {
+                sumBuyPrice += p.getCloseBuyPrice();
+                countBuy++;
+            }
+            
+            first = false;
         }
         
         // Ajouter le dernier groupe
         if (!first) {
-            grouped.add(new CandleData(openBuy, highBuy, lowBuy, closeBuy, volume));
+            double avgSellPrice = countSell > 0 ? sumSellPrice / countSell : 0;
+            double avgBuyPrice = countBuy > 0 ? sumBuyPrice / countBuy : 0;
+            grouped.add(new PricePoint(bucketStart, avgSellPrice, avgBuyPrice));
         }
         
         return grouped;
     }
     
     /**
-     * Crée et retourne une carte avec le graphique boursier
+     * Crée et retourne une carte avec le graphique à double courbe
      */
     public ItemStack createMapItem(Player player) {
         MapView view = Bukkit.createMap(player.getWorld());
@@ -287,7 +366,7 @@ public class MarketChartRenderer extends MapRenderer implements ZoomableChartRen
         String itemName = plugin.getShopConfigManager().getItemName(player, shopId, itemId);
         if (itemName == null) itemName = itemId;
         
-        mapMeta.setDisplayName("§6Marché: §f" + itemName);
+        mapMeta.setDisplayName("§6Évolution des prix: §f" + itemName);
         
         // Ajout de la granularité dans le lore
         String granularityLabel = getGranularityLabel();
@@ -297,6 +376,7 @@ public class MarketChartRenderer extends MapRenderer implements ZoomableChartRen
             "§7Item: §f" + itemName,
             "§7Shop: §f" + shopId,
             "§7Granularité: §f" + granularityLabel,
+            "§7Vente: §a← axe gauche §7| Achat: §c→ axe droit",
             "§7Mise à jour: §f" + UPDATE_INTERVAL / (60 * 1000) + " minutes"
         );
         mapMeta.setLore(lore);
@@ -304,13 +384,16 @@ public class MarketChartRenderer extends MapRenderer implements ZoomableChartRen
         // Stocker les métadonnées pour identifier cette carte
         NamespacedKey shopIdKey = new NamespacedKey(plugin, "chart_shop_id");
         NamespacedKey itemIdKey = new NamespacedKey(plugin, "chart_item_id");
+        NamespacedKey typeKey = new NamespacedKey(plugin, "chart_type");
         mapMeta.getPersistentDataContainer().set(shopIdKey, PersistentDataType.STRING, shopId);
         mapMeta.getPersistentDataContainer().set(itemIdKey, PersistentDataType.STRING, itemId);
+        mapMeta.getPersistentDataContainer().set(typeKey, PersistentDataType.STRING, MAP_TYPE_KEY);
         
         mapItem.setItemMeta(mapMeta);
         
         // Sauvegarder l'ID de la carte pour les futures références
-        mapIdCache.put(shopId + ":" + itemId, view.getId());
+        String cacheKey = MAP_TYPE_KEY + ":" + shopId + ":" + itemId;
+        mapIdCache.put(cacheKey, view.getId());
         
         return mapItem;
     }
@@ -319,46 +402,13 @@ public class MarketChartRenderer extends MapRenderer implements ZoomableChartRen
      * Récupère une carte existante ou en crée une nouvelle
      */
     public static ItemStack getOrCreateMapItem(DynaShopPlugin plugin, Player player, String shopId, String itemId) {
-        String key = shopId + ":" + itemId;
-        Integer mapId = mapIdCache.get(key);
+        String cacheKey = MAP_TYPE_KEY + ":" + shopId + ":" + itemId;
+        Integer mapId = mapIdCache.get(cacheKey);
         
         if (mapId != null) {
             MapView view = Bukkit.getMap(mapId);
             if (view != null) {
-                // // Retire les anciens renderers et ajoute le renderer actuel
-                // view.getRenderers().forEach(view::removeRenderer);
-                // MarketChartRenderer renderer = new MarketChartRenderer(plugin, shopId, itemId);
-                // view.addRenderer(renderer);
-                
-                // ItemStack mapItem = new ItemStack(Material.FILLED_MAP);
-                // MapMeta mapMeta = (MapMeta) mapItem.getItemMeta();
-                // mapMeta.setMapView(view);
-                
-                // // Ajoute displayName, lore et tags NBT
-                // String itemName = plugin.getShopConfigManager().getItemName(player, shopId, itemId);
-                // if (itemName == null) itemName = itemId;
-                // mapMeta.setDisplayName("§6Marché: §f" + itemName);
-                
-                // String granularityLabel = renderer.getGranularityLabel();
-                
-                // List<String> lore = List.of(
-                //     "§7Graphique d'évolution des prix",
-                //     "§7Item: §f" + itemName,
-                //     "§7Shop: §f" + shopId,
-                //     "§7Granularité: §f" + granularityLabel,
-                //     "§7Mise à jour: §f" + UPDATE_INTERVAL / (60 * 1000) + " minutes"
-                // );
-                // mapMeta.setLore(lore);
-                
-                // NamespacedKey shopIdKey = new NamespacedKey(plugin, "chart_shop_id");
-                // NamespacedKey itemIdKey = new NamespacedKey(plugin, "chart_item_id");
-                // mapMeta.getPersistentDataContainer().set(shopIdKey, PersistentDataType.STRING, shopId);
-                // mapMeta.getPersistentDataContainer().set(itemIdKey, PersistentDataType.STRING, itemId);
-                
-                // mapItem.setItemMeta(mapMeta);
-                
                 ItemStack mapItem = new ItemStack(Material.FILLED_MAP);
-                // ItemStack mapItem = new ItemStack(Material.MAP);
                 MapMeta mapMeta = (MapMeta) mapItem.getItemMeta();
                 mapMeta.setMapView(view);
                 mapItem.setItemMeta(mapMeta);
@@ -368,7 +418,7 @@ public class MarketChartRenderer extends MapRenderer implements ZoomableChartRen
         }
         
         // Créer une nouvelle carte
-        return new MarketChartRenderer(plugin, shopId, itemId).createMapItem(player);
+        return new DualPriceChartRenderer(plugin, shopId, itemId).createMapItem(player);
     }
     
     private String getGranularityLabel() {
@@ -396,6 +446,7 @@ public class MarketChartRenderer extends MapRenderer implements ZoomableChartRen
             "§7Item: §f" + itemName,
             "§7Shop: §f" + shopId,
             "§7Granularité: §f" + granularityLabel,
+            "§7Vente: §a← axe gauche §7| Achat: §c→ axe droit",
             "§7Mise à jour: §f" + UPDATE_INTERVAL / (60 * 1000) + " minutes"
         );
         mapMeta.setLore(lore);
@@ -423,21 +474,17 @@ public class MarketChartRenderer extends MapRenderer implements ZoomableChartRen
     }
     
     /**
-     * Classe pour représenter les données d'un chandelier
+     * Classe pour représenter un point de prix avec achat et vente
      */
-    public static class CandleData {
-        public final double open;
-        public final double high;
-        public final double low; 
-        public final double close;
-        public final double volume;
+    private static class PricePoint {
+        public final LocalDateTime timestamp;
+        public final double sellPrice;
+        public final double buyPrice;
         
-        public CandleData(double open, double high, double low, double close, double volume) {
-            this.open = open;
-            this.high = high;
-            this.low = low;
-            this.close = close;
-            this.volume = volume;
+        public PricePoint(LocalDateTime timestamp, double sellPrice, double buyPrice) {
+            this.timestamp = timestamp;
+            this.sellPrice = sellPrice;
+            this.buyPrice = buyPrice;
         }
     }
 }
