@@ -5,20 +5,45 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DynaShop Market Dashboard</title>
     <link rel="stylesheet" href="assets/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> -->
+
     <!-- Utilisation de CDN pour éviter les problèmes de compatibilité -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <!-- <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.1/dist/chartjs-chart-financial.min.js"></script> -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
      <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.1"></script>
     <script src="https://cdn.jsdelivr.net/npm/luxon@3.0.1/build/global/luxon.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.0.0/dist/chartjs-adapter-luxon.min.js"></script>
+    
+    <!-- <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" /> -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script> -->
 </head>
 <body>
     <div class="container">
         <header>
             <h1>DynaShop Market Dashboard</h1>
+            <div class="select-group">
+                <!-- <label for="refresh-interval">Actualisation:</label> -->
+                <select id="refresh-interval">
+                    <option value="disabled">Désactivée</option>
+                    <!-- <option value="1">1 minute</option> -->
+                    <option value="5">5 minutes</option>
+                    <option value="15">15 minutes</option>
+                    <option value="30">30 minutes</option>
+                    <option value="60">60 minutes</option>
+                </select>
+            </div>
             <div class="server-info">
                 <span id="server-name">Satyria</span>
                 <span id="current-time"></span>
+            </div>
+            <div class="theme-toggle">
+                <button id="theme-switch">
+                    <i class="fas fa-moon"></i>
+                    <span>Mode sombre</span>
+                </button>
             </div>
         </header>
 
@@ -89,10 +114,10 @@
             </div>
         </div>
 
-        <div class="candlestick-container">
+        <!-- <div class="candlestick-container">
             <h2>Graphique en chandelier</h2>
             <canvas id="candlestick-chart"></canvas>
-        </div>
+        </div> -->
 
         <footer>
             <p>DynaShop Market Dashboard - Plugin par Tylwen</p>

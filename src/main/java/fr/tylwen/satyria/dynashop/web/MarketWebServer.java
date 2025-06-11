@@ -365,8 +365,45 @@ public class MarketWebServer {
         // Nouveaux paramètres
         String period = queryParams.containsKey("period") ? queryParams.get("period")[0] : "all";
         String granularity = queryParams.containsKey("granularity") ? queryParams.get("granularity")[0] : "auto";
-        int maxPoints = queryParams.containsKey("maxPoints") ? 
-                Integer.parseInt(queryParams.get("maxPoints")[0]) : 2000; // Limiter par défaut à 2000 points
+        int maxPoints = queryParams.containsKey("maxPoints") ? Integer.parseInt(queryParams.get("maxPoints")[0]) : 2000; // Limiter par défaut à 2000 points
+        
+        // Convertir la période en date de début
+        LocalDateTime startTime = null;
+        if (!period.equals("all")) {
+            LocalDateTime now = LocalDateTime.now();
+            switch (period) {
+                case "1h": startTime = now.minusHours(1); break;
+                case "6h": startTime = now.minusHours(6); break;
+                case "12h": startTime = now.minusHours(12); break;
+                case "1d": startTime = now.minusDays(1); break;
+                case "1w": startTime = now.minusWeeks(1); break;
+                case "1m": startTime = now.minusMonths(1); break;
+            }
+        }
+        
+        // Déterminer l'intervalle d'agrégation en minutes
+        int interval;
+        if (granularity.equals("auto")) {
+            // Sélection automatique basée sur la période
+            if (period.equals("1h")) interval = 1;
+            else if (period.equals("6h")) interval = 5;
+            else if (period.equals("12h")) interval = 10;
+            else if (period.equals("1d")) interval = 15;
+            else if (period.equals("1w")) interval = 60;
+            else if (period.equals("1m")) interval = 240; // 4 heures
+            else interval = 15; // valeur par défaut
+        } else {
+            // Intervalle explicite
+            interval = switch(granularity) {
+                case "minute" -> 1;
+                case "5min" -> 5;
+                case "15min" -> 15;
+                case "30min" -> 30;
+                case "hour" -> 60;
+                case "day" -> 1440;
+                default -> 15;
+            };
+        }
         
         if (shopId == null || itemId == null) {
             exchange.sendResponseHeaders(400, 0);
@@ -374,8 +411,10 @@ public class MarketWebServer {
             return;
         }
         
-        PriceHistory history = plugin.getDataManager().getPriceHistory(shopId, itemId);
-        List<PriceDataPoint> dataPoints = history.getDataPoints();
+        // PriceHistory history = plugin.getDataManager().getPriceHistory(shopId, itemId);
+        // Récupérer les données agrégées
+        List<PriceDataPoint> dataPoints = plugin.getDataManager().getAggregatedPriceHistory(shopId, itemId, interval, startTime, maxPoints);
+        // List<PriceDataPoint> dataPoints = history.getDataPoints();
         
         // // Convertir les points de données en format adapté pour Chart.js
         // List<Map<String, Object>> chartData = dataPoints.stream()

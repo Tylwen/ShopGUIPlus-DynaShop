@@ -67,15 +67,15 @@ public class PriceHistory implements ConfigurationSerializable {
         }
         
         // Sauvegarder l'historique dans la base de données
-        DynaShopPlugin.getInstance().getDataManager().savePriceHistory(this);
-        // DynaShopPlugin.getInstance().getDataManager().saveSinglePriceDataPoint(this.shopId, this.itemId, dataPoint);
+        // DynaShopPlugin.getInstance().getDataManager().savePriceHistory(this);
+        DynaShopPlugin.getInstance().getDataManager().saveSinglePriceDataPoint(this.shopId, this.itemId, dataPoint);
     }
 
-    public void addDataPoint(double openBuyPrice, double closeBuyPrice, double highBuyPrice, double lowBuyPrice,
-                            double openSellPrice, double closeSellPrice, double highSellPrice, double lowSellPrice) {
-        addDataPoint(openBuyPrice, closeBuyPrice, highBuyPrice, lowBuyPrice,
-                    openSellPrice, closeSellPrice, highSellPrice, lowSellPrice, 0.0);
-    }
+    // public void addDataPoint(double openBuyPrice, double closeBuyPrice, double highBuyPrice, double lowBuyPrice,
+    //                         double openSellPrice, double closeSellPrice, double highSellPrice, double lowSellPrice) {
+    //     addDataPoint(openBuyPrice, closeBuyPrice, highBuyPrice, lowBuyPrice,
+    //                 openSellPrice, closeSellPrice, highSellPrice, lowSellPrice, 0.0);
+    // }
 
     // // Méthode de compatibilité pour l'ancien format
     // public void addDataPoint(double openPrice, double closePrice, double highPrice, double lowPrice) {
@@ -193,8 +193,8 @@ public class PriceHistory implements ConfigurationSerializable {
             result.put("closeSellPrice", closeSellPrice);
             result.put("highSellPrice", highSellPrice);
             result.put("lowSellPrice", lowSellPrice);
-            // // Volume
-            // result.put("volume", volume);
+            // Volume
+            result.put("volume", volume);
             return result;
         }
         
@@ -245,89 +245,4 @@ public class PriceHistory implements ConfigurationSerializable {
     //         history.addDataPoint(lastPoint.getClosePrice(), price, Math.max(lastPoint.getClosePrice(), price), Math.min(lastPoint.getClosePrice(), price));
     //     }
     // }
-    
-    // Ajoutez ces champs pour gérer l'agrégation temporelle
-    private PriceDataPoint currentPoint = null;
-    private LocalDateTime currentBucketEnd = null;
-    private static final int BUCKET_MINUTES = 5; // Intervalle de 5 minutes par défaut
-
-    
-    public void recordTransaction(double buyPrice, double sellPrice, double amount) {
-        LocalDateTime now = LocalDateTime.now();
-        
-        // Si nous n'avons pas de point courant ou si l'intervalle est terminé
-        if (currentPoint == null || now.isAfter(currentBucketEnd)) {
-            // Finaliser le point précédent si nécessaire
-            if (currentPoint != null) {
-                dataPoints.add(currentPoint);
-                
-                // Limiter la taille de l'historique
-                if (dataPoints.size() > maxDataPoints) {
-                    dataPoints.remove(0);
-                }
-                
-                // Sauvegarder dans la base de données
-                DynaShopPlugin.getInstance().getDataManager().saveSinglePriceDataPoint(shopId, itemId, currentPoint);
-            }
-            
-            // Créer un nouveau point pour le nouvel intervalle
-            LocalDateTime bucketStart = now.withSecond(0).withNano(0);
-            // Arrondir au multiple de BUCKET_MINUTES le plus proche
-            int minutes = bucketStart.getMinute();
-            int bucketMinutes = (minutes / BUCKET_MINUTES) * BUCKET_MINUTES;
-            bucketStart = bucketStart.withMinute(bucketMinutes);
-            
-            // Définir la fin de l'intervalle
-            currentBucketEnd = bucketStart.plusMinutes(BUCKET_MINUTES);
-            
-            // Créer un nouveau point avec les prix actuels
-            currentPoint = new PriceDataPoint(
-                bucketStart,
-                buyPrice, buyPrice, buyPrice, buyPrice,
-                sellPrice, sellPrice, sellPrice, sellPrice,
-                amount
-            );
-        } else {
-            // Mettre à jour le point courant avec les nouvelles données
-            double openBuy = currentPoint.getOpenBuyPrice();
-            double closeBuy = buyPrice > 0 ? buyPrice : currentPoint.getCloseBuyPrice();
-            double highBuy = Math.max(currentPoint.getHighBuyPrice(), buyPrice);
-            double lowBuy = buyPrice > 0 ? 
-                (currentPoint.getLowBuyPrice() > 0 ? Math.min(currentPoint.getLowBuyPrice(), buyPrice) : buyPrice) : 
-                currentPoint.getLowBuyPrice();
-            
-            double openSell = currentPoint.getOpenSellPrice();
-            double closeSell = sellPrice > 0 ? sellPrice : currentPoint.getCloseSellPrice();
-            double highSell = Math.max(currentPoint.getHighSellPrice(), sellPrice);
-            double lowSell = sellPrice > 0 ? 
-                (currentPoint.getLowSellPrice() > 0 ? Math.min(currentPoint.getLowSellPrice(), sellPrice) : sellPrice) : 
-                currentPoint.getLowSellPrice();
-            
-            double volume = currentPoint.getVolume() + amount;
-            
-            // Créer un nouveau point avec les valeurs mises à jour
-            currentPoint = new PriceDataPoint(
-                currentPoint.getTimestamp(),
-                openBuy, closeBuy, highBuy, lowBuy,
-                openSell, closeSell, highSell, lowSell,
-                volume
-            );
-        }
-    }
-    
-    // Ajoutez cette méthode pour finaliser le point courant (à appeler à l'arrêt du serveur)
-    public void finalizeCurrentPoint() {
-        if (currentPoint != null) {
-            dataPoints.add(currentPoint);
-            
-            // Limiter la taille de l'historique
-            if (dataPoints.size() > maxDataPoints) {
-                dataPoints.remove(0);
-            }
-            
-            // Sauvegarder dans la base de données
-            DynaShopPlugin.getInstance().getDataManager().saveSinglePriceDataPoint(shopId, itemId, currentPoint);
-            currentPoint = null;
-        }
-    }
 }

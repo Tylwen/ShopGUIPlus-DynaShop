@@ -17,7 +17,9 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -1273,6 +1275,101 @@ public class DataManager {
         }
         
         return history;
+    }
+
+    /**
+     * Récupère les données de prix agrégées par intervalle de temps
+     * @param shopId ID du shop
+     * @param itemId ID de l'item
+     * @param interval Intervalle en minutes (5, 15, 30, 60, etc.)
+     * @param startTime Date de début (optionnelle)
+     * @param maxPoints Nombre maximum de points à retourner
+     * @return Liste de points de données agrégés
+     */
+    public List<PriceDataPoint> getAggregatedPriceHistory(String shopId, String itemId, int interval, 
+                                                        LocalDateTime startTime, int maxPoints) {
+        List<PriceDataPoint> aggregatedPoints = new ArrayList<>();
+        String tablePrefix = dataConfig.getDatabaseTablePrefix();
+        
+        try (Connection conn = getConnection()) {
+            // Construction de la requête en fonction du type de base de données
+            String timeFloorFunction;
+            String dateAddFunction;
+            
+            if (dataConfig.getDatabaseType().equals("mysql")) {
+                // MySQL utilise une syntaxe différente pour tronquer les dates
+                timeFloorFunction = "DATE_FORMAT(timestamp, '%Y-%m-%d %H:%i:00')";
+                dateAddFunction = "DATE_SUB(NOW(), INTERVAL ? DAY)";
+            } else {
+                // SQLite (plus basique, nécessite des ajustements)
+                timeFloorFunction = "strftime('%Y-%m-%d %H:%M:00', timestamp)";
+                dateAddFunction = "datetime('now', '-' || ? || ' days')";
+            }
+            
+            String sql = 
+                "WITH intervals AS (" +
+                "  SELECT " +
+                "    " + timeFloorFunction + " AS interval_start, " +
+                "    MIN(open_buy_price) AS first_open_buy, " +
+                "    MAX(high_buy_price) AS max_high_buy, " +
+                "    MIN(low_buy_price) AS min_low_buy, " +
+                "    MAX(close_buy_price) AS last_close_buy, " +
+                "    MIN(open_sell_price) AS first_open_sell, " +
+                "    MAX(high_sell_price) AS max_high_sell, " +
+                "    MIN(low_sell_price) AS min_low_sell, " +
+                "    MAX(close_sell_price) AS last_close_sell, " +
+                "    SUM(volume) AS total_volume " +
+                "  FROM " + tablePrefix + "_price_history " +
+                "  WHERE shop_id = ? AND item_id = ? " +
+                (startTime != null ? " AND timestamp > ? " : "") +
+                "  GROUP BY interval_start " +
+                "  ORDER BY interval_start DESC " +
+                "  LIMIT ?" +
+                ") " +
+                "SELECT * FROM intervals ORDER BY interval_start ASC";
+            
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            int paramIndex = 1;
+            
+            stmt.setString(paramIndex++, shopId);
+            stmt.setString(paramIndex++, itemId);
+            
+            if (startTime != null) {
+                stmt.setTimestamp(paramIndex++, Timestamp.valueOf(startTime));
+            }
+            
+            stmt.setInt(paramIndex, maxPoints);
+            
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                LocalDateTime timestamp = rs.getTimestamp("interval_start").toLocalDateTime();
+                
+                double openBuy = rs.getDouble("first_open_buy");
+                double highBuy = rs.getDouble("max_high_buy");
+                double lowBuy = rs.getDouble("min_low_buy");
+                double closeBuy = rs.getDouble("last_close_buy");
+                
+                double openSell = rs.getDouble("first_open_sell");
+                double highSell = rs.getDouble("max_high_sell");
+                double lowSell = rs.getDouble("min_low_sell");
+                double closeSell = rs.getDouble("last_close_sell");
+                
+                double volume = rs.getDouble("total_volume");
+                
+                PriceDataPoint point = new PriceDataPoint(
+                    timestamp, 
+                    openBuy, closeBuy, highBuy, lowBuy,
+                    openSell, closeSell, highSell, lowSell,
+                    volume
+                );
+                
+                aggregatedPoints.add(point);
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Erreur lors de la récupération de l'historique agrégé: " + e.getMessage());
+        }
+        
+        return aggregatedPoints;
     }
 
     /**

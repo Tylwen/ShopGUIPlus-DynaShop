@@ -167,7 +167,8 @@ public class WaitForShopsTask implements Runnable {
                                     
                                     history.addDataPoint(
                                         price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(),
-                                        price.getSellPrice(), price.getSellPrice(), price.getSellPrice(), price.getSellPrice()
+                                        price.getSellPrice(), price.getSellPrice(), price.getSellPrice(), price.getSellPrice(),
+                                        0
                                     );
                                     
                                     // plugin.getLogger().info("Point d'historique ajouté pour " + shop.getId() + ":" + item.getId());
