@@ -29,6 +29,7 @@ import org.bukkit.scheduler.BukkitTask;
 import de.tr7zw.changeme.nbtapi.NBT;
 import fr.tylwen.satyria.dynashop.cache.CacheManager;
 import fr.tylwen.satyria.dynashop.command.DynaShopCommand;
+// import fr.tylwen.satyria.dynashop.command.WebChartSubCommand;
 // import fr.tylwen.satyria.dynashop.command.LimitResetCommand;
 // import fr.tylwen.satyria.dynashop.command.ReloadSubCommand;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
@@ -58,12 +59,14 @@ import fr.tylwen.satyria.dynashop.system.TaxService;
 import fr.tylwen.satyria.dynashop.system.TransactionLimiter;
 import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionLimit;
 import fr.tylwen.satyria.dynashop.system.chart.MarketChartRenderer;
+import fr.tylwen.satyria.dynashop.system.chart.PriceHistory;
 // import fr.tylwen.satyria.dynashop.packet.ItemPacketInterceptor;
 // import fr.tylwen.satyria.dynashop.utils.CommentedConfiguration;
 // import fr.tylwen.satyria.dynashop.task.ReloadDatabaseTask;
 // import fr.tylwen.satyria.dynashop.task.DynamicPricesTask;
 import fr.tylwen.satyria.dynashop.task.WaitForShopsTask;
 import fr.tylwen.satyria.dynashop.utils.PriceFormatter;
+import fr.tylwen.satyria.dynashop.web.MarketWebServer;
 // import fr.tylwen.satyria.dynashop.data.ShopFile;
 // import net.brcdev.shopgui.ShopGuiPlugin;
 // import net.brcdev.shopgui.ShopGuiPlugin;
@@ -120,6 +123,9 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
 
     private int dynamicPricesTaskId;
     private int waitForShopsTaskId;
+    
+    private MarketWebServer webServer;
+    private int webServerPort = 7070; // Port par défaut
 
     // private RecipeCacheManager recipeCacheManager;
     
@@ -257,6 +263,10 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     public boolean isRealTimeMode() {
         return "realtime".equalsIgnoreCase(cacheMode);
     }
+    
+    public MarketWebServer getWebServer() {
+        return webServer;
+    }
 
 
     @Override
@@ -291,6 +301,17 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
             getPluginLoader().disablePlugin(this);
             return;
         }
+        
+        // Initialiser le serveur web si activé
+        if (getConfig().getBoolean("web-dashboard.enabled", false)) {
+            webServerPort = getConfig().getInt("web-dashboard.port", 7070);
+            webServer = new MarketWebServer(this, webServerPort);
+            webServer.start();
+            
+            getLogger().info("Dashboard web démarré sur le port " + webServerPort);
+            // registerWebCommands();
+            // DynaShopCommand.registerSubCommand(new WebChartSubCommand(this));
+        }
 
         // getServer().getPluginManager().registerEvents(new DynaShopListener(this), this);
         getServer().getPluginManager().registerEvents(this.dynaShopListener, this);
@@ -314,6 +335,15 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         BukkitTask task = getServer().getScheduler().runTaskTimer(this, waitTask, 0L, 20L * 5L);
         waitTask.setSelfTask(task);
         // setupMetrics();
+
+        getServer().getScheduler().runTaskTimerAsynchronously(this, () -> {
+                // Purger l'historique plus vieux que 30 jours (configurable)
+                int daysToKeep = getConfig().getInt("history.retention-days", 30);
+                getDataManager().purgeOldPriceHistory(daysToKeep);
+            },
+            20L * 60L * 60L * 3L,  // Délai initial: 3 heures après le démarrage
+            20L * 60L * 60L * 24L  // Exécution toutes les 24 heures
+        );
 
         getLogger().info("DynaShop activé avec succès !");
     }
@@ -488,6 +518,14 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         this.configMain = YamlConfiguration.loadConfiguration(configFile);
         // this.configMain = new Config(this, "config.yml");
         // this.configLang = new Config(this, "lang.yml");
+
+        
+        // Mettre à jour la configuration avec les valeurs par défaut pour le web dashboard
+        if (!getConfig().isSet("web-dashboard")) {
+            getConfig().set("web-dashboard.enabled", true);
+            getConfig().set("web-dashboard.port", 8080);
+            saveConfig();
+        }
     }
 
     public void initTranslation() {
@@ -658,6 +696,16 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         // if (packetInterceptor != null) {
         //     // packetInterceptor.clearCache();
         //     packetInterceptor.shutdown();
+        // }
+        
+        // Arrêter le serveur web si actif
+        if (webServer != null) {
+            webServer.stop();
+        }
+        
+        // // Finaliser tous les points d'historique en cours
+        // for (PriceHistory history : dataManager.getAllPriceHistories()) {
+        //     history.finalizeCurrentPoint();
         // }
         
         // dataManager.savePricesToDatabase(priceMap);

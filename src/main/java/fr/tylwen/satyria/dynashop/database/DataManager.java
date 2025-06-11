@@ -1225,7 +1225,9 @@ public class DataManager {
                 "volume " +
                 "FROM " + dataConfig.getDatabaseTablePrefix() + "_price_history " +
                 "WHERE shop_id = ? AND item_id = ? " +
-                "ORDER BY timestamp ASC"
+                // "ORDER BY timestamp ASC"
+                "ORDER BY timestamp DESC " +
+                "LIMIT " + new PriceHistory(shopId, itemId).getMaxDataPoints() // Limite le nombre de points récupérés
             );
             
             stmt.setString(1, shopId);
@@ -1338,6 +1340,87 @@ public class DataManager {
             
         } catch (SQLException e) {
             plugin.getLogger().severe("Erreur lors de la sauvegarde de l'historique des prix: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Sauvegarde un seul point de données historique
+     */
+    public void saveSinglePriceDataPoint(String shopId, String itemId, PriceHistory.PriceDataPoint point) {
+        try (Connection conn = getConnection()) {
+            // S'assurer que la table existe
+            PreparedStatement createTable = conn.prepareStatement(
+                "CREATE TABLE IF NOT EXISTS " + dataConfig.getDatabaseTablePrefix() + "_price_history (" +
+                "id INT AUTO_INCREMENT PRIMARY KEY, " +
+                "shop_id VARCHAR(100) NOT NULL, " +
+                "item_id VARCHAR(100) NOT NULL, " +
+                "timestamp TIMESTAMP NOT NULL, " +
+                // Colonnes pour les prix d'achat
+                "open_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                "close_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                "high_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                "low_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                // Colonnes pour les prix de vente
+                "open_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                "close_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                "high_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                "low_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                // Ajout du volume
+                "volume DOUBLE NOT NULL DEFAULT 0, " +
+                "INDEX (shop_id, item_id))"
+            );
+            createTable.executeUpdate();
+            
+            // Insertion d'un seul point de données
+            PreparedStatement insertStmt = conn.prepareStatement(
+                "INSERT INTO " + dataConfig.getDatabaseTablePrefix() + "_price_history " +
+                "(shop_id, item_id, timestamp, " +
+                "open_buy_price, close_buy_price, high_buy_price, low_buy_price, " +
+                "open_sell_price, close_sell_price, high_sell_price, low_sell_price, " +
+                "volume) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            );
+            
+            insertStmt.setString(1, shopId);
+            insertStmt.setString(2, itemId);
+            insertStmt.setTimestamp(3, Timestamp.valueOf(point.getTimestamp()));
+            
+            // Prix d'achat
+            insertStmt.setDouble(4, point.getOpenBuyPrice());
+            insertStmt.setDouble(5, point.getCloseBuyPrice());
+            insertStmt.setDouble(6, point.getHighBuyPrice());
+            insertStmt.setDouble(7, point.getLowBuyPrice());
+            
+            // Prix de vente
+            insertStmt.setDouble(8, point.getOpenSellPrice());
+            insertStmt.setDouble(9, point.getCloseSellPrice());
+            insertStmt.setDouble(10, point.getHighSellPrice());
+            insertStmt.setDouble(11, point.getLowSellPrice());
+            
+            // Volume
+            insertStmt.setDouble(12, point.getVolume());
+            
+            insertStmt.executeUpdate();
+            
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Erreur lors de la sauvegarde d'un point d'historique: " + e.getMessage());
+        }
+    }
+
+    public void purgeOldPriceHistory(int daysToKeep) {
+        String tablePrefix = dataConfig.getDatabaseTablePrefix();
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(daysToKeep);
+        
+        String sql = "DELETE FROM " + tablePrefix + "_price_history " +
+                    "WHERE timestamp < ?";
+        
+        try (Connection conn = getConnection();
+            PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setTimestamp(1, Timestamp.valueOf(cutoff));
+            int rowsDeleted = stmt.executeUpdate();
+            // plugin.getLogger().info("Purge de l'historique des prix : " + rowsDeleted + " entrées supprimées");
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Erreur lors de la purge de l'historique : " + e.getMessage());
         }
     }
 }

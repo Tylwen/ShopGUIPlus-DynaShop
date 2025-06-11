@@ -2,17 +2,24 @@ package fr.tylwen.satyria.dynashop.data;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.PotionMeta;
 
+import de.tr7zw.changeme.nbtapi.NBT;
+import de.tr7zw.changeme.nbtapi.NBTCompound;
+import de.tr7zw.changeme.nbtapi.NBTItem;
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.cache.CacheManager;
 import fr.tylwen.satyria.dynashop.compatibility.ItemNameManager;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.data.param.RecipeType;
+import fr.tylwen.satyria.dynashop.hook.ShopGUIPlusHook;
 import fr.tylwen.satyria.dynashop.price.DynamicPrice;
-
+import net.brcdev.shopgui.ShopGuiPlugin;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 // import net.brcdev.shopgui.exception.shop.ShopsNotLoadedException;
 import net.brcdev.shopgui.shop.Shop;
@@ -20,9 +27,14 @@ import net.brcdev.shopgui.shop.item.ShopItem;
 
 import java.io.File;
 import java.util.Map;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class ShopConfigManager {
 
@@ -68,6 +80,60 @@ public class ShopConfigManager {
             }
             return YamlConfiguration.loadConfiguration(shopFile);
         });
+    }
+
+    /**
+     * Récupère la liste de tous les identifiants de shops disponibles.
+     * 
+     * @return Une liste contenant les IDs de tous les shops.
+     */
+    public Set<String> getShops() {
+        Set<String> shopIds = new HashSet<>();
+
+        try {
+            // Récupérer tous les shops via l'API ShopGUIPlus
+            Set<Shop> shops = ShopGuiPlusApi.getPlugin().getShopManager().getShops();
+            
+            // Extraire les IDs de chaque shop
+            for (Shop shop : shops) {
+                shopIds.add(shop.getId());
+            }
+        } catch (Exception e) {
+            plugin.getLogger().severe("Erreur lors de la récupération des shops: " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        return shopIds;
+    }
+
+    /**
+     * Récupère la liste des identifiants d'items pour un shop spécifique.
+     * 
+     * @param shopId L'ID du shop dont on veut récupérer les items
+     * @return Une liste contenant les IDs des items du shop
+     */
+    public Set<String> getShopItems(String shopId) {
+        Set<String> itemIds = new HashSet<>();
+
+        try {
+            // Récupérer le shop spécifique
+            Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
+            
+            if (shop != null) {
+                // Récupérer tous les items du shop
+                List<ShopItem> shopItems = shop.getShopItems();
+                
+                // Extraire les IDs de chaque item
+                for (ShopItem item : shopItems) {
+                    itemIds.add(item.getId());
+                }
+            }
+        } catch (Exception e) {
+            plugin.getLogger().severe("Erreur lors de la récupération des items du shop " + shopId + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+        
+        return itemIds;
     }
     
     // /**
@@ -496,6 +562,63 @@ public class ShopConfigManager {
         }
     }
 
+    /**
+     * Récupère le type réel de DynaShop d'un item en résolvant les références pour les items LINK.
+     * Cette méthode suit les références en cascade jusqu'à trouver un item qui n'est pas de type LINK.
+     *
+     * @param shopId L'ID du shop.
+     * @param itemId L'ID de l'item.
+     * @param priceType Le type de prix ("buy" ou "sell").
+     * @return Le nom du type réel de DynaShop.
+     */
+    public DynaShopType getRealTypeDynaShop(String shopId, String itemId, String priceType) {
+        // Ensemble pour détecter les cycles
+        Set<String> visited = new HashSet<>();
+        String key = shopId + ":" + itemId;
+        visited.add(key);
+        
+        // Type initial
+        DynaShopType type = getTypeDynaShop(shopId, itemId, priceType);
+        
+        // Suivre les références tant que c'est un type LINK
+        while (type == DynaShopType.LINK) {
+            // Récupérer la référence de l'item lié
+            String linkedItemRef = getItemValue(shopId, itemId, "link", String.class).orElse(null);
+            
+            if (linkedItemRef == null || !linkedItemRef.contains(":")) {
+                // Lien invalide, retourner le type actuel
+                return type;
+            }
+            
+            // Décomposer la référence
+            String[] parts = linkedItemRef.split(":");
+            if (parts.length != 2) {
+                return type;
+            }
+
+            String linkedShopId = parts[0];
+            String linkedItemId = parts[1];
+            
+            // Vérifier les cycles
+            String linkedKey = linkedShopId + ":" + linkedItemId;
+            if (visited.contains(linkedKey)) {
+                // Cycle détecté, retourner le type actuel
+                return type;
+            }
+            
+            // Ajouter à l'ensemble des items visités
+            visited.add(linkedKey);
+            
+            // Mettre à jour shopId, itemId et type pour la prochaine itération
+            shopId = linkedShopId;
+            itemId = linkedItemId;
+            type = getTypeDynaShop(shopId, itemId, priceType);
+        }
+        
+        // Retourner le type réel trouvé
+        return type;
+    }
+
     public Map<String, DynaShopType> getAllTypeDynaShop(String shopID, String itemID) {
         Map<String, DynaShopType> types = new HashMap<>();
         types.put("buy", getTypeDynaShop(shopID, itemID, "buy"));
@@ -901,9 +1024,6 @@ public class ShopConfigManager {
      * @param itemId L'ID de l'item
      * @return Le nom de l'item, ou l'itemId si non disponible
      */
-    /**
-     * Récupère le nom d'affichage d'un item.
-     */
     public String getItemName(Player player, String shopId, String itemId) {
         Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
         if (shop == null) {
@@ -922,6 +1042,34 @@ public class ShopConfigManager {
                 return ChatColor.stripColor(displayName);
             }
         }
+
+        // 2. Utiliser NBTAPI pour accéder aux NBT data
+        try {
+            String nbtName = NBT.getComponents(shopItem.getItem(), nbt -> {
+                // Vérifier si le nom est déjà formaté
+                if (nbt.hasTag("minecraft:item_name")) {
+                    String jsonName = nbt.getString("minecraft:item_name");
+                    // plugin.getLogger().info("Nom JSON de l'item: " + jsonName);
+                    // Le nom est stocké au format JSON: {"color":"white","italic":false,"text":"Bloc de topaze"}
+                    if (jsonName != null && !jsonName.isEmpty()) {
+                        try {
+                            // Extraire la partie "text" du JSON
+                            if (jsonName.contains("\"text\":")) {
+                                return jsonName.replaceAll(".*\"text\":\"([^\"]+)\".*", "$1");
+                            }
+                        } catch (Exception e) {
+                            plugin.getLogger().warning("Erreur lors du parsing du nom JSON: " + e.getMessage());
+                        }
+                    }
+                }
+                return null; // Retourne null si aucun nom trouvé
+            });
+            if (nbtName != null && !nbtName.isEmpty()) {
+                return nbtName; // Retourne le nom extrait des NBT data
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Erreur lors de l'accès aux NBT data avec NBTAPI: " + e.getMessage());
+        }
         
         // 2. Traduction via fichier si locale connue
         // DynaShopPlugin.getInstance().info(player.getLocale());
@@ -930,6 +1078,25 @@ public class ShopConfigManager {
             String translated = getTranslatedMaterialName(shopItem.getItem().getType().name(), locale);
             // DynaShopPlugin.getInstance().info(shopItem.getItem().getType().name() + " " + translated);
             if (translated != null && !translated.isEmpty()) {
+                // if (shopItem.getItem().getItemMeta() != null && shopItem.getItem().getItemMeta().hasEnchants()) {
+                //     // Si l'item a des enchantements, on ajoute le nom de l'enchantement
+                //     StringBuilder nameWithEnchantments = new StringBuilder(translated);
+                //     shopItem.getItem().getItemMeta().getEnchants().forEach((enchantment, level) -> {
+                //         nameWithEnchantments.append(" ").append(enchantment.getKey().getKey()).append(" ").append(level);
+                //     });
+                //     translated = nameWithEnchantments.toString();
+                // }
+                // if (shopItem.getItem().getType() == Material.POTION || shopItem.getItem().getType() == Material.SPLASH_POTION || shopItem.getItem().getType() == Material.LINGERING_POTION) {
+                //     // Pour les potions, on ajoute le type de potion
+                //     PotionMeta potionMeta = (PotionMeta) shopItem.getItem().getItemMeta();
+                //     if (potionMeta != null && potionMeta.hasCustomEffects()) {
+                //         StringBuilder effects = new StringBuilder();
+                //         potionMeta.getCustomEffects().forEach(effect -> {
+                //             effects.append(effect.getType().getName()).append(" ");
+                //         });
+                //         translated += " (" + effects.toString().trim() + ")";
+                //     }
+                // }
                 return translated;
             }
         }
@@ -944,6 +1111,195 @@ public class ShopConfigManager {
 
         // 4. Fallback: formatage du nom de matériau
         return formatMaterialName(shopItem.getItem().getType().name());
+    }
+
+    /**
+     * Récupère le nom d'affichage d'un item avec une locale spécifique.
+     * Version web-friendly pour l'interface web.
+     * 
+     * @param shopId L'ID du shop
+     * @param itemId L'ID de l'item
+     * @param locale Le code de langue (ex: "fr", "en")
+     * @return Le nom de l'item, ou l'itemId si non disponible
+     */
+    public String getItemNameWithLocale(String shopId, String itemId, String locale) {
+        Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
+        if (shop == null) {
+            return itemId;
+        }
+        
+        ShopItem shopItem = shop.getShopItem(itemId);
+        if (shopItem == null || shopItem.getItem() == null) {
+            return itemId;
+        }
+        
+        // 1. Essayer d'obtenir le nom personnalisé
+        if (shopItem.getItem().hasItemMeta() && shopItem.getItem().getItemMeta() != null) {
+            String displayName = shopItem.getItem().getItemMeta().getDisplayName();
+            if (displayName != null && !displayName.isEmpty()) {
+                return ChatColor.stripColor(displayName);
+            }
+        }
+
+        // 2. Utiliser NBTAPI pour accéder aux NBT data
+        try {
+            String nbtName = NBT.getComponents(shopItem.getItem(), nbt -> {
+                // Vérifier si le nom est déjà formaté
+                if (nbt.hasTag("minecraft:item_name")) {
+                    String jsonName = nbt.getString("minecraft:item_name");
+                    // plugin.getLogger().info("Nom JSON de l'item: " + jsonName);
+                    // Le nom est stocké au format JSON: {"color":"white","italic":false,"text":"Bloc de topaze"}
+                    if (jsonName != null && !jsonName.isEmpty()) {
+                        try {
+                            // Extraire la partie "text" du JSON
+                            if (jsonName.contains("\"text\":")) {
+                                return jsonName.replaceAll(".*\"text\":\"([^\"]+)\".*", "$1");
+                            }
+                        } catch (Exception e) {
+                            plugin.getLogger().warning("Erreur lors du parsing du nom JSON: " + e.getMessage());
+                        }
+                    }
+                }
+                return null; // Retourne null si aucun nom trouvé
+            });
+            if (nbtName != null && !nbtName.isEmpty()) {
+                if (shopItem.getItem().getItemMeta() != null && shopItem.getItem().getItemMeta().hasEnchants()) {
+                    // Si l'item a des enchantements, on ajoute le nom de l'enchantement
+                    StringBuilder nameWithEnchantments = new StringBuilder(nbtName);
+                    shopItem.getItem().getItemMeta().getEnchants().forEach((enchantment, level) -> {
+                        nameWithEnchantments.append(" ").append(enchantment.getKey().getKey()).append(" ").append(level);
+                    });
+                    nbtName = nameWithEnchantments.toString();
+                }
+                if (shopItem.getItem().getType() == Material.POTION || shopItem.getItem().getType() == Material.SPLASH_POTION || shopItem.getItem().getType() == Material.LINGERING_POTION) {
+                    // // Pour les potions, on ajoute le type de potion
+                    // PotionMeta potionMeta = (PotionMeta) shopItem.getItem().getItemMeta();
+                    // if (potionMeta != null && potionMeta.hasCustomEffects()) {
+                    //     StringBuilder effects = new StringBuilder();
+                    //     potionMeta.getCustomEffects().forEach(effect -> {
+                    //         effects.append(effect.getType().getName()).append(" ");
+                    //     });
+                    //     nbtName += " (" + effects.toString().trim() + ")";
+                    // }
+                }
+                return nbtName; // Retourne le nom extrait des NBT data
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Erreur lors de l'accès aux NBT data avec NBTAPI: " + e.getMessage());
+        }
+        
+        // 2. Traduction via fichier si locale connue
+        String translated = getTranslatedMaterialName(shopItem.getItem().getType().name(), locale);
+        // DynaShopPlugin.getInstance().info(shopItem.getItem().getType().name() + " " + translated);
+        if (translated != null && !translated.isEmpty()) {
+            if (shopItem.getItem().getItemMeta() != null && shopItem.getItem().getItemMeta().hasEnchants()) {
+                // Si l'item a des enchantements, on ajoute le nom de l'enchantement
+                StringBuilder nameWithEnchantments = new StringBuilder(translated);
+                shopItem.getItem().getItemMeta().getEnchants().forEach((enchantment, level) -> {
+                    nameWithEnchantments.append(" ").append(enchantment.getKey().getKey()).append(" ").append(level);
+                });
+                translated = nameWithEnchantments.toString();
+            }
+            if (shopItem.getItem().getType() == Material.POTION || shopItem.getItem().getType() == Material.SPLASH_POTION || shopItem.getItem().getType() == Material.LINGERING_POTION) {
+                // // Pour les potions, on ajoute le type de potion
+                // PotionMeta potionMeta = (PotionMeta) shopItem.getItem().getItemMeta();
+                // if (potionMeta != null && potionMeta.hasCustomEffects()) {
+                //     StringBuilder effects = new StringBuilder();
+                //     potionMeta.getCustomEffects().forEach(effect -> {
+                //         effects.append(effect.getType().getName()).append(" ");
+                //     });
+                //     translated += " (" + effects.toString().trim() + ")";
+                // }
+                if (hasSection(shopId, itemId, "item.potion")) {
+                    // Si une section spécifique pour les potions existe, on l'utilise
+                    ConfigurationSection potionSection = getSection(shopId, itemId, "item.potion");
+                    if (potionSection != null) {
+                        String potionType = potionSection.getString("type", "");
+                        int level = potionSection.getInt("level", 1);
+                        boolean extended = potionSection.getBoolean("extended", false);
+                        
+                        // Construire un nom descriptif
+                        StringBuilder nameBuilder = new StringBuilder();
+                        nameBuilder.append("Potion de ");
+                        nameBuilder.append(" ").append(translatePotionType(potionType, locale));
+                        if (level > 1) {
+                            nameBuilder.append(" ").append(toRomanNumeral(level));
+                        }
+                        if (shopItem.getItem().getType() == Material.SPLASH_POTION) {
+                            nameBuilder.append(" ").append("jetable");
+                        } else if (shopItem.getItem().getType() == Material.LINGERING_POTION) {
+                            nameBuilder.append(" ").append("persistante");
+                        }
+                        if (extended) {
+                            // nameBuilder.append(" (étendue)");
+                            nameBuilder.append(" ").append("(Durée prolongée)");
+                        }
+                        translated = nameBuilder.toString();
+                    }
+                }
+            }
+            return translated;
+        }
+        
+        // // 3. Système multi-version (anglais vanilla)
+        // if (player != null) {
+        //     String localizedName = ItemNameManager.getLocalizedName(shopItem.getItem(), player);
+        //     if (localizedName != null && !localizedName.isEmpty()) {
+        //         return localizedName;
+        //     }
+        // }
+
+        // 4. Fallback: formatage du nom de matériau
+        return formatMaterialName(shopItem.getItem().getType().name());
+    }
+
+    /**
+     * Traduit le type de potion selon la locale
+     */
+    private String translatePotionType(String type, String locale) {
+        // Récupérer la traduction depuis le fichier de traduction
+        String key = "POTION_TYPE_" + type;
+        String translated = getTranslatedMaterialName(key, locale);
+        
+        if (translated != null && !translated.isEmpty()) {
+            return translated;
+        }
+        
+        // Fallback: formatter le nom du type
+        return formatPotionType(type);
+    }
+
+    /**
+     * Formate le nom du type de potion
+     */
+    private String formatPotionType(String type) {
+        // Convertir NIGHT_VISION en "Vision nocturne", etc.
+        String[] words = type.toLowerCase().split("_");
+        StringBuilder result = new StringBuilder();
+        
+        for (String word : words) {
+            if (!word.isEmpty()) {
+                result.append(Character.toUpperCase(word.charAt(0)))
+                    .append(word.substring(1))
+                    .append(" ");
+            }
+        }
+        
+        return result.toString().trim();
+    }
+
+    /**
+     * Convertit un nombre en chiffres romains
+     */
+    private String toRomanNumeral(int number) {
+        switch (number) {
+            case 1: return "I";
+            case 2: return "II";
+            case 3: return "III";
+            case 4: return "IV";
+            case 5: return "V";
+            default: return String.valueOf(number);
+        }
     }
 
 
@@ -983,7 +1339,7 @@ public class ShopConfigManager {
     //             ItemStack itemStack = shopItem.getItem().clone();
                 
     //             // Utiliser la méthode de localisation de Bukkit/Spigot
-    //             net.minecraft.server.v1_16_R3.ItemStack nmsItem = org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack.asNMSCopy(itemStack);
+    //             ItemStack nmsItem = org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack.asNMSCopy(itemStack);
     //             String localizedName = nmsItem.getName().getString();
                 
     //             if (localizedName != null && !localizedName.isEmpty()) {

@@ -3,6 +3,7 @@ package fr.tylwen.satyria.dynashop.command;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -23,6 +24,9 @@ public class DynaShopCommand implements CommandExecutor {
         registerSubCommand(new MarketChartSubCommand(plugin));
         registerSubCommand(new DualChartSubCommand(plugin));
         // Ajouter d'autres sous-commandes ici
+        // if (plugin.getConfig().getBoolean("web-dashboard.enabled", true)) {
+        //     registerSubCommand(new WebChartSubCommand(plugin));
+        // }
     }
     
     private void registerSubCommand(SubCommand subCommand) {
@@ -41,6 +45,19 @@ public class DynaShopCommand implements CommandExecutor {
         
         if (subCommandName.equals("help")) {
             showHelp(sender);
+            return true;
+        }
+
+        if (args.length >= 1 && subCommandName.equals("purgehistory")) {
+            int days = args.length >= 2 ? Integer.parseInt(args[1]) : 30;
+            sender.sendMessage("§aSuppression des données d'historique plus anciennes que " + days + " jours...");
+            
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                plugin.getDataManager().purgeOldPriceHistory(days);
+                Bukkit.getScheduler().runTask(plugin, () -> 
+                    sender.sendMessage("§aNettoyage terminé!")
+                );
+            });
             return true;
         }
         

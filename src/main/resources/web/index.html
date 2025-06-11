@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DynaShop Market Dashboard</title>
+    <link rel="stylesheet" href="assets/style.css">
+    <!-- Utilisation de CDN pour éviter les problèmes de compatibilité -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.1/dist/chartjs-chart-financial.min.js"></script> -->
+     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.0.1/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.0.0/dist/chartjs-adapter-luxon.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>DynaShop Market Dashboard</h1>
+            <div class="server-info">
+                <span id="server-name">Satyria</span>
+                <span id="current-time"></span>
+            </div>
+        </header>
+
+        <div class="selectors">
+            <div class="select-group">
+                <label for="shop-select">Boutique:</label>
+                <select id="shop-select">
+                    <option value="">Choisir une boutique</option>
+                </select>
+            </div>
+
+            <div class="select-group">
+                <label for="item-select">Item:</label>
+                <select id="item-select" disabled>
+                    <option value="">Choisir un item</option>
+                </select>
+            </div>
+
+            <div class="select-group">
+                <label for="period-select">Période:</label>
+                <select id="period-select">
+                    <option value="1h">1 heure</option>
+                    <option value="6h">6 heures</option>
+                    <option value="12h">12 heures</option>
+                    <option value="1d" selected>1 jour</option>
+                    <option value="1w">1 semaine</option>
+                    <option value="1m">1 mois</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="charts-container">
+            <div class="chart-wrapper" id="price-chart-wrapper">
+                <h2>Évolution des prix</h2>
+                <canvas id="price-chart"></canvas>
+            </div>
+
+            <div class="chart-wrapper" id="volume-chart-wrapper">
+                <h2>Volume des transactions</h2>
+                <canvas id="volume-chart"></canvas>
+            </div>
+        </div>
+
+        <div class="stats-container">
+            <div class="stat-box">
+                <h3>Prix actuel</h3>
+                <div class="stat-value" id="current-price">--</div>
+            </div>
+
+            <div class="stat-box">
+                <h3>Variation 24h</h3>
+                <div class="stat-value" id="price-change">--</div>
+            </div>
+
+            <div class="stat-box">
+                <h3>Volume 24h</h3>
+                <div class="stat-value" id="volume-24h">--</div>
+            </div>
+
+            <div class="stat-box">
+                <h3>Dernière transaction</h3>
+                <div class="stat-value" id="last-transaction">--</div>
+            </div>
+            
+            <div class="stat-box">
+                <h3>Type de DynaShop</h3>
+                <div class="stat-value" id="shop-type">--</div>
+            </div>
+        </div>
+
+        <div class="candlestick-container">
+            <h2>Graphique en chandelier</h2>
+            <canvas id="candlestick-chart"></canvas>
+        </div>
+
+        <footer>
+            <p>DynaShop Market Dashboard - Plugin par Tylwen</p>
+        </footer>
+    </div>
+
+    <script src="assets/script.js"></script>
+</body>
+</html>

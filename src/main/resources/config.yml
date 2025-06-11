@@ -11,6 +11,15 @@ database:
   sqlite:
     file: "dynashop.db"
 
+web-dashboard:
+  enabled: false # Enable or disable the web interface
+  port: 7070 # Port for the web interface
+  history:
+    # Nombre de jours de conservation des données d'historique
+    retention-days: 30
+    # Activer la purge automatique
+    auto-purge: true
+
 # Dynamic store configuration
 actions:
   shaped: 1.25

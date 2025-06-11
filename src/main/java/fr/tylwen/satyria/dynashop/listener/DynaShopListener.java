@@ -199,6 +199,8 @@ public class DynaShopListener implements Listener {
                 }
             }
         }
+        
+        recordPriceForHistory(shopID, itemID, price, isBuy, amount);
 
         // if (event.getShopAction() == ShopAction.BUY) {
         //     event.setPrice(price.getBuyPriceForAmount(amount));
@@ -311,7 +313,7 @@ public class DynaShopListener implements Listener {
         //     resultPrice
         // ));
 
-        recordPriceForHistory(shopID, itemID, resultPrice, isBuy, amount);
+        // recordPriceForHistory(shopID, itemID, resultPrice, isBuy, amount);
             
     }
     
@@ -1551,92 +1553,106 @@ public class DynaShopListener implements Listener {
         });
     }
     
-    /**
-     * Enregistre un nouveau point de données pour l'historique des prix
-     * @param shopId ID du shop
-     * @param itemId ID de l'item
-     * @param price Le prix à enregistrer
-     * @param isBuy true pour un prix d'achat, false pour un prix de vente
- * @param amount Quantité échangée (volume)
-     */
-    public void recordPriceForHistory(String shopId, String itemId, double price, boolean isBuy, double amount) {
-        // Récupérer l'historique existant
-        PriceHistory history = DynaShopPlugin.getInstance().getDataManager().getPriceHistory(shopId, itemId);
+    // /**
+    //  * Enregistre un nouveau point de données pour l'historique des prix
+    //  * @param shopId ID du shop
+    //  * @param itemId ID de l'item
+    //  * @param price Le prix à enregistrer
+    //  * @param isBuy true pour un prix d'achat, false pour un prix de vente
+    //  * @param amount Quantité échangée (volume)
+    //  */
+    // public void recordPriceForHistory(String shopId, String itemId, DynamicPrice price, boolean isBuy, double amount) {
+    //     // plugin.getLogger().info("Volume pour " + shopId + ":" + itemId + " - Valeur reçue: " + amount);
+    //     // Récupérer l'historique existant
+    //     PriceHistory history = DynaShopPlugin.getInstance().getDataManager().getPriceHistory(shopId, itemId);
         
-        // Si aucun point de données n'existe encore, utiliser le prix actuel comme référence
-        if (history.getDataPoints().isEmpty()) {
-            if (isBuy) {
-                history.addDataPoint(price, price, price, price, 0, 0, 0, 0, amount);
-            } else {
-                history.addDataPoint(0, 0, 0, 0, price, price, price, price, amount);
-            }
-            return;
-        }
+    //     // Si aucun point de données n'existe encore, utiliser le prix actuel comme référence
+    //     if (history.getDataPoints().isEmpty()) {
+    //         // if (isBuy) {
+    //         //     history.addDataPoint(price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(), 0, 0, 0, 0, amount);
+    //         // } else {
+    //         //     history.addDataPoint(0, 0, 0, 0, price.getSellPrice(), price.getSellPrice(), price.getSellPrice(), price.getSellPrice(), amount);
+    //         // }
+    //         history.addDataPoint(price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(), price.getSellPrice(), price.getSellPrice(), price.getSellPrice(), price.getSellPrice(), amount);
+    //         return;
+    //     }
         
-        // Récupérer le dernier point de données
-        PriceDataPoint lastPoint = history.getDataPoints().get(history.getDataPoints().size() - 1);
+    //     // Récupérer le dernier point de données
+    //     PriceDataPoint lastPoint = history.getDataPoints().get(history.getDataPoints().size() - 1);
         
-        // Si le dernier point date de moins d'une heure, mettre à jour ce point
-        LocalDateTime now = LocalDateTime.now();
-        if (lastPoint.getTimestamp().plusHours(1).isAfter(now)) {
-            // Garder les valeurs existantes pour l'autre type de prix
-            double openBuy = lastPoint.getOpenBuyPrice();
-            double closeBuy = lastPoint.getCloseBuyPrice();
-            double highBuy = lastPoint.getHighBuyPrice();
-            double lowBuy = lastPoint.getLowBuyPrice();
+    //     // Si le dernier point date de moins d'une heure, mettre à jour ce point
+    //     LocalDateTime now = LocalDateTime.now();
+    //     if (lastPoint.getTimestamp().plusHours(1).isAfter(now)) {
+    //         // Garder les valeurs existantes pour l'autre type de prix
+    //         double openBuy = lastPoint.getOpenBuyPrice();
+    //         double closeBuy = lastPoint.getCloseBuyPrice();
+    //         double highBuy = lastPoint.getHighBuyPrice();
+    //         double lowBuy = lastPoint.getLowBuyPrice();
             
-            double openSell = lastPoint.getOpenSellPrice();
-            double closeSell = lastPoint.getCloseSellPrice(); 
-            double highSell = lastPoint.getHighSellPrice();
-            double lowSell = lastPoint.getLowSellPrice();
+    //         double openSell = lastPoint.getOpenSellPrice();
+    //         double closeSell = lastPoint.getCloseSellPrice(); 
+    //         double highSell = lastPoint.getHighSellPrice();
+    //         double lowSell = lastPoint.getLowSellPrice();
 
-            double volume = lastPoint.getVolume() + amount;
+    //         double volume = lastPoint.getVolume() + amount;
+    //         // double volume = amount;
             
-            if (isBuy) {
-                // Mise à jour des valeurs d'achat uniquement
-                if (openBuy == 0) openBuy = price; // Premier prix d'achat enregistré
-                closeBuy = price;
-                highBuy = Math.max(highBuy == 0 ? price : highBuy, price);
-                lowBuy = lowBuy == 0 ? price : Math.min(lowBuy, price);
-            } else {
-                // Mise à jour des valeurs de vente uniquement
-                if (openSell == 0) openSell = price; // Premier prix de vente enregistré
-                closeSell = price;
-                highSell = Math.max(highSell == 0 ? price : highSell, price);
-                lowSell = lowSell == 0 ? price : Math.min(lowSell, price);
-            }
+    //         if (isBuy) {
+    //             // Mise à jour des valeurs d'achat uniquement
+    //             if (openBuy == 0) openBuy = price.getBuyPrice(); // Premier prix d'achat enregistré
+    //             closeBuy = price.getBuyPrice();
+    //             highBuy = Math.max(highBuy == 0 ? price.getBuyPrice() : highBuy, price.getBuyPrice());
+    //             lowBuy = lowBuy == 0 ? price.getBuyPrice() : Math.min(lowBuy, price.getBuyPrice());
+    //         } else {
+    //             // Mise à jour des valeurs de vente uniquement
+    //             if (openSell == 0) openSell = price.getSellPrice(); // Premier prix de vente enregistré
+    //             closeSell = price.getSellPrice();
+    //             highSell = Math.max(highSell == 0 ? price.getSellPrice() : highSell, price.getSellPrice());
+    //             lowSell = lowSell == 0 ? price.getSellPrice() : Math.min(lowSell, price.getSellPrice());
+    //         }
             
-            // Supprimer le dernier point et ajouter le point mis à jour
-            history.getDataPoints().remove(history.getDataPoints().size() - 1);
-            history.addDataPoint(openBuy, closeBuy, highBuy, lowBuy, openSell, closeSell, highSell, lowSell, volume);
-        } else {
-            // Sinon, ajouter un nouveau point en conservant les dernières valeurs de l'autre type
-            if (isBuy) {
-                history.addDataPoint(
-                    lastPoint.getCloseBuyPrice() > 0 ? lastPoint.getCloseBuyPrice() : price, 
-                    price, 
-                    Math.max(lastPoint.getCloseBuyPrice() > 0 ? lastPoint.getCloseBuyPrice() : price, price), 
-                    Math.min(lastPoint.getCloseBuyPrice() > 0 ? lastPoint.getCloseBuyPrice() : price, price),
-                    lastPoint.getCloseSellPrice(),
-                    lastPoint.getCloseSellPrice(),
-                    lastPoint.getHighSellPrice(),
-                    lastPoint.getLowSellPrice(),
-                    amount
-                );
-            } else {
-                history.addDataPoint(
-                    lastPoint.getCloseBuyPrice(),
-                    lastPoint.getCloseBuyPrice(),
-                    lastPoint.getHighBuyPrice(),
-                    lastPoint.getLowBuyPrice(),
-                    lastPoint.getCloseSellPrice() > 0 ? lastPoint.getCloseSellPrice() : price,
-                    price,
-                    Math.max(lastPoint.getCloseSellPrice() > 0 ? lastPoint.getCloseSellPrice() : price, price),
-                    Math.min(lastPoint.getCloseSellPrice() > 0 ? lastPoint.getCloseSellPrice() : price, price),
-                    amount
-                );
-            }
-        }
+    //         // Supprimer le dernier point et ajouter le point mis à jour
+    //         history.getDataPoints().remove(history.getDataPoints().size() - 1);
+    //         history.addDataPoint(openBuy, closeBuy, highBuy, lowBuy, openSell, closeSell, highSell, lowSell, volume);
+    //     } else {
+    //         // Sinon, ajouter un nouveau point en conservant les dernières valeurs de l'autre type
+    //         if (isBuy) {
+    //             history.addDataPoint(
+    //                 lastPoint.getCloseBuyPrice() > 0 ? lastPoint.getCloseBuyPrice() : price.getBuyPrice(),
+    //                 price.getBuyPrice(),
+    //                 Math.max(lastPoint.getCloseBuyPrice() > 0 ? lastPoint.getCloseBuyPrice() : price.getBuyPrice(), price.getBuyPrice()),
+    //                 Math.min(lastPoint.getCloseBuyPrice() > 0 ? lastPoint.getCloseBuyPrice() : price.getBuyPrice(), price.getBuyPrice()),
+    //                 lastPoint.getCloseSellPrice(),
+    //                 lastPoint.getCloseSellPrice(),
+    //                 lastPoint.getHighSellPrice(),
+    //                 lastPoint.getLowSellPrice(),
+    //                 amount
+    //             );
+    //         } else {
+    //             history.addDataPoint(
+    //                 lastPoint.getCloseBuyPrice(),
+    //                 lastPoint.getCloseBuyPrice(),
+    //                 lastPoint.getHighBuyPrice(),
+    //                 lastPoint.getLowBuyPrice(),
+    //                 lastPoint.getCloseSellPrice() > 0 ? lastPoint.getCloseSellPrice() : price.getSellPrice(),
+    //                 price.getSellPrice(),
+    //                 Math.max(lastPoint.getCloseSellPrice() > 0 ? lastPoint.getCloseSellPrice() : price.getSellPrice(), price.getSellPrice()),
+    //                 Math.min(lastPoint.getCloseSellPrice() > 0 ? lastPoint.getCloseSellPrice() : price.getSellPrice(), price.getSellPrice()),
+    //                 amount
+    //             );
+    //         }
+    //     }
+    // }
+
+    public void recordPriceForHistory(String shopId, String itemId, DynamicPrice price, boolean isBuy, double amount) {
+        // Récupérer l'historique existant
+        PriceHistory history = plugin.getDataManager().getPriceHistory(shopId, itemId);
+        
+        // Enregistrer la transaction avec le prix approprié
+        double buyPrice = isBuy ? price.getBuyPrice() : 0;
+        double sellPrice = !isBuy ? price.getSellPrice() : 0;
+        
+        history.recordTransaction(buyPrice, sellPrice, amount);
     }
 
 }

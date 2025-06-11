@@ -1,0 +1,154 @@
+package fr.tylwen.satyria.dynashop.command;
+
+import org.bukkit.Material;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.MapMeta;
+import org.bukkit.map.MapView;
+import org.bukkit.map.MapCanvas;
+import org.bukkit.map.MapRenderer;
+import org.bukkit.Bukkit;
+import org.bukkit.NamespacedKey;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.map.MapPalette;
+
+import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import fr.tylwen.satyria.dynashop.web.MarketWebServer;
+import fr.tylwen.satyria.dynashop.web.QrCodeRenderer;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.net.URL;
+
+public class WebChartSubCommand implements SubCommand {
+
+    private final DynaShopPlugin plugin;
+
+    public WebChartSubCommand(DynaShopPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    @Override
+    public String getName() {
+        return "webchart";
+    }
+    
+    @Override
+    public String getPermission() {
+        return "dynashop.chart";
+    }
+
+    @Override
+    public String getDescription() {
+        return "Génère un QR code pour accéder au dashboard web";
+    }
+
+    @Override
+    public String getUsage() {
+        return "/dynashop webchart <shop> <item>";
+    }
+
+    @Override
+    public boolean execute(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player)) {
+            sender.sendMessage("§cCette commande est réservée aux joueurs.");
+            return false;
+        }
+
+        if (args.length < 2) {
+            sender.sendMessage("§cUtilisation: " + getUsage());
+            return false;
+        }
+
+        Player player = (Player) sender;
+        String shopId = args[0];
+        String itemId = args[1];
+
+        // Vérifier que le shop et l'item existent
+        if (!plugin.getShopConfigManager().shopItemExists(shopId, itemId)) {
+            player.sendMessage("§cL'item §f" + itemId + "§c n'existe pas dans le shop §f" + shopId + "§c.");
+            return false;
+        }
+        
+        // Obtenir l'URL du QR Code
+        MarketWebServer webServer = plugin.getWebServer();
+        if (webServer == null) {
+            player.sendMessage("§cLe serveur web n'est pas actif. Vérifiez la configuration.");
+            return false;
+        }
+        
+        String qrCodeUrl = webServer.generateQrCodeUrl(shopId, itemId);
+        
+        // Charger l'image du QR Code
+        try {
+            BufferedImage qrImage = ImageIO.read(new URL(qrCodeUrl));
+            
+            // Créer une carte avec le QR code
+            ItemStack mapItem = createQrCodeMap(player, qrImage, shopId, itemId);
+            
+            // Donner la carte au joueur
+            boolean given = false;
+            for (int i = 0; i < 36; i++) {
+                ItemStack item = player.getInventory().getItem(i);
+                if (item == null || item.getType() == Material.AIR) {
+                    player.getInventory().setItem(i, mapItem);
+                    given = true;
+                    break;
+                }
+            }
+            
+            if (given) {
+                player.sendMessage("§aVous avez reçu un QR Code pour accéder au dashboard web de §f" + itemId + "§a du shop §f" + shopId);
+                player.sendMessage("§aScannez-le avec votre téléphone pour consulter les données détaillées.");
+            } else {
+                player.getWorld().dropItemNaturally(player.getLocation(), mapItem);
+                player.sendMessage("§aUn QR Code a été déposé au sol (inventaire plein)");
+            }
+            
+            return true;
+            
+        } catch (IOException e) {
+            player.sendMessage("§cErreur lors de la génération du QR Code: " + e.getMessage());
+            plugin.getLogger().severe("Erreur QR code: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    private ItemStack createQrCodeMap(Player player, BufferedImage qrImage, String shopId, String itemId) {
+        MapView view = Bukkit.createMap(player.getWorld());
+        
+        // Supprimer tous les renderers par défaut
+        view.getRenderers().forEach(view::removeRenderer);
+        
+        // Ajouter notre renderer personnalisé avec le QR code
+        view.addRenderer(new QrCodeRenderer(qrImage));
+        
+        // Créer l'item de la carte
+        ItemStack mapItem = new ItemStack(Material.FILLED_MAP);
+        MapMeta mapMeta = (MapMeta) mapItem.getItemMeta();
+        mapMeta.setMapView(view);
+        
+        // Configurer le nom et la description
+        String itemName = plugin.getShopConfigManager().getItemName(player, shopId, itemId);
+        if (itemName == null) itemName = itemId;
+        
+        mapMeta.setDisplayName("§6Dashboard: §f" + itemName);
+        mapMeta.setLore(java.util.List.of(
+            "§7Scannez ce QR Code avec votre téléphone",
+            "§7pour consulter le dashboard web détaillé",
+            "§7de l'item §f" + itemName + "§7 du shop §f" + shopId
+        ));
+        
+        // Stocker les métadonnées pour identifier cette carte
+        NamespacedKey shopIdKey = new NamespacedKey(plugin, "qr_shop_id");
+        NamespacedKey itemIdKey = new NamespacedKey(plugin, "qr_item_id");
+        mapMeta.getPersistentDataContainer().set(shopIdKey, PersistentDataType.STRING, shopId);
+        mapMeta.getPersistentDataContainer().set(itemIdKey, PersistentDataType.STRING, itemId);
+        
+        mapItem.setItemMeta(mapMeta);
+        return mapItem;
+    }
+}
