@@ -312,6 +312,22 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
             // registerWebCommands();
             // DynaShopCommand.registerSubCommand(new WebChartSubCommand(this));
         }
+        // // Initialiser le serveur web si activé
+        // if (getConfig().getBoolean("web-dashboard.enabled", false)) {
+        //     if (!getDataConfig().getDatabaseType().equalsIgnoreCase("sqlite")) {
+        //         webServerPort = getConfig().getInt("web-dashboard.port", 7070);
+        //         webServer = new MarketWebServer(this, webServerPort);
+        //         webServer.start();
+                
+        //         // getLogger().info("Dashboard web démarré sur le port " + webServerPort);
+        //         getLogger().info("Web dashboard started on port " + webServerPort);
+        //         // registerWebCommands();
+        //         // DynaShopCommand.registerSubCommand(new WebChartSubCommand(this));
+        //     } else {
+        //         // getLogger().warning("Le tableau de bord web n'est pas disponible en mode SQLite. Veuillez utiliser MySQL pour activer cette fonctionnalité.");
+        //         getLogger().warning("Web dashboard is not available in SQLite mode. Please use MySQL to enable this feature.");
+        //     }
+        // }
 
         // getServer().getPluginManager().registerEvents(new DynaShopListener(this), this);
         getServer().getPluginManager().registerEvents(this.dynaShopListener, this);
@@ -660,6 +676,28 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     //     }));
     }
 
+    public void reloadDatabase() {
+        // Arrêter les threads liés à la base
+        if (batchDatabaseUpdater != null) batchDatabaseUpdater.shutdown();
+        if (transactionLimiter != null) transactionLimiter.shutdown();
+        if (dataManager != null) dataManager.closeDatabase();
+
+        // Réinitialiser les objets liés à la base
+        dataManager = new DataManager(this);
+        itemDataManager = new ItemDataManager(dataManager);
+        batchDatabaseUpdater = new BatchDatabaseUpdater(this);
+        transactionLimiter = new TransactionLimiter(this);
+
+        // Réinitialiser les caches si besoin
+        initCache();
+
+        // Réinitialiser la connexion
+        dataManager.initDatabase();
+
+        // getLogger().info("Base de données DynaShop rechargée complètement.");
+        getLogger().info("DynaShop database reloaded successfully.");
+    }
+
     @Override
     public void onDisable() {
         // Annuler explicitement les tâches
@@ -674,11 +712,6 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
             getLogger().info("Tâche WaitForShopsTask annulée (ID: " + waitForShopsTaskId + ")");
         }
 
-
-        if (shopItemPlaceholderListener != null) {
-            shopItemPlaceholderListener.shutdown();
-        }
-        
         // if (shopRefreshManager != null) {
         //     shopRefreshManager.shutdown();
         // }
@@ -687,10 +720,17 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         if (batchDatabaseUpdater != null) {
             batchDatabaseUpdater.shutdown();
         }
-
-        if (dynaShopListener != null) {
-            HandlerList.unregisterAll(this.dynaShopListener);
+        // Arrêter le TransactionLimiter (flush + arrêt thread)
+        if (transactionLimiter != null) {
+            transactionLimiter.shutdown();
         }
+        if (shopItemPlaceholderListener != null) {
+            shopItemPlaceholderListener.shutdown();
+        }
+
+        // if (dynaShopListener != null) {
+        //     HandlerList.unregisterAll(this.dynaShopListener);
+        // }
         // this.dynaShopListener = null;
 
         // if (packetInterceptor != null) {
@@ -709,7 +749,9 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         // }
         
         // dataManager.savePricesToDatabase(priceMap);
-        dataManager.closeDatabase();
+        if (dataManager != null) {
+            dataManager.closeDatabase();
+        }
         
         // Nettoyer les caches
         priceCache.clear();

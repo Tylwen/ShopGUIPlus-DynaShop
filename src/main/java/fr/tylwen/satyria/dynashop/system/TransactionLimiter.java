@@ -1,8 +1,8 @@
 package fr.tylwen.satyria.dynashop.system;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
-import fr.tylwen.satyria.dynashop.system.TransactionLimiter.LimitPeriod;
-import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionLimit;
+// import fr.tylwen.satyria.dynashop.system.TransactionLimiter.LimitPeriod;
+// import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionLimit;
 
 // import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -17,6 +17,8 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+// import java.util.Calendar;
+// import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,10 +26,15 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
+// import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TransactionLimiter {
     private final DynaShopPlugin plugin;
+    
+    private final Map<String, TransactionRecord> pendingTransactions = new ConcurrentHashMap<>();
+    private final Thread transactionFlushThread;
+    private final AtomicBoolean running = new AtomicBoolean(true);
     
     private final Map<String, TransactionLimit> limitCache = new ConcurrentHashMap<>();
     private final long CACHE_DURATION = 60000; // 1 minute en millisecondes
@@ -90,8 +97,66 @@ public class TransactionLimiter {
             20L * 60L * 60L * 12L, // 12 heures après le démarrage
             20L * 60L * 60L * 24L  // Répéter toutes les 24 heures
         );
+        
+        // Thread de flush périodique
+        transactionFlushThread = Thread.ofVirtual()
+            .name("DynaShop-TxFlusher")
+            .start(() -> {
+                while (running.get()) {
+                    try {
+                        flushPendingTransactions();
+                        Thread.sleep(1000); // flush toutes les secondes
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+                flushPendingTransactions();
+            });
     }
-    
+
+    // Pour sauvegarder les transactions en attente
+    public void queueTransaction(Player player, String shopId, String itemId, boolean isBuy, int amount) {
+        String key = player.getUniqueId() + ":" + shopId + ":" + itemId + ":" + (isBuy ? "BUY" : "SELL");
+        pendingTransactions.merge(key, new TransactionRecord(player.getUniqueId(), shopId, itemId, isBuy, amount),
+            (oldRec, newRec) -> new TransactionRecord(
+                oldRec.playerUuid, oldRec.shopId, oldRec.itemId, oldRec.isBuy, oldRec.amount + newRec.amount
+            )
+        );
+    }
+    private void flushPendingTransactions() {
+        if (pendingTransactions.isEmpty()) return;
+        Map<String, TransactionRecord> toFlush = new HashMap<>(pendingTransactions);
+        pendingTransactions.clear();
+
+        for (TransactionRecord record : toFlush.values()) {
+            // Utilise ta logique existante pour insérer/mise à jour dans la bonne table
+            recordTransaction(
+                // Tu dois pouvoir retrouver le Player à partir de l'UUID si besoin
+                plugin.getServer().getPlayer(record.playerUuid),
+                record.shopId, record.itemId, record.isBuy, record.amount
+            );
+        }
+    }
+    public void shutdown() {
+        running.set(false);
+        transactionFlushThread.interrupt();
+        try {
+            // Attendre la fin du thread avec un timeout raisonnable
+            transactionFlushThread.join(5000);
+        } catch (InterruptedException e) {
+            plugin.getLogger().warning("Interrupted while waiting for database updater to finish");
+            // Restaurer l'état d'interruption
+            Thread.currentThread().interrupt();
+        }
+        
+        // Si le thread ne s'est pas terminé proprement, forcer une dernière mise à jour
+        if (transactionFlushThread.isAlive()) {
+            plugin.getLogger().warning("Database updater thread did not terminate gracefully");
+            flushPendingTransactions();
+        }
+    }
+
     public Map<String, Integer> getMetrics() {
         return new HashMap<>(transactionCounters);
     }
@@ -150,15 +215,18 @@ public class TransactionLimiter {
     private void createTransactionTables() {
         String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
         boolean isMySQL = plugin.getDataConfig().getDatabaseType().equalsIgnoreCase("mysql");
+        boolean isSQLite = plugin.getDataConfig().getDatabaseType().equalsIgnoreCase("sqlite");
         
         // Structure de base d'une table de transactions
-        String baseTableStructure = 
+        String baseTableStructure =
                 "player_uuid VARCHAR(36) NOT NULL, " +
                 "shop_id VARCHAR(100) NOT NULL, " +
                 "item_id VARCHAR(100) NOT NULL, " +
+                // "transaction_type ENUM('BUY', 'SELL') NOT NULL, " + 
                 "transaction_type VARCHAR(10) NOT NULL, " + 
                 "amount INT NOT NULL, " +
                 "transaction_time TIMESTAMP NOT NULL, " +
+                // "transaction_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, " +
                 "PRIMARY KEY (player_uuid, shop_id, item_id, transaction_type, transaction_time)";
         
         // Tableau des tables à créer
@@ -174,6 +242,7 @@ public class TransactionLimiter {
         for (String tableName : tablesToCreate) {
             if (isMySQL && !tableName.equals(tablePrefix + "_transaction_limits")) {
                 // Avec MySQL, on peut utiliser LIKE pour les tables secondaires
+
                 String query = "CREATE TABLE IF NOT EXISTS " + tableName + " LIKE " + tablePrefix + "_transaction_limits";
                 plugin.getDataManager().executeUpdate(query);
             } else {
@@ -191,6 +260,10 @@ public class TransactionLimiter {
         // Création de la vue (pour MySQL uniquement)
         if (isMySQL) {
             createTransactionsView(tablePrefix, tablesToCreate);
+        // } else {
+        //     // Pour SQLite, on n'utilise pas de vue, mais on peut créer une table de transactions globale
+        //     String query = "CREATE TABLE IF NOT EXISTS " + tablePrefix + "_transactions AS SELECT * FROM " + tablePrefix + "_transaction_limits WHERE 1=0";
+        //     plugin.getDataManager().executeUpdate(query);
         }
     }
 
@@ -198,46 +271,94 @@ public class TransactionLimiter {
      * Crée les index nécessaires pour une table de transactions
      */
     private void createIndexesForTable(String tableName) {
-        String[] indexes = {
-            // Index sur transaction_time pour accélérer les nettoyages
-            "CREATE INDEX IF NOT EXISTS " + tableName + "_time_idx ON " + tableName + " (transaction_time)",
-            
-            // Index sur player_uuid pour accélérer les requêtes par joueur
-            "CREATE INDEX IF NOT EXISTS " + tableName + "_player_idx ON " + tableName + " (player_uuid)",
-            
-            // Index composite pour les requêtes de récapitulation
-            "CREATE INDEX IF NOT EXISTS " + tableName + "_lookup_idx ON " + tableName + 
-            " (player_uuid, shop_id, item_id, transaction_type)"
-        };
+        boolean isMysql = plugin.getDataConfig().getDatabaseType().equals("mysql");
         
-        for (String indexQuery : indexes) {
+        if (isMysql) {
+            // Syntaxe MySQL
+            String[] indexes = {
+                "CREATE INDEX IF NOT EXISTS " + tableName + "_time_idx ON " + tableName + " (transaction_time)",
+                "CREATE INDEX IF NOT EXISTS " + tableName + "_player_idx ON " + tableName + " (player_uuid)",
+                "CREATE INDEX IF NOT EXISTS " + tableName + "_lookup_idx ON " + tableName + " (player_uuid, shop_id, item_id, transaction_type)"
+            };
+            
+            for (String indexQuery : indexes) {
+                try {
+                    plugin.getDataManager().executeUpdate(indexQuery);
+                } catch (Exception e) {
+                    plugin.getLogger().warning("Erreur lors de la création d'index pour " + tableName + ": " + e.getMessage());
+                }
+            }
+        } else {
+            // Syntaxe SQLite - créer les index un par un avec des noms plus simples
             try {
-                plugin.getDataManager().executeUpdate(indexQuery);
+                plugin.getDataManager().executeUpdate("CREATE INDEX IF NOT EXISTS " + tableName + "_time_idx ON " + tableName + " (transaction_time)");
+
+                plugin.getDataManager().executeUpdate("CREATE INDEX IF NOT EXISTS " + tableName + "_player_idx ON " + tableName + " (player_uuid)");
+
+                plugin.getDataManager().executeUpdate("CREATE INDEX IF NOT EXISTS " + tableName + "_lookup_idx ON " + tableName + " (player_uuid, shop_id, item_id, transaction_type)");
             } catch (Exception e) {
-                plugin.getLogger().warning("Erreur lors de la création d'index pour " + tableName + ": " + e.getMessage());
+                plugin.getLogger().warning("Erreur lors de la création d'index SQLite pour " + tableName + ": " + e.getMessage());
             }
         }
     }
 
+    // /**
+    //  * Crée une vue qui combine toutes les tables de transactions (MySQL uniquement)
+    //  */
+    // private void createTransactionsView(String tablePrefix, String[] tables) {
+    //     try {
+    //         StringBuilder viewQuery = new StringBuilder();
+    //         viewQuery.append("CREATE OR REPLACE VIEW ").append(tablePrefix).append("_transactions_view AS ");
+            
+    //         for (int i = 0; i < tables.length; i++) {
+    //             if (i > 0) {
+    //                 viewQuery.append(" UNION ALL ");
+    //             }
+    //             viewQuery.append("SELECT * FROM ").append(tables[i]);
+    //         }
+            
+    //         plugin.getDataManager().executeUpdate(viewQuery.toString());
+    //     } catch (Exception e) {
+    //         // Si la vue ne peut pas être créée, on continue sans erreur critique
+    //         plugin.getLogger().warning("Note: Impossible de créer la vue de transactions: " + e.getMessage());
+    //     }
+    // }
     /**
-     * Crée une vue qui combine toutes les tables de transactions (MySQL uniquement)
+     * Crée une vue qui combine toutes les tables de transactions (compatible MySQL et SQLite)
      */
     private void createTransactionsView(String tablePrefix, String[] tables) {
         try {
-            StringBuilder viewQuery = new StringBuilder();
-            viewQuery.append("CREATE OR REPLACE VIEW ").append(tablePrefix).append("_transactions_view AS ");
+            // Vérifier si nous utilisons MySQL ou SQLite
+            boolean isMysql = plugin.getDataConfig().getDatabaseType().equals("mysql");
+            
+            // Supprimer la vue existante si elle existe
+            plugin.getDataManager().executeUpdate("DROP VIEW IF EXISTS " + tablePrefix + "_transactions_view");
+            
+            // Construction de la requête SQL pour créer la vue
+            StringBuilder viewSQL = new StringBuilder();
+            viewSQL.append("CREATE ");
+            if (!isMysql) {
+                // SQLite n'a pas de "OR REPLACE"
+                viewSQL.append("VIEW ");
+            } else {
+                // MySQL permet "OR REPLACE"
+                viewSQL.append("OR REPLACE VIEW ");
+            }
+            viewSQL.append(tablePrefix).append("_transactions_view AS ");
             
             for (int i = 0; i < tables.length; i++) {
-                if (i > 0) {
-                    viewQuery.append(" UNION ALL ");
-                }
-                viewQuery.append("SELECT * FROM ").append(tables[i]);
+                if (i > 0) viewSQL.append(" UNION ALL ");
+                viewSQL.append("SELECT * FROM ").append(tables[i]);
             }
             
-            plugin.getDataManager().executeUpdate(viewQuery.toString());
+            // Exécuter la requête SQL
+            plugin.getDataManager().executeUpdate(viewSQL.toString());
+            
         } catch (Exception e) {
-            // Si la vue ne peut pas être créée, on continue sans erreur critique
-            plugin.getLogger().warning("Note: Impossible de créer la vue de transactions: " + e.getMessage());
+            // Message d'erreur plus informatif
+            plugin.getLogger().warning("Note: Impossible de créer la vue des transactions (" + 
+                                    (plugin.getDataConfig().getDatabaseType().equals("mysql") ? "MySQL" : "SQLite") + 
+                                    "): " + e.getMessage());
         }
     }
     
@@ -281,13 +402,8 @@ public class TransactionLimiter {
 
         // Créer une copie finale de tableName pour utilisation dans la lambda
         final String finalTableName = tableName;
-        
-        // Reste de votre code existant en utilisant tableName au lieu de tablePrefix + "_transaction_limits"
-        // Utiliser INSERT ... ON DUPLICATE KEY UPDATE pour éviter les doublons
-        String query = "INSERT INTO " + finalTableName + " "
-                + "(player_uuid, shop_id, item_id, transaction_type, amount, transaction_time) "
-                + "VALUES (?, ?, ?, ?, ?, NOW()) "
-                + "ON DUPLICATE KEY UPDATE amount = amount + ?, transaction_time = NOW()";
+        boolean isMysql = plugin.getDataConfig().getDatabaseType().equals("mysql");
+        String transactionType = isBuy ? "BUY" : "SELL";
 
         // Incrémenter métriques
         incrementCounter("total_transactions");
@@ -304,178 +420,372 @@ public class TransactionLimiter {
         }
         
         plugin.getDataManager().executeAsync(() -> {
-            try (Connection connection = plugin.getDataManager().getConnection();
-                PreparedStatement stmt = connection.prepareStatement(query)) {
-                stmt.setString(1, player.getUniqueId().toString());
-                stmt.setString(2, shopId);
-                stmt.setString(3, itemId);
-                stmt.setString(4, isBuy ? "BUY" : "SELL");
-                stmt.setInt(5, amount);
-                stmt.setInt(6, amount);
-            
-                // Exécuter la requête et retourner le nombre de lignes affectées
-                int result = stmt.executeUpdate();
-                
-                // Si transaction réussie, vérifier si un nettoyage est nécessaire
-                if (result > 0 && Math.random() < 0.01) { // 1% de chance de déclencher un nettoyage
-                // if (result > 0) {
-                    cleanupExpiredTransactions();
+            try (Connection connection = plugin.getDataManager().getConnection()) {
+                // plugin.getLogger().info("[DEBUG] recordTransaction : isMysql=" + isMysql + ", table=" + finalTableName);
+                if (isMysql) {
+                    // Reste de votre code existant en utilisant tableName au lieu de tablePrefix + "_transaction_limits"
+                    // Utiliser INSERT ... ON DUPLICATE KEY UPDATE pour éviter les doublons
+                    String query = "INSERT INTO " + finalTableName + " "
+                            + "(player_uuid, shop_id, item_id, transaction_type, amount, transaction_time) "
+                            + "VALUES (?, ?, ?, ?, ?, NOW()) "
+                            + "ON DUPLICATE KEY UPDATE amount = amount + ?, transaction_time = NOW()";
+
+                    try (PreparedStatement stmt = connection.prepareStatement(query)) {
+                        stmt.setString(1, player.getUniqueId().toString());
+                        stmt.setString(2, shopId);
+                        stmt.setString(3, itemId);
+                        stmt.setString(4, transactionType);
+                        stmt.setInt(5, amount);
+                        stmt.setInt(6, amount);
+                    
+                        // Exécuter la requête et retourner le nombre de lignes affectées
+                        int result = stmt.executeUpdate();
+                        
+                        // Si transaction réussie, vérifier si un nettoyage est nécessaire
+                        if (result > 0 && Math.random() < 0.01) { // 1% de chance de déclencher un nettoyage
+                        // if (result > 0) {
+                            cleanupExpiredTransactions();
+                        }
+                        
+                        return result;
+                    }
+                } else {
+                    return handleSQLiteTransaction(player, shopId, itemId, isBuy, amount, finalTableName);
+                    // return null;
                 }
-                
-                return result;
             } catch (SQLException e) {
                 // Si l'erreur est due à une syntaxe ON DUPLICATE KEY non supportée (SQLite)
-                if (e.getMessage().contains("syntax error") && e.getMessage().contains("ON DUPLICATE KEY")) {
+                // if (e.getMessage().contains("syntax error") && e.getMessage().contains("ON DUPLICATE KEY")) {
                     // Essayer l'approche alternative pour SQLite
-                    return handleSQLiteTransaction(player, shopId, itemId, isBuy, amount, finalTableName);
-                }
+                // }
                 plugin.getLogger().severe("Erreur lors de l'enregistrement d'une transaction: " + e.getMessage());
                 return 0;
             }
         });
     }
 
-    // Méthode auxiliaire pour gérer les transactions dans SQLite (qui ne supporte pas ON DUPLICATE KEY)
-    private Integer handleSQLiteTransaction(Player player, String shopId, String itemId, boolean isBuy, int amount, String tableName) throws InterruptedException, ExecutionException {
-        String transactionType = isBuy ? "BUY" : "SELL";
+    // // Méthode auxiliaire pour gérer les transactions dans SQLite (qui ne supporte pas ON DUPLICATE KEY)
+    // private Integer handleSQLiteTransaction(Player player, String shopId, String itemId, boolean isBuy, int amount, String tableName) {
+    //     String transactionType = isBuy ? "BUY" : "SELL";
+    //     String today = java.time.LocalDate.now().toString();
         
-        return plugin.getDataManager().executeAsync(() -> {
-            try (Connection connection = plugin.getDataManager().getConnection()) {
-                // 1. Vérifier si une entrée existe pour aujourd'hui
-                String checkQuery = "SELECT amount FROM " + tableName + " " +
-                                "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
-                                "AND date(transaction_time) = date('now')";
-                                
-                int existingAmount = 0;
-                boolean hasExisting = false;
+    //     // return plugin.getDataManager().executeAsync(() -> {
+    //         try (Connection connection = plugin.getDataManager().getConnection()) {
+    //             // 1. Vérifier si une entrée existe pour aujourd'hui
+    //             String checkQuery = "SELECT amount, transaction_time FROM " + tableName + " " +
+    //                             "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+    //                             // "AND date(transaction_time) = date('now')";
+    //                             "AND strftime('%Y-%m-%d', transaction_time) = ?";
+    //                             // "AND strftime('%Y-%m-%d', transaction_time) = strftime('%Y-%m-%d', 'now')";
+    //                             // "ORDER BY transaction_time DESC LIMIT 1";
                 
-                try (PreparedStatement checkStmt = connection.prepareStatement(checkQuery)) {
-                    checkStmt.setString(1, player.getUniqueId().toString());
-                    checkStmt.setString(2, shopId);
-                    checkStmt.setString(3, itemId);
-                    checkStmt.setString(4, transactionType);
-                    
-                    ResultSet rs = checkStmt.executeQuery();
-                    if (rs.next()) {
-                        existingAmount = rs.getInt("amount");
-                        hasExisting = true;
-                    }
-                }
+    //             int existingAmount = 0;
+    //             java.sql.Timestamp existingTime = null;
+    //             boolean hasExisting = false;
+
+    //             try (PreparedStatement checkStmt = connection.prepareStatement(checkQuery)) {
+    //                 checkStmt.setString(1, player.getUniqueId().toString());
+    //                 checkStmt.setString(2, shopId);
+    //                 checkStmt.setString(3, itemId);
+    //                 checkStmt.setString(4, transactionType);
+    //                 checkStmt.setString(5, today);
+
+    //                 ResultSet rs = checkStmt.executeQuery();
+    //                 if (rs.next()) {
+    //                     existingAmount = rs.getInt("amount");
+    //                     existingTime = rs.getTimestamp("transaction_time");
+    //                     hasExisting = true;
+    //                 }
+    //             }
+    //             plugin.info("Transaction pour " + player.getName() + ": " + 
+    //                     (hasExisting ? "Mise à jour de " + existingAmount + " à " + (existingAmount + amount) : 
+    //                     "Insertion de " + amount) + 
+    //                     (existingTime != null ? " (Dernière: " + existingTime + ")" : ""));
                 
-                // 2. Mettre à jour ou insérer
-                if (hasExisting) {
-                    String updateQuery = "UPDATE " + tableName + " " +
-                                    "SET amount = ?, transaction_time = datetime('now') " +
-                                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
-                                    "AND date(transaction_time) = date('now')";
+    //             // 2. Mettre à jour ou insérer
+    //             if (hasExisting) {
+    //                 String updateQuery = "UPDATE " + tableName + " " +
+    //                                 "SET amount = ?, transaction_time = datetime('now') " +
+    //                                 "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+    //                                 "AND strftime('%Y-%m-%d', transaction_time) = ?";
                                     
-                    try (PreparedStatement updateStmt = connection.prepareStatement(updateQuery)) {
-                        updateStmt.setInt(1, existingAmount + amount);
-                        updateStmt.setString(2, player.getUniqueId().toString());
-                        updateStmt.setString(3, shopId);
-                        updateStmt.setString(4, itemId);
-                        updateStmt.setString(5, transactionType);
-                        return updateStmt.executeUpdate();
-                    }
-                } else {
-                    String insertQuery = "INSERT INTO " + tableName + " " +
-                                    "(player_uuid, shop_id, item_id, transaction_type, amount, transaction_time) " +
-                                    "VALUES (?, ?, ?, ?, ?, datetime('now'))";
+    //                 try (PreparedStatement updateStmt = connection.prepareStatement(updateQuery)) {
+    //                     updateStmt.setInt(1, existingAmount + amount);
+    //                     updateStmt.setString(2, player.getUniqueId().toString());
+    //                     updateStmt.setString(3, shopId);
+    //                     updateStmt.setString(4, itemId);
+    //                     updateStmt.setString(5, transactionType);
+    //                     updateStmt.setString(6, today);
+    //                     return updateStmt.executeUpdate();
+    //                 }
+    //             } else {
+    //                 plugin.info("Aucune transaction existante pour " + player.getName() + " sur " + shopId + ":" + itemId + ". Insertion de la nouvelle transaction.");
+    //                 String insertQuery = "INSERT INTO " + tableName + " " +
+    //                                 "(player_uuid, shop_id, item_id, transaction_type, amount, transaction_time) " +
+    //                                 // "VALUES (?, ?, ?, ?, ?, datetime('now'))";
+    //                                 "VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))";
                                     
-                    try (PreparedStatement insertStmt = connection.prepareStatement(insertQuery)) {
-                        insertStmt.setString(1, player.getUniqueId().toString());
-                        insertStmt.setString(2, shopId);
-                        insertStmt.setString(3, itemId);
-                        insertStmt.setString(4, transactionType);
-                        insertStmt.setInt(5, amount);
-                        return insertStmt.executeUpdate();
-                    }
-                }
+    //                 try (PreparedStatement insertStmt = connection.prepareStatement(insertQuery)) {
+    //                     insertStmt.setString(1, player.getUniqueId().toString());
+    //                     insertStmt.setString(2, shopId);
+    //                     insertStmt.setString(3, itemId);
+    //                     insertStmt.setString(4, transactionType);
+    //                     insertStmt.setInt(5, amount);
+    //                     return insertStmt.executeUpdate();
+    //                 } catch (SQLException e) {
+    //                     plugin.getLogger().severe("Erreur lors de l'insertion d'une transaction SQLite: " + e.getMessage());
+    //                     return 0;
+    //                 }
+    //             }
+    //     } catch (SQLException e) {
+    //         plugin.getLogger().severe("Erreur SQLite dans handleSQLiteTransaction: " + e.getMessage());
+    //         return 0;
+    //     }
+    //     // }).get(); // Attention, .get() est bloquant, mais nous sommes déjà dans un contexte async
+    // }
+
+    // private Integer handleSQLiteTransaction(Player player, String shopId, String itemId, boolean isBuy, int amount, String tableName) {
+    //     plugin.getLogger().info("[DEBUG] handleSQLiteTransaction appelée pour " + tableName + " / " + player.getName());
+    //     String transactionType = isBuy ? "BUY" : "SELL";
+    //     String today = java.time.LocalDate.now().toString();
+
+    //     try (Connection connection = plugin.getDataManager().getConnection()) {
+    //         // DEBUG : Affiche les valeurs présentes
+    //         try (PreparedStatement debugStmt = connection.prepareStatement(
+    //                 "SELECT amount, transaction_time FROM " + tableName + " WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?")) {
+    //             debugStmt.setString(1, player.getUniqueId().toString());
+    //             debugStmt.setString(2, shopId);
+    //             debugStmt.setString(3, itemId);
+    //             debugStmt.setString(4, transactionType);
+    //             ResultSet debugRs = debugStmt.executeQuery();
+    //             while (debugRs.next()) {
+    //                 plugin.getLogger().info("[DEBUG] " + tableName + " : " + debugRs.getString("transaction_time"));
+    //             }
+    //         } catch (Exception e) {
+    //             plugin.getLogger().warning("[DEBUG] Impossible de lire les transactions existantes : " + e.getMessage());
+    //         }
+
+    //         // 1. Vérifier si une entrée existe pour aujourd'hui
+    //         String checkQuery = "SELECT amount, transaction_time FROM " + tableName + " " +
+    //             "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+    //             "AND strftime('%Y-%m-%d', transaction_time) = ?";
+    //         int existingAmount = 0;
+    //         boolean hasExisting = false;
+    //         java.sql.Timestamp existingTime = null;
+
+    //         try (PreparedStatement checkStmt = connection.prepareStatement(checkQuery)) {
+    //             checkStmt.setString(1, player.getUniqueId().toString());
+    //             checkStmt.setString(2, shopId);
+    //             checkStmt.setString(3, itemId);
+    //             checkStmt.setString(4, transactionType);
+    //             checkStmt.setString(5, today);
+
+    //             ResultSet rs = checkStmt.executeQuery();
+    //             if (rs.next()) {
+    //                 existingAmount = rs.getInt("amount");
+    //                 existingTime = rs.getTimestamp("transaction_time");
+    //                 hasExisting = true;
+    //             }
+    //         }
+
+    //         plugin.info("Transaction pour " + player.getName() + ": " +
+    //             (hasExisting ? "Mise à jour de " + existingAmount + " à " + (existingAmount + amount) :
+    //             "Insertion de " + amount) +
+    //             (existingTime != null ? " (Dernière: " + existingTime + ")" : ""));
+
+    //         // 2. Mettre à jour ou insérer
+    //         if (hasExisting) {
+    //             String updateQuery = "UPDATE " + tableName + " " +
+    //                 "SET amount = ?, transaction_time = datetime('now', 'localtime') " +
+    //                 "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+    //                 "AND strftime('%Y-%m-%d', transaction_time) = ?";
+    //             try (PreparedStatement updateStmt = connection.prepareStatement(updateQuery)) {
+    //                 updateStmt.setInt(1, existingAmount + amount);
+    //                 updateStmt.setString(2, player.getUniqueId().toString());
+    //                 updateStmt.setString(3, shopId);
+    //                 updateStmt.setString(4, itemId);
+    //                 updateStmt.setString(5, transactionType);
+    //                 updateStmt.setString(6, today);
+    //                 return updateStmt.executeUpdate();
+    //             }
+    //         } else {
+    //             String insertQuery = "INSERT INTO " + tableName + " " +
+    //                 "(player_uuid, shop_id, item_id, transaction_type, amount, transaction_time) " +
+    //                 "VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))";
+    //             try (PreparedStatement insertStmt = connection.prepareStatement(insertQuery)) {
+    //                 insertStmt.setString(1, player.getUniqueId().toString());
+    //                 insertStmt.setString(2, shopId);
+    //                 insertStmt.setString(3, itemId);
+    //                 insertStmt.setString(4, transactionType);
+    //                 insertStmt.setInt(5, amount);
+    //                 return insertStmt.executeUpdate();
+    //             }
+    //         }
+    //     } catch (SQLException e) {
+    //         plugin.getLogger().severe("Erreur SQLite dans handleSQLiteTransaction: " + e.getMessage());
+    //         return 0;
+    //     }
+    // }
+    // private Integer handleSQLiteTransaction(Player player, String shopId, String itemId, boolean isBuy, int amount, String tableName) {
+    //     String transactionType = isBuy ? "BUY" : "SELL";
+    //     String today = java.time.LocalDate.now().toString();
+    //     int updatedRows = 0;
+
+    //     try (Connection connection = plugin.getDataManager().getConnection()) {
+    //         // 1. Vérifier si une transaction existe déjà pour aujourd'hui
+    //         String selectSql = "SELECT amount FROM " + tableName +
+    //                 " WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+    //                 "AND strftime('%Y-%m-%d', transaction_time) = ?";
+    //         try (PreparedStatement selectStmt = connection.prepareStatement(selectSql)) {
+    //             selectStmt.setString(1, player.getUniqueId().toString());
+    //             selectStmt.setString(2, shopId);
+    //             selectStmt.setString(3, itemId);
+    //             selectStmt.setString(4, transactionType);
+    //             selectStmt.setString(5, today);
+
+    //             ResultSet rs = selectStmt.executeQuery();
+    //             if (rs.next()) {
+    //                 // 2. Si existe, update
+    //                 int currentAmount = rs.getInt("amount");
+    //                 String updateSql = "UPDATE " + tableName +
+    //                         " SET amount = ?, transaction_time = datetime('now', 'localtime')" +
+    //                         " WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+    //                         "AND strftime('%Y-%m-%d', transaction_time) = ?";
+    //                 try (PreparedStatement updateStmt = connection.prepareStatement(updateSql)) {
+    //                     updateStmt.setInt(1, currentAmount + amount);
+    //                     updateStmt.setString(2, player.getUniqueId().toString());
+    //                     updateStmt.setString(3, shopId);
+    //                     updateStmt.setString(4, itemId);
+    //                     updateStmt.setString(5, transactionType);
+    //                     updateStmt.setString(6, today);
+    //                     updatedRows = updateStmt.executeUpdate();
+    //                     plugin.info("Transaction pour " + player.getName() + ": Mise à jour de " + currentAmount + " à " + (currentAmount + amount));
+    //                 }
+    //             } else {
+    //                 // 3. Sinon, insert
+    //                 String insertSql = "INSERT INTO " + tableName +
+    //                         " (player_uuid, shop_id, item_id, transaction_type, amount, transaction_time) " +
+    //                         "VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))";
+    //                 try (PreparedStatement insertStmt = connection.prepareStatement(insertSql)) {
+    //                     insertStmt.setString(1, player.getUniqueId().toString());
+    //                     insertStmt.setString(2, shopId);
+    //                     insertStmt.setString(3, itemId);
+    //                     insertStmt.setString(4, transactionType);
+    //                     insertStmt.setInt(5, amount);
+    //                     updatedRows = insertStmt.executeUpdate();
+    //                     plugin.info("Transaction pour " + player.getName() + ": Insertion de " + amount);
+    //                 }
+    //             }
+    //         }
+    //     } catch (SQLException e) {
+    //         plugin.getLogger().severe("Erreur SQLite dans handleSQLiteTransaction: " + e.getMessage());
+    //         return 0;
+    //     }
+    //     return updatedRows;
+    // }
+    private Integer handleSQLiteTransaction(Player player, String shopId, String itemId, boolean isBuy, int amount, String tableName) {
+        String transactionType = isBuy ? "BUY" : "SELL";
+        try (Connection connection = plugin.getDataManager().getConnection()) {
+            String insertSql = "INSERT INTO " + tableName +
+                    " (player_uuid, shop_id, item_id, transaction_type, amount, transaction_time) " +
+                    "VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))";
+            try (PreparedStatement insertStmt = connection.prepareStatement(insertSql)) {
+                insertStmt.setString(1, player.getUniqueId().toString());
+                insertStmt.setString(2, shopId);
+                insertStmt.setString(3, itemId);
+                insertStmt.setString(4, transactionType);
+                insertStmt.setInt(5, amount);
+                int rows = insertStmt.executeUpdate();
+                // plugin.info("Transaction pour " + player.getName() + ": Insertion de " + amount);
+                return rows;
             }
-        }).get(); // Attention, .get() est bloquant, mais nous sommes déjà dans un contexte async
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Erreur SQLite dans handleSQLiteTransaction: " + e.getMessage());
+            return 0;
+        }
     }
     
-    public CompletableFuture<Boolean> canPerformTransaction(Player player, String shopId, String itemId, boolean isBuy, int amount) {
-        TransactionLimit limit = getTransactionLimit(shopId, itemId, isBuy);
-        if (limit == null) {
-            return CompletableFuture.completedFuture(true);
-        }
+    // public CompletableFuture<Boolean> canPerformTransaction(Player player, String shopId, String itemId, boolean isBuy, int amount) {
+    //     TransactionLimit limit = getTransactionLimit(shopId, itemId, isBuy);
+    //     if (limit == null) {
+    //         return CompletableFuture.completedFuture(true);
+    //     }
         
-        String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
-        String transactionType = isBuy ? "BUY" : "SELL";
+    //     String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
+    //     String transactionType = isBuy ? "BUY" : "SELL";
         
-        // Forcer la correction des horodatages futurs AVANT la vérification
-        cleanFutureTimestamps(player.getUniqueId(), shopId, itemId, transactionType);
-        clearExpiredTimestamps(player.getUniqueId(), shopId, itemId, transactionType);
+    //     // Forcer la correction des horodatages futurs AVANT la vérification
+    //     cleanFutureTimestamps(player.getUniqueId(), shopId, itemId, transactionType);
+    //     clearExpiredTimestamps(player.getUniqueId(), shopId, itemId, transactionType);
 
-        // Déterminer la date de début en fonction de la période ou du cooldown
-        LocalDateTime startDate;
-        if (limit.getPeriodEquivalent() != LimitPeriod.NONE) {
-            // Pour les périodes prédéfinies, utiliser la date de début de la période
-            startDate = getStartDateForPeriod(limit.getPeriodEquivalent());
-        } else {
-            // Pour les cooldowns en secondes, calculer la date à partir du moment actuel
-            startDate = LocalDateTime.now().minusSeconds(limit.getCooldown());
-        }
-        // String query = "SELECT SUM(amount) as total FROM " + tablePrefix + "_transaction_limits "
-        //         + "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? "
-        //         + "AND transaction_time >= ?";
+    //     // Déterminer la date de début en fonction de la période ou du cooldown
+    //     LocalDateTime startDate;
+    //     if (limit.getPeriodEquivalent() != LimitPeriod.NONE) {
+    //         // Pour les périodes prédéfinies, utiliser la date de début de la période
+    //         startDate = getStartDateForPeriod(limit.getPeriodEquivalent());
+    //     } else {
+    //         // Pour les cooldowns en secondes, calculer la date à partir du moment actuel
+    //         startDate = LocalDateTime.now().minusSeconds(limit.getCooldown());
+    //     }
+    //     // String query = "SELECT SUM(amount) as total FROM " + tablePrefix + "_transaction_limits "
+    //     //         + "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? "
+    //     //         + "AND transaction_time >= ?";
         
-        // Utiliser la vue pour interroger toutes les tables
-        String query = "SELECT SUM(amount) as total FROM " + tablePrefix + "_transactions_view " +
-                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
-                    "AND transaction_time >= ? AND transaction_time <= NOW()";
-                    // "AND transaction_time >= ?";
+    //     // Utiliser la vue pour interroger toutes les tables
+    //     String query = "SELECT SUM(amount) as total FROM " + tablePrefix + "_transactions_view " +
+    //                 "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+    //                 "AND transaction_time >= ? AND transaction_time <= NOW()";
+    //                 // "AND transaction_time >= ?";
         
-        return plugin.getDataManager().executeAsync(() -> {
-            try (Connection connection = plugin.getDataManager().getConnection();
-                 PreparedStatement stmt = connection.prepareStatement(query)) {
-                stmt.setString(1, player.getUniqueId().toString());
-                stmt.setString(2, shopId);
-                stmt.setString(3, itemId);
-                stmt.setString(4, transactionType);
-                stmt.setTimestamp(5, java.sql.Timestamp.valueOf(startDate));
+    //     return plugin.getDataManager().executeAsync(() -> {
+    //         try (Connection connection = plugin.getDataManager().getConnection();
+    //              PreparedStatement stmt = connection.prepareStatement(query)) {
+    //             stmt.setString(1, player.getUniqueId().toString());
+    //             stmt.setString(2, shopId);
+    //             stmt.setString(3, itemId);
+    //             stmt.setString(4, transactionType);
+    //             stmt.setTimestamp(5, java.sql.Timestamp.valueOf(startDate));
                 
-                // ResultSet rs = stmt.executeQuery();
-                // if (rs.next()) {
-                //     int currentTotal = rs.getInt("total");
-                //     return currentTotal + amount <= limit.getAmount();
-                // }
-                // return true;
-                ResultSet rs = stmt.executeQuery();
-                if (rs.next()) {
-                    int currentTotal = rs.getInt("total");
-                    if (rs.wasNull()) {
-                        currentTotal = 0; // Corriger le cas où le résultat est NULL
-                    }
+    //             // ResultSet rs = stmt.executeQuery();
+    //             // if (rs.next()) {
+    //             //     int currentTotal = rs.getInt("total");
+    //             //     return currentTotal + amount <= limit.getAmount();
+    //             // }
+    //             // return true;
+    //             ResultSet rs = stmt.executeQuery();
+    //             if (rs.next()) {
+    //                 int currentTotal = rs.getInt("total");
+    //                 if (rs.wasNull()) {
+    //                     currentTotal = 0; // Corriger le cas où le résultat est NULL
+    //                 }
                     
-                    // Vérifier si la limite est atteinte
-                    boolean canPerform = currentTotal + amount <= limit.getAmount();
+    //                 // Vérifier si la limite est atteinte
+    //                 boolean canPerform = currentTotal + amount <= limit.getAmount();
                     
-                    // // Log pour le debug
-                    // plugin.getLogger().info("Limite pour " + player.getName() + " sur " + shopId + ":" + itemId + 
-                    //                     " - Total actuel: " + currentTotal + "/" + limit.getAmount() + 
-                    //                     " (Depuis " + startDate + ")" +
-                    //                     " - Peut effectuer: " + canPerform);
+    //                 // // Log pour le debug
+    //                 // plugin.getLogger().info("Limite pour " + player.getName() + " sur " + shopId + ":" + itemId + 
+    //                 //                     " - Total actuel: " + currentTotal + "/" + limit.getAmount() + 
+    //                 //                     " (Depuis " + startDate + ")" +
+    //                 //                     " - Peut effectuer: " + canPerform);
                     
-                    // if (!canPerform) {
-                    //     // Vérifier aussi le cooldown
-                    //     getNextAvailableTime(player, shopId, itemId, isBuy).thenAccept(cooldownTime -> {
-                    //         if (cooldownTime <= 0) {
-                    //             // Le cooldown est écoulé, donc on peut réinitialiser
-                    //             plugin.getLogger().info("Réinitialisation des limites pour " + player.getName() + 
-                    //                                 " sur " + shopId + ":" + itemId + " (Cooldown écoulé)");
-                    //             resetLimits(player, shopId, itemId);
-                    //         }
-                    //     });
-                    // }
+    //                 // if (!canPerform) {
+    //                 //     // Vérifier aussi le cooldown
+    //                 //     getNextAvailableTime(player, shopId, itemId, isBuy).thenAccept(cooldownTime -> {
+    //                 //         if (cooldownTime <= 0) {
+    //                 //             // Le cooldown est écoulé, donc on peut réinitialiser
+    //                 //             plugin.getLogger().info("Réinitialisation des limites pour " + player.getName() + 
+    //                 //                                 " sur " + shopId + ":" + itemId + " (Cooldown écoulé)");
+    //                 //             resetLimits(player, shopId, itemId);
+    //                 //         }
+    //                 //     });
+    //                 // }
                     
-                    return canPerform;
-                }
-                return true;
-            }
-        });
-    }
+    //                 return canPerform;
+    //             }
+    //             return true;
+    //         }
+    //     });
+    // }
 
     /**
      * Version synchrone de canPerformTransaction qui retourne immédiatement une réponse.
@@ -507,11 +817,37 @@ public class TransactionLimiter {
         //         + "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? "
         //         + "AND transaction_time >= ?";
         
-        // Utiliser la vue pour interroger toutes les tables
-        String query = "SELECT SUM(amount) as total FROM " + tablePrefix + "_transactions_view " +
+        // // Utiliser la vue pour interroger toutes les tables
+        // String query = "SELECT SUM(amount) as total FROM " + tablePrefix + "_transactions_view " +
+        //             "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+        //             "AND transaction_time >= ?";
+        //             // "AND transaction_time >= ? AND transaction_time <= NOW()";
+        
+        // Vérifier le type de base de données et adapter la requête
+        boolean isMysql = plugin.getDataConfig().getDatabaseType().equals("mysql");
+        String query;
+        if (isMysql) {
+            // Utiliser la vue pour MySQL
+            query = "SELECT SUM(amount) as total FROM " + tablePrefix + "_transactions_view " +
                     "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
-                    "AND transaction_time >= ?";
-                    // "AND transaction_time >= ? AND transaction_time <= NOW()";
+                    "AND transaction_time >= ? AND transaction_time <= NOW()";
+        } else {
+            // Pour SQLite, interroger chaque table individuellement et combiner les résultats
+            query = "SELECT SUM(amount) as total FROM (" +
+                    "SELECT amount FROM " + tablePrefix + "_tx_daily " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? AND transaction_time >= ? " +
+                    "UNION ALL SELECT amount FROM " + tablePrefix + "_tx_weekly " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? AND transaction_time >= ? " +
+                    "UNION ALL SELECT amount FROM " + tablePrefix + "_tx_monthly " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? AND transaction_time >= ? " +
+                    "UNION ALL SELECT amount FROM " + tablePrefix + "_tx_yearly " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? AND transaction_time >= ? " +
+                    "UNION ALL SELECT amount FROM " + tablePrefix + "_tx_forever " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? AND transaction_time >= ? " +
+                    "UNION ALL SELECT amount FROM " + tablePrefix + "_transaction_limits " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? AND transaction_time >= ? " +
+                    ")";
+        }
                  
         try (Connection connection = plugin.getDataManager().getConnection();
                 PreparedStatement stmt = connection.prepareStatement(query)) {
@@ -520,6 +856,18 @@ public class TransactionLimiter {
                 stmt.setString(3, itemId);
                 stmt.setString(4, transactionType);
                 stmt.setTimestamp(5, java.sql.Timestamp.valueOf(startDate));
+
+                // Pour SQLite, nous devons répéter les paramètres pour chaque sous-requête
+                if (!isMysql) {
+                    for (int i = 1; i < 6; i++) {
+                        int offset = i * 5;
+                        stmt.setString(offset + 1, player.getUniqueId().toString());
+                        stmt.setString(offset + 2, shopId);
+                        stmt.setString(offset + 3, itemId);
+                        stmt.setString(offset + 4, transactionType);
+                        stmt.setTimestamp(offset + 5, java.sql.Timestamp.valueOf(startDate));
+                    }
+                }
                 
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()) {
@@ -529,15 +877,7 @@ public class TransactionLimiter {
                     }
                     
                     // Vérifier si la limite est atteinte
-                    boolean canPerform = currentTotal + amount <= limit.getAmount();
-                    
-                    // // Log pour le debug
-                    // plugin.getLogger().info("Limite pour " + player.getName() + " sur " + shopId + ":" + itemId + 
-                    //                     " - Total actuel: " + currentTotal + "/" + limit.getAmount() + 
-                    //                     " (Depuis " + startDate + ")" +
-                    //                     " - Peut effectuer: " + canPerform);
-                    
-                    return canPerform;
+                    return currentTotal + amount <= limit.getAmount();
                 }
             } catch (SQLException e) {
                 plugin.getLogger().severe("Erreur lors de la vérification de la limite: " + e.getMessage());
@@ -616,10 +956,39 @@ public class TransactionLimiter {
         //         + "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? "
         //         + "AND transaction_time >= ?";
 
-        // Utiliser la vue pour interroger toutes les tables
-        String query = "SELECT SUM(amount) as total FROM " + tablePrefix + "_transactions_view " +
-                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
-                    "AND transaction_time >= ?";
+        // // Utiliser la vue pour interroger toutes les tables
+        // String query = "SELECT SUM(amount) as total FROM " + tablePrefix + "_transactions_view " +
+        //             "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+        //             "AND transaction_time >= ?";
+        
+        boolean isMysql = plugin.getDataConfig().getDatabaseType().equals("mysql");
+        String query;
+        if (isMysql) {
+            // Utiliser la vue pour MySQL
+            query = "SELECT SUM(amount) as total FROM " + tablePrefix + "_transactions_view " +
+                   "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+                   "AND transaction_time >= ?";
+        } else {
+            // Requête directe pour SQLite
+            // query = "SELECT SUM(amount) as total FROM " + tablePrefix + "_transactions " +
+            // query = "SELECT SUM(amount) as total FROM " + tablePrefix + "_transaction_limits " +
+            //        "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+            //        "AND transaction_time >= ?";
+            query = "SELECT SUM(amount) as total FROM (" +
+                    "SELECT amount FROM " + tablePrefix + "_tx_daily " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? AND transaction_time >= ? " +
+                    "UNION ALL SELECT amount FROM " + tablePrefix + "_tx_weekly " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? AND transaction_time >= ? " +
+                    "UNION ALL SELECT amount FROM " + tablePrefix + "_tx_monthly " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? AND transaction_time >= ? " +
+                    "UNION ALL SELECT amount FROM " + tablePrefix + "_tx_yearly " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? AND transaction_time >= ? " +
+                    "UNION ALL SELECT amount FROM " + tablePrefix + "_tx_forever " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? AND transaction_time >= ? " +
+                    "UNION ALL SELECT amount FROM " + tablePrefix + "_transaction_limits " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? AND transaction_time >= ? " +
+                    ")";
+        }
         
         return plugin.getDataManager().executeAsync(() -> {
             try (Connection connection = plugin.getDataManager().getConnection();
@@ -629,6 +998,16 @@ public class TransactionLimiter {
                 stmt.setString(3, itemId);
                 stmt.setString(4, transactionType);
                 stmt.setTimestamp(5, java.sql.Timestamp.valueOf(startDate));
+                if (!isMysql) {
+                    for (int i = 1; i < 6; i++) {
+                        int offset = i * 5;
+                        stmt.setString(offset + 1, player.getUniqueId().toString());
+                        stmt.setString(offset + 2, shopId);
+                        stmt.setString(offset + 3, itemId);
+                        stmt.setString(offset + 4, transactionType);
+                        stmt.setTimestamp(offset + 5, java.sql.Timestamp.valueOf(startDate));
+                    }
+                }
                 
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()) {
@@ -643,8 +1022,68 @@ public class TransactionLimiter {
         });
     }
 
+    // /**
+    //  * Version synchrone de getRemainingAmount, utilise le cache pour de meilleures performances
+    //  */
+    // public int getRemainingAmountSync(Player player, String shopId, String itemId, boolean isBuy) {
+    //     // Clé de cache standardisée
+    //     final String cacheKey = shopId + ":" + itemId + ":" + (isBuy ? "buy" : "sell") + ":remaining:" + player.getUniqueId();
+        
+    //     return plugin.getLimitRemainingAmountCache().get(cacheKey, () -> {
+    //         TransactionLimit limit = getTransactionLimit(shopId, itemId, isBuy);
+    //         if (limit == null || limit.getAmount() <= 0) {
+    //             return Integer.MAX_VALUE; // Pas de limite
+    //         }
+            
+    //         // Logique de vérification synchrone directe
+    //         String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
+    //         String transactionType = isBuy ? "BUY" : "SELL";
+            
+    //         // Déterminer la date de début en fonction de la période ou du cooldown
+    //         // LocalDateTime startDate = getStartDateForPeriod(limit.getPeriodEquivalent());
+    //         LocalDateTime startDate;
+    //         if (limit.getPeriodEquivalent() != LimitPeriod.NONE) {
+    //             // Pour les périodes prédéfinies, utiliser la date de début de la période
+    //             startDate = getStartDateForPeriod(limit.getPeriodEquivalent());
+    //         } else {
+    //             // Pour les cooldowns en secondes, calculer la date à partir du moment actuel
+    //             startDate = LocalDateTime.now().minusSeconds(limit.getCooldown());
+    //         }
+            
+    //         try (Connection connection = plugin.getDataManager().getConnection();
+    //             PreparedStatement stmt = connection.prepareStatement(
+    //                 "SELECT SUM(amount) as total FROM " + tablePrefix + "_transactions_view " +
+    //                 "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+    //                 "AND transaction_time >= ?")) {
+                
+    //             stmt.setString(1, player.getUniqueId().toString());
+    //             stmt.setString(2, shopId);
+    //             stmt.setString(3, itemId);
+    //             stmt.setString(4, transactionType);
+    //             stmt.setTimestamp(5, java.sql.Timestamp.valueOf(startDate));
+                
+    //             ResultSet rs = stmt.executeQuery();
+    //             if (rs.next()) {
+    //                 int currentTotal = rs.getInt("total");
+    //                 if (rs.wasNull()) {
+    //                     currentTotal = 0;
+    //                 }
+                    
+    //                 int remaining = Math.max(0, limit.getAmount() - currentTotal);
+    //                 // Mettre en cache
+    //                 plugin.getLimitRemainingAmountCache().put(cacheKey, remaining);
+    //                 return remaining;
+    //             }
+    //         } catch (SQLException e) {
+    //             plugin.getLogger().warning("Erreur SQL dans getRemainingAmountSync: " + e.getMessage());
+    //         }
+            
+    //         return limit.getAmount(); // Valeur par défaut
+    //     });
+    // }
+
     /**
-     * Version synchrone de getRemainingAmount, utilise le cache pour de meilleures performances
+     * Version synchrone de getRemainingAmount, compatible avec MySQL et SQLite
      */
     public int getRemainingAmountSync(Player player, String shopId, String itemId, boolean isBuy) {
         // Clé de cache standardisée
@@ -661,7 +1100,6 @@ public class TransactionLimiter {
             String transactionType = isBuy ? "BUY" : "SELL";
             
             // Déterminer la date de début en fonction de la période ou du cooldown
-            // LocalDateTime startDate = getStartDateForPeriod(limit.getPeriodEquivalent());
             LocalDateTime startDate;
             if (limit.getPeriodEquivalent() != LimitPeriod.NONE) {
                 // Pour les périodes prédéfinies, utiliser la date de début de la période
@@ -671,17 +1109,53 @@ public class TransactionLimiter {
                 startDate = LocalDateTime.now().minusSeconds(limit.getCooldown());
             }
             
-            try (Connection connection = plugin.getDataManager().getConnection();
-                PreparedStatement stmt = connection.prepareStatement(
-                    "SELECT SUM(amount) as total FROM " + tablePrefix + "_transactions_view " +
+            // Vérifier le type de base de données et adapter la requête
+            boolean isMysql = plugin.getDataConfig().getDatabaseType().equals("mysql");
+            String query;
+            
+            if (isMysql) {
+                // Utiliser la vue pour MySQL
+                query = "SELECT SUM(amount) as total FROM " + tablePrefix + "_transactions_view " +
                     "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
-                    "AND transaction_time >= ?")) {
+                    "AND transaction_time >= ?";
+            } else {
+                // Pour SQLite, interroger chaque table individuellement et combiner les résultats
+                query = "SELECT SUM(amount) as total FROM (" +
+                    "SELECT amount FROM " + tablePrefix + "_tx_daily " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? AND transaction_time >= ? " +
+                    "UNION ALL SELECT amount FROM " + tablePrefix + "_tx_weekly " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? AND transaction_time >= ? " +
+                    "UNION ALL SELECT amount FROM " + tablePrefix + "_tx_monthly " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? AND transaction_time >= ? " +
+                    "UNION ALL SELECT amount FROM " + tablePrefix + "_tx_yearly " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? AND transaction_time >= ? " +
+                    "UNION ALL SELECT amount FROM " + tablePrefix + "_tx_forever " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? AND transaction_time >= ? " +
+                    "UNION ALL SELECT amount FROM " + tablePrefix + "_transaction_limits " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? AND transaction_time >= ? " +
+                    ")";
+            }
+            
+            try (Connection connection = plugin.getDataManager().getConnection();
+                PreparedStatement stmt = connection.prepareStatement(query)) {
                 
                 stmt.setString(1, player.getUniqueId().toString());
                 stmt.setString(2, shopId);
                 stmt.setString(3, itemId);
                 stmt.setString(4, transactionType);
                 stmt.setTimestamp(5, java.sql.Timestamp.valueOf(startDate));
+                
+                // Pour SQLite, nous devons répéter les paramètres pour chaque sous-requête
+                if (!isMysql) {
+                    for (int i = 1; i < 6; i++) {
+                        int offset = i * 5;
+                        stmt.setString(offset + 1, player.getUniqueId().toString());
+                        stmt.setString(offset + 2, shopId);
+                        stmt.setString(offset + 3, itemId);
+                        stmt.setString(offset + 4, transactionType);
+                        stmt.setTimestamp(offset + 5, java.sql.Timestamp.valueOf(startDate));
+                    }
+                }
                 
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()) {
@@ -697,6 +1171,7 @@ public class TransactionLimiter {
                 }
             } catch (SQLException e) {
                 plugin.getLogger().warning("Erreur SQL dans getRemainingAmountSync: " + e.getMessage());
+                // Continuer en cas d'erreur pour utiliser la valeur par défaut
             }
             
             return limit.getAmount(); // Valeur par défaut
@@ -796,8 +1271,106 @@ public class TransactionLimiter {
     //     // return 0L;
     // }
     
+    // /**
+    //  * Version synchrone de getNextAvailableTime, plus rapide
+    //  */
+    // public long getNextAvailableTimeSync(Player player, String shopId, String itemId, boolean isBuy) {
+    //     // Clé de cache
+    //     final String cacheKey = shopId + ":" + itemId + ":" + (isBuy ? "buy" : "sell") + ":nexttime:" + player.getUniqueId();
+
+    //     return plugin.getLimitNextAvailableTimeCache().get(cacheKey, () -> {
+    //         TransactionLimit limit = getTransactionLimit(shopId, itemId, isBuy);
+    //         if (limit == null) {
+    //             return 0L; // Pas de limite
+    //         }
+            
+    //         LimitPeriod period = limit.getPeriodEquivalent();
+    //         // Pour les périodes prédéfinies (DAILY, WEEKLY, etc.), calculer la fin de la période actuelle
+    //         // if (period != LimitPeriod.NONE && period != LimitPeriod.FOREVER) {
+    //         if (period != LimitPeriod.NONE) {
+    //             LocalDateTime now = LocalDateTime.now();
+    //             LocalDateTime nextReset;
+                
+    //             switch (period) {
+    //                 case DAILY:
+    //                     // Prochain reset à minuit
+    //                     nextReset = now.withHour(0).withMinute(0).withSecond(0).withNano(0).plusDays(1);
+    //                     break;
+    //                 case WEEKLY:
+    //                     // Prochain reset lundi prochain à minuit
+    //                     nextReset = now.with(TemporalAdjusters.next(java.time.DayOfWeek.MONDAY))
+    //                         .withHour(0).withMinute(0).withSecond(0).withNano(0);
+    //                     if (now.getDayOfWeek() == java.time.DayOfWeek.MONDAY && now.getHour() == 0 && now.getMinute() == 0) {
+    //                         // Si c'est déjà lundi à minuit, on est déjà réinitialisé
+    //                         return 0L;
+    //                     }
+    //                     break;
+    //                 case MONTHLY:
+    //                     // Prochain reset au 1er du mois prochain
+    //                     nextReset = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0).plusMonths(1);
+    //                     break;
+    //                 case YEARLY:
+    //                     // Prochain reset au 1er janvier prochain
+    //                     nextReset = now.withDayOfYear(1).withHour(0).withMinute(0).withSecond(0).withNano(0).plusYears(1);
+    //                     break;
+    //                 case FOREVER:
+    //                     // Pas de reset, donc on retourne -1
+    //                     return -1L;
+    //                 // case NONE:
+    //                 default:
+    //                     nextReset = now; // Ne devrait jamais arriver
+    //                     break;
+    //             }
+                
+    //             long nextResetMillis = nextReset.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+    //             long nowMillis = System.currentTimeMillis();
+                
+    //             // Calculer le temps restant jusqu'au prochain reset
+    //             return Math.max(0, nextResetMillis - nowMillis);
+    //         }
+            
+    //         // Logique synchrone
+    //         String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
+    //         String transactionType = isBuy ? "BUY" : "SELL";
+            
+    //         try (Connection connection = plugin.getDataManager().getConnection();
+    //              PreparedStatement stmt = connection.prepareStatement(
+    //                 //  "SELECT MAX(transaction_time) as latest FROM " + tablePrefix + "_transactions_view " +
+    //                 //  "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?")) {
+    //                  "SELECT MIN(transaction_time) as earliest FROM " + tablePrefix + "_transactions_view " +
+    //                  "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?")) {
+                
+    //             stmt.setString(1, player.getUniqueId().toString());
+    //             stmt.setString(2, shopId);
+    //             stmt.setString(3, itemId);
+    //             stmt.setString(4, transactionType);
+                
+    //             ResultSet rs = stmt.executeQuery();
+    //             // if (rs.next() && rs.getTimestamp("latest") != null) {
+    //             //     java.sql.Timestamp latestTime = rs.getTimestamp("latest");
+    //             if (rs.next() && rs.getTimestamp("earliest") != null) {
+    //                 java.sql.Timestamp earliestTime = rs.getTimestamp("earliest");
+                    
+    //                 long now = System.currentTimeMillis();
+    //                 // LocalDateTime nextAvailable = latestTime.toLocalDateTime().plusSeconds(limit.getCooldown());
+    //                 LocalDateTime nextAvailable = earliestTime.toLocalDateTime().plusSeconds(limit.getCooldown());
+    //                 long nextTimeMillis = nextAvailable.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+                    
+    //                 long result = Math.max(0L, nextTimeMillis - now);
+    //                 // Mettre en cache
+    //                 plugin.getLimitNextAvailableTimeCache().put(cacheKey, result);
+    //                 return result;
+    //             }
+    //         } catch (SQLException e) {
+    //             plugin.getLogger().warning("Erreur SQL dans getNextAvailableTimeSync: " + e.getMessage());
+    //         }
+            
+    //         return 0L; // Pas de transactions précédentes
+    //     });
+    // }
+
     /**
-     * Version synchrone de getNextAvailableTime, plus rapide
+     * Version synchrone de getNextAvailableTime, compatible avec MySQL et SQLite
      */
     public long getNextAvailableTimeSync(Player player, String shopId, String itemId, boolean isBuy) {
         // Clé de cache
@@ -810,8 +1383,7 @@ public class TransactionLimiter {
             }
             
             LimitPeriod period = limit.getPeriodEquivalent();
-            // Pour les périodes prédéfinies (DAILY, WEEKLY, etc.), calculer la fin de la période actuelle
-            // if (period != LimitPeriod.NONE && period != LimitPeriod.FOREVER) {
+            // Pour les périodes prédéfinies, calculer la fin de la période actuelle
             if (period != LimitPeriod.NONE) {
                 LocalDateTime now = LocalDateTime.now();
                 LocalDateTime nextReset;
@@ -841,7 +1413,6 @@ public class TransactionLimiter {
                     case FOREVER:
                         // Pas de reset, donc on retourne -1
                         return -1L;
-                    // case NONE:
                     default:
                         nextReset = now; // Ne devrait jamais arriver
                         break;
@@ -854,30 +1425,58 @@ public class TransactionLimiter {
                 return Math.max(0, nextResetMillis - nowMillis);
             }
             
-            // Logique synchrone
+            // Vérifier le type de base de données et adapter la requête
             String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
             String transactionType = isBuy ? "BUY" : "SELL";
+            boolean isMysql = plugin.getDataConfig().getDatabaseType().equals("mysql");
+            String query;
+            
+            if (isMysql) {
+                // Utiliser la vue pour MySQL
+                query = "SELECT MIN(transaction_time) as earliest FROM " + tablePrefix + "_transactions_view " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?";
+            } else {
+                // Pour SQLite, utiliser les tables directement
+                query = "SELECT MIN(transaction_time) as earliest FROM (" +
+                    "SELECT transaction_time FROM " + tablePrefix + "_tx_daily " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+                    "UNION ALL SELECT transaction_time FROM " + tablePrefix + "_tx_weekly " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+                    "UNION ALL SELECT transaction_time FROM " + tablePrefix + "_tx_monthly " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+                    "UNION ALL SELECT transaction_time FROM " + tablePrefix + "_tx_yearly " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+                    "UNION ALL SELECT transaction_time FROM " + tablePrefix + "_tx_forever " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+                    "UNION ALL SELECT transaction_time FROM " + tablePrefix + "_transaction_limits " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? " +
+                    ")";
+            }
             
             try (Connection connection = plugin.getDataManager().getConnection();
-                 PreparedStatement stmt = connection.prepareStatement(
-                    //  "SELECT MAX(transaction_time) as latest FROM " + tablePrefix + "_transactions_view " +
-                    //  "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?")) {
-                     "SELECT MIN(transaction_time) as earliest FROM " + tablePrefix + "_transactions_view " +
-                     "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?")) {
+                PreparedStatement stmt = connection.prepareStatement(query)) {
                 
                 stmt.setString(1, player.getUniqueId().toString());
                 stmt.setString(2, shopId);
                 stmt.setString(3, itemId);
                 stmt.setString(4, transactionType);
                 
+                // Pour SQLite, nous devons répéter les paramètres pour chaque sous-requête
+                if (!isMysql) {
+                    for (int i = 1; i < 6; i++) {
+                        int offset = i * 4;
+                        stmt.setString(offset + 1, player.getUniqueId().toString());
+                        stmt.setString(offset + 2, shopId);
+                        stmt.setString(offset + 3, itemId);
+                        stmt.setString(offset + 4, transactionType);
+                    }
+                }
+                
                 ResultSet rs = stmt.executeQuery();
-                // if (rs.next() && rs.getTimestamp("latest") != null) {
-                //     java.sql.Timestamp latestTime = rs.getTimestamp("latest");
                 if (rs.next() && rs.getTimestamp("earliest") != null) {
                     java.sql.Timestamp earliestTime = rs.getTimestamp("earliest");
                     
                     long now = System.currentTimeMillis();
-                    // LocalDateTime nextAvailable = latestTime.toLocalDateTime().plusSeconds(limit.getCooldown());
                     LocalDateTime nextAvailable = earliestTime.toLocalDateTime().plusSeconds(limit.getCooldown());
                     long nextTimeMillis = nextAvailable.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
                     
@@ -906,6 +1505,10 @@ public class TransactionLimiter {
      * Optimisé pour utiliser le cache interne du plugin
      */
     public TransactionLimit getTransactionLimit(String shopId, String itemId, boolean isBuy) {
+        // Désactiver les limites si SQLite
+        if (plugin.getDataConfig().getDatabaseType().equalsIgnoreCase("sqlite")) {
+            return null;
+        }
         // Clé de cache standardisée
         final String cacheKey = shopId + ":" + itemId + ":" + (isBuy ? "buy" : "sell") + ":limit";
         
@@ -1227,8 +1830,26 @@ public class TransactionLimiter {
         // }
 
 
-        String query = "SELECT MIN(transaction_time) as earliest FROM " + tablePrefix + "_transactions_view "
-                + "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?";
+        boolean isMysql = plugin.getDataConfig().getDatabaseType().equals("mysql");
+        String query;
+        if (isMysql) {
+            query = "SELECT MIN(transaction_time) as earliest FROM " + tablePrefix + "_transactions_view "
+                    + "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?";
+        } else {
+            query = "SELECT MIN(transaction_time) as earliest FROM ("
+                    + "SELECT transaction_time FROM " + tablePrefix + "_tx_daily "
+                    + "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? "
+                    + "UNION ALL SELECT transaction_time FROM " + tablePrefix + "_tx_weekly "
+                    + "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? "
+                    + "UNION ALL SELECT transaction_time FROM " + tablePrefix + "_tx_monthly "
+                    + "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? "
+                    + "UNION ALL SELECT transaction_time FROM " + tablePrefix + "_tx_yearly "
+                    + "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? "
+                    + "UNION ALL SELECT transaction_time FROM " + tablePrefix + "_tx_forever "
+                    + "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ? "
+                    + "UNION ALL SELECT transaction_time FROM " + tablePrefix + "_transaction_limits "
+                    + "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?) AS combined";
+        }
 
         return plugin.getDataManager().executeAsync(() -> {
             try (Connection connection = plugin.getDataManager().getConnection();
@@ -1833,48 +2454,55 @@ public class TransactionLimiter {
         }
     }
 
-    public void optimizeDatabase() {
-        // plugin.getLogger().info("Optimisation de la base de données des limites...");
+    // public void optimizeDatabase() {
+    //     // plugin.getLogger().info("Optimisation de la base de données des limites...");
         
-        String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
+    //     String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
         
-        // Créer des tables partitionnées par période - Syntaxe corrigée pour MySQL/MariaDB
-        String[] periodTables = {
-            "CREATE TABLE IF NOT EXISTS " + tablePrefix + "_tx_daily LIKE " + tablePrefix + "_transaction_limits",
+    //     // Créer des tables partitionnées par période - Syntaxe corrigée pour MySQL/MariaDB
+    //     String[] periodTables = {
+    //         "CREATE TABLE IF NOT EXISTS " + tablePrefix + "_tx_daily LIKE " + tablePrefix + "_transaction_limits",
                 
-            "CREATE TABLE IF NOT EXISTS " + tablePrefix + "_tx_weekly LIKE " + tablePrefix + "_transaction_limits",
+    //         "CREATE TABLE IF NOT EXISTS " + tablePrefix + "_tx_weekly LIKE " + tablePrefix + "_transaction_limits",
                 
-            "CREATE TABLE IF NOT EXISTS " + tablePrefix + "_tx_monthly LIKE " + tablePrefix + "_transaction_limits",
+    //         "CREATE TABLE IF NOT EXISTS " + tablePrefix + "_tx_monthly LIKE " + tablePrefix + "_transaction_limits",
                 
-            "CREATE TABLE IF NOT EXISTS " + tablePrefix + "_tx_yearly LIKE " + tablePrefix + "_transaction_limits",
+    //         "CREATE TABLE IF NOT EXISTS " + tablePrefix + "_tx_yearly LIKE " + tablePrefix + "_transaction_limits",
                 
-            "CREATE TABLE IF NOT EXISTS " + tablePrefix + "_tx_forever LIKE " + tablePrefix + "_transaction_limits"
-        };
+    //         "CREATE TABLE IF NOT EXISTS " + tablePrefix + "_tx_forever LIKE " + tablePrefix + "_transaction_limits"
+    //     };
         
-        for (String query : periodTables) {
-            try {
-                plugin.getDataManager().executeUpdate(query);
-            } catch (Exception e) {
-                plugin.getLogger().warning("Erreur lors de la création de table: " + e.getMessage());
-            }
-        }
+    //     for (String query : periodTables) {
+    //         try {
+    //             plugin.getDataManager().executeUpdate(query);
+    //         } catch (Exception e) {
+    //             plugin.getLogger().warning("Erreur lors de la création de table: " + e.getMessage());
+    //         }
+    //     }
         
-        // Créer une vue pour simplifier les requêtes
-        String viewQuery = "CREATE OR REPLACE VIEW " + tablePrefix + "_transactions_view AS "
-            + "SELECT * FROM " + tablePrefix + "_tx_daily UNION ALL "
-            + "SELECT * FROM " + tablePrefix + "_tx_weekly UNION ALL "
-            + "SELECT * FROM " + tablePrefix + "_tx_monthly UNION ALL "
-            + "SELECT * FROM " + tablePrefix + "_tx_yearly UNION ALL "
-            + "SELECT * FROM " + tablePrefix + "_tx_forever UNION ALL "
-            + "SELECT * FROM " + tablePrefix + "_transaction_limits";
+    //     // Créer une vue pour simplifier les requêtes
+    //     String viewQuery = "CREATE OR REPLACE VIEW " + tablePrefix + "_transactions_view AS "
+    //         + "SELECT * FROM " + tablePrefix + "_tx_daily UNION ALL "
+    //         + "SELECT * FROM " + tablePrefix + "_tx_weekly UNION ALL "
+    //         + "SELECT * FROM " + tablePrefix + "_tx_monthly UNION ALL "
+    //         + "SELECT * FROM " + tablePrefix + "_tx_yearly UNION ALL "
+    //         + "SELECT * FROM " + tablePrefix + "_tx_forever UNION ALL "
+    //         + "SELECT * FROM " + tablePrefix + "_transaction_limits";
             
-        try {
-            plugin.getDataManager().executeUpdate(viewQuery);
-        } catch (Exception e) {
-            // Si la vue ne peut pas être créée (par exemple avec SQLite), on continue sans erreur critique
-            plugin.getLogger().warning("Note: Impossible de créer la vue de transactions (normal pour SQLite): " + e.getMessage());
-        }
-    }
+    //     try {
+    //         plugin.getDataManager().executeUpdate(viewQuery);
+    //     } catch (Exception e) {
+    //         // Si la vue ne peut pas être créée (par exemple avec SQLite), on continue sans erreur critique
+    //         if (plugin.getDataConfig().getDatabaseType().equals("sqlite")) {
+    //             String viewQueryLite = "CREATE VIEW IF NOT EXISTS " + tablePrefix + "_transactions_view AS "
+    //                 + "SELECT * FROM " + tablePrefix + "_transaction_limits";
+    //             plugin.getDataManager().executeUpdate(viewQueryLite);
+    //             plugin.getLogger().info("Note: Impossible de créer la vue de transactions (normal pour SQLite): " + e.getMessage());
+    //         } else {
+    //             plugin.getLogger().warning("Erreur lors de la création de la vue de transactions: " + e.getMessage());
+    //         }
+    //     }
+    // }
 
     // Méthode pour obtenir des statistiques sur l'utilisation
     public CompletableFuture<Map<String, Object>> getStatistics() {

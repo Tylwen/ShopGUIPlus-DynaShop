@@ -11,7 +11,7 @@ import fr.tylwen.satyria.dynashop.system.chart.PriceHistory.PriceDataPoint;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.item.ShopItem;
-import org.bukkit.Bukkit;
+// import org.bukkit.Bukkit;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,13 +23,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Level;
 
 public class DataManager {
     private final DynaShopPlugin plugin;
     private final DataConfig dataConfig;
     private HikariDataSource dataSource;
+    private Connection sqliteConnection;
     private boolean isInitialized = false;
+    private final ExecutorService databaseExecutor = Executors.newSingleThreadExecutor();
 
     private static final int RETRY_LIMIT = 3;
     private static final int RETRY_DELAY_MS = 1000;
@@ -50,29 +54,29 @@ public class DataManager {
         closeDataSource();
 
         try {
-            HikariConfig config = new HikariConfig();
             String type = dataConfig.getDatabaseType();
             
             if (type.equals("mysql")) {
+                HikariConfig config = new HikariConfig();
                 setupMySQLConnection(config);
+                // Configuration commune
+                config.setMaximumPoolSize(10);
+                config.setMinimumIdle(5);
+                config.setConnectionTimeout(30000);
+                config.setIdleTimeout(60000);
+                config.setMaxLifetime(1800000);
+                config.setConnectionTestQuery("SELECT 1");
+                config.setPoolName("DynaShopHikariPool");
+                dataSource = new HikariDataSource(config);
             } else {
-                setupSQLiteConnection(config);
+                setupSQLiteConnection();
+                dataSource = null; // Important : pas de pool pour SQLite
             }
-            
-            // Configuration commune
-            config.setMaximumPoolSize(10);
-            config.setMinimumIdle(5);
-            config.setConnectionTimeout(30000);
-            config.setIdleTimeout(60000);
-            config.setMaxLifetime(1800000);
-            config.setConnectionTestQuery("SELECT 1");
-            config.setPoolName("DynaShopHikariPool");
-            
-            dataSource = new HikariDataSource(config);
+
             isInitialized = true;
             
             createTables();
-            migrateFromOldSchema(); // Migration des anciennes données si nécessaire
+            if (type.equals("mysql")) migrateFromOldSchema(); // Migration des anciennes données si nécessaire
             plugin.getLogger().info("Database connection established successfully (type: " + type + ")");
         } catch (Exception e) {
             plugin.getLogger().severe("Failed to initialize database: " + e.getMessage());
@@ -105,7 +109,7 @@ public class DataManager {
         config.addDataSourceProperty("maintainTimeStats", "false");
     }
 
-    private void setupSQLiteConnection(HikariConfig config) {
+    private void setupSQLiteConnection() {
         File databaseFile = new File(plugin.getDataFolder(), dataConfig.getDatabaseSqliteFile());
         
         if (!databaseFile.exists()) {
@@ -121,12 +125,23 @@ public class DataManager {
             }
         }
         
-        config.setJdbcUrl("jdbc:sqlite:" + databaseFile.getAbsolutePath());
-        config.setDriverClassName("org.sqlite.JDBC");
+        // config.setJdbcUrl("jdbc:sqlite:" + databaseFile.getAbsolutePath());
+        // config.setDriverClassName("org.sqlite.JDBC");
         
-        // La connexion SQLite ne supporte pas la concurrence, il faut limiter
-        config.setMaximumPoolSize(1);
-        config.setConnectionTimeout(30000);
+        // // La connexion SQLite ne supporte pas la concurrence, il faut limiter
+        // config.setMaximumPoolSize(1);
+        // config.setConnectionTimeout(30000);
+        try {
+            Class.forName("org.sqlite.JDBC");
+            String url = "jdbc:sqlite:" + databaseFile.getAbsolutePath();
+            sqliteConnection = DriverManager.getConnection(url);
+            try (Statement stmt = sqliteConnection.createStatement()) {
+                stmt.execute("PRAGMA foreign_keys = ON");
+            }
+        } catch (SQLException | ClassNotFoundException e) {
+            plugin.getLogger().severe("Erreur SQLite: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -167,15 +182,63 @@ public class DataManager {
                                 "PRIMARY KEY (shopID, itemID)" +
                                 ")";
                                 
+        // // Table pour les transactions (limites d'achat/vente)
+        // String createTransactionsTableSQL = "CREATE TABLE IF NOT EXISTS " + tablePrefix + "_transactions (" +
+        //                         "id " + (dataConfig.getDatabaseType().equals("mysql") ? "INT AUTO_INCREMENT" : "INTEGER") + " PRIMARY KEY, " +
+        //                         "player_uuid VARCHAR(36) NOT NULL, " +
+        //                         "shop_id VARCHAR(255) NOT NULL, " +
+        //                         "item_id VARCHAR(255) NOT NULL, " +
+        //                         "type VARCHAR(10) NOT NULL, " + // 'BUY' or 'SELL'
+        //                         "amount INT NOT NULL, " +
+        //                         "timestamp TIMESTAMP NOT NULL, " +
+        //                         "cooldown_seconds INT NOT NULL" +
+        //                         ")";
+                                
         // executeUpdate(createTableSQL);
         executeUpdate(createBuyPriceTableSQL);
         executeUpdate(createSellPriceTableSQL);
         executeUpdate(createStockTableSQL);
+        // executeUpdate(createTransactionsTableSQL);
 
-        
         // Créer une vue pour simplifier les requêtes
         createPricesView(tablePrefix);
+        
+        // // Créer index pour les recherches fréquentes
+        // if (dataConfig.getDatabaseType().equals("mysql")) {
+        //     executeUpdate("CREATE INDEX IF NOT EXISTS idx_trans_player ON " + tablePrefix + "_transactions (player_uuid)");
+        //     executeUpdate("CREATE INDEX IF NOT EXISTS idx_trans_item ON " + tablePrefix + "_transactions (shop_id, item_id)");
+        // } else {
+        //     try {
+        //         executeUpdate("CREATE INDEX IF NOT EXISTS idx_trans_player ON " + tablePrefix + "_transactions (player_uuid)");
+        //         executeUpdate("CREATE INDEX IF NOT EXISTS idx_trans_item ON " + tablePrefix + "_transactions (shop_id, item_id)");
+        //     } catch (Exception e) {
+        //         plugin.getLogger().warning("Note lors de la création des index de transactions: " + e.getMessage());
+        //     }
+        // }
+        
+        // // Puis créer la vue
+        // createTransactionsView(tablePrefix);
     }
+
+    // private void createTransactionsView(String tablePrefix) {
+    //     try {
+    //         String viewSQL;
+            
+    //         if (dataConfig.getDatabaseType().equals("mysql")) {
+    //             executeUpdate("DROP VIEW IF EXISTS " + tablePrefix + "_transactions_view");
+    //             viewSQL = "CREATE VIEW " + tablePrefix + "_transactions_view AS " +
+    //                     "SELECT * FROM " + tablePrefix + "_transactions";
+    //         } else {
+    //             executeUpdate("DROP VIEW IF EXISTS " + tablePrefix + "_transactions_view");
+    //             viewSQL = "CREATE VIEW " + tablePrefix + "_transactions_view AS " +
+    //                     "SELECT * FROM " + tablePrefix + "_transactions";
+    //         }
+            
+    //         executeUpdate(viewSQL);
+    //     } catch (Exception e) {
+    //         plugin.getLogger().warning("Impossible de créer la vue des transactions: " + e.getMessage());
+    //     }
+    // }
 
     private void createPricesView(String tablePrefix) {
         try {
@@ -252,11 +315,17 @@ public class DataManager {
     /**
      * Obtient une connexion à partir du pool de connexions.
      */
-    public Connection getConnection() throws SQLException {
-        if (!isInitialized || dataSource == null || dataSource.isClosed()) {
-            initDatabase();
+    public synchronized Connection getConnection() throws SQLException {
+        if (dataConfig.getDatabaseType().equals("sqlite")) {
+            File databaseFile = new File(plugin.getDataFolder(), dataConfig.getDatabaseSqliteFile());
+            String url = "jdbc:sqlite:" + databaseFile.getAbsolutePath();
+            return DriverManager.getConnection(url); // Nouvelle connexion à chaque fois
+        } else {
+            if (!isInitialized || dataSource == null || dataSource.isClosed()) {
+                initDatabase();
+            }
+            return dataSource.getConnection();
         }
-        return dataSource.getConnection();
     }
 
     /**
@@ -272,10 +341,16 @@ public class DataManager {
      * Ferme le pool de connexions.
      */
     private void closeDataSource() {
-        if (dataSource != null && !dataSource.isClosed()) {
-            dataSource.close();
+        try {
+            if (dataSource != null && !dataSource.isClosed()) {
+                dataSource.close();
+                dataSource = null;
+            }
+            isInitialized = false;
+        } catch (Exception e) {
+            plugin.getLogger().severe("Failed to close database connection: " + e.getMessage());
+            e.printStackTrace();
         }
-        isInitialized = false;
     }
 
     /**
@@ -945,23 +1020,46 @@ public class DataManager {
         return priceMap;
     }
 
-    /**
-     * Exécute une opération de base de données de manière asynchrone.
-     */
+    // /**
+    //  * Exécute une opération de base de données de manière asynchrone.
+    //  */
+    // public <T> CompletableFuture<T> executeAsync(DatabaseOperation<T> operation) {
+    //     CompletableFuture<T> future = new CompletableFuture<>();
+        
+    //     Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+    //         try {
+    //             T result = operation.execute();
+    //             future.complete(result);
+    //         } catch (Exception e) {
+    //             plugin.getLogger().log(Level.SEVERE, "Error during asynchronous execution", e);
+    //             future.completeExceptionally(e);
+    //         }
+    //     });
+        
+    //     return future;
+    // }
     public <T> CompletableFuture<T> executeAsync(DatabaseOperation<T> operation) {
-        CompletableFuture<T> future = new CompletableFuture<>();
-        
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            try {
-                T result = operation.execute();
-                future.complete(result);
-            } catch (Exception e) {
-                plugin.getLogger().log(Level.SEVERE, "Error during asynchronous execution", e);
-                future.completeExceptionally(e);
-            }
-        });
-        
-        return future;
+        // Si c'est SQLite, utiliser un seul thread pour éviter les verrous
+        if (dataConfig.getDatabaseType().equals("sqlite")) {
+            return CompletableFuture.supplyAsync(() -> {
+                try {
+                    return operation.execute();
+                } catch (Exception e) {
+                    plugin.getLogger().log(Level.SEVERE, "Error executing database operation", e);
+                    throw new RuntimeException(e);
+                }
+            }, databaseExecutor);
+        } else {
+            // Pour MySQL, on peut continuer à utiliser le thread pool par défaut
+            return CompletableFuture.supplyAsync(() -> {
+                try {
+                    return operation.execute();
+                } catch (Exception e) {
+                    plugin.getLogger().log(Level.SEVERE, "Error executing database operation", e);
+                    throw new RuntimeException(e);
+                }
+            });
+        }
     }
 
     /**
@@ -969,6 +1067,18 @@ public class DataManager {
      */
     public void closeDatabase() {
         closeDataSource();
+        
+        if (databaseExecutor != null && !databaseExecutor.isShutdown()) {
+            databaseExecutor.shutdown();
+            try {
+                if (!databaseExecutor.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                    databaseExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                databaseExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
         plugin.getLogger().info("Database connection closed.");
     }
 
@@ -1069,24 +1179,43 @@ public class DataManager {
             );
             createStmt.executeUpdate();
             
-            // Sauvegarder le facteur d'inflation
-            PreparedStatement factorStmt = conn.prepareStatement(
-                "INSERT INTO " + dataConfig.getDatabaseTablePrefix() + "_metadata (meta_key, value) VALUES ('inflation_factor', ?) " +
-                "ON DUPLICATE KEY UPDATE value = ?"
-            );
-            factorStmt.setString(1, String.valueOf(factor));
-            factorStmt.setString(2, String.valueOf(factor));
-            factorStmt.executeUpdate();
+            boolean isMysql = dataConfig.getDatabaseType().equals("mysql");
+            String tablePrefix = dataConfig.getDatabaseTablePrefix();
             
-            // Sauvegarder le timestamp du dernier update
-            PreparedStatement timeStmt = conn.prepareStatement(
-                "INSERT INTO " + dataConfig.getDatabaseTablePrefix() + "_metadata (meta_key, value) VALUES ('last_inflation_update', ?) " +
-                "ON DUPLICATE KEY UPDATE value = ?"
-            );
-            timeStmt.setString(1, String.valueOf(timestamp));
-            timeStmt.setString(2, String.valueOf(timestamp));
-            timeStmt.executeUpdate();
-            
+            // Sauvegarder le facteur d'inflation avec syntaxe adaptée au type de base de données
+            if (isMysql) {
+                // Syntaxe MySQL
+                PreparedStatement factorStmt = conn.prepareStatement(
+                    "INSERT INTO " + tablePrefix + "_metadata (meta_key, value) VALUES ('inflation_factor', ?) " +
+                    "ON DUPLICATE KEY UPDATE value = ?"
+                );
+                factorStmt.setString(1, String.valueOf(factor));
+                factorStmt.setString(2, String.valueOf(factor));
+                factorStmt.executeUpdate();
+                
+                // Sauvegarder le timestamp du dernier update
+                PreparedStatement timeStmt = conn.prepareStatement(
+                    "INSERT INTO " + tablePrefix + "_metadata (meta_key, value) VALUES ('last_inflation_update', ?) " +
+                    "ON DUPLICATE KEY UPDATE value = ?"
+                );
+                timeStmt.setString(1, String.valueOf(timestamp));
+                timeStmt.setString(2, String.valueOf(timestamp));
+                timeStmt.executeUpdate();
+            } else {
+                // Syntaxe SQLite - utiliser INSERT OR REPLACE
+                PreparedStatement factorStmt = conn.prepareStatement(
+                    "INSERT OR REPLACE INTO " + tablePrefix + "_metadata (meta_key, value) VALUES ('inflation_factor', ?)"
+                );
+                factorStmt.setString(1, String.valueOf(factor));
+                factorStmt.executeUpdate();
+                
+                // Sauvegarder le timestamp du dernier update
+                PreparedStatement timeStmt = conn.prepareStatement(
+                    "INSERT OR REPLACE INTO " + tablePrefix + "_metadata (meta_key, value) VALUES ('last_inflation_update', ?)"
+                );
+                timeStmt.setString(1, String.valueOf(timestamp));
+                timeStmt.executeUpdate();
+            }
         } catch (SQLException e) {
             plugin.getLogger().severe("Error saving inflation data: " + e.getMessage());
         }
@@ -1194,30 +1323,61 @@ public class DataManager {
      */
     public PriceHistory getPriceHistory(String shopId, String itemId) {
         PriceHistory history = new PriceHistory(shopId, itemId);
+        String createTableSQL;
         
-        try (Connection conn = getConnection()) {
-            // S'assurer que la table existe AVANT la lecture
-            PreparedStatement createTable = conn.prepareStatement(
+        if (dataConfig.getDatabaseType().equals("mysql")) {
+            createTableSQL = 
                 "CREATE TABLE IF NOT EXISTS " + dataConfig.getDatabaseTablePrefix() + "_price_history (" +
                 "id INT AUTO_INCREMENT PRIMARY KEY, " +
                 "shop_id VARCHAR(100) NOT NULL, " +
                 "item_id VARCHAR(100) NOT NULL, " +
                 "timestamp TIMESTAMP NOT NULL, " +
-                // Colonnes pour les prix d'achat
                 "open_buy_price DOUBLE NOT NULL DEFAULT 0, " +
                 "close_buy_price DOUBLE NOT NULL DEFAULT 0, " +
                 "high_buy_price DOUBLE NOT NULL DEFAULT 0, " +
                 "low_buy_price DOUBLE NOT NULL DEFAULT 0, " +
-                // Colonnes pour les prix de vente
                 "open_sell_price DOUBLE NOT NULL DEFAULT 0, " +
                 "close_sell_price DOUBLE NOT NULL DEFAULT 0, " +
                 "high_sell_price DOUBLE NOT NULL DEFAULT 0, " +
                 "low_sell_price DOUBLE NOT NULL DEFAULT 0, " +
-                // Ajout du volume
                 "volume DOUBLE NOT NULL DEFAULT 0, " +
-                "INDEX (shop_id, item_id))"
-            );
+                "INDEX (shop_id, item_id))";
+        } else {
+            // Syntaxe SQLite (pas de INDEX inline)
+            createTableSQL = 
+                "CREATE TABLE IF NOT EXISTS " + dataConfig.getDatabaseTablePrefix() + "_price_history (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "shop_id VARCHAR(100) NOT NULL, " +
+                "item_id VARCHAR(100) NOT NULL, " +
+                "timestamp TIMESTAMP NOT NULL, " +
+                "open_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                "close_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                "high_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                "low_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                "open_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                "close_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                "high_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                "low_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                "volume DOUBLE NOT NULL DEFAULT 0)";
+        }
+        
+        try (Connection conn = getConnection()) {
+            PreparedStatement createTable = conn.prepareStatement(createTableSQL);
             createTable.executeUpdate();
+            
+            // Pour SQLite, créer l'index séparément
+            if (!dataConfig.getDatabaseType().equals("mysql")) {
+                try {
+                    PreparedStatement createIndex = conn.prepareStatement(
+                        "CREATE INDEX IF NOT EXISTS idx_price_history_shop_item ON " + 
+                        dataConfig.getDatabaseTablePrefix() + "_price_history (shop_id, item_id)"
+                    );
+                    createIndex.executeUpdate();
+                } catch (SQLException e) {
+                    // Index peut déjà exister, pas critique
+                    plugin.getLogger().info("Note: " + e.getMessage());
+                }
+            }
 
             // Récupérer les données avec la nouvelle structure
             PreparedStatement stmt = conn.prepareStatement(
@@ -1292,52 +1452,114 @@ public class DataManager {
         String tablePrefix = dataConfig.getDatabaseTablePrefix();
         
         try (Connection conn = getConnection()) {
-            // Construction de la requête en fonction du type de base de données
-            String timeFloorFunction;
-            String dateAddFunction;
+            // // Construction de la requête en fonction du type de base de données
+            // String timeFloorFunction;
+            // String dateAddFunction;
             
-            if (dataConfig.getDatabaseType().equals("mysql")) {
-                // MySQL utilise une syntaxe différente pour tronquer les dates
-                timeFloorFunction = "DATE_FORMAT(timestamp, '%Y-%m-%d %H:%i:00')";
-                dateAddFunction = "DATE_SUB(NOW(), INTERVAL ? DAY)";
-            } else {
-                // SQLite (plus basique, nécessite des ajustements)
-                timeFloorFunction = "strftime('%Y-%m-%d %H:%M:00', timestamp)";
-                dateAddFunction = "datetime('now', '-' || ? || ' days')";
-            }
+            // if (dataConfig.getDatabaseType().equals("mysql")) {
+            //     // MySQL utilise une syntaxe différente pour tronquer les dates
+            //     timeFloorFunction = "DATE_FORMAT(timestamp, '%Y-%m-%d %H:%i:00')";
+            //     dateAddFunction = "DATE_SUB(NOW(), INTERVAL ? DAY)";
+            // } else {
+            //     // SQLite (plus basique, nécessite des ajustements)
+            //     timeFloorFunction = "strftime('%Y-%m-%d %H:%M:00', timestamp)";
+            //     dateAddFunction = "datetime('now', '-' || ? || ' days')";
+            // }
             
-            String sql = 
-                "WITH intervals AS (" +
-                "  SELECT " +
-                "    " + timeFloorFunction + " AS interval_start, " +
-                "    MIN(open_buy_price) AS first_open_buy, " +
-                "    MAX(high_buy_price) AS max_high_buy, " +
-                "    MIN(low_buy_price) AS min_low_buy, " +
-                "    MAX(close_buy_price) AS last_close_buy, " +
-                "    MIN(open_sell_price) AS first_open_sell, " +
-                "    MAX(high_sell_price) AS max_high_sell, " +
-                "    MIN(low_sell_price) AS min_low_sell, " +
-                "    MAX(close_sell_price) AS last_close_sell, " +
-                "    SUM(volume) AS total_volume " +
-                "  FROM " + tablePrefix + "_price_history " +
-                "  WHERE shop_id = ? AND item_id = ? " +
-                (startTime != null ? " AND timestamp > ? " : "") +
-                "  GROUP BY interval_start " +
-                "  ORDER BY interval_start DESC " +
-                "  LIMIT ?" +
-                ") " +
-                "SELECT * FROM intervals ORDER BY interval_start ASC";
+            // String sql = 
+            //     "WITH intervals AS (" +
+            //     "  SELECT " +
+            //     "    " + timeFloorFunction + " AS interval_start, " +
+            //     "    MIN(open_buy_price) AS first_open_buy, " +
+            //     "    MAX(high_buy_price) AS max_high_buy, " +
+            //     "    MIN(low_buy_price) AS min_low_buy, " +
+            //     "    MAX(close_buy_price) AS last_close_buy, " +
+            //     "    MIN(open_sell_price) AS first_open_sell, " +
+            //     "    MAX(high_sell_price) AS max_high_sell, " +
+            //     "    MIN(low_sell_price) AS min_low_sell, " +
+            //     "    MAX(close_sell_price) AS last_close_sell, " +
+            //     "    SUM(volume) AS total_volume " +
+            //     "  FROM " + tablePrefix + "_price_history " +
+            //     "  WHERE shop_id = ? AND item_id = ? " +
+            //     (startTime != null ? " AND timestamp > ? " : "") +
+            //     "  GROUP BY interval_start " +
+            //     "  ORDER BY interval_start DESC " +
+            //     "  LIMIT ?" +
+            //     ") " +
+            //     "SELECT * FROM intervals ORDER BY interval_start ASC";
             
-            PreparedStatement stmt = conn.prepareStatement(sql);
+            // PreparedStatement stmt = conn.prepareStatement(sql);
+            // int paramIndex = 1;
+            
+            // stmt.setString(paramIndex++, shopId);
+            // stmt.setString(paramIndex++, itemId);
+            
+            // if (startTime != null) {
+            //     stmt.setTimestamp(paramIndex++, Timestamp.valueOf(startTime));
+            // }
+            
+            // stmt.setInt(paramIndex, maxPoints);
+            String sql;
             int paramIndex = 1;
-            
+
+            if (dataConfig.getDatabaseType().equals("mysql")) {
+                // MySQL : on tronque à l'intervalle en minutes
+                sql =
+                    "WITH intervals AS (" +
+                    "  SELECT " +
+                    "    DATE_FORMAT(DATE_ADD('1970-01-01 00:00:00', INTERVAL FLOOR(UNIX_TIMESTAMP(timestamp) / (? * 60)) * (? * 60) SECOND), '%Y-%m-%d %H:%i:00') AS interval_start, " +
+                    "    MIN(open_buy_price) AS first_open_buy, " +
+                    "    MAX(high_buy_price) AS max_high_buy, " +
+                    "    MIN(low_buy_price) AS min_low_buy, " +
+                    "    MAX(close_buy_price) AS last_close_buy, " +
+                    "    MIN(open_sell_price) AS first_open_sell, " +
+                    "    MAX(high_sell_price) AS max_high_sell, " +
+                    "    MIN(low_sell_price) AS min_low_sell, " +
+                    "    MAX(close_sell_price) AS last_close_sell, " +
+                    "    SUM(volume) AS total_volume " +
+                    "  FROM " + tablePrefix + "_price_history " +
+                    "  WHERE shop_id = ? AND item_id = ? " +
+                    (startTime != null ? " AND timestamp > ? " : "") +
+                    "  GROUP BY interval_start " +
+                    "  ORDER BY interval_start DESC " +
+                    "  LIMIT ?" +
+                    ") " +
+                    "SELECT * FROM intervals ORDER BY interval_start ASC";
+            } else {
+                // SQLite : on tronque à l'intervalle en minutes avec strftime et division d'epoch
+                sql =
+                    "WITH intervals AS (" +
+                    "  SELECT " +
+                    "    strftime('%Y-%m-%d %H:%M:00', datetime((strftime('%s', timestamp) / (? * 60)) * (? * 60), 'unixepoch')) AS interval_start, " +
+                    "    MIN(open_buy_price) AS first_open_buy, " +
+                    "    MAX(high_buy_price) AS max_high_buy, " +
+                    "    MIN(low_buy_price) AS min_low_buy, " +
+                    "    MAX(close_buy_price) AS last_close_buy, " +
+                    "    MIN(open_sell_price) AS first_open_sell, " +
+                    "    MAX(high_sell_price) AS max_high_sell, " +
+                    "    MIN(low_sell_price) AS min_low_sell, " +
+                    "    MAX(close_sell_price) AS last_close_sell, " +
+                    "    SUM(volume) AS total_volume " +
+                    "  FROM " + tablePrefix + "_price_history " +
+                    "  WHERE shop_id = ? AND item_id = ? " +
+                    (startTime != null ? " AND timestamp > ? " : "") +
+                    "  GROUP BY interval_start " +
+                    "  ORDER BY interval_start DESC " +
+                    "  LIMIT ?" +
+                    ") " +
+                    "SELECT * FROM intervals ORDER BY interval_start ASC";
+            }
+
+            PreparedStatement stmt = conn.prepareStatement(sql);
+
+            // Paramètres communs (ordre important)
+            stmt.setInt(paramIndex++, interval); // interval pour le tronquage
+            stmt.setInt(paramIndex++, interval); // interval pour le tronquage
             stmt.setString(paramIndex++, shopId);
             stmt.setString(paramIndex++, itemId);
-            
             if (startTime != null) {
                 stmt.setTimestamp(paramIndex++, Timestamp.valueOf(startTime));
             }
-            
             stmt.setInt(paramIndex, maxPoints);
             
             ResultSet rs = stmt.executeQuery();
@@ -1372,100 +1594,119 @@ public class DataManager {
         return aggregatedPoints;
     }
 
-    /**
-     * Sauvegarde l'historique des prix d'un item
-     */
-    public void savePriceHistory(PriceHistory history) {
-        try (Connection conn = getConnection()) {
-            // S'assurer que la table existe
-            PreparedStatement createTable = conn.prepareStatement(
-                "CREATE TABLE IF NOT EXISTS " + dataConfig.getDatabaseTablePrefix() + "_price_history (" +
-                "id INT AUTO_INCREMENT PRIMARY KEY, " +
-                "shop_id VARCHAR(100) NOT NULL, " +
-                "item_id VARCHAR(100) NOT NULL, " +
-                "timestamp TIMESTAMP NOT NULL, " +
-                // Colonnes pour les prix d'achat
-                "open_buy_price DOUBLE NOT NULL DEFAULT 0, " +
-                "close_buy_price DOUBLE NOT NULL DEFAULT 0, " +
-                "high_buy_price DOUBLE NOT NULL DEFAULT 0, " +
-                "low_buy_price DOUBLE NOT NULL DEFAULT 0, " +
-                // Colonnes pour les prix de vente
-                "open_sell_price DOUBLE NOT NULL DEFAULT 0, " +
-                "close_sell_price DOUBLE NOT NULL DEFAULT 0, " +
-                "high_sell_price DOUBLE NOT NULL DEFAULT 0, " +
-                "low_sell_price DOUBLE NOT NULL DEFAULT 0, " +
-                // Ajout du volume
-                "volume DOUBLE NOT NULL DEFAULT 0, " +
-                "INDEX (shop_id, item_id))"
-            );
-            createTable.executeUpdate();
+    // /**
+    //  * Sauvegarde l'historique des prix d'un item
+    //  */
+    // public void savePriceHistory(PriceHistory history) {
+    //     try (Connection conn = getConnection()) {
+    //         // S'assurer que la table existe
+    //         PreparedStatement createTable = conn.prepareStatement(
+    //             "CREATE TABLE IF NOT EXISTS " + dataConfig.getDatabaseTablePrefix() + "_price_history (" +
+    //             "id INT AUTO_INCREMENT PRIMARY KEY, " +
+    //             "shop_id VARCHAR(100) NOT NULL, " +
+    //             "item_id VARCHAR(100) NOT NULL, " +
+    //             "timestamp TIMESTAMP NOT NULL, " +
+    //             // Colonnes pour les prix d'achat
+    //             "open_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+    //             "close_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+    //             "high_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+    //             "low_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+    //             // Colonnes pour les prix de vente
+    //             "open_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+    //             "close_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+    //             "high_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+    //             "low_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+    //             // Ajout du volume
+    //             "volume DOUBLE NOT NULL DEFAULT 0, " +
+    //             "INDEX (shop_id, item_id))"
+    //         );
+    //         createTable.executeUpdate();
             
-            // Insertion des points de données
-            PreparedStatement insertStmt = conn.prepareStatement(
-                "INSERT INTO " + dataConfig.getDatabaseTablePrefix() + "_price_history " +
-                "(shop_id, item_id, timestamp, " +
-                "open_buy_price, close_buy_price, high_buy_price, low_buy_price, " +
-                "open_sell_price, close_sell_price, high_sell_price, low_sell_price, " +
-                "volume) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-            );
+    //         // Insertion des points de données
+    //         PreparedStatement insertStmt = conn.prepareStatement(
+    //             "INSERT INTO " + dataConfig.getDatabaseTablePrefix() + "_price_history " +
+    //             "(shop_id, item_id, timestamp, " +
+    //             "open_buy_price, close_buy_price, high_buy_price, low_buy_price, " +
+    //             "open_sell_price, close_sell_price, high_sell_price, low_sell_price, " +
+    //             "volume) " +
+    //             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    //         );
             
-            for (PriceDataPoint point : history.getDataPoints()) {
-                insertStmt.setString(1, history.getShopId());
-                insertStmt.setString(2, history.getItemId());
-                insertStmt.setTimestamp(3, Timestamp.valueOf(point.getTimestamp()));
+    //         for (PriceDataPoint point : history.getDataPoints()) {
+    //             insertStmt.setString(1, history.getShopId());
+    //             insertStmt.setString(2, history.getItemId());
+    //             insertStmt.setTimestamp(3, Timestamp.valueOf(point.getTimestamp()));
                 
-                // Prix d'achat
-                insertStmt.setDouble(4, point.getOpenBuyPrice());
-                insertStmt.setDouble(5, point.getCloseBuyPrice());
-                insertStmt.setDouble(6, point.getHighBuyPrice());
-                insertStmt.setDouble(7, point.getLowBuyPrice());
+    //             // Prix d'achat
+    //             insertStmt.setDouble(4, point.getOpenBuyPrice());
+    //             insertStmt.setDouble(5, point.getCloseBuyPrice());
+    //             insertStmt.setDouble(6, point.getHighBuyPrice());
+    //             insertStmt.setDouble(7, point.getLowBuyPrice());
                 
-                // Prix de vente
-                insertStmt.setDouble(8, point.getOpenSellPrice());
-                insertStmt.setDouble(9, point.getCloseSellPrice());
-                insertStmt.setDouble(10, point.getHighSellPrice());
-                insertStmt.setDouble(11, point.getLowSellPrice());
+    //             // Prix de vente
+    //             insertStmt.setDouble(8, point.getOpenSellPrice());
+    //             insertStmt.setDouble(9, point.getCloseSellPrice());
+    //             insertStmt.setDouble(10, point.getHighSellPrice());
+    //             insertStmt.setDouble(11, point.getLowSellPrice());
                 
-                // Volume
-                insertStmt.setDouble(12, point.getVolume());
+    //             // Volume
+    //             insertStmt.setDouble(12, point.getVolume());
                 
-                insertStmt.addBatch();
-            }
+    //             insertStmt.addBatch();
+    //         }
             
-            insertStmt.executeBatch();
+    //         insertStmt.executeBatch();
             
-        } catch (SQLException e) {
-            plugin.getLogger().severe("Erreur lors de la sauvegarde de l'historique des prix: " + e.getMessage());
-        }
-    }
+    //     } catch (SQLException e) {
+    //         plugin.getLogger().severe("Erreur lors de la sauvegarde de l'historique des prix: " + e.getMessage());
+    //     }
+    // }
 
     /**
      * Sauvegarde un seul point de données historique
      */
     public void saveSinglePriceDataPoint(String shopId, String itemId, PriceHistory.PriceDataPoint point) {
         try (Connection conn = getConnection()) {
-            // S'assurer que la table existe
-            PreparedStatement createTable = conn.prepareStatement(
-                "CREATE TABLE IF NOT EXISTS " + dataConfig.getDatabaseTablePrefix() + "_price_history (" +
-                "id INT AUTO_INCREMENT PRIMARY KEY, " +
-                "shop_id VARCHAR(100) NOT NULL, " +
-                "item_id VARCHAR(100) NOT NULL, " +
-                "timestamp TIMESTAMP NOT NULL, " +
-                // Colonnes pour les prix d'achat
-                "open_buy_price DOUBLE NOT NULL DEFAULT 0, " +
-                "close_buy_price DOUBLE NOT NULL DEFAULT 0, " +
-                "high_buy_price DOUBLE NOT NULL DEFAULT 0, " +
-                "low_buy_price DOUBLE NOT NULL DEFAULT 0, " +
-                // Colonnes pour les prix de vente
-                "open_sell_price DOUBLE NOT NULL DEFAULT 0, " +
-                "close_sell_price DOUBLE NOT NULL DEFAULT 0, " +
-                "high_sell_price DOUBLE NOT NULL DEFAULT 0, " +
-                "low_sell_price DOUBLE NOT NULL DEFAULT 0, " +
-                // Ajout du volume
-                "volume DOUBLE NOT NULL DEFAULT 0, " +
-                "INDEX (shop_id, item_id))"
-            );
+            // Déterminer la syntaxe SQL selon le type de base de données
+            String createTableSQL;
+            
+            if (dataConfig.getDatabaseType().equals("mysql")) {
+                // Syntaxe MySQL avec l'index intégré
+                createTableSQL = 
+                    "CREATE TABLE IF NOT EXISTS " + dataConfig.getDatabaseTablePrefix() + "_price_history (" +
+                    "id INT AUTO_INCREMENT PRIMARY KEY, " +
+                    "shop_id VARCHAR(100) NOT NULL, " +
+                    "item_id VARCHAR(100) NOT NULL, " +
+                    "timestamp TIMESTAMP NOT NULL, " +
+                    "open_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                    "close_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                    "high_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                    "low_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                    "open_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                    "close_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                    "high_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                    "low_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                    "volume DOUBLE NOT NULL DEFAULT 0, " +
+                    "INDEX (shop_id, item_id))";
+            } else {
+                // Syntaxe SQLite sans l'index intégré
+                createTableSQL = 
+                    "CREATE TABLE IF NOT EXISTS " + dataConfig.getDatabaseTablePrefix() + "_price_history (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "shop_id VARCHAR(100) NOT NULL, " +
+                    "item_id VARCHAR(100) NOT NULL, " +
+                    "timestamp TIMESTAMP NOT NULL, " +
+                    "open_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                    "close_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                    "high_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                    "low_buy_price DOUBLE NOT NULL DEFAULT 0, " +
+                    "open_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                    "close_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                    "high_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                    "low_sell_price DOUBLE NOT NULL DEFAULT 0, " +
+                    "volume DOUBLE NOT NULL DEFAULT 0)";
+            }
+            PreparedStatement createTable = conn.prepareStatement(createTableSQL);
             createTable.executeUpdate();
             
             // Insertion d'un seul point de données
@@ -1515,7 +1756,7 @@ public class DataManager {
             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setTimestamp(1, Timestamp.valueOf(cutoff));
             int rowsDeleted = stmt.executeUpdate();
-            // plugin.getLogger().info("Purge de l'historique des prix : " + rowsDeleted + " entrées supprimées");
+            plugin.getLogger().info("Purge de l'historique des prix : " + rowsDeleted + " entrées supprimées");
         } catch (SQLException e) {
             plugin.getLogger().severe("Erreur lors de la purge de l'historique : " + e.getMessage());
         }

@@ -297,7 +297,8 @@ public class DynaShopListener implements Listener {
 
         // Enregistrer la transaction si l'item a des limites
         if (plugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
-            plugin.getTransactionLimiter().recordTransaction(player, shopID, itemID, isBuy, amount);
+            // plugin.getTransactionLimiter().recordTransaction(player, shopID, itemID, isBuy, amount);
+            plugin.getTransactionLimiter().queueTransaction(player, shopID, itemID, isBuy, amount);
         }
 
         // // Enregistrer la transaction dans les logs
@@ -991,7 +992,7 @@ public class DynaShopListener implements Listener {
                     // Récupérer le prix de l'item lié
                     ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkedShopID).getShopItem(linkedItemID2).getItem();
                     // DynamicPrice linkedPrice = getOrLoadPrice(linkedShopID, linkedItemID2, linkedItemStack);
-                    DynamicPrice linkedPrice = getOrLoadPriceInternal(player, linkedShopID, linkedItemID2, linkedItemStack, visited, lastResults, true);
+                    DynamicPrice linkedPrice = getOrLoadPriceInternal(player, linkedShopID, linkedItemID2, linkedItemStack, visited, lastResults, false);
                     if (linkedPrice != null) {
                         sellPrice = linkedPrice.getSellPrice();
                         minSell = linkedPrice.getMinSellPrice();
@@ -1025,7 +1026,7 @@ public class DynaShopListener implements Listener {
                     String linkShop = parts[0];
                     String linkItem = parts[1];
                     ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkShop).getShopItem(linkItem).getItem();
-                    DynamicPrice linkedPrice = getOrLoadPriceInternal(player, linkShop, linkItem, linkedItemStack, visited, lastResults, true);
+                    DynamicPrice linkedPrice = getOrLoadPriceInternal(player, linkShop, linkItem, linkedItemStack, visited, lastResults, false);
                     if (linkedPrice != null) {
                         double linkedMin = linkedPrice.getMinSellPrice();
                         // DynaShopPlugin.getInstance().getLogger().info("Linked minSell for " + itemID + " in shop " + shopID + ": " + linkedMin);  
@@ -1042,7 +1043,7 @@ public class DynaShopListener implements Listener {
                     String linkItem = parts[1];
                     ItemStack linkedItemStack = ShopGuiPlusApi.getShop(linkShop).getShopItem(linkItem).getItem();
                     // DynaShopPlugin.getInstance().getLogger().info("Linking maxSell for " + itemID + " in shop " + shopID + ": " + linkShop + ":" + linkItem + " (visited: " + visited + ")" + " (lastResults: " + lastResults + ")");
-                    DynamicPrice linkedPrice = getOrLoadPriceInternal(player, linkShop, linkItem, linkedItemStack, visited, lastResults, true);
+                    DynamicPrice linkedPrice = getOrLoadPriceInternal(player, linkShop, linkItem, linkedItemStack, visited, lastResults, false);
                     // DynaShopPlugin.getInstance().getLogger().info("2: (visited: " + visited + ")" + " (lastResults: " + lastResults + ")");
                     if (linkedPrice != null) {
                         double linkedMax = linkedPrice.getMaxSellPrice();

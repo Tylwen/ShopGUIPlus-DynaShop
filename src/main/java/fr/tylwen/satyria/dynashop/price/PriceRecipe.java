@@ -254,7 +254,7 @@ public class PriceRecipe {
                 // try {
                     // plugin.getLogger().info("Ingredient " + ingredientID + " (" + ingredientShopID + ") (lastResults: " + lastResults + ")" + " visitedItems: " + visitedItems);
                     // ingredientPrice = plugin.getDynaShopListener().getOrLoadPrice(null, ingredientShopID, ingredientID, ingredient, visitedItems, lastResults);
-                    ingredientPrice = plugin.getDynaShopListener().getOrLoadPriceInternal(null, ingredientShopID, ingredientID, ingredient, visitedItems, lastResults, true);
+                    ingredientPrice = plugin.getDynaShopListener().getOrLoadPriceInternal(null, ingredientShopID, ingredientID, ingredient, visitedItems, lastResults, false);
                     if (ingredientPrice == null) {
 
                         // plugin.getLogger().warning("Price not found for ingredient " + ingredientID + " in shop " + ingredientShopID);

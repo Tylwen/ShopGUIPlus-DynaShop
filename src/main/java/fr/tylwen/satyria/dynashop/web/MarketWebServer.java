@@ -75,12 +75,14 @@ public class MarketWebServer {
             server.setExecutor(threadPoolExecutor);
             
             server.start();
-            plugin.getLogger().info("§aServeur web démarré sur le port " + port);
-            
+            // plugin.getLogger().info("§aServeur web démarré sur le port " + port);
+            // plugin.getLogger().info("Web server started on port " + port);
+
             // Extraire les fichiers web s'ils n'existent pas
             extractWebFiles();
         } catch (IOException e) {
-            plugin.getLogger().severe("§cErreur lors du démarrage du serveur web: " + e.getMessage());
+            // plugin.getLogger().severe("§cErreur lors du démarrage du serveur web: " + e.getMessage());
+            plugin.getLogger().severe("Error starting web server: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -88,7 +90,8 @@ public class MarketWebServer {
     public void stop() {
         if (server != null) {
             server.stop(0);
-            plugin.getLogger().info("§aServeur web arrêté");
+            // plugin.getLogger().info("§aServeur web arrêté");
+            plugin.getLogger().info("Web server stopped");
         }
     }
     
@@ -112,9 +115,10 @@ public class MarketWebServer {
                 // extractResourceFile("assets/chartjs-adapter-date-fns.min.js", webDir);
                 // extractResourceFile("assets/chart.min.js", webDir);
                 
-                plugin.getLogger().info("Fichiers web extraits avec succès");
+                // plugin.getLogger().info("Fichiers web extraits avec succès");
+                plugin.getLogger().info("Web files extracted successfully");
             } catch (IOException e) {
-                plugin.getLogger().severe("Erreur lors de l'extraction des fichiers web: " + e.getMessage());
+                plugin.getLogger().severe("Error extracting web files: " + e.getMessage());
             }
         }
     }
@@ -133,7 +137,8 @@ public class MarketWebServer {
                 
                 try (var is = getClass().getResourceAsStream(WEB_DIR + "/" + resourcePath)) {
                     if (is == null) {
-                        plugin.getLogger().warning("Ressource non trouvée: " + resourcePath);
+                        // plugin.getLogger().warning("Ressource non trouvée: " + resourcePath);
+                        plugin.getLogger().warning("Resource not found: " + resourcePath);
                         return;
                     }
                     
@@ -143,7 +148,7 @@ public class MarketWebServer {
                 }
             }
         } catch (IOException e) {
-            plugin.getLogger().warning("Erreur lors de l'extraction de " + resourcePath + ": " + e.getMessage());
+            plugin.getLogger().warning("Error extracting " + resourcePath + ": " + e.getMessage());
         }
     }
     
@@ -352,96 +357,115 @@ public class MarketWebServer {
      * @throws IOException Si une erreur d'E/S se produit
      */
     private void handlePricesData(HttpExchange exchange) throws IOException {
-        if (!exchange.getRequestMethod().equals("GET")) {
-            exchange.sendResponseHeaders(405, 0);
-            exchange.getResponseBody().close();
-            return;
-        }
-        
-        Map<String, String[]> queryParams = parseQueryParams(exchange.getRequestURI().getQuery());
-        String shopId = queryParams.containsKey("shop") ? queryParams.get("shop")[0] : null;
-        String itemId = queryParams.containsKey("item") ? queryParams.get("item")[0] : null;
-        
-        // Nouveaux paramètres
-        String period = queryParams.containsKey("period") ? queryParams.get("period")[0] : "all";
-        String granularity = queryParams.containsKey("granularity") ? queryParams.get("granularity")[0] : "auto";
-        int maxPoints = queryParams.containsKey("maxPoints") ? Integer.parseInt(queryParams.get("maxPoints")[0]) : 2000; // Limiter par défaut à 2000 points
-        
-        // Convertir la période en date de début
-        LocalDateTime startTime = null;
-        if (!period.equals("all")) {
-            LocalDateTime now = LocalDateTime.now();
-            switch (period) {
-                case "1h": startTime = now.minusHours(1); break;
-                case "6h": startTime = now.minusHours(6); break;
-                case "12h": startTime = now.minusHours(12); break;
-                case "1d": startTime = now.minusDays(1); break;
-                case "1w": startTime = now.minusWeeks(1); break;
-                case "1m": startTime = now.minusMonths(1); break;
+        try {
+            if (!exchange.getRequestMethod().equals("GET")) {
+                exchange.sendResponseHeaders(405, 0);
+                exchange.getResponseBody().close();
+                return;
             }
-        }
-        
-        // Déterminer l'intervalle d'agrégation en minutes
-        int interval;
-        if (granularity.equals("auto")) {
-            // Sélection automatique basée sur la période
-            if (period.equals("1h")) interval = 1;
-            else if (period.equals("6h")) interval = 5;
-            else if (period.equals("12h")) interval = 10;
-            else if (period.equals("1d")) interval = 15;
-            else if (period.equals("1w")) interval = 60;
-            else if (period.equals("1m")) interval = 240; // 4 heures
-            else interval = 15; // valeur par défaut
-        } else {
-            // Intervalle explicite
-            interval = switch(granularity) {
-                case "minute" -> 1;
-                case "5min" -> 5;
-                case "15min" -> 15;
-                case "30min" -> 30;
-                case "hour" -> 60;
-                case "day" -> 1440;
-                default -> 15;
-            };
-        }
-        
-        if (shopId == null || itemId == null) {
-            exchange.sendResponseHeaders(400, 0);
+            
+            Map<String, String[]> queryParams = parseQueryParams(exchange.getRequestURI().getQuery());
+            String shopId = queryParams.containsKey("shop") ? queryParams.get("shop")[0] : null;
+            String itemId = queryParams.containsKey("item") ? queryParams.get("item")[0] : null;
+            
+            // Nouveaux paramètres
+            String period = queryParams.containsKey("period") ? queryParams.get("period")[0] : "all";
+            String granularity = queryParams.containsKey("granularity") ? queryParams.get("granularity")[0] : "auto";
+            int maxPoints = queryParams.containsKey("maxPoints") ? Integer.parseInt(queryParams.get("maxPoints")[0]) : 2000; // Limiter par défaut à 2000 points
+            
+            // Convertir la période en date de début
+            LocalDateTime startTime = null;
+            if (!period.equals("all")) {
+                LocalDateTime now = LocalDateTime.now();
+                switch (period) {
+                    case "1h": startTime = now.minusHours(1); break;
+                    case "6h": startTime = now.minusHours(6); break;
+                    case "12h": startTime = now.minusHours(12); break;
+                    case "1d": startTime = now.minusDays(1); break;
+                    case "1w": startTime = now.minusWeeks(1); break;
+                    case "1m": startTime = now.minusMonths(1); break;
+                }
+            }
+            
+            // Déterminer l'intervalle d'agrégation en minutes
+            int interval;
+            if (granularity.equals("auto")) {
+                // Sélection automatique basée sur la période
+                if (period.equals("1h")) interval = 1;
+                else if (period.equals("6h")) interval = 5;
+                else if (period.equals("12h")) interval = 10;
+                else if (period.equals("1d")) interval = 15;
+                else if (period.equals("1w")) interval = 60;
+                else if (period.equals("1m")) interval = 240; // 4 heures
+                else interval = 15; // valeur par défaut
+            } else {
+                // Intervalle explicite
+                interval = switch(granularity) {
+                    case "minute" -> 1;
+                    case "5min" -> 5;
+                    case "15min" -> 15;
+                    case "30min" -> 30;
+                    case "hour" -> 60;
+                    case "day" -> 1440;
+                    default -> 15;
+                };
+            }
+            
+            if (shopId == null || itemId == null) {
+                exchange.sendResponseHeaders(400, 0);
+                exchange.getResponseBody().close();
+                return;
+            }
+            
+            List<PriceDataPoint> dataPoints;
+            if (plugin.getDataConfig().getDatabaseType().equalsIgnoreCase("sqlite")) {
+                PriceHistory history = plugin.getDataManager().getPriceHistory(shopId, itemId);
+                dataPoints = history.getDataPoints();
+            } else {
+                dataPoints = plugin.getDataManager().getAggregatedPriceHistory(shopId, itemId, interval, startTime, maxPoints);
+            }
+
+            // PriceHistory history = plugin.getDataManager().getPriceHistory(shopId, itemId);
+            // Récupérer les données agrégées
+            // List<PriceDataPoint> dataPoints = plugin.getDataManager().getAggregatedPriceHistory(shopId, itemId, interval, startTime, maxPoints);
+            // List<PriceDataPoint> dataPoints = history.getDataPoints();
+            
+            // // Convertir les points de données en format adapté pour Chart.js
+            // List<Map<String, Object>> chartData = dataPoints.stream()
+            //     .map(point -> {
+            //         Map<String, Object> pointData = new HashMap<>();
+            //         pointData.put("timestamp", point.getTimestamp().toString());
+            //         pointData.put("openBuy", point.getOpenBuyPrice());
+            //         pointData.put("closeBuy", point.getCloseBuyPrice());
+            //         pointData.put("highBuy", point.getHighBuyPrice());
+            //         pointData.put("lowBuy", point.getLowBuyPrice());
+            //         pointData.put("openSell", point.getOpenSellPrice());
+            //         pointData.put("closeSell", point.getCloseSellPrice());
+            //         pointData.put("highSell", point.getHighSellPrice());
+            //         pointData.put("lowSell", point.getLowSellPrice());
+            //         pointData.put("volume", point.getVolume());
+            //         return pointData;
+            //     })
+            //     .collect(Collectors.toList());
+            
+            // 1. Filtrer par période si nécessaire
+            List<PriceDataPoint> filteredPoints = filterByPeriod(dataPoints, period);
+            
+            // 2. Appliquer la granularité ou l'échantillonnage
+            List<Map<String, Object>> chartData = aggregateOrSampleData(filteredPoints, granularity, maxPoints);
+            
+            String jsonResponse = gson.toJson(chartData);
+            sendJsonResponse(exchange, jsonResponse);
+        } catch (Exception ex) {
+            plugin.getLogger().severe("Erreur dans /api/prices : " + ex.getMessage());
+            ex.printStackTrace();
+            // Réponse JSON d'erreur
+            String errorJson = "{\"error\": \"Internal server error: " + ex.getMessage() + "\"}";
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(500, errorJson.length());
+            exchange.getResponseBody().write(errorJson.getBytes());
             exchange.getResponseBody().close();
-            return;
         }
-        
-        // PriceHistory history = plugin.getDataManager().getPriceHistory(shopId, itemId);
-        // Récupérer les données agrégées
-        List<PriceDataPoint> dataPoints = plugin.getDataManager().getAggregatedPriceHistory(shopId, itemId, interval, startTime, maxPoints);
-        // List<PriceDataPoint> dataPoints = history.getDataPoints();
-        
-        // // Convertir les points de données en format adapté pour Chart.js
-        // List<Map<String, Object>> chartData = dataPoints.stream()
-        //     .map(point -> {
-        //         Map<String, Object> pointData = new HashMap<>();
-        //         pointData.put("timestamp", point.getTimestamp().toString());
-        //         pointData.put("openBuy", point.getOpenBuyPrice());
-        //         pointData.put("closeBuy", point.getCloseBuyPrice());
-        //         pointData.put("highBuy", point.getHighBuyPrice());
-        //         pointData.put("lowBuy", point.getLowBuyPrice());
-        //         pointData.put("openSell", point.getOpenSellPrice());
-        //         pointData.put("closeSell", point.getCloseSellPrice());
-        //         pointData.put("highSell", point.getHighSellPrice());
-        //         pointData.put("lowSell", point.getLowSellPrice());
-        //         pointData.put("volume", point.getVolume());
-        //         return pointData;
-        //     })
-        //     .collect(Collectors.toList());
-        
-        // 1. Filtrer par période si nécessaire
-        List<PriceDataPoint> filteredPoints = filterByPeriod(dataPoints, period);
-        
-        // 2. Appliquer la granularité ou l'échantillonnage
-        List<Map<String, Object>> chartData = aggregateOrSampleData(filteredPoints, granularity, maxPoints);
-        
-        String jsonResponse = gson.toJson(chartData);
-        sendJsonResponse(exchange, jsonResponse);
     }
 
     private void handlePriceStats(HttpExchange exchange) throws IOException {

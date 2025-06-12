@@ -1143,6 +1143,8 @@ public class ShopItemPlaceholderListener implements Listener {
         // Récupérer les limites d'achat
         TransactionLimit buyLimit = plugin.getTransactionLimiter().getTransactionLimit(shopId, itemId, true);
         if (buyLimit != null && buyLimit.getAmount() > 0) {
+            // plugin.info("Checking buy limit for shop: " + shopId + ", item: " + itemId + ", player: " + player.getName() + 
+            //             ", limit: " + buyLimit.getAmount());
             try {
                 int buyRemaining = plugin.getTransactionLimiter().getRemainingAmountSync(player, shopId, itemId, true);
                 prices.put("buy_limit", String.valueOf(buyRemaining));
@@ -1164,6 +1166,9 @@ public class ShopItemPlaceholderListener implements Listener {
                 if (buyRemaining <= 0) {
                     prices.put("buy_limit_reached", "true");
                 } else {
+                    // plugin.info("Checking buy limit for shop: " + shopId + ", item: " + itemId + ", player: " + player.getName() + 
+                    //     ", limit: " + (buyLimit != null ? buyLimit.getAmount() : "N/A") + 
+                    //     ", remaining: " + buyRemaining + ", reset time: " + formatTimeRemaining(buyResetTime, buyLimit));
                     prices.put("buy_limit_reached", "false");
                 }
             } catch (Exception e) {
@@ -1172,6 +1177,7 @@ public class ShopItemPlaceholderListener implements Listener {
                 prices.put("buy_limit_reached", "false");
             }
         } else {
+            // plugin.info("No buy limit found for shop: " + shopId + ", item: " + itemId + ", player: " + player.getName());
             prices.put("buy_limit", "∞");
             prices.put("buy_reset_time", "∞");
             prices.put("buy_limit_reached", "false");
