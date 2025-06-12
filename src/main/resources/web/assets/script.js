@@ -403,6 +403,32 @@ function enhanceSelectWithSearch(selectId, placeholder) {
     input.placeholder = placeholder;
     input.className = 'searchable-select-input';
     container.appendChild(input);
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const firstOption = dropdown.querySelector('.searchable-select-option.selected') || dropdown.querySelector('.searchable-select-option');
+            if (firstOption) {
+                firstOption.click();
+            }
+        } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            const options = Array.from(dropdown.querySelectorAll('.searchable-select-option'));
+            if (options.length === 0) return;
+            let selectedIndex = options.findIndex(opt => opt.classList.contains('selected'));
+            if (selectedIndex === -1) selectedIndex = 0;
+            else {
+                options[selectedIndex].classList.remove('selected');
+                if (e.key === 'ArrowDown') selectedIndex = (selectedIndex + 1) % options.length;
+                else if (e.key === 'ArrowUp') selectedIndex = (selectedIndex - 1 + options.length) % options.length;
+            }
+            options[selectedIndex].classList.add('selected');
+            // Mettre à jour l'input avec le texte de l'option sélectionnée
+            input.value = options[selectedIndex].textContent;
+            // Scroll to the selected option if needed
+            options[selectedIndex].scrollIntoView({ block: 'nearest' });
+        }
+    });
     
     // Créer la liste déroulante
     const dropdown = document.createElement('div');
@@ -437,6 +463,9 @@ function enhanceSelectWithSearch(selectId, placeholder) {
             });
             
             dropdown.appendChild(item);
+
+            const firstOption = dropdown.querySelector('.searchable-select-option');
+            if (firstOption) firstOption.classList.add('selected');
         });
     }
     
@@ -534,18 +563,18 @@ function displayShopType(typeData) {
     
     // Affichage différent si les types d'achat et vente sont différents
     if (typeData.buy !== typeData.sell) {
-        html = `<span class="type-buy">Achat: ${getTypeDescription(typeData.buy)}</span>`;
+        html = `Achat: <span class="type-buy">${getTypeDescription(typeData.buy)}</span>`;
         
         // Ajouter le type réel si différent et si c'est un LINK
         if (typeData.buy === 'LINK' && typeData.realBuy && typeData.realBuy !== 'LINK') {
-            html += ` <small>(réellement ${getTypeDescription(typeData.realBuy)})</small>`;
+            html += ` <small>(${getTypeDescription(typeData.realBuy)})</small>`;
         }
         
-        html += `<br><span class="type-sell">Vente: ${getTypeDescription(typeData.sell)}</span>`;
+        html += `<br>Vente: <span class="type-sell">${getTypeDescription(typeData.sell)}</span>`;
         
         // Ajouter le type réel si différent et si c'est un LINK
         if (typeData.sell === 'LINK' && typeData.realSell && typeData.realSell !== 'LINK') {
-            html += ` <small>(réellement ${getTypeDescription(typeData.realSell)})</small>`;
+            html += ` <small>(${getTypeDescription(typeData.realSell)})</small>`;
         }
     } else {
         html = getTypeDescription(typeData.general);
@@ -553,9 +582,9 @@ function displayShopType(typeData) {
         // Ajouter le type réel si c'est un LINK
         if (typeData.general === 'LINK' && typeData.realBuy && typeData.realSell) {
             if (typeData.realBuy === typeData.realSell) {
-                html += ` <small>(réellement ${getTypeDescription(typeData.realBuy)})</small>`;
+                html += ` <small>(${getTypeDescription(typeData.realBuy)})</small>`;
             } else {
-                html += `<br><small>(réellement Achat: ${getTypeDescription(typeData.realBuy)}, 
+                html += `<br><small>(Achat: ${getTypeDescription(typeData.realBuy)}, 
                        Vente: ${getTypeDescription(typeData.realSell)})</small>`;
             }
         }
@@ -643,14 +672,20 @@ function updateCharts(data) {
 function updatePriceChart(data) {
     const ctx = document.getElementById('price-chart').getContext('2d');
     
-    // Extraire et formater les données
-    const chartData = data.map(point => ({
-        x: luxon.DateTime.fromISO(point.timestamp),
-        buy: point.closeBuy,
-        sell: point.closeSell
-    }));
+    // // Extraire et formater les données
+    // const chartData = data.map(point => ({
+    //     x: luxon.DateTime.fromISO(point.timestamp),
+    //     buy: point.closeBuy,
+    //     sell: point.closeSell
+    // }));
     // const chartData = aggregatedPriceData(data); // Utiliser la fonction d'agrégation
-    
+    const buyData = data
+        .filter(point => point.closeBuy !== -1 && point.closeBuy !== undefined)
+        .map(point => ({ x: luxon.DateTime.fromISO(point.timestamp), y: point.closeBuy }));
+    const sellData = data
+        .filter(point => point.closeSell !== -1 && point.closeSell !== undefined)
+        .map(point => ({ x: luxon.DateTime.fromISO(point.timestamp), y: point.closeSell }));
+
     // Détruire le graphique existant s'il existe
     if (priceChart) {
         priceChart.destroy();
@@ -661,22 +696,23 @@ function updatePriceChart(data) {
         type: 'line',
         data: {
             datasets: [
-                {
+                // N'afficher la courbe que si on a des points valides
+                ...(buyData.length > 0 ? [{
                     label: 'Prix d\'achat',
-                    data: chartData.map(item => ({ x: item.x, y: item.buy })),
+                    data: buyData,
                     borderColor: 'rgba(255, 99, 132, 1)',
                     backgroundColor: 'rgba(255, 99, 132, 0.2)',
                     borderWidth: 2,
                     tension: 0.1
-                },
-                {
+                }] : []),
+                ...(sellData.length > 0 ? [{
                     label: 'Prix de vente',
-                    data: chartData.map(item => ({ x: item.x, y: item.sell })),
+                    data: sellData,
                     borderColor: 'rgba(54, 162, 235, 1)',
                     backgroundColor: 'rgba(54, 162, 235, 0.2)',
                     borderWidth: 2,
                     tension: 0.1
-                }
+                }] : [])
             ]
         },
         options: {
@@ -689,13 +725,13 @@ function updatePriceChart(data) {
                 x: {
                     type: 'time',
                     time: {
-                        // unit: determineTimeUnit(data.length),
-                        unit: 'hour',
-                        tooltipFormat: 'dd/MM/yyyy HH:mm',
-                        // displayFormats: {
-                        //     hour: 'HH:mm',
-                        //     day: 'dd/MM'
-                        // }
+                        unit: determineTimeUnit(data.length),
+                        // unit: 'hour',
+                        tooltipFormat: 'dd/MM HH:mm',
+                        displayFormats: {
+                            hour: 'HH:mm',
+                            day: 'dd/MM'
+                        }
                     },
                     title: {
                         display: true,
@@ -719,11 +755,11 @@ function updatePriceChart(data) {
     });
 }
 
-function normalizeVolume(volume) {
-    if (!volume || volume <= 0) return 0;
-    // Pour rendre les petites valeurs plus visibles
-    return Math.max(0.5, volume);
-}
+// function normalizeVolume(volume) {
+//     if (!volume || volume <= 0) return 0;
+//     // Pour rendre les petites valeurs plus visibles
+//     return Math.max(0.5, volume);
+// }
 
 // // Mise à jour du graphique de volume
 // function updateVolumeChart(data) {
@@ -868,14 +904,27 @@ function updateVolumeChart(data) {
             responsive: true,
             scales: {
                 x: {
-                    type: 'category',
+                    // type: 'category',
+                    // title: {
+                    //     display: true,
+                    //     text: 'Date/Heure'
+                    // }
+                    // ticks: {
+                    //     maxTicksLimit: 10,
+                    //     autoSkip: true
+                    // }
+                    // type: 'time',
+                    time: {
+                        unit: determineTimeUnit(aggregatedData.values.length),
+                        tooltipFormat: 'dd/MM HH:mm',
+                        displayFormats: {
+                            hour: 'HH:mm',
+                            day: 'dd/MM'
+                        }
+                    },
                     title: {
                         display: true,
                         text: 'Date/Heure'
-                    },
-                    ticks: {
-                        maxTicksLimit: 10,
-                        autoSkip: true
                     }
                 },
                 y: {
@@ -1137,13 +1186,13 @@ function updateStats(chartData, statsData) {
             element.textContent = `${buyChange === '--' ? '--' : buyChange + '%'}`;
             element.style.color = buyChange >= 0 && buyChange !== '--' ? 'green' : 'red';
         } else if (buyChange === '--' && sellChange !== '--') {
-            element.innerHTML = `Vente: <span style="color:${sellChange >= 0 ? 'green' : 'red'}">${sellChange}%</span>`;
+            element.innerHTML = `Vente: <span style="color:${sellChange >= 0 ? 'red' : 'green'}">${sellChange}%</span>`;
         } else if (buyChange !== '--' && sellChange === '--') {
             element.innerHTML = `Achat: <span style="color:${buyChange >= 0 ? 'green' : 'red'}">${buyChange}%</span>`;
         } else {
             element.innerHTML = 
                 `Achat: <span style="color:${buyChange >= 0 ? 'green' : 'red'}">${buyChange}%</span><br />` +
-                `Vente: <span style="color:${sellChange >= 0 ? 'green' : 'red'}">${sellChange}%</span>`;
+                `Vente: <span style="color:${sellChange >= 0 ? 'red' : 'green'}">${sellChange}%</span>`;
         }
     } else {
         document.getElementById('price-change').textContent = '--';

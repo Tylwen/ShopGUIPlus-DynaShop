@@ -53,6 +53,7 @@ import fr.tylwen.satyria.dynashop.data.ShopConfigManager;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.price.PriceRecipe;
 import fr.tylwen.satyria.dynashop.price.PriceRecipe.FoundItem;
+import fr.tylwen.satyria.dynashop.system.TransactionLimiter;
 import fr.tylwen.satyria.dynashop.system.chart.PriceHistory;
 import fr.tylwen.satyria.dynashop.system.chart.PriceHistory.PriceDataPoint;
 // import fr.tylwen.satyria.dynashop.price.PriceRecipe.RecipeCalculationResult;
@@ -294,11 +295,30 @@ public class DynaShopListener implements Listener {
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             processTransactionAsync(shopID, itemID, itemStack, amount, action);
         });
+        
+        // Après avoir modifié le prix dans le cache :
+        DynamicPrice updatedPrice = plugin.getPriceCache().getIfPresent(shopID + ":" + itemID);
+        if (updatedPrice != null) {
+            plugin.getPriceDataManager().setPrice(shopID + ":" + itemID, updatedPrice);
+            plugin.getPriceDataManager().save(); // Sauvegarde asynchrone (voir PriceDataManager)
+        }
+        Integer stock = plugin.getStockCache().getIfPresent(shopID + ":" + itemID);
+        if (stock != null && stock >= 0) {
+            plugin.getStockDataManager().setStock(shopID + ":" + itemID, stock);
+            plugin.getStockDataManager().save(); // Sauvegarde asynchrone (voir StockDataManager)
+        }
 
         // Enregistrer la transaction si l'item a des limites
         if (plugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
             // plugin.getTransactionLimiter().recordTransaction(player, shopID, itemID, isBuy, amount);
             plugin.getTransactionLimiter().queueTransaction(player, shopID, itemID, isBuy, amount);
+            // TransactionLimiter.TransactionLimit transactionLimit = plugin.getTransactionLimiter().getTransactionLimit(shopID, itemID, isBuy);
+            TransactionLimiter.TransactionLimit transactionLimit = plugin.getLimitCache().getIfPresent(shopID + ":" + itemID);
+            if (transactionLimit != null) {
+                // Gérer le cache des limites
+                plugin.getLimitDataManager().setLimit(shopID + ":" + itemID, transactionLimit);
+                plugin.getLimitDataManager().save(); // Sauvegarde asynchrone (voir LimitDataManager)
+            }
         }
 
         // // Enregistrer la transaction dans les logs
@@ -421,6 +441,7 @@ public class DynaShopListener implements Listener {
         if (sellTypeDynaShop != DynaShopType.RECIPE || buyTypeDynaShop != DynaShopType.RECIPE) {
             plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
         }
+
     }
 
     private void handleDynamicPrice(DynamicPrice price, ShopAction action, int amount) {

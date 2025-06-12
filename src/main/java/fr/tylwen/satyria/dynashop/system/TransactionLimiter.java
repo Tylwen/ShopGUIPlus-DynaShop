@@ -430,25 +430,33 @@ public class TransactionLimiter {
                             + "VALUES (?, ?, ?, ?, ?, NOW()) "
                             + "ON DUPLICATE KEY UPDATE amount = amount + ?, transaction_time = NOW()";
 
-                    try (PreparedStatement stmt = connection.prepareStatement(query)) {
-                        stmt.setString(1, player.getUniqueId().toString());
-                        stmt.setString(2, shopId);
-                        stmt.setString(3, itemId);
-                        stmt.setString(4, transactionType);
-                        stmt.setInt(5, amount);
-                        stmt.setInt(6, amount);
+                    // try (PreparedStatement stmt = connection.prepareStatement(query)) {
+                    //     stmt.setString(1, player.getUniqueId().toString());
+                    //     stmt.setString(2, shopId);
+                    //     stmt.setString(3, itemId);
+                    //     stmt.setString(4, transactionType);
+                    //     stmt.setInt(5, amount);
+                    //     stmt.setInt(6, amount);
                     
-                        // Exécuter la requête et retourner le nombre de lignes affectées
-                        int result = stmt.executeUpdate();
+                    //     // Exécuter la requête et retourner le nombre de lignes affectées
+                    //     int result = stmt.executeUpdate();
                         
-                        // Si transaction réussie, vérifier si un nettoyage est nécessaire
-                        if (result > 0 && Math.random() < 0.01) { // 1% de chance de déclencher un nettoyage
-                        // if (result > 0) {
-                            cleanupExpiredTransactions();
-                        }
+                    //     // Si transaction réussie, vérifier si un nettoyage est nécessaire
+                    //     if (result > 0 && Math.random() < 0.01) { // 1% de chance de déclencher un nettoyage
+                    //     // if (result > 0) {
+                    //         cleanupExpiredTransactions();
+                    //     }
                         
-                        return result;
-                    }
+                    //     return result;
+                    // }
+                    return plugin.getDataManager().executeUpdate(query,
+                        player.getUniqueId().toString(),
+                        shopId,
+                        itemId,
+                        transactionType,
+                        amount,
+                        amount
+                    );
                 } else {
                     return handleSQLiteTransaction(player, shopId, itemId, isBuy, amount, finalTableName);
                     // return null;
@@ -849,40 +857,70 @@ public class TransactionLimiter {
                     ")";
         }
                  
-        try (Connection connection = plugin.getDataManager().getConnection();
-                PreparedStatement stmt = connection.prepareStatement(query)) {
-                stmt.setString(1, player.getUniqueId().toString());
-                stmt.setString(2, shopId);
-                stmt.setString(3, itemId);
-                stmt.setString(4, transactionType);
-                stmt.setTimestamp(5, java.sql.Timestamp.valueOf(startDate));
+        // try (Connection connection = plugin.getDataManager().getConnection();
+        //         PreparedStatement stmt = connection.prepareStatement(query)) {
+        //         stmt.setString(1, player.getUniqueId().toString());
+        //         stmt.setString(2, shopId);
+        //         stmt.setString(3, itemId);
+        //         stmt.setString(4, transactionType);
+        //         stmt.setTimestamp(5, java.sql.Timestamp.valueOf(startDate));
 
-                // Pour SQLite, nous devons répéter les paramètres pour chaque sous-requête
-                if (!isMysql) {
-                    for (int i = 1; i < 6; i++) {
-                        int offset = i * 5;
-                        stmt.setString(offset + 1, player.getUniqueId().toString());
-                        stmt.setString(offset + 2, shopId);
-                        stmt.setString(offset + 3, itemId);
-                        stmt.setString(offset + 4, transactionType);
-                        stmt.setTimestamp(offset + 5, java.sql.Timestamp.valueOf(startDate));
-                    }
-                }
+        //         // Pour SQLite, nous devons répéter les paramètres pour chaque sous-requête
+        //         if (!isMysql) {
+        //             for (int i = 1; i < 6; i++) {
+        //                 int offset = i * 5;
+        //                 stmt.setString(offset + 1, player.getUniqueId().toString());
+        //                 stmt.setString(offset + 2, shopId);
+        //                 stmt.setString(offset + 3, itemId);
+        //                 stmt.setString(offset + 4, transactionType);
+        //                 stmt.setTimestamp(offset + 5, java.sql.Timestamp.valueOf(startDate));
+        //             }
+        //         }
                 
-                ResultSet rs = stmt.executeQuery();
-                if (rs.next()) {
-                    int currentTotal = rs.getInt("total");
-                    if (rs.wasNull()) {
-                        currentTotal = 0; // Corriger le cas où le résultat est NULL
-                    }
+        //         ResultSet rs = stmt.executeQuery();
+        //         if (rs.next()) {
+        //             int currentTotal = rs.getInt("total");
+        //             if (rs.wasNull()) {
+        //                 currentTotal = 0; // Corriger le cas où le résultat est NULL
+        //             }
                     
-                    // Vérifier si la limite est atteinte
-                    return currentTotal + amount <= limit.getAmount();
-                }
-            } catch (SQLException e) {
-                plugin.getLogger().severe("Erreur lors de la vérification de la limite: " + e.getMessage());
+        //             // Vérifier si la limite est atteinte
+        //             return currentTotal + amount <= limit.getAmount();
+        //         }
+        //     } catch (SQLException e) {
+        //         plugin.getLogger().severe("Erreur lors de la vérification de la limite: " + e.getMessage());
+        //     }
+        Object[] params;
+        if (isMysql) {
+            params = new Object[] {
+                player.getUniqueId().toString(),
+                shopId,
+                itemId,
+                transactionType,
+                java.sql.Timestamp.valueOf(startDate)
+            };
+        } else {
+            // Pour SQLite, répéter les paramètres pour chaque sous-requête
+            params = new Object[30];
+            for (int i = 0; i < 6; i++) {
+                int offset = i * 5;
+                params[offset] = player.getUniqueId().toString();
+                params[offset + 1] = shopId;
+                params[offset + 2] = itemId;
+                params[offset + 3] = transactionType;
+                params[offset + 4] = java.sql.Timestamp.valueOf(startDate);
             }
-        return true; // En cas d'erreur, autoriser la transaction par défaut
+        }
+
+        return plugin.getDataManager().executeQuery(query, rs -> {
+            if (rs.next()) {
+                int currentTotal = rs.getInt("total");
+                if (rs.wasNull()) currentTotal = 0;
+                return currentTotal + amount <= limit.getAmount();
+            }
+            return true;
+        }, params).orElse(true);
+        // return true; // En cas d'erreur, autoriser la transaction par défaut
     }
 
     // private LocalDateTime getStartDateForPeriod(LimitPeriod period) {
@@ -1136,45 +1174,75 @@ public class TransactionLimiter {
                     ")";
             }
             
-            try (Connection connection = plugin.getDataManager().getConnection();
-                PreparedStatement stmt = connection.prepareStatement(query)) {
+            // try (Connection connection = plugin.getDataManager().getConnection();
+            //     PreparedStatement stmt = connection.prepareStatement(query)) {
                 
-                stmt.setString(1, player.getUniqueId().toString());
-                stmt.setString(2, shopId);
-                stmt.setString(3, itemId);
-                stmt.setString(4, transactionType);
-                stmt.setTimestamp(5, java.sql.Timestamp.valueOf(startDate));
+            //     stmt.setString(1, player.getUniqueId().toString());
+            //     stmt.setString(2, shopId);
+            //     stmt.setString(3, itemId);
+            //     stmt.setString(4, transactionType);
+            //     stmt.setTimestamp(5, java.sql.Timestamp.valueOf(startDate));
                 
-                // Pour SQLite, nous devons répéter les paramètres pour chaque sous-requête
-                if (!isMysql) {
-                    for (int i = 1; i < 6; i++) {
-                        int offset = i * 5;
-                        stmt.setString(offset + 1, player.getUniqueId().toString());
-                        stmt.setString(offset + 2, shopId);
-                        stmt.setString(offset + 3, itemId);
-                        stmt.setString(offset + 4, transactionType);
-                        stmt.setTimestamp(offset + 5, java.sql.Timestamp.valueOf(startDate));
-                    }
+            //     // Pour SQLite, nous devons répéter les paramètres pour chaque sous-requête
+            //     if (!isMysql) {
+            //         for (int i = 1; i < 6; i++) {
+            //             int offset = i * 5;
+            //             stmt.setString(offset + 1, player.getUniqueId().toString());
+            //             stmt.setString(offset + 2, shopId);
+            //             stmt.setString(offset + 3, itemId);
+            //             stmt.setString(offset + 4, transactionType);
+            //             stmt.setTimestamp(offset + 5, java.sql.Timestamp.valueOf(startDate));
+            //         }
+            //     }
+                
+            //     ResultSet rs = stmt.executeQuery();
+            //     if (rs.next()) {
+            //         int currentTotal = rs.getInt("total");
+            //         if (rs.wasNull()) {
+            //             currentTotal = 0;
+            //         }
+                    
+            //         int remaining = Math.max(0, limit.getAmount() - currentTotal);
+            //         // Mettre en cache
+            //         plugin.getLimitRemainingAmountCache().put(cacheKey, remaining);
+            //         return remaining;
+            //     }
+            // } catch (SQLException e) {
+            //     plugin.getLogger().warning("Erreur SQL dans getRemainingAmountSync: " + e.getMessage());
+            //     // Continuer en cas d'erreur pour utiliser la valeur par défaut
+            // }
+            
+            // return limit.getAmount(); // Valeur par défaut
+
+            Object[] params;
+            if (isMysql) {
+                params = new Object[] {
+                    player.getUniqueId().toString(),
+                    shopId,
+                    itemId,
+                    transactionType,
+                    java.sql.Timestamp.valueOf(startDate)
+                };
+            } else {
+                // Pour SQLite, répéter les paramètres pour chaque sous-requête
+                params = new Object[30];
+                for (int i = 0; i < 6; i++) {
+                    int offset = i * 5;
+                    params[offset] = player.getUniqueId().toString();
+                    params[offset + 1] = shopId;
+                    params[offset + 2] = itemId;
+                    params[offset + 3] = transactionType;
+                    params[offset + 4] = java.sql.Timestamp.valueOf(startDate);
                 }
-                
-                ResultSet rs = stmt.executeQuery();
+            }
+            return plugin.getDataManager().executeQuery(query, rs -> {
                 if (rs.next()) {
                     int currentTotal = rs.getInt("total");
-                    if (rs.wasNull()) {
-                        currentTotal = 0;
-                    }
-                    
-                    int remaining = Math.max(0, limit.getAmount() - currentTotal);
-                    // Mettre en cache
-                    plugin.getLimitRemainingAmountCache().put(cacheKey, remaining);
-                    return remaining;
+                    if (rs.wasNull()) currentTotal = 0;
+                    return Math.max(0, limit.getAmount() - currentTotal);
                 }
-            } catch (SQLException e) {
-                plugin.getLogger().warning("Erreur SQL dans getRemainingAmountSync: " + e.getMessage());
-                // Continuer en cas d'erreur pour utiliser la valeur par défaut
-            }
-            
-            return limit.getAmount(); // Valeur par défaut
+                return limit.getAmount();
+            }, params).orElse(limit.getAmount());
         });
     }
 
@@ -2272,16 +2340,23 @@ public class TransactionLimiter {
         for (String table : tables) {
             String query = "DELETE FROM " + table + " WHERE player_uuid = ? AND shop_id = ? AND item_id = ?";
             
-            CompletableFuture<Boolean> future = plugin.getDataManager().executeAsync(() -> {
-                try (Connection connection = plugin.getDataManager().getConnection();
-                    PreparedStatement stmt = connection.prepareStatement(query)) {
-                    stmt.setString(1, player.getUniqueId().toString());
-                    stmt.setString(2, shopId);
-                    stmt.setString(3, itemId);
+            // CompletableFuture<Boolean> future = plugin.getDataManager().executeAsync(() -> {
+            //     try (Connection connection = plugin.getDataManager().getConnection();
+            //         PreparedStatement stmt = connection.prepareStatement(query)) {
+            //         stmt.setString(1, player.getUniqueId().toString());
+            //         stmt.setString(2, shopId);
+            //         stmt.setString(3, itemId);
                     
-                    return stmt.executeUpdate() >= 0;
-                }
-            });
+            //         return stmt.executeUpdate() >= 0;
+            //     }
+            // });
+            CompletableFuture<Boolean> future = plugin.getDataManager().executeAsync(() ->
+                plugin.getDataManager().executeUpdate(query,
+                    player.getUniqueId().toString(),
+                    shopId,
+                    itemId
+                ) >= 0
+            );
             
             futures.add(future);
         }

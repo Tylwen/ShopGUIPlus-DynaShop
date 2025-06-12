@@ -1,6 +1,7 @@
 package fr.tylwen.satyria.dynashop.cache;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.concurrent.TimeUnit;
@@ -88,7 +89,23 @@ public class CacheManager<K, V> {
         
         return value;
     }
-    
+
+    public V getIfPresent(K key) {
+        CacheEntry<V> entry = hotCache.get(key);
+        if (entry != null && !entry.isExpired()) {
+            return entry.getValue();
+        }
+        entry = cache.get(key);
+        if (entry != null && !entry.isExpired()) {
+            return entry.getValue();
+        }
+        return null;
+    }
+
+    public Set<K> keySet() {
+        return cache.keySet();
+    }
+
     /**
      * Force la mise en cache d'une valeur
      */

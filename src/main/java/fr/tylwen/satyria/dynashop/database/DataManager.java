@@ -137,6 +137,7 @@ public class DataManager {
             sqliteConnection = DriverManager.getConnection(url);
             try (Statement stmt = sqliteConnection.createStatement()) {
                 stmt.execute("PRAGMA foreign_keys = ON");
+                stmt.execute("PRAGMA busy_timeout = 5000"); // Timeout de 5 secondes pour éviter les blocages
             }
         } catch (SQLException | ClassNotFoundException e) {
             plugin.getLogger().severe("Erreur SQLite: " + e.getMessage());
@@ -356,7 +357,7 @@ public class DataManager {
     /**
      * Exécute une requête SELECT avec gestion des erreurs et reconnexion automatique.
      */
-    private <T> Optional<T> executeQuery(String sql, ResultSetProcessor<T> processor, Object... params) {
+    public <T> Optional<T> executeQuery(String sql, ResultSetProcessor<T> processor, Object... params) {
         for (int attempt = 0; attempt < RETRY_LIMIT; attempt++) {
             try (Connection conn = getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -1086,7 +1087,7 @@ public class DataManager {
      * Interface fonctionnelle pour traiter un ResultSet.
      */
     @FunctionalInterface
-    private interface ResultSetProcessor<T> {
+    public interface ResultSetProcessor<T> {
         T process(ResultSet rs) throws SQLException;
     }
 

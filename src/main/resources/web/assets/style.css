@@ -331,12 +331,14 @@ footer {
 
 /* Styles pour les prix d'achat et de vente */
 .buy-price {
-    color: #c93131; /* Rouge pour l'achat */
+    /* color: #c93131; Rouge pour l'achat */
+    color: #f44336;
     font-weight: bold;
 }
 
 .sell-price {
-    color: #2c8e2c; /* Vert pour la vente */
+    /* color: #2c8e2c; Vert pour la vente */
+    color: #4caf50;
     font-weight: bold;
 }
 
@@ -347,11 +349,11 @@ footer {
 }
 
 .type-buy {
-    color: #4caf50; /* vert pour achat */
+    color: #f44336; /* rouge pour achat */
 }
 
 .type-sell {
-    color: #f44336; /* rouge pour vente */
+    color: #4caf50; /* vert pour vente */
 }
 
 #shop-type {
