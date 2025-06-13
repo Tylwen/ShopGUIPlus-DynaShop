@@ -681,22 +681,30 @@ public class DynaShopListener implements Listener {
                     if (sellTypeDynaShop == DynaShopType.NONE || sellTypeDynaShop == DynaShopType.UNKNOWN) { sellTypeDynaShop = linkedType; }
                     
                     // Appliquer les modifications à l'item lié selon son type
-                    if (action == ShopAction.BUY && buyTypeDynaShop == DynaShopType.DYNAMIC) {
-                        linkedPrice.applyGrowth(amount);
-                    } else if ((action == ShopAction.SELL || action == ShopAction.SELL_ALL) && sellTypeDynaShop == DynaShopType.DYNAMIC) {
-                        linkedPrice.applyDecay(amount);
-                    } else if (linkedType == DynaShopType.STOCK || linkedType == DynaShopType.STATIC_STOCK) {
-                        if (action == ShopAction.BUY) {
-                            plugin.getPriceStock().processBuyTransaction(linkedShopID, linkedItemID, amount);
-                        } else {
-                            plugin.getPriceStock().processSellTransaction(linkedShopID, linkedItemID, amount);
-                        }
-                        updatePriceFromStock(linkedShopID, linkedItemID, linkedPrice);
-                    } else if (linkedType == DynaShopType.RECIPE) {
-                        // Appliquer la récursion pour les items RECIPE
-                        handleRecipePrice(linkedShopID, linkedItemID, amount, action);
+                    if (buyTypeDynaShop == DynaShopType.DYNAMIC) {
+                        handleDynamicPrice(linkedPrice, action, amount); // Gérer les prix dynamiques
+                    } else if (buyTypeDynaShop == DynaShopType.RECIPE) {
+                        handleRecipePrice(linkedShopID, linkedItemID, amount, action); // Gérer les prix basés sur les recettes
+                    // } else if (buyTypeDynaShop == DynaShopType.STOCK || buyTypeDynaShop == DynaShopType.STATIC_STOCK) {
+                    //     handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
+                    } else if (buyTypeDynaShop == DynaShopType.LINK) {
+                        handleLinkedPrice(linkedShopID, linkedItemID, itemStack, action, amount);
                     }
-                    
+
+                    if (sellTypeDynaShop == DynaShopType.DYNAMIC) {
+                        handleDynamicPrice(linkedPrice, action, amount); // Gérer les prix dynamiques
+                    } else if (sellTypeDynaShop == DynaShopType.RECIPE) {
+                        handleRecipePrice(linkedShopID, linkedItemID, amount, action); // Gérer les prix basés sur les recettes
+                    // } else if (sellTypeDynaShop == DynaShopType.STOCK || sellTypeDynaShop == DynaShopType.STATIC_STOCK) {
+                    //     handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
+                    } else if (sellTypeDynaShop == DynaShopType.LINK) {
+                        handleLinkedPrice(linkedShopID, linkedItemID, itemStack, action, amount);
+                    }
+
+                    if (linkedType == DynaShopType.STOCK || linkedType == DynaShopType.STATIC_STOCK) {
+                        handleStockPrice(linkedPrice, linkedShopID, linkedItemID, action, amount); // Gérer les prix basés sur le stock
+                    }
+
                     // Sauvegarder les modifications sur l'item lié
                     if (linkedType != DynaShopType.RECIPE) {
                         plugin.getBatchDatabaseUpdater().queueUpdate(linkedShopID, linkedItemID, linkedPrice, true);
@@ -1492,18 +1500,54 @@ public class DynaShopListener implements Listener {
             //     plugin.getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice, true);
             // }
 
-            if (buyTypeDynaShop == DynaShopType.RECIPE || sellTypeDynaShop == DynaShopType.RECIPE) {
-                // Appliquer la récursion uniquement, sans modifier le prix directement
-                applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, ingredientQuantity, isGrowth, new HashSet<>(visitedItems), lastResults, depth + 1);
-            } else if (buyTypeDynaShop == DynaShopType.LINK || sellTypeDynaShop == DynaShopType.LINK) {
-                // Pour les liens, on applique la récursion mais on ne modifie pas le prix
-                handleLinkedPrice(ingredientShopID, ingredientID, ingredient, isGrowth ? ShopAction.BUY : ShopAction.SELL, ingredientQuantity);
-            } else {
-                // Traiter selon le type d'ingrédient (uniquement pour les non-recettes)
-                processIngredient(ingredientShopID, ingredientID, ingredientPrice, ingredientType, ingredientQuantity, isGrowth);
+            // if (buyTypeDynaShop == DynaShopType.RECIPE || sellTypeDynaShop == DynaShopType.RECIPE) {
+            //     // Appliquer la récursion uniquement, sans modifier le prix directement
+            //     applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, ingredientQuantity, isGrowth, new HashSet<>(visitedItems), lastResults, depth + 1);
+            // } else if (buyTypeDynaShop == DynaShopType.LINK || sellTypeDynaShop == DynaShopType.LINK) {
+            //     // Pour les liens, on applique la récursion mais on ne modifie pas le prix
+            //     handleLinkedPrice(ingredientShopID, ingredientID, ingredient, isGrowth ? ShopAction.BUY : ShopAction.SELL, ingredientQuantity);
+            // } else {
+            //     // Traiter selon le type d'ingrédient (uniquement pour les non-recettes)
+            //     processIngredient(ingredientShopID, ingredientID, ingredientPrice, ingredientType, ingredientQuantity, isGrowth);
                 
-                // Sauvegarder les modifications
-                plugin.getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice, true);
+            //     // Sauvegarder les modifications
+            //     plugin.getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice, true);
+            // }
+
+            switch (buyTypeDynaShop) {
+              case DynaShopType.RECIPE -> {
+                  // Appliquer la récursion uniquement, sans modifier le prix directement
+                  applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, ingredientQuantity, isGrowth, visitedItems, lastResults, depth + 1);
+              }
+              case DynaShopType.LINK -> {
+                  // Pour les liens, on applique la récursion mais on ne modifie pas le prix
+                  handleLinkedPrice(ingredientShopID, ingredientID, ingredient, isGrowth ? ShopAction.BUY : ShopAction.SELL, ingredientQuantity);
+              }
+              default -> {
+                  // Traiter selon le type d'ingrédient (uniquement pour les non-recettes)
+                  processIngredient(ingredientShopID, ingredientID, ingredientPrice, ingredientType, ingredientQuantity, isGrowth);
+                  
+                  // Sauvegarder les modifications
+                  plugin.getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice, true);
+              }
+            }
+
+            switch (sellTypeDynaShop) {
+              case DynaShopType.RECIPE -> {
+                  // Appliquer la récursion uniquement, sans modifier le prix directement
+                  applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, ingredientQuantity, isGrowth, visitedItems, lastResults, depth + 1);
+              }
+              case DynaShopType.LINK -> {
+                  // Pour les liens, on applique la récursion mais on ne modifie pas le prix
+                  handleLinkedPrice(ingredientShopID, ingredientID, ingredient, isGrowth ? ShopAction.BUY : ShopAction.SELL, ingredientQuantity);
+              }
+              default -> {
+                  // Traiter selon le type d'ingrédient (uniquement pour les non-recettes)
+                  processIngredient(ingredientShopID, ingredientID, ingredientPrice, ingredientType, ingredientQuantity, isGrowth);
+                  
+                  // Sauvegarder les modifications
+                  plugin.getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice, true);
+              }
             }
 
         }
@@ -1877,5 +1921,4 @@ public class DynaShopListener implements Listener {
     //         }
     //     }
     // }
-
 }

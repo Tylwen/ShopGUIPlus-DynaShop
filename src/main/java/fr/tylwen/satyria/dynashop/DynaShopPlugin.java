@@ -20,7 +20,7 @@ import org.bukkit.entity.Player;
 // import org.bukkit.configuration.ConfigurationSection;
 // import org.bukkit.configuration.file.YamlConfiguration;
 // import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
+// import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
 // import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -95,7 +95,7 @@ import java.util.logging.Logger;
 
 // import javax.xml.crypto.Data;
 
-public class DynaShopPlugin extends JavaPlugin implements Listener {
+public class DynaShopPlugin extends JavaPlugin {
 
     // private static DynaShopPlugin instance;
     // private ShopGUIPlusHook shopGUIPlusHook;
@@ -384,7 +384,6 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
 
         // getServer().getPluginManager().registerEvents(new DynaShopListener(this), this);
         getServer().getPluginManager().registerEvents(this.dynaShopListener, this);
-        this.shopItemPlaceholderListener = new ShopItemPlaceholderListener(this);
         getServer().getPluginManager().registerEvents(this.shopItemPlaceholderListener, this);
 
         getCommand("dynashop").setExecutor(new DynaShopCommand(this));
@@ -437,6 +436,7 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
 
         // this.customRecipeManager = new CustomRecipeManager(this);
         this.dynaShopListener = new DynaShopListener(this);
+        this.shopItemPlaceholderListener = new ShopItemPlaceholderListener(this);
         this.priceRecipe = new PriceRecipe(this);
         this.priceStock = new PriceStock(this);
 
