@@ -2,14 +2,15 @@ package fr.tylwen.satyria.dynashop.command;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 // import fr.tylwen.satyria.dynashop.system.TransactionLimiter;
-import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionLimit;
+// import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionLimit;
+import fr.tylwen.satyria.dynashop.data.cache.LimitCacheEntry;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.util.concurrent.CompletableFuture;
+// import java.util.concurrent.CompletableFuture;
 import java.util.UUID;
 
 public class LimitSubCommand implements SubCommand {
@@ -96,51 +97,34 @@ public class LimitSubCommand implements SubCommand {
             String itemID = args[3];
             
             // Vérifier les limites pour l'achat
-            TransactionLimit buyLimit = plugin.getTransactionLimiter().getTransactionLimit(shopID, itemID, true);
-            if (buyLimit != null && buyLimit.getAmount() > 0) {
-                CompletableFuture<Integer> remainingBuy = plugin.getTransactionLimiter().getRemainingAmount(target, shopID, itemID, true);
-                CompletableFuture<Long> nextAvailableBuy = plugin.getTransactionLimiter().getNextAvailableTime(target, shopID, itemID, true);
-                // Integer remainingBuy = plugin.getTransactionLimiter().getRemainingAmountSync(target, shopID, itemID, true);
-                // Long nextAvailableBuy = plugin.getTransactionLimiter().getNextAvailableTimeSync(target, shopID, itemID, true);
+            LimitCacheEntry buyLimit = plugin.getTransactionLimiter().getTransactionLimit(target, shopID, itemID, true);
+            if (buyLimit != null && buyLimit.getLimit() > 0) {
+                sender.sendMessage(ChatColor.YELLOW + "Limites d'achat pour " + target.getName() + " sur " + shopID + ":" + itemID + ":");
+                sender.sendMessage(ChatColor.YELLOW + "  Limite totale: " + ChatColor.WHITE + buyLimit.baseLimit);
+                sender.sendMessage(ChatColor.YELLOW + "  Restant: " + ChatColor.WHITE + buyLimit.remaining);
                 
-                remainingBuy.thenCombine(nextAvailableBuy, (remaining, nextTime) -> {
-                    sender.sendMessage(ChatColor.YELLOW + "Limites d'achat pour " + target.getName() + " sur " + shopID + ":" + itemID + ":");
-                    sender.sendMessage(ChatColor.YELLOW + "  Limite totale: " + ChatColor.WHITE + buyLimit.getAmount());
-                    sender.sendMessage(ChatColor.YELLOW + "  Restant: " + ChatColor.WHITE + remaining);
-                    
-                    if (nextTime > 0) {
-                        String formattedTime = formatTime(nextTime / 1000);
-                        sender.sendMessage(ChatColor.YELLOW + "  Prochain reset dans: " + ChatColor.WHITE + formattedTime);
-                    } else {
-                        sender.sendMessage(ChatColor.YELLOW + "  Prochain reset: " + ChatColor.WHITE + "Disponible");
-                    }
-                    
-                    return null;
-                });
+                if (buyLimit.nextAvailable > 0) {
+                    String formattedTime = formatTime(buyLimit.nextAvailable / 1000);
+                    sender.sendMessage(ChatColor.YELLOW + "  Prochain reset dans: " + ChatColor.WHITE + formattedTime);
+                } else {
+                    sender.sendMessage(ChatColor.YELLOW + "  Prochain reset: " + ChatColor.WHITE + "Disponible");
+                }
             } else {
                 sender.sendMessage(ChatColor.YELLOW + "Aucune limite d'achat définie pour " + shopID + ":" + itemID);
             }
             
             // Vérifier les limites pour la vente
-            TransactionLimit sellLimit = plugin.getTransactionLimiter().getTransactionLimit(shopID, itemID, false);
-            if (sellLimit != null && sellLimit.getAmount() > 0) {
-                CompletableFuture<Integer> remainingSell = plugin.getTransactionLimiter().getRemainingAmount(target, shopID, itemID, false);
-                CompletableFuture<Long> nextAvailableSell = plugin.getTransactionLimiter().getNextAvailableTime(target, shopID, itemID, false);
-                
-                remainingSell.thenCombine(nextAvailableSell, (remaining, nextTime) -> {
-                    sender.sendMessage(ChatColor.YELLOW + "Limites de vente pour " + target.getName() + " sur " + shopID + ":" + itemID + ":");
-                    sender.sendMessage(ChatColor.YELLOW + "  Limite totale: " + ChatColor.WHITE + sellLimit.getAmount());
-                    sender.sendMessage(ChatColor.YELLOW + "  Restant: " + ChatColor.WHITE + remaining);
-                    
-                    if (nextTime > 0) {
-                        String formattedTime = formatTime(nextTime / 1000);
-                        sender.sendMessage(ChatColor.YELLOW + "  Prochain reset dans: " + ChatColor.WHITE + formattedTime);
-                    } else {
-                        sender.sendMessage(ChatColor.YELLOW + "  Prochain reset: " + ChatColor.WHITE + "Disponible");
-                    }
-                    
-                    return null;
-                });
+            LimitCacheEntry sellLimit = plugin.getTransactionLimiter().getTransactionLimit(target, shopID, itemID, false);
+            if (sellLimit != null && sellLimit.getLimit() > 0) {
+                sender.sendMessage(ChatColor.YELLOW + "Limites de vente pour " + target.getName() + " sur " + shopID + ":" + itemID + ":");
+                sender.sendMessage(ChatColor.YELLOW + "  Limite totale: " + ChatColor.WHITE + sellLimit.baseLimit);
+                sender.sendMessage(ChatColor.YELLOW + "  Restant: " + ChatColor.WHITE + sellLimit.remaining);
+                if (sellLimit.nextAvailable > 0) {
+                    String formattedTime = formatTime(sellLimit.nextAvailable / 1000);
+                    sender.sendMessage(ChatColor.YELLOW + "  Prochain reset dans: " + ChatColor.WHITE + formattedTime);
+                } else {
+                    sender.sendMessage(ChatColor.YELLOW + "  Prochain reset: " + ChatColor.WHITE + "Disponible");
+                }
             } else {
                 sender.sendMessage(ChatColor.YELLOW + "Aucune limite de vente définie pour " + shopID + ":" + itemID);
             }
@@ -180,7 +164,8 @@ public class LimitSubCommand implements SubCommand {
         
         if ("all".equals(target)) {
             sender.sendMessage(ChatColor.YELLOW + "Réinitialisation de toutes les limites pour tous les joueurs...");
-            plugin.getTransactionLimiter().cleanupExpiredTransactions();
+            // plugin.getTransactionLimiter().cleanupExpiredTransactions();
+            plugin.getTransactionLimiter().resetAllLimits();
             sender.sendMessage(ChatColor.GREEN + "Toutes les limites ont été réinitialisées.");
         } else {
             Player targetPlayer = Bukkit.getPlayer(target);

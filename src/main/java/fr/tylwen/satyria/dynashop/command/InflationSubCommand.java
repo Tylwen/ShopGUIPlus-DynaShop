@@ -38,7 +38,7 @@ public class InflationSubCommand implements SubCommand {
                 sender.sendMessage("§7Facteur actuel: §e" + String.format("%.4f", factor) + "x");
                 sender.sendMessage("§7Dernier ajustement: §e" + 
                     new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(
-                        new Date(plugin.getDataManager().getLastInflationUpdate())));
+                        new Date(plugin.getStorageManager().getLastInflationUpdate())));
                 break;
                 
             case "enable":

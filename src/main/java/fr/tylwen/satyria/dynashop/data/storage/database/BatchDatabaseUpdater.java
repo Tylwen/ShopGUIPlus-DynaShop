@@ -1,7 +1,7 @@
-package fr.tylwen.satyria.dynashop.database;
+package fr.tylwen.satyria.dynashop.data.storage.database;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
+// import java.sql.Connection;
+// import java.sql.PreparedStatement;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -65,19 +65,6 @@ public class BatchDatabaseUpdater {
                 }
             }
         });
-        // backgroundThread = Thread.startVirtualThread(() -> {
-        //     while (!Thread.currentThread().isInterrupted()) {
-        //         try {
-        //             flushUpdates();
-        //             Thread.sleep(1000); // Vérifier chaque seconde
-        //         } catch (InterruptedException e) {
-        //             Thread.currentThread().interrupt();
-        //             break;
-        //         } catch (Exception e) {
-        //             plugin.getLogger().severe("Error updating prices: " + e.getMessage());
-        //         }
-        //     }
-        // });
         backgroundThread.setDaemon(true);
         backgroundThread.setName("DynaShop-DBUpdater");
         backgroundThread.start();
@@ -156,7 +143,7 @@ public class BatchDatabaseUpdater {
         
         DynamicPrice price = pendingUpdates.computeIfAbsent(key, k -> {
             // Si on n'a pas d'objet price en attente, récupérer les valeurs de stock actuelles
-            Optional<Integer> stockOptional = plugin.getItemDataManager().getStock(shopID, itemID);
+            Optional<Integer> stockOptional = plugin.getStorageManager().getStock(shopID, itemID);
             int stock = stockOptional.orElse(0);
             
             return new DynamicPrice(buyPrice, sellPrice, stock);
@@ -170,6 +157,25 @@ public class BatchDatabaseUpdater {
         pendingUpdates.put(key, price);
         
         // plugin.getLogger().info("Prix mis en file d'attente pour mise à jour: " + shopID + ":" + itemID + " Buy: " + buyPrice + ", Sell: " + sellPrice);
+    }
+
+    public void queueStockUpdate(String shopID, String itemID, int stock) {
+        // Récupérer l'objet price existant ou en créer un nouveau
+        String key = shopID + ":" + itemID;
+        
+        DynamicPrice price = pendingUpdates.computeIfAbsent(key, k -> {
+            // Si on n'a pas d'objet price en attente, récupérer les valeurs de prix actuelles
+            Optional<DynamicPrice> priceOptional = plugin.getStorageManager().getPrices(shopID, itemID);
+            return priceOptional.orElse(new DynamicPrice(0.0, 0.0, stock));
+        });
+        
+        // Mettre à jour le stock
+        price.setStock(stock);
+        
+        // S'assurer que l'objet est dans la map des mises à jour en attente
+        pendingUpdates.put(key, price);
+        
+        // plugin.getLogger().info("Stock mis en file d'attente pour mise à jour: " + shopID + ":" + itemID + " Stock: " + stock);
     }
     
     // private void flushUpdates() {
@@ -202,84 +208,118 @@ public class BatchDatabaseUpdater {
     //         e.printStackTrace();
     //     }
     // }
+    // private void flushUpdates() {
+    //     if (pendingUpdates.isEmpty()) return;
+        
+    //     Map<String, DynamicPrice> updates = new HashMap<>(pendingUpdates);
+    //     pendingUpdates.clear();
+        
+    //     String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
+        
+    //     try (Connection connection = plugin.getDataManager().getConnection()) {
+    //         connection.setAutoCommit(false); // Démarre une transaction
+    //         // Préparer les requêtes pour chaque table
+    //         String buyPriceSQL = "REPLACE INTO " + tablePrefix + "_buy_prices (shopID, itemID, price) VALUES (?, ?, ?)";
+    //         String deleteBuySQL = "DELETE FROM " + tablePrefix + "_buy_prices WHERE shopID = ? AND itemID = ?";
+            
+    //         String sellPriceSQL = "REPLACE INTO " + tablePrefix + "_sell_prices (shopID, itemID, price) VALUES (?, ?, ?)";
+    //         String deleteSellSQL = "DELETE FROM " + tablePrefix + "_sell_prices WHERE shopID = ? AND itemID = ?";
+            
+    //         String stockSQL = "REPLACE INTO " + tablePrefix + "_stock (shopID, itemID, stock) VALUES (?, ?, ?)";
+            
+    //         // Préparer les statements
+    //         try (
+    //             PreparedStatement buyStmt = connection.prepareStatement(buyPriceSQL);
+    //             PreparedStatement deleteBuyStmt = connection.prepareStatement(deleteBuySQL);
+    //             PreparedStatement sellStmt = connection.prepareStatement(sellPriceSQL);
+    //             PreparedStatement deleteSellStmt = connection.prepareStatement(deleteSellSQL);
+    //             PreparedStatement stockStmt = connection.prepareStatement(stockSQL)
+    //         ) {
+    //             for (Map.Entry<String, DynamicPrice> entry : updates.entrySet()) {
+    //                 String[] parts = entry.getKey().split(":");
+    //                 String shopID = parts[0];
+    //                 String itemID = parts[1];
+    //                 DynamicPrice price = entry.getValue();
+                    
+    //                 // Gérer le prix d'achat (buyPrice)
+    //                 if (price.getBuyPrice() >= 0) {
+    //                     buyStmt.setString(1, shopID);
+    //                     buyStmt.setString(2, itemID);
+    //                     buyStmt.setDouble(3, price.getBuyPrice());
+    //                     buyStmt.addBatch();
+    //                 } else {
+    //                     // Supprimer l'entrée si le prix est négatif
+    //                     deleteBuyStmt.setString(1, shopID);
+    //                     deleteBuyStmt.setString(2, itemID);
+    //                     deleteBuyStmt.addBatch();
+    //                 }
+                    
+    //                 // Gérer le prix de vente (sellPrice)
+    //                 if (price.getSellPrice() >= 0) {
+    //                     sellStmt.setString(1, shopID);
+    //                     sellStmt.setString(2, itemID);
+    //                     sellStmt.setDouble(3, price.getSellPrice());
+    //                     sellStmt.addBatch();
+    //                 } else {
+    //                     // Supprimer l'entrée si le prix est négatif
+    //                     deleteSellStmt.setString(1, shopID);
+    //                     deleteSellStmt.setString(2, itemID);
+    //                     deleteSellStmt.addBatch();
+    //                 }
+                    
+    //                 // Toujours mettre à jour le stock
+    //                 stockStmt.setString(1, shopID);
+    //                 stockStmt.setString(2, itemID);
+    //                 stockStmt.setInt(3, price.getStock());
+    //                 stockStmt.addBatch();
+    //             }
+                
+    //             // Exécuter les lots
+    //             buyStmt.executeBatch();
+    //             deleteBuyStmt.executeBatch();
+    //             sellStmt.executeBatch();
+    //             deleteSellStmt.executeBatch();
+    //             stockStmt.executeBatch();
+    //             connection.commit(); // Valide la transaction
+    //         }
+    //     } catch (Exception e) {
+    //         // connection.rollback(); // Annule tout en cas d'erreur
+    //         plugin.getLogger().severe("Error updating prices: " + e.getMessage());
+    //         e.printStackTrace();
+    //     }
+    // }
+    
     private void flushUpdates() {
         if (pendingUpdates.isEmpty()) return;
         
+        // Copier les mises à jour en attente pour traitement
         Map<String, DynamicPrice> updates = new HashMap<>(pendingUpdates);
         pendingUpdates.clear();
         
-        String tablePrefix = plugin.getDataConfig().getDatabaseTablePrefix();
-        
-        try (Connection connection = plugin.getDataManager().getConnection()) {
-            connection.setAutoCommit(false); // Démarre une transaction
-            // Préparer les requêtes pour chaque table
-            String buyPriceSQL = "REPLACE INTO " + tablePrefix + "_buy_prices (shopID, itemID, price) VALUES (?, ?, ?)";
-            String deleteBuySQL = "DELETE FROM " + tablePrefix + "_buy_prices WHERE shopID = ? AND itemID = ?";
+        // Traiter chaque mise à jour avec le StorageManager
+        for (Map.Entry<String, DynamicPrice> entry : updates.entrySet()) {
+            String[] parts = entry.getKey().split(":");
+            if (parts.length != 2) continue;
             
-            String sellPriceSQL = "REPLACE INTO " + tablePrefix + "_sell_prices (shopID, itemID, price) VALUES (?, ?, ?)";
-            String deleteSellSQL = "DELETE FROM " + tablePrefix + "_sell_prices WHERE shopID = ? AND itemID = ?";
+            String shopID = parts[0];
+            String itemID = parts[1];
+            DynamicPrice price = entry.getValue();
             
-            String stockSQL = "REPLACE INTO " + tablePrefix + "_stock (shopID, itemID, stock) VALUES (?, ?, ?)";
-            
-            // Préparer les statements
-            try (
-                PreparedStatement buyStmt = connection.prepareStatement(buyPriceSQL);
-                PreparedStatement deleteBuyStmt = connection.prepareStatement(deleteBuySQL);
-                PreparedStatement sellStmt = connection.prepareStatement(sellPriceSQL);
-                PreparedStatement deleteSellStmt = connection.prepareStatement(deleteSellSQL);
-                PreparedStatement stockStmt = connection.prepareStatement(stockSQL)
-            ) {
-                for (Map.Entry<String, DynamicPrice> entry : updates.entrySet()) {
-                    String[] parts = entry.getKey().split(":");
-                    String shopID = parts[0];
-                    String itemID = parts[1];
-                    DynamicPrice price = entry.getValue();
-                    
-                    // Gérer le prix d'achat (buyPrice)
-                    if (price.getBuyPrice() >= 0) {
-                        buyStmt.setString(1, shopID);
-                        buyStmt.setString(2, itemID);
-                        buyStmt.setDouble(3, price.getBuyPrice());
-                        buyStmt.addBatch();
-                    } else {
-                        // Supprimer l'entrée si le prix est négatif
-                        deleteBuyStmt.setString(1, shopID);
-                        deleteBuyStmt.setString(2, itemID);
-                        deleteBuyStmt.addBatch();
-                    }
-                    
-                    // Gérer le prix de vente (sellPrice)
-                    if (price.getSellPrice() >= 0) {
-                        sellStmt.setString(1, shopID);
-                        sellStmt.setString(2, itemID);
-                        sellStmt.setDouble(3, price.getSellPrice());
-                        sellStmt.addBatch();
-                    } else {
-                        // Supprimer l'entrée si le prix est négatif
-                        deleteSellStmt.setString(1, shopID);
-                        deleteSellStmt.setString(2, itemID);
-                        deleteSellStmt.addBatch();
-                    }
-                    
-                    // Toujours mettre à jour le stock
-                    stockStmt.setString(1, shopID);
-                    stockStmt.setString(2, itemID);
-                    stockStmt.setInt(3, price.getStock());
-                    stockStmt.addBatch();
-                }
-                
-                // Exécuter les lots
-                buyStmt.executeBatch();
-                deleteBuyStmt.executeBatch();
-                sellStmt.executeBatch();
-                deleteSellStmt.executeBatch();
-                stockStmt.executeBatch();
-                connection.commit(); // Valide la transaction
+            try {
+                // Utiliser le StorageManager au lieu d'accéder directement à la base de données
+                // Cette méthode s'occupe de tous les détails spécifiques au stockage
+                plugin.getStorageManager().savePrice(
+                    shopID, 
+                    itemID, 
+                    price.getBuyPrice(), 
+                    price.getSellPrice(), 
+                    price.getStock()
+                );
+            } catch (Exception e) {
+                plugin.getLogger().severe("Erreur lors de la mise à jour du prix pour " + shopID + ":" + itemID + ": " + e.getMessage());
+                // Remettre dans la file d'attente pour réessayer plus tard
+                pendingUpdates.put(shopID + ":" + itemID, price);
             }
-        } catch (Exception e) {
-            // connection.rollback(); // Annule tout en cas d'erreur
-            plugin.getLogger().severe("Error updating prices: " + e.getMessage());
-            e.printStackTrace();
         }
     }
     

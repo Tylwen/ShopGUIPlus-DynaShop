@@ -11,7 +11,7 @@ public class DataConfig {
     private final String databaseUsername;
     private final String databasePassword;
     private final String databaseTablePrefix;
-    private final String databaseSqliteFile;
+    // private final String databaseSqliteFile;
 
     private final int dynamicPriceDuration;
     private final long guiRefreshDefaultItems;
@@ -41,14 +41,14 @@ public class DataConfig {
 
     public DataConfig(FileConfiguration config) {
         // Charger la configuration de la base de données
-        this.databaseType = config.getString("database.type", "sqlite").toLowerCase();
+        this.databaseType = config.getString("database.type", "flatfile").toLowerCase();
         this.databaseHost = config.getString("database.mysql.host", "localhost");
         this.databasePort = config.getInt("database.mysql.port", 3306);
         this.databaseName = config.getString("database.mysql.name", "dynashop");
         this.databaseUsername = config.getString("database.mysql.username", "root");
         this.databasePassword = config.getString("database.mysql.password", "");
         this.databaseTablePrefix = config.getString("database.table-prefix", "dynashop");
-        this.databaseSqliteFile = config.getString("database.sqlite.file", "dynashop.db");
+        // this.databaseSqliteFile = config.getString("database.sqlite.file", "dynashop.db");
 
         // Duration of dynamic pricing period (in seconds)
         this.dynamicPriceDuration = config.getInt("time-period", 5);
@@ -113,9 +113,9 @@ public class DataConfig {
         return databaseTablePrefix;
     }
 
-    public String getDatabaseSqliteFile() {
-        return databaseSqliteFile;
-    }
+    // public String getDatabaseSqliteFile() {
+    //     return databaseSqliteFile;
+    // }
 
     public int getDynamicPriceDuration() {
         return dynamicPriceDuration;

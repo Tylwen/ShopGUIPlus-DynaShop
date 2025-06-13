@@ -21,8 +21,6 @@ public class DynaShopCommand implements CommandExecutor {
         registerSubCommand(new ReloadSubCommand(plugin));
         registerSubCommand(new InflationSubCommand(plugin));
         registerSubCommand(new LimitSubCommand(plugin));
-        registerSubCommand(new MarketChartSubCommand(plugin));
-        registerSubCommand(new DualChartSubCommand(plugin));
         // Ajouter d'autres sous-commandes ici
         // if (plugin.getConfig().getBoolean("web-dashboard.enabled", true)) {
         //     registerSubCommand(new WebChartSubCommand(plugin));
@@ -53,7 +51,7 @@ public class DynaShopCommand implements CommandExecutor {
             sender.sendMessage("§aSuppression des données d'historique plus anciennes que " + days + " jours...");
             
             Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                plugin.getDataManager().purgeOldPriceHistory(days);
+                plugin.getStorageManager().purgeOldPriceHistory(days);
                 Bukkit.getScheduler().runTask(plugin, () -> 
                     sender.sendMessage("§aNettoyage terminé!")
                 );

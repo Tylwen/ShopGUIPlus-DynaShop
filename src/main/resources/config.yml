@@ -1,6 +1,6 @@
 # Database Configuration
 database:
-  type: SQLITE # MYSQL or SQLITE
+  type: FLATFILE # MYSQL or FLATFILE
   mysql:
     host: "localhost"
     port: 3306
@@ -8,8 +8,6 @@ database:
     table-prefix: "dynashop"
     username: "root"
     password: ""
-  sqlite:
-    file: "dynashop.db"
 
 web-dashboard:
   enabled: false # Enable or disable the web interface

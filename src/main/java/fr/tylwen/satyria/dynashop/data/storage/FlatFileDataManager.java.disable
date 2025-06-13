@@ -1,0 +1,137 @@
+package fr.tylwen.satyria.dynashop.data.storage;
+
+import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import fr.tylwen.satyria.dynashop.price.DynamicPrice;
+import fr.tylwen.satyria.dynashop.data.cache.LimitCacheEntry;
+import fr.tylwen.satyria.dynashop.data.storage.limit.LimitDataManager;
+import fr.tylwen.satyria.dynashop.data.storage.limit.TransactionDataManager;
+
+import com.google.gson.reflect.TypeToken;
+import org.bukkit.scheduler.BukkitTask;
+
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+/**
+ * Gestionnaire central pour toutes les données flatfile du plugin
+ */
+public class FlatFileDataManager {
+    private final DynaShopPlugin plugin;
+    private final File dataFolder;
+    
+    // Gestionnaires spécifiques
+    private final PriceDataManager priceManager;
+    private final StockDataManager stockManager;
+    private final LimitDataManager limitManager;
+    private final TransactionDataManager transactionManager;
+    private final PriceHistoryDataManager historyManager;
+    
+    // Contrôle des sauvegardes
+    private BukkitTask autoSaveTask;
+    private final AtomicBoolean saving = new AtomicBoolean(false);
+    private long lastSaveTime = 0;
+    
+    public FlatFileDataManager(DynaShopPlugin plugin) {
+        this.plugin = plugin;
+        this.dataFolder = new File(plugin.getDataFolder(), "data");
+        if (!dataFolder.exists()) {
+            dataFolder.mkdirs();
+        }
+        
+        // Initialiser les gestionnaires
+        this.priceManager = new PriceDataManager(new File(dataFolder, "prices.json"));
+        this.stockManager = new StockDataManager(new File(dataFolder, "stocks.json"));
+        this.limitManager = new LimitDataManager(new File(dataFolder, "limits.json"));
+        this.transactionManager = new TransactionDataManager(new File(dataFolder, "transactions"));
+        this.historyManager = new PriceHistoryDataManager(new File(dataFolder, "history"));
+    }
+    
+    /**
+     * Charge toutes les données au démarrage
+     */
+    public void loadAll() {
+        plugin.getLogger().info("Chargement des données depuis les fichiers plats...");
+        priceManager.load();
+        stockManager.load();
+        limitManager.load();
+        transactionManager.load();
+        historyManager.load();
+    }
+    
+    /**
+     * Sauvegarde toutes les données
+     */
+    public void saveAll() {
+        if (saving.compareAndSet(false, true)) {
+            try {
+                plugin.getLogger().info("Sauvegarde des données vers les fichiers plats...");
+                priceManager.save();
+                stockManager.save();
+                limitManager.save();
+                transactionManager.save();
+                historyManager.save();
+                lastSaveTime = System.currentTimeMillis();
+            } finally {
+                saving.set(false);
+            }
+        }
+    }
+    
+    /**
+     * Démarre une tâche de sauvegarde automatique
+     */
+    public void startAutoSave(long intervalTicks) {
+        if (autoSaveTask != null) {
+            autoSaveTask.cancel();
+        }
+        
+        autoSaveTask = plugin.getServer().getScheduler().runTaskTimerAsynchronously(
+            plugin, 
+            this::saveAll, 
+            intervalTicks, 
+            intervalTicks
+        );
+    }
+    
+    /**
+     * Arrête les sauvegardes et ferme proprement
+     */
+    public void shutdown() {
+        if (autoSaveTask != null) {
+            autoSaveTask.cancel();
+            autoSaveTask = null;
+        }
+        
+        // Sauvegarde finale synchrone pour éviter la perte de données
+        if (System.currentTimeMillis() - lastSaveTime > TimeUnit.SECONDS.toMillis(30)) {
+            saveAll();
+        }
+    }
+    
+    // Getters pour les différents gestionnaires
+    public PriceDataManager getPriceManager() {
+        return priceManager;
+    }
+    
+    public StockDataManager getStockManager() {
+        return stockManager;
+    }
+    
+    public LimitDataManager getLimitManager() {
+        return limitManager;
+    }
+    
+    public TransactionDataManager getTransactionManager() {
+        return transactionManager;
+    }
+    
+    public PriceHistoryDataManager getHistoryManager() {
+        return historyManager;
+    }
+}

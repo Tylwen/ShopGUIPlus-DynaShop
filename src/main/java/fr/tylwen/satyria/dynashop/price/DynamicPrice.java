@@ -11,7 +11,7 @@ import net.brcdev.shopgui.modifier.PriceModifierActionType;
 import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.item.ShopItem;
 
-public class DynamicPrice {
+public class DynamicPrice implements Cloneable {
 
     private double buyPrice, sellPrice;
     private double minBuy, maxBuy, minSell, maxSell;
@@ -128,6 +128,15 @@ public class DynamicPrice {
     public DynamicPrice(double buyPrice, double sellPrice, int stock) {
         this(buyPrice, sellPrice, 0.0, Double.MAX_VALUE, 0.0, Double.MAX_VALUE, 1.0, 1.0, 1.0, 1.0,
             stock, 0, Integer.MAX_VALUE, 1.0, 1.0);
+    }
+    
+    public DynamicPrice clone() {
+        try {
+            return (DynamicPrice) super.clone();
+        } catch (CloneNotSupportedException e) {
+            // Cette exception ne devrait jamais se produire car nous implémentons Cloneable
+            throw new RuntimeException("Erreur lors du clonage de DynamicPrice", e);
+        }
     }
     
     public void applyDecay(int amount) {

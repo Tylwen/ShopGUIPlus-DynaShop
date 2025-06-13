@@ -15,7 +15,7 @@ import org.bstats.charts.AdvancedPie;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
-import org.bukkit.event.HandlerList;
+// import org.bukkit.event.HandlerList;
 // import org.bukkit.event.HandlerList;
 // import org.bukkit.configuration.ConfigurationSection;
 // import org.bukkit.configuration.file.YamlConfiguration;
@@ -27,7 +27,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
 import de.tr7zw.changeme.nbtapi.NBT;
-import fr.tylwen.satyria.dynashop.cache.CacheManager;
 import fr.tylwen.satyria.dynashop.command.DynaShopCommand;
 // import fr.tylwen.satyria.dynashop.command.WebChartSubCommand;
 // import fr.tylwen.satyria.dynashop.command.LimitResetCommand;
@@ -40,35 +39,33 @@ import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 // import fr.tylwen.satyria.dynashop.config.Lang;
 // import fr.tylwen.satyria.dynashop.config.Settings;
 import fr.tylwen.satyria.dynashop.data.ShopConfigManager;
+import fr.tylwen.satyria.dynashop.data.cache.CacheManager;
+import fr.tylwen.satyria.dynashop.data.cache.LimitCacheEntry;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
-import fr.tylwen.satyria.dynashop.data.storage.LimitDataManager;
-import fr.tylwen.satyria.dynashop.data.storage.LimitNextAvailableTimeCacheDataManager;
-import fr.tylwen.satyria.dynashop.data.storage.LimitRemainingAmountCacheDataManager;
-import fr.tylwen.satyria.dynashop.data.storage.PriceDataManager;
-import fr.tylwen.satyria.dynashop.data.storage.StockDataManager;
-import fr.tylwen.satyria.dynashop.database.BatchDatabaseUpdater;
-import fr.tylwen.satyria.dynashop.database.DataManager;
-import fr.tylwen.satyria.dynashop.database.ItemDataManager;
+// import fr.tylwen.satyria.dynashop.data.storage.FlatFileDataManager;
+import fr.tylwen.satyria.dynashop.data.storage.FlatFileStorageManager;
+import fr.tylwen.satyria.dynashop.data.storage.MySQLStorageManager;
+// import fr.tylwen.satyria.dynashop.data.storage.LimitNextAvailableTimeCacheDataManager;
+// import fr.tylwen.satyria.dynashop.data.storage.LimitRemainingAmountCacheDataManager;
+// import fr.tylwen.satyria.dynashop.data.storage.PriceDataManager;
+// import fr.tylwen.satyria.dynashop.data.storage.StockDataManager;
+import fr.tylwen.satyria.dynashop.data.storage.StorageManager;
+import fr.tylwen.satyria.dynashop.data.storage.database.BatchDatabaseUpdater;
+// import fr.tylwen.satyria.dynashop.database.DataManager;
+// import fr.tylwen.satyria.dynashop.database.ItemDataManager;
 // import fr.tylwen.satyria.dynashop.gui.ShopRefreshManager;
 import fr.tylwen.satyria.dynashop.hook.DynaShopExpansion;
 // import fr.tylwen.satyria.dynashop.hook.DynaShopItemProvider;
 import fr.tylwen.satyria.dynashop.hook.ShopGUIPlusHook;
 // import fr.tylwen.satyria.dynashop.hook.ShopItemProcessor;
 import fr.tylwen.satyria.dynashop.listener.DynaShopListener;
-import fr.tylwen.satyria.dynashop.listener.MarketChartZoomListener;
+// import fr.tylwen.satyria.dynashop.listener.MarketChartZoomListener;
 import fr.tylwen.satyria.dynashop.listener.ShopItemPlaceholderListener;
 import fr.tylwen.satyria.dynashop.price.PriceRecipe;
 import fr.tylwen.satyria.dynashop.price.PriceStock;
 import fr.tylwen.satyria.dynashop.system.InflationManager;
 import fr.tylwen.satyria.dynashop.system.TaxService;
 import fr.tylwen.satyria.dynashop.system.TransactionLimiter;
-import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionLimit;
-import fr.tylwen.satyria.dynashop.system.chart.MarketChartRenderer;
-import fr.tylwen.satyria.dynashop.system.chart.PriceHistory;
-// import fr.tylwen.satyria.dynashop.packet.ItemPacketInterceptor;
-// import fr.tylwen.satyria.dynashop.utils.CommentedConfiguration;
-// import fr.tylwen.satyria.dynashop.task.ReloadDatabaseTask;
-// import fr.tylwen.satyria.dynashop.task.DynamicPricesTask;
 import fr.tylwen.satyria.dynashop.task.WaitForShopsTask;
 import fr.tylwen.satyria.dynashop.utils.PriceFormatter;
 import fr.tylwen.satyria.dynashop.web.MarketWebServer;
@@ -86,6 +83,7 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 // import java.util.Map;
 // import java.util.concurrent.ConcurrentHashMap;
 // import java.util.concurrent.ExecutorService;
@@ -99,40 +97,97 @@ import java.util.logging.Logger;
 
 public class DynaShopPlugin extends JavaPlugin implements Listener {
 
+    // private static DynaShopPlugin instance;
+    // private ShopGUIPlusHook shopGUIPlusHook;
+    // private YamlConfiguration configMain;
+    // private YamlConfiguration configLang;
+    // // private final Map<ShopItem, DynamicPrice> priceMap = new HashMap<>();
+
+    // private DataManager dataManager;
+    // private FlatFileDataManager flatFileManager;
+
+    // private BatchDatabaseUpdater batchDatabaseUpdater;
+    // private ShopConfigManager shopConfigManager;
+    // private ItemDataManager itemDataManager;
+    // private PriceRecipe priceRecipe;
+    // private PriceStock priceStock;
+    // private DataConfig dataConfig;
+    // private LangConfig langConfig;
+    // // private CustomRecipeManager customRecipeManager;
+    // private Logger logger;
+    // // private CommentedConfiguration config;
+    // private DynaShopListener dynaShopListener;
+    // private ShopItemPlaceholderListener shopItemPlaceholderListener;
+    // private DynaShopExpansion placeholderExpansion;
+    // private TransactionLimiter transactionLimiter;
+    // private TaxService taxService;
+    // private InflationManager inflationManager;
+    // // private ShopRefreshManager shopRefreshManager;
+    // // private ItemPacketInterceptor packetInterceptor;
+    // private PriceFormatter priceFormatter;
+    // // private CustomIngredientsManager customIngredientsManager;
+
+    // private int dynamicPricesTaskId;
+    // private int waitForShopsTaskId;
+    
+    // private MarketWebServer webServer;
+    // private int webServerPort = 7070; // Port par défaut
+
+    // // private RecipeCacheManager recipeCacheManager;
+    
+    // private String cacheMode;
+    // private CacheManager<String, DynamicPrice> priceCache;
+    // private CacheManager<String, List<ItemStack>> recipeCache;
+    // private CacheManager<String, Double> calculatedPriceCache;
+    // private CacheManager<String, Integer> stockCache;
+    // private CacheManager<String, Map<String, String>> displayPriceCache;
+    // private CacheManager<String, LimitCacheEntry> limitCache;
+    // // private CacheManager<String, TransactionLimit> limitCache;
+    // // private CacheManager<String, Integer> limitRemainingAmountCache;
+    // // private CacheManager<String, Long> limitNextAvailableTimeCache;
+
+    // // FLATFILES
+    // private PriceDataManager priceDataManager;
+    // private LimitDataManager limitDataManager;
+    // private StockDataManager stockDataManager;
+    // // private LimitRemainingAmountCacheDataManager limitRemainingAmountCacheDataManager;
+    // // private LimitNextAvailableTimeCacheDataManager limitNextAvailableTimeCacheDataManager;
+
+    // // public DynaShopPlugin() {
+    // //     this.config = new CommentedConfiguration();
+    // //     // this.configMain = new Config(this, "config.yml", "config.yml");
+    // //     // this.configLang = new Config(this, "lang.yml", "lang.yml");
+    // // }
+    
     private static DynaShopPlugin instance;
     private ShopGUIPlusHook shopGUIPlusHook;
     private YamlConfiguration configMain;
     private YamlConfiguration configLang;
-    // private final Map<ShopItem, DynamicPrice> priceMap = new HashMap<>();
-    private DataManager dataManager;
+
+    // Gestionnaires de stockage unifiés
+    private StorageManager storageManager;
+    
     private BatchDatabaseUpdater batchDatabaseUpdater;
     private ShopConfigManager shopConfigManager;
-    private ItemDataManager itemDataManager;
+    // private ItemDataManager itemDataManager;
     private PriceRecipe priceRecipe;
     private PriceStock priceStock;
     private DataConfig dataConfig;
     private LangConfig langConfig;
-    // private CustomRecipeManager customRecipeManager;
     private Logger logger;
-    // private CommentedConfiguration config;
     private DynaShopListener dynaShopListener;
     private ShopItemPlaceholderListener shopItemPlaceholderListener;
     private DynaShopExpansion placeholderExpansion;
     private TransactionLimiter transactionLimiter;
     private TaxService taxService;
     private InflationManager inflationManager;
-    // private ShopRefreshManager shopRefreshManager;
-    // private ItemPacketInterceptor packetInterceptor;
     private PriceFormatter priceFormatter;
-    // private CustomIngredientsManager customIngredientsManager;
 
     private int dynamicPricesTaskId;
     private int waitForShopsTaskId;
     
     private MarketWebServer webServer;
     private int webServerPort = 7070; // Port par défaut
-
-    // private RecipeCacheManager recipeCacheManager;
     
     private String cacheMode;
     private CacheManager<String, DynamicPrice> priceCache;
@@ -140,22 +195,11 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     private CacheManager<String, Double> calculatedPriceCache;
     private CacheManager<String, Integer> stockCache;
     private CacheManager<String, Map<String, String>> displayPriceCache;
-    private CacheManager<String, TransactionLimit> limitCache;
-    private CacheManager<String, Integer> limitRemainingAmountCache;
-    private CacheManager<String, Long> limitNextAvailableTimeCache;
-
-    // FLATFILES
-    private PriceDataManager priceDataManager;
-    private LimitDataManager limitDataManager;
-    private StockDataManager stockDataManager;
-    private LimitRemainingAmountCacheDataManager limitRemainingAmountCacheDataManager;
-    private LimitNextAvailableTimeCacheDataManager limitNextAvailableTimeCacheDataManager;
-
-    // public DynaShopPlugin() {
-    //     this.config = new CommentedConfiguration();
-    //     // this.configMain = new Config(this, "config.yml", "config.yml");
-    //     // this.configLang = new Config(this, "lang.yml", "lang.yml");
-    // }
+    private CacheManager<String, LimitCacheEntry> limitCache;
+    
+    // // Pour la compatibilité avec l'ancien système
+    // private DataManager dataManager;
+    // private FlatFileStorageManager flatFileManager;
 
     public static DynaShopPlugin getInstance() {
         return instance;
@@ -180,13 +224,13 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         return priceFormatter;
     }
 
-    public DataManager getDataManager() {
-        return this.dataManager;
-    }
+    // public DataManager getDataManager() {
+    //     return this.dataManager;
+    // }
     
-    public ItemDataManager getItemDataManager() {
-        return this.itemDataManager;
-    }
+    // public ItemDataManager getItemDataManager() {
+    //     return this.itemDataManager;
+    // }
 
     public BatchDatabaseUpdater getBatchDatabaseUpdater() {
         return this.batchDatabaseUpdater;
@@ -281,31 +325,35 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     }
 
     // FLATFILES
-    public PriceDataManager getPriceDataManager() {
-        return this.priceDataManager;
+    // public FlatFileDataManager getFlatFileManager() {
+    //     return this.flatFileManager;
+    // }
+
+    // public PriceDataManager getPriceDataManager() {
+    //     return this.priceDataManager;
+    // }
+
+    // public LimitDataManager getLimitDataManager() {
+    //     return this.limitDataManager;
+    // }
+
+    // public StockDataManager getStockDataManager() {
+    //     return this.stockDataManager;
+    // }
+
+    public StorageManager getStorageManager() {
+        return this.storageManager;
     }
 
-    public LimitDataManager getLimitDataManager() {
-        return this.limitDataManager;
-    }
+    // Cache getters
 
-    public StockDataManager getStockDataManager() {
-        return this.stockDataManager;
+    public static String getLimitCacheKey(UUID playerUuid, String shopId, String itemId, boolean isBuy) {
+        return playerUuid + ":" + shopId + ":" + itemId + ":" + (isBuy ? "buy" : "sell");
     }
 
 
     @Override
     public void onEnable() {
-        // // Vérifier si ShopGUIPlus est installé
-        // Plugin shopGuiPlus = getServer().getPluginManager().getPlugin("ShopGUIPlus");
-        // if (shopGuiPlus == null) {
-        //     getLogger().severe("ShopGUIPlus n'est pas installé ou activé. Le plugin DynaShop ne peut pas fonctionner.");
-        //     getServer().getPluginManager().disablePlugin(this);
-        //     return;
-        // }
-        // if (instance != null) {
-        //     throw new IllegalStateException("DynaShopPlugin instance already initialized!");
-        // }
         instance = this;
         this.logger = getLogger();
         init();
@@ -315,8 +363,6 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         hookIntoShopGUIPlus();
 
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            // new DynaShopExpansion(this.itemDataManager, this.shopConfigManager, this.priceRecipe).register();
-            // new DynaShopExpansion(this).register();
             this.placeholderExpansion = new DynaShopExpansion(this);
             this.placeholderExpansion.register();
             getLogger().info("Placeholders enregistrés avec PlaceholderAPI !");
@@ -334,38 +380,17 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
             webServer.start();
             
             getLogger().info("Dashboard web démarré sur le port " + webServerPort);
-            // registerWebCommands();
-            // DynaShopCommand.registerSubCommand(new WebChartSubCommand(this));
         }
-        // // Initialiser le serveur web si activé
-        // if (getConfig().getBoolean("web-dashboard.enabled", false)) {
-        //     if (!getDataConfig().getDatabaseType().equalsIgnoreCase("sqlite")) {
-        //         webServerPort = getConfig().getInt("web-dashboard.port", 7070);
-        //         webServer = new MarketWebServer(this, webServerPort);
-        //         webServer.start();
-                
-        //         // getLogger().info("Dashboard web démarré sur le port " + webServerPort);
-        //         getLogger().info("Web dashboard started on port " + webServerPort);
-        //         // registerWebCommands();
-        //         // DynaShopCommand.registerSubCommand(new WebChartSubCommand(this));
-        //     } else {
-        //         // getLogger().warning("Le tableau de bord web n'est pas disponible en mode SQLite. Veuillez utiliser MySQL pour activer cette fonctionnalité.");
-        //         getLogger().warning("Web dashboard is not available in SQLite mode. Please use MySQL to enable this feature.");
-        //     }
-        // }
 
         // getServer().getPluginManager().registerEvents(new DynaShopListener(this), this);
         getServer().getPluginManager().registerEvents(this.dynaShopListener, this);
         this.shopItemPlaceholderListener = new ShopItemPlaceholderListener(this);
         getServer().getPluginManager().registerEvents(this.shopItemPlaceholderListener, this);
-        getServer().getPluginManager().registerEvents(new MarketChartZoomListener(this), this);
 
         getCommand("dynashop").setExecutor(new DynaShopCommand(this));
-        // getCommand("dynashop").setExecutor(new LimitResetCommand(this));
-        // getCommand("dynashop").setExecutor(new ReloadSubCommand(this));
-        // getCommand("dynashop").setTabCompleter(new ReloadCommand(this));
 
-        this.dataManager.initDatabase();
+        // Initialiser le stockage
+        storageManager.initialize();
 
         // Utiliser un executor service commun avec un nombre limité de threads
         // ExecutorService sharedExecutor = Executors.newFixedThreadPool(3);
@@ -380,13 +405,13 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         getServer().getScheduler().runTaskTimerAsynchronously(this, () -> {
                 // Purger l'historique plus vieux que 30 jours (configurable)
                 int daysToKeep = getConfig().getInt("history.retention-days", 30);
-                getDataManager().purgeOldPriceHistory(daysToKeep);
+                storageManager.purgeOldPriceHistory(daysToKeep);
             },
             20L * 60L * 60L * 3L,  // Délai initial: 3 heures après le démarrage
             20L * 60L * 60L * 24L  // Exécution toutes les 24 heures
         );
 
-        Bukkit.getScheduler().runTaskTimerAsynchronously(this, this::flushAllCachesToFiles, 6000L, 6000L); // Toutes les 5 minutes (6000 ticks)
+        Bukkit.getScheduler().runTaskTimerAsynchronously(this, this::flushAllCachesToStorage, 6000L, 6000L); // Toutes les 5 minutes (6000 ticks)
 
         getLogger().info("DynaShop activé avec succès !");
     }
@@ -401,8 +426,8 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         this.stockCache = new CacheManager<>(this, "stockCache", 5, TimeUnit.MINUTES, 5);
         this.displayPriceCache = new CacheManager<>(this, "displayPriceCache", 2, TimeUnit.MINUTES, 20);
         this.limitCache = new CacheManager<>(this, "limitCache", 5, TimeUnit.MINUTES, 10);
-        this.limitRemainingAmountCache = new CacheManager<>(this, "limitRemainingAmountCache", 5, TimeUnit.MINUTES, 10);
-        this.limitNextAvailableTimeCache = new CacheManager<>(this, "limitNextAvailableTimeCache", 5, TimeUnit.MINUTES, 10);
+        // this.limitRemainingAmountCache = new CacheManager<>(this, "limitRemainingAmountCache", 5, TimeUnit.MINUTES, 10);
+        // this.limitNextAvailableTimeCache = new CacheManager<>(this, "limitNextAvailableTimeCache", 5, TimeUnit.MINUTES, 10);
 
         // this.shopConfigManager = new ShopConfigManager(new File(Bukkit.getPluginManager().getPlugin("ShopGUIPlus").getDataFolder(), "shops/"));
         // this.shopConfigManager = new ShopConfigManager(new File(ShopGuiPlusApi.getPlugin().getConfigShops().getConfig().getCurrentPath(), "shops/"));
@@ -414,8 +439,25 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         this.dynaShopListener = new DynaShopListener(this);
         this.priceRecipe = new PriceRecipe(this);
         this.priceStock = new PriceStock(this);
-        this.dataManager = new DataManager(this);
-        this.itemDataManager = new ItemDataManager(this.dataManager);
+
+        // Initialiser le gestionnaire de stockage approprié
+        if (dataConfig.getDatabaseType().equalsIgnoreCase("flatfile")) {
+            // Initialiser le gestionnaire de fichiers plats
+            // this.flatFileManager = new FlatFileStorageManager(this);
+            this.storageManager = new FlatFileStorageManager(this);
+            
+            // // Pour la compatibilité avec l'ancien code
+            // this.dataManager = new DataManager(this);
+        } else {
+            // Initialiser le gestionnaire MySQL
+            this.storageManager = new MySQLStorageManager(this);
+            
+            // // Pour la compatibilité avec l'ancien code
+            // this.dataManager = new DataManager(this);
+            // this.flatFileManager = null;
+        }
+
+        // this.itemDataManager = new ItemDataManager(this.dataManager);
         this.batchDatabaseUpdater = new BatchDatabaseUpdater(this);
         this.transactionLimiter = new TransactionLimiter(this);
         this.taxService = new TaxService(this);
@@ -426,16 +468,16 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         // this.shopRefreshManager = new ShopRefreshManager(this);
         // preloadPopularItems();
 
-        // Initialiser les FLATFILES pour les données
-        File dataDir = new File(getDataFolder(), "data");
-        if (!dataDir.exists()) {
-            dataDir.mkdirs();
-        }
-        this.priceDataManager = new PriceDataManager(new File(dataDir, "prices.json"));
-        this.limitDataManager = new LimitDataManager(new File(dataDir, "limits.json"));
-        this.stockDataManager = new StockDataManager(new File(dataDir, "stocks.json"));
-        this.limitRemainingAmountCacheDataManager = new LimitRemainingAmountCacheDataManager(new File(getDataFolder(), "limit_remaining_amount.json"));
-        this.limitNextAvailableTimeCacheDataManager = new LimitNextAvailableTimeCacheDataManager(new File(getDataFolder(), "limit_next_available_time.json"));
+        // // Initialiser les FLATFILES pour les données
+        // File dataDir = new File(getDataFolder(), "data");
+        // if (!dataDir.exists()) {
+        //     dataDir.mkdirs();
+        // }
+        // this.priceDataManager = new PriceDataManager(new File(dataDir, "prices.json"));
+        // this.limitDataManager = new LimitDataManager(new File(dataDir, "limits.json"));
+        // this.stockDataManager = new StockDataManager(new File(dataDir, "stocks.json"));
+        // // this.limitRemainingAmountCacheDataManager = new LimitRemainingAmountCacheDataManager(new File(getDataFolder(), "limit_remaining_amount.json"));
+        // // this.limitNextAvailableTimeCacheDataManager = new LimitNextAvailableTimeCacheDataManager(new File(getDataFolder(), "limit_next_available_time.json"));
     }
 
     private void initCache() {
@@ -449,8 +491,8 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         int stockDuration = configMain.getInt("cache.durations.stock", 20);
         int calculatedDuration = configMain.getInt("cache.durations.calculated", 60);
         int limitDuration = configMain.getInt("cache.durations.limit", 30); // Durée pour le cache des limites
-        int limitRemainingAmountDuration = configMain.getInt("cache.durations.limit", 30); // Durée pour le cache des limites
-        int limitNextAvailableTimeDuration = configMain.getInt("cache.durations.limit", 30); // Durée pour le cache des temps d'attente
+        // int limitRemainingAmountDuration = configMain.getInt("cache.durations.limit", 30); // Durée pour le cache des limites
+        // int limitNextAvailableTimeDuration = configMain.getInt("cache.durations.limit", 30); // Durée pour le cache des temps d'attente
         
         // Initialiser les caches avec ces durées
         if (cacheMode.equalsIgnoreCase("realtime")) {
@@ -461,8 +503,8 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
             stockDuration = 5;
             calculatedDuration = 10;
             limitDuration = 5; // Durée pour le cache des limites
-            limitRemainingAmountDuration = 5; // Durée pour le cache des limites
-            limitNextAvailableTimeDuration = 5; // Durée pour le cache des temps d'attente
+            // limitRemainingAmountDuration = 5; // Durée pour le cache des limites
+            // limitNextAvailableTimeDuration = 5; // Durée pour le cache des temps d'attente
         }
         priceCache = new CacheManager<>(this, "PriceCache", priceDuration, TimeUnit.SECONDS, 10);
         recipeCache = new CacheManager<>(this, "RecipeCache", recipeDuration, TimeUnit.SECONDS, 5);
@@ -470,33 +512,78 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         stockCache = new CacheManager<>(this, "StockCache", stockDuration, TimeUnit.SECONDS, 10);
         displayPriceCache = new CacheManager<>(this, "DisplayPriceCache", displayDuration, TimeUnit.SECONDS, 15);
         limitCache = new CacheManager<>(this, "LimitCache", limitDuration, TimeUnit.SECONDS, 10);
-        limitRemainingAmountCache = new CacheManager<>(this, "LimitRemainingAmountCache", limitRemainingAmountDuration, TimeUnit.SECONDS, 10);
-        limitNextAvailableTimeCache = new CacheManager<>(this, "LimitNextAvailableTimeCache", limitNextAvailableTimeDuration, TimeUnit.SECONDS, 10);
+        // limitRemainingAmountCache = new CacheManager<>(this, "LimitRemainingAmountCache", limitRemainingAmountDuration, TimeUnit.SECONDS, 10);
+        // limitNextAvailableTimeCache = new CacheManager<>(this, "LimitNextAvailableTimeCache", limitNextAvailableTimeDuration, TimeUnit.SECONDS, 10);
 
         // initTranslation();
-        MarketChartRenderer.clearMapCache();
+        // MarketChartRenderer.clearMapCache();
 
-        // Init des caches FLATFILES
-        this.priceDataManager.load();
-        for (Map.Entry<String, DynamicPrice> entry : priceDataManager.getAll().entrySet()) {
-            priceCache.put(entry.getKey(), entry.getValue());
+        // // Init des caches FLATFILES
+        // this.priceDataManager.load();
+        // for (Map.Entry<String, DynamicPrice> entry : priceDataManager.getAll().entrySet()) {
+        //     priceCache.put(entry.getKey(), entry.getValue());
+        // }
+        // this.limitDataManager.load();
+        // for (Map.Entry<String, LimitCacheEntry> entry : limitDataManager.getAll().entrySet()) {
+        //     limitCache.put(entry.getKey(), entry.getValue());
+        // }
+        // // for (Map.Entry<String, TransactionLimit> entry : limitDataManager.getAll().entrySet()) {
+        // //     limitCache.put(entry.getKey(), entry.getValue());
+        // // }
+        // this.stockDataManager.load();
+        // for (Map.Entry<String, Integer> entry : stockDataManager.getAll().entrySet()) {
+        //     stockCache.put(entry.getKey(), entry.getValue());
+        // }
+        // this.limitRemainingAmountCacheDataManager.load();
+        // for (Map.Entry<String, Integer> entry : limitRemainingAmountCacheDataManager.getAll().entrySet()) {
+        //     limitRemainingAmountCache.put(entry.getKey(), entry.getValue());
+        // }
+        // this.limitNextAvailableTimeCacheDataManager.load();
+        // for (Map.Entry<String, Long> entry : limitNextAvailableTimeCacheDataManager.getAll().entrySet()) {
+        //     limitNextAvailableTimeCache.put(entry.getKey(), entry.getValue());
+        // }
+        // Charger les données de stockage dans le cache
+        loadDataFromStorageToCache();
+    }
+    
+    /**
+     * Charge les données depuis le stockage vers le cache
+     */
+    private void loadDataFromStorageToCache() {
+        // Charger les prix
+        Map<ShopItem, DynamicPrice> prices = storageManager.loadAllPrices();
+        if (prices != null) {
+            for (Map.Entry<ShopItem, DynamicPrice> entry : prices.entrySet()) {
+                if (entry.getKey() != null && entry.getValue() != null) {
+                    ShopItem item = entry.getKey();
+                    String key = item.getShop().getId() + ":" + item.getId();
+                    priceCache.put(key, entry.getValue());
+                }
+            }
+            
+            // Les stocks sont déjà inclus dans les prix
+            for (Map.Entry<ShopItem, DynamicPrice> entry : prices.entrySet()) {
+                if (entry.getKey() != null && entry.getValue() != null) {
+                    ShopItem item = entry.getKey();
+                    String key = item.getShop().getId() + ":" + item.getId();
+                    stockCache.put(key, entry.getValue().getStock());
+                }
+            }
         }
-        this.limitDataManager.load();
-        for (Map.Entry<String, TransactionLimit> entry : limitDataManager.getAll().entrySet()) {
-            limitCache.put(entry.getKey(), entry.getValue());
-        }
-        this.stockDataManager.load();
-        for (Map.Entry<String, Integer> entry : stockDataManager.getAll().entrySet()) {
-            stockCache.put(entry.getKey(), entry.getValue());
-        }
-        this.limitRemainingAmountCacheDataManager.load();
-        for (Map.Entry<String, Integer> entry : limitRemainingAmountCacheDataManager.getAll().entrySet()) {
-            limitRemainingAmountCache.put(entry.getKey(), entry.getValue());
-        }
-        this.limitNextAvailableTimeCacheDataManager.load();
-        for (Map.Entry<String, Long> entry : limitNextAvailableTimeCacheDataManager.getAll().entrySet()) {
-            limitNextAvailableTimeCache.put(entry.getKey(), entry.getValue());
-        }
+        // for (Map.Entry<ShopItem, DynamicPrice> entry : prices.entrySet()) {
+        //     ShopItem item = entry.getKey();
+        //     String key = item.getShop().getId() + ":" + item.getId();
+        //     priceCache.put(key, entry.getValue());
+        // }
+        
+        // // Les stocks sont déjà inclus dans les prix
+        // for (Map.Entry<ShopItem, DynamicPrice> entry : prices.entrySet()) {
+        //     ShopItem item = entry.getKey();
+        //     String key = item.getShop().getId() + ":" + item.getId();
+        //     stockCache.put(key, entry.getValue().getStock());
+        // }
+        
+        // Les limites sont gérées via le TransactionLimiter et se remplissent à la demande
     }
 
     // Getters pour les caches
@@ -519,18 +606,22 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     public CacheManager<String, Map<String, String>> getDisplayPriceCache() {
         return displayPriceCache;
     }
-
-    public CacheManager<String, TransactionLimit> getLimitCache() {
+    
+    public CacheManager<String, LimitCacheEntry> getLimitCache() {
         return limitCache;
     }
 
-    public CacheManager<String, Integer> getLimitRemainingAmountCache() {
-        return limitRemainingAmountCache;
-    }
+    // public CacheManager<String, TransactionLimit> getLimitCache() {
+    //     return limitCache;
+    // }
 
-    public CacheManager<String, Long> getLimitNextAvailableTimeCache() {
-        return limitNextAvailableTimeCache;
-    }
+    // public CacheManager<String, Integer> getLimitRemainingAmountCache() {
+    //     return limitRemainingAmountCache;
+    // }
+
+    // public CacheManager<String, Long> getLimitNextAvailableTimeCache() {
+    //     return limitNextAvailableTimeCache;
+    // }
 
     public void invalidatePriceCache(String shopId, String itemId, Player player) {
         String baseKey = shopId + ":" + itemId;
@@ -540,10 +631,6 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
             String playerKey = baseKey + ":" + player.getUniqueId().toString();
             priceCache.invalidate(playerKey);
             displayPriceCache.invalidate(playerKey);
-            // limitRemainingAmountCache.invalidate(playerKey);
-            // limitNextAvailableTimeCache.invalidate(playerKey);
-            limitRemainingAmountCache.invalidateWithPrefix(playerKey);
-            limitNextAvailableTimeCache.invalidateWithPrefix(playerKey);
         }
         
         // Invalider également les caches généraux (sans joueur spécifique)
@@ -552,16 +639,14 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         calculatedPriceCache.invalidateWithPrefix(baseKey);
         displayPriceCache.invalidateWithPrefix(baseKey);
         limitCache.invalidateWithPrefix(baseKey);
-        limitRemainingAmountCache.invalidateWithPrefix(baseKey);
-        limitNextAvailableTimeCache.invalidateWithPrefix(baseKey);
         stockCache.invalidateWithPrefix(baseKey);
         
         // Si c'est une recette, invalider le cache des ingrédients aussi
         if (getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.RECIPE) {
             recipeCache.invalidate(baseKey);
         }
-        
-        getLogger().fine("Cache invalidé pour " + baseKey);
+
+        debug("Cache invalidé pour " + baseKey);
     }
 
     public void load() {
@@ -596,14 +681,6 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         this.configMain = YamlConfiguration.loadConfiguration(configFile);
         // this.configMain = new Config(this, "config.yml");
         // this.configLang = new Config(this, "lang.yml");
-
-        
-        // Mettre à jour la configuration avec les valeurs par défaut pour le web dashboard
-        if (!getConfig().isSet("web-dashboard")) {
-            getConfig().set("web-dashboard.enabled", true);
-            getConfig().set("web-dashboard.port", 8080);
-            saveConfig();
-        }
     }
 
     public void initTranslation() {
@@ -738,78 +815,64 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     //     }));
     }
 
-    public void reloadDatabase() {
+    public void reloadData() {
+        // IMPORTANT: Sauvegarder toutes les données en cache avant de fermer le stockage
+        if (storageManager != null) {
+            flushAllCachesToStorage();
+        }
+
         // Arrêter les threads liés à la base
         if (batchDatabaseUpdater != null) batchDatabaseUpdater.shutdown();
-        if (transactionLimiter != null) transactionLimiter.shutdown();
-        if (dataManager != null) dataManager.closeDatabase();
+        if (storageManager != null) storageManager.shutdown();
 
         // Réinitialiser les objets liés à la base
-        dataManager = new DataManager(this);
-        itemDataManager = new ItemDataManager(dataManager);
-        batchDatabaseUpdater = new BatchDatabaseUpdater(this);
-        transactionLimiter = new TransactionLimiter(this);
+        if (dataConfig.getDatabaseType().equalsIgnoreCase("flatfile")) {
+            this.storageManager = new FlatFileStorageManager(this);
+        } else {
+            this.storageManager = new MySQLStorageManager(this);
+        }
 
-        // Réinitialiser les caches si besoin
+        // this.itemDataManager = new ItemDataManager(storageManager);
+        this.batchDatabaseUpdater = new BatchDatabaseUpdater(this);
+        this.transactionLimiter = new TransactionLimiter(this);
+
+        // Réinitialiser les caches
         initCache();
 
-        // Réinitialiser la connexion
-        dataManager.initDatabase();
+        // Initialiser le stockage
+        storageManager.initialize();
 
-        // getLogger().info("Base de données DynaShop rechargée complètement.");
+
         getLogger().info("DynaShop database reloaded successfully.");
     }
 
-    public void flushAllCachesToFiles() {
-        getLogger().fine("Sauvegarde périodique du cache dans les fichiers...");
-        // Prix
-        if (priceDataManager != null && priceCache != null) {
-            for (String key : priceCache.keySet()) {
-                DynamicPrice price = priceCache.getIfPresent(key);
-                if (price != null) {
-                    priceDataManager.setPrice(key, price);
+    /**
+     * Synchronise les données du cache avec le stockage persistant
+     */
+    public void flushAllCachesToStorage() {
+        getLogger().fine("Sauvegarde périodique du cache vers le stockage...");
+        
+        // Synchroniser les prix
+        for (String key : priceCache.keySet()) {
+            DynamicPrice price = priceCache.getIfPresent(key);
+            if (price != null) {
+                String[] parts = key.split(":");
+                if (parts.length == 2) {
+                    String shopId = parts[0];
+                    String itemId = parts[1];
+                    
+                    // Sauvegarder le prix
+                    storageManager.savePrice(shopId, itemId, 
+                                           price.getBuyPrice(), 
+                                           price.getSellPrice(), 
+                                           price.getStock());
                 }
             }
-            priceDataManager.save();
         }
-        // Limites
-        if (limitDataManager != null && limitCache != null) {
-            for (String key : limitCache.keySet()) {
-                TransactionLimit limit = limitCache.getIfPresent(key);
-                if (limit != null) {
-                    limitDataManager.setLimit(key, limit);
-                }
-            }
-            limitDataManager.save();
-        }
-        // Stock
-        if (stockDataManager != null && stockCache != null) {
-            for (String key : stockCache.keySet()) {
-                Integer stock = stockCache.getIfPresent(key);
-                if (stock != null) {
-                    stockDataManager.setStock(key, stock);
-                }
-            }
-            stockDataManager.save();
-        }
-        if (limitRemainingAmountCacheDataManager != null && limitRemainingAmountCache != null) {
-            for (String key : limitRemainingAmountCache.keySet()) {
-                Integer value = limitRemainingAmountCache.getIfPresent(key);
-                if (value != null) {
-                    limitRemainingAmountCacheDataManager.setRemaining(key, value);
-                }
-            }
-            limitRemainingAmountCacheDataManager.save();
-        }
-        if (limitNextAvailableTimeCacheDataManager != null && limitNextAvailableTimeCache != null) {
-            for (String key : limitNextAvailableTimeCache.keySet()) {
-                Long value = limitNextAvailableTimeCache.getIfPresent(key);
-                if (value != null) {
-                    limitNextAvailableTimeCacheDataManager.setNextAvailable(key, value);
-                }
-            }
-            limitNextAvailableTimeCacheDataManager.save();
-        }
+        
+        // Les stocks sont inclus dans les prix, pas besoin de les sauvegarder séparément
+        
+        // Les limites sont gérées automatiquement par le TransactionLimiter
     }
 
     @Override
@@ -825,50 +888,34 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
             getServer().getScheduler().cancelTask(waitForShopsTaskId);
             getLogger().info("Tâche WaitForShopsTask annulée (ID: " + waitForShopsTaskId + ")");
         }
-
-        // if (shopRefreshManager != null) {
-        //     shopRefreshManager.shutdown();
-        // }
         
         // Arrêter le gestionnaire de mises à jour en batch
         if (batchDatabaseUpdater != null) {
             batchDatabaseUpdater.shutdown();
         }
+        
         // Arrêter le TransactionLimiter (flush + arrêt thread)
         if (transactionLimiter != null) {
             transactionLimiter.shutdown();
         }
+        
         if (shopItemPlaceholderListener != null) {
             shopItemPlaceholderListener.shutdown();
         }
-
-        // if (dynaShopListener != null) {
-        //     HandlerList.unregisterAll(this.dynaShopListener);
-        // }
-        // this.dynaShopListener = null;
-
-        // if (packetInterceptor != null) {
-        //     // packetInterceptor.clearCache();
-        //     packetInterceptor.shutdown();
-        // }
         
         // Arrêter le serveur web si actif
         if (webServer != null) {
             webServer.stop();
         }
         
-        // // Finaliser tous les points d'historique en cours
-        // for (PriceHistory history : dataManager.getAllPriceHistories()) {
-        //     history.finalizeCurrentPoint();
-        // }
-        
-        // dataManager.savePricesToDatabase(priceMap);
-        if (dataManager != null) {
-            dataManager.closeDatabase();
+        // Fermer proprement le système de stockage
+        if (storageManager != null) {
+            // Synchroniser les caches avant de fermer
+            flushAllCachesToStorage();
+            
+            // Fermer le système de stockage
+            storageManager.shutdown();
         }
-
-        // Save du cache FLATFILES
-        flushAllCachesToFiles();
         
         // Nettoyer les caches
         priceCache.clear();
@@ -877,13 +924,6 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         stockCache.clear();
         displayPriceCache.clear();
         limitCache.clear();
-        limitRemainingAmountCache.clear();
-        limitNextAvailableTimeCache.clear();
-        MarketChartRenderer.clearMapCache();
-
-        // HandlerList.unregisterAll(this);
-
-        // getServer().getPluginManager().disablePlugin(this);
     }
 
     private void hookIntoShopGUIPlus() {
@@ -895,14 +935,6 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
         } else {
             this.getLogger().warning("ShopGUI+ not found.");
         }
-
-        // // Enregistrer notre processeur d'items
-        // ShopGuiPlugin shopGuiPlugin = (ShopGuiPlugin) getServer().getPluginManager().getPlugin("ShopGUIPlus");
-        // if (shopGuiPlugin != null) {
-        //     ShopItemProcessor itemProcessor = new ShopItemProcessor(this);
-        //     shopGuiPlugin.getItemManager().setProvider(itemProcessor);
-        //     getLogger().info("DynaShop ItemProcessor enregistré avec ShopGUIPlus !");
-        // }
     }
 
     public void severe(String string) {
@@ -915,6 +947,12 @@ public class DynaShopPlugin extends JavaPlugin implements Listener {
     
     public void info(String string) {
         this.logger.info(string);
+    }
+
+    public void debug(String string) {
+        if (getConfigMain().getBoolean("debug", false)) {
+            this.logger.fine(string);
+        }
     }
 
     // public double getCachedRecipePrice(String shopID, String itemID, String priceType) {

@@ -419,10 +419,10 @@ public class MarketWebServer {
             
             List<PriceDataPoint> dataPoints;
             if (plugin.getDataConfig().getDatabaseType().equalsIgnoreCase("sqlite")) {
-                PriceHistory history = plugin.getDataManager().getPriceHistory(shopId, itemId);
+                PriceHistory history = plugin.getStorageManager().getPriceHistory(shopId, itemId);
                 dataPoints = history.getDataPoints();
             } else {
-                dataPoints = plugin.getDataManager().getAggregatedPriceHistory(shopId, itemId, interval, startTime, maxPoints);
+                dataPoints = plugin.getStorageManager().getAggregatedPriceHistory(shopId, itemId, interval, startTime, maxPoints);
             }
 
             // PriceHistory history = plugin.getDataManager().getPriceHistory(shopId, itemId);
@@ -485,7 +485,7 @@ public class MarketWebServer {
             return;
         }
         
-        PriceHistory history = plugin.getDataManager().getPriceHistory(shopId, itemId);
+        PriceHistory history = plugin.getStorageManager().getPriceHistory(shopId, itemId);
         List<PriceDataPoint> dataPoints = history.getDataPoints();
         
         Map<String, Object> stats = new HashMap<>();

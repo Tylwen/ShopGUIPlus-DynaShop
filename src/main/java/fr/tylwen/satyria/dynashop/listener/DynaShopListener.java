@@ -50,6 +50,7 @@ import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 import fr.tylwen.satyria.dynashop.data.ItemPriceData;
 import fr.tylwen.satyria.dynashop.data.ShopConfigManager;
+import fr.tylwen.satyria.dynashop.data.cache.LimitCacheEntry;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.price.PriceRecipe;
 import fr.tylwen.satyria.dynashop.price.PriceRecipe.FoundItem;
@@ -296,29 +297,49 @@ public class DynaShopListener implements Listener {
             processTransactionAsync(shopID, itemID, itemStack, amount, action);
         });
         
+        // // Après avoir modifié le prix dans le cache :
+        // DynamicPrice updatedPrice = plugin.getPriceCache().getIfPresent(shopID + ":" + itemID);
+        // if (updatedPrice != null) {
+        //     plugin.getPriceDataManager().set(shopID + ":" + itemID, updatedPrice);
+        //     plugin.getPriceDataManager().save(); // Sauvegarde asynchrone (voir PriceDataManager)
+        // }
+        // Integer stock = plugin.getStockCache().getIfPresent(shopID + ":" + itemID);
+        // if (stock != null && stock >= 0) {
+        //     plugin.getStockDataManager().set(shopID + ":" + itemID, stock);
+        //     plugin.getStockDataManager().save(); // Sauvegarde asynchrone (voir StockDataManager)
+        // }
+
+        // // Enregistrer la transaction si l'item a des limites
+        // if (plugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
+        //     // plugin.getTransactionLimiter().recordTransaction(player, shopID, itemID, isBuy, amount);
+        //     plugin.getTransactionLimiter().queueTransaction(player, shopID, itemID, isBuy, amount);
+            
+        //     // Récupérer la limite du cache et la sauvegarder
+        //     final String cacheKey = DynaShopPlugin.getLimitCacheKey(player.getUniqueId(), shopID, itemID, isBuy);
+        //     LimitCacheEntry limitEntry = plugin.getLimitCache().getIfPresent(cacheKey);
+            
+        //     if (limitEntry != null) {
+        //         // Gérer le cache des limites avec la nouvelle structure
+        //         plugin.getLimitDataManager().set(cacheKey, limitEntry);
+        //         plugin.getLimitDataManager().save(); // Sauvegarde asynchrone (voir LimitDataManager)
+        //     }
+        // }
+
         // Après avoir modifié le prix dans le cache :
         DynamicPrice updatedPrice = plugin.getPriceCache().getIfPresent(shopID + ":" + itemID);
         if (updatedPrice != null) {
-            plugin.getPriceDataManager().setPrice(shopID + ":" + itemID, updatedPrice);
-            plugin.getPriceDataManager().save(); // Sauvegarde asynchrone (voir PriceDataManager)
+            // Utiliser directement le StorageManager au lieu de PriceDataManager
+            plugin.getStorageManager().savePrice(shopID, itemID, updatedPrice.getBuyPrice(), updatedPrice.getSellPrice(), updatedPrice.getStock());
         }
         Integer stock = plugin.getStockCache().getIfPresent(shopID + ":" + itemID);
         if (stock != null && stock >= 0) {
-            plugin.getStockDataManager().setStock(shopID + ":" + itemID, stock);
-            plugin.getStockDataManager().save(); // Sauvegarde asynchrone (voir StockDataManager)
+            // Utiliser directement le StorageManager au lieu de StockDataManager
+            plugin.getStorageManager().saveStock(shopID, itemID, stock);
         }
-
         // Enregistrer la transaction si l'item a des limites
         if (plugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
-            // plugin.getTransactionLimiter().recordTransaction(player, shopID, itemID, isBuy, amount);
+            // Pas de changement ici - le TransactionLimiter utilise déjà le StorageManager en interne
             plugin.getTransactionLimiter().queueTransaction(player, shopID, itemID, isBuy, amount);
-            // TransactionLimiter.TransactionLimit transactionLimit = plugin.getTransactionLimiter().getTransactionLimit(shopID, itemID, isBuy);
-            TransactionLimiter.TransactionLimit transactionLimit = plugin.getLimitCache().getIfPresent(shopID + ":" + itemID);
-            if (transactionLimit != null) {
-                // Gérer le cache des limites
-                plugin.getLimitDataManager().setLimit(shopID + ":" + itemID, transactionLimit);
-                plugin.getLimitDataManager().save(); // Sauvegarde asynchrone (voir LimitDataManager)
-            }
         }
 
         // // Enregistrer la transaction dans les logs
@@ -501,15 +522,146 @@ public class DynaShopListener implements Listener {
         
         price.setBuyPrice(newBuyPrice);
         price.setSellPrice(newSellPrice);
-        price.setStock(plugin.getItemDataManager().getStock(shopID, itemID).orElse(0));
+        price.setStock(plugin.getStorageManager().getStock(shopID, itemID).orElse(0));
         
         // plugin.getLogger().info("APRÈS - Stock: " + price.getStock() + ", Buy: " + price.getBuyPrice() + ", Sell: " + price.getSellPrice());
     }
 
+    // private void handleLinkedPrice(String shopID, String itemID, ItemStack itemStack, ShopAction action, int amount) {
+    //     // Implémenter la logique pour les prix liés si nécessaire
+    //     // plugin.getLogger().info("Traitement des prix liés pour l'item " + itemID + " dans le shop " + shopID);
+    //     // Vous pouvez ajouter votre logique ici pour gérer les prix liés
+    //     String linkedItemRef = shopConfigManager.getItemValue(shopID, itemID, "link", String.class).orElse(null);
+    //     if (linkedItemRef != null && linkedItemRef.contains(":")) {
+    //         String[] parts = linkedItemRef.split(":");
+    //         if (parts.length == 2) {
+    //             String linkedShopID = parts[0];
+    //             String linkedItemID = parts[1];
+                
+    //             // Charger le prix du shop lié
+    //             // DynamicPrice linkedPrice = getOrLoadPrice(linkedShopID, linkedItemID, itemStack);
+    //             DynamicPrice linkedPrice = getOrLoadPriceInternal(null, linkedShopID, linkedItemID, itemStack, new HashSet<>(), new HashMap<>(), false);
+    //             if (linkedPrice != null) {
+    //                 DynaShopType linkedType = shopConfigManager.resolveTypeDynaShop(linkedShopID, linkedItemID, ShopAction.BUY == action);
+    //                 if (linkedType == DynaShopType.DYNAMIC) {
+    //                     // Gérer les prix dynamiques liés
+    //                     handleDynamicPrice(linkedPrice, action, amount);
+    //                 // } else if (linkedType == DynaShopType.RECIPE || linkedPrice.isFromRecipe()) {
+    //                 } else if (linkedType == DynaShopType.RECIPE) {
+    //                     // Gérer les prix basés sur les recettes liés
+    //                     handleRecipePrice(linkedShopID, linkedItemID, amount, action);
+    //                 // } else if (linkedType == DynaShopType.STOCK || linkedType == DynaShopType.STATIC_STOCK || linkedPrice.isFromStock()) {
+    //                 } else if (linkedType == DynaShopType.STOCK || linkedType == DynaShopType.STATIC_STOCK) {
+    //                     // Gérer les prix basés sur le stock lié
+    //                     handleStockPrice(linkedPrice, linkedShopID, linkedItemID, action, amount);
+    //                 }
+                    
+    //                 // Sauvegarder les modifications de l'item lié
+    //                 // if (!linkedPrice.isFromRecipe()) {
+    //                 if (linkedPrice.getDynaShopType() != DynaShopType.RECIPE) {
+    //                     plugin.getBatchDatabaseUpdater().queueUpdate(linkedShopID, linkedItemID, linkedPrice, true);
+    //                 }
+                    
+    //                 // AJOUT: Créer une copie du prix lié pour l'item principal
+    //                 DynamicPrice copyForMainItem = new DynamicPrice(
+    //                     linkedPrice.getBuyPrice(), linkedPrice.getSellPrice(),
+    //                     linkedPrice.getMinBuyPrice(), linkedPrice.getMaxBuyPrice(),
+    //                     linkedPrice.getMinSellPrice(), linkedPrice.getMaxSellPrice(),
+    //                     linkedPrice.getGrowthBuy(), linkedPrice.getDecayBuy(),
+    //                     linkedPrice.getGrowthSell(), linkedPrice.getDecaySell(),
+    //                     linkedPrice.getStock(), linkedPrice.getMinStock(), linkedPrice.getMaxStock(),
+    //                     linkedPrice.getStockBuyModifier(), linkedPrice.getStockSellModifier()
+    //                 );
+                    
+    //                 // Conserver les flags spéciaux
+    //                 // copyForMainItem.setFromRecipe(linkedPrice.isFromRecipe());
+    //                 // copyForMainItem.setFromStock(linkedPrice.isFromStock());
+    //                 copyForMainItem.setDynaShopType(linkedPrice.getDynaShopType());
+                    
+    //                 // AJOUT: Sauvegarder également cette copie pour l'item principal
+    //                 // if (!copyForMainItem.isFromRecipe()) {
+    //                 if (copyForMainItem.getDynaShopType() != DynaShopType.RECIPE) {
+    //                     plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, copyForMainItem, true);
+    //                 }
+                    
+    //                 // AJOUT: Invalider le cache pour l'item lié ET l'item qui a le lien
+    //                 plugin.invalidatePriceCache(linkedShopID, linkedItemID, null);
+    //                 plugin.invalidatePriceCache(shopID, itemID, null);
+    //             }
+    //         } else {
+    //             plugin.getLogger().warning("Invalid link reference for item " + itemID + " in shop " + shopID + ": " + linkedItemRef);
+    //         }
+    //     } else {
+    //         plugin.getLogger().warning("No link reference found for item " + itemID + " in shop " + shopID);
+    //     }
+    // }
+    // private void handleLinkedPrice(String shopID, String itemID, ItemStack itemStack, ShopAction action, int amount) {
+    //     String linkedItemRef = shopConfigManager.getItemValue(shopID, itemID, "link", String.class).orElse(null);
+    //     if (linkedItemRef != null && linkedItemRef.contains(":")) {
+    //         String[] parts = linkedItemRef.split(":");
+    //         if (parts.length == 2) {
+    //             String linkedShopID = parts[0];
+    //             String linkedItemID = parts[1];
+                
+    //             // Charger le prix du shop lié
+    //             DynamicPrice linkedPrice = getOrLoadPriceInternal(null, linkedShopID, linkedItemID, itemStack, new HashSet<>(), new HashMap<>(), false);
+    //             if (linkedPrice != null) {
+    //                 DynaShopType linkedType = shopConfigManager.resolveTypeDynaShop(linkedShopID, linkedItemID, ShopAction.BUY == action);
+    //                 if (linkedType == DynaShopType.DYNAMIC) {
+    //                     handleDynamicPrice(linkedPrice, action, amount);
+    //                 } else if (linkedType == DynaShopType.RECIPE) {
+    //                     handleRecipePrice(linkedShopID, linkedItemID, amount, action);
+    //                 } else if (linkedType == DynaShopType.STOCK || linkedType == DynaShopType.STATIC_STOCK) {
+    //                     handleStockPrice(linkedPrice, linkedShopID, linkedItemID, action, amount);
+    //                 }
+                    
+    //                 // Sauvegarder les modifications de l'item lié
+    //                 if (linkedPrice.getDynaShopType() != DynaShopType.RECIPE) {
+    //                     plugin.getBatchDatabaseUpdater().queueUpdate(linkedShopID, linkedItemID, linkedPrice, true);
+    //                 }
+                    
+    //                 // AJOUT: Créer une copie du prix lié pour l'item principal
+    //                 DynamicPrice copyForMainItem = new DynamicPrice(
+    //                     linkedPrice.getBuyPrice(), linkedPrice.getSellPrice(),
+    //                     linkedPrice.getMinBuyPrice(), linkedPrice.getMaxBuyPrice(),
+    //                     linkedPrice.getMinSellPrice(), linkedPrice.getMaxSellPrice(),
+    //                     linkedPrice.getGrowthBuy(), linkedPrice.getDecayBuy(),
+    //                     linkedPrice.getGrowthSell(), linkedPrice.getDecaySell(),
+    //                     linkedPrice.getStock(), linkedPrice.getMinStock(), linkedPrice.getMaxStock(),
+    //                     linkedPrice.getStockBuyModifier(), linkedPrice.getStockSellModifier()
+    //                 );
+                    
+    //                 // Conserver les flags spéciaux
+    //                 // IMPORTANT: Pour un item LINK, on doit conserver le type LINK
+    //                 copyForMainItem.setDynaShopType(DynaShopType.LINK);
+                    
+    //                 // Mais aussi conserver l'information sur les types réels pour buy/sell
+    //                 copyForMainItem.setBuyTypeDynaShop(linkedPrice.getBuyTypeDynaShop());
+    //                 copyForMainItem.setSellTypeDynaShop(linkedPrice.getSellTypeDynaShop());
+                    
+    //                 // Sauvegarder directement via le StorageManager pour garantir la persistance
+    //                 plugin.getStorageManager().savePrice(
+    //                     shopID, 
+    //                     itemID, 
+    //                     copyForMainItem.getBuyPrice(), 
+    //                     copyForMainItem.getSellPrice(), 
+    //                     copyForMainItem.getStock()
+    //                 );
+                    
+    //                 // AJOUT: Invalider le cache pour l'item lié ET l'item qui a le lien
+    //                 plugin.invalidatePriceCache(linkedShopID, linkedItemID, null);
+    //                 plugin.invalidatePriceCache(shopID, itemID, null);
+                    
+    //                 // plugin.getLogger().info("Prix lié mis à jour pour " + shopID + ":" + itemID + " lié à " + linkedShopID + ":" + linkedItemID);
+    //             }
+    //         } else {
+    //             plugin.getLogger().warning("Format de lien invalide pour " + shopID + ":" + itemID + ": " + linkedItemRef);
+    //         }
+    //     } else {
+    //         plugin.getLogger().warning("Pas de référence de lien trouvée pour " + shopID + ":" + itemID);
+    //     }
+    // }
     private void handleLinkedPrice(String shopID, String itemID, ItemStack itemStack, ShopAction action, int amount) {
-        // Implémenter la logique pour les prix liés si nécessaire
-        // plugin.getLogger().info("Traitement des prix liés pour l'item " + itemID + " dans le shop " + shopID);
-        // Vous pouvez ajouter votre logique ici pour gérer les prix liés
         String linkedItemRef = shopConfigManager.getItemValue(shopID, itemID, "link", String.class).orElse(null);
         if (linkedItemRef != null && linkedItemRef.contains(":")) {
             String[] parts = linkedItemRef.split(":");
@@ -518,30 +670,39 @@ public class DynaShopListener implements Listener {
                 String linkedItemID = parts[1];
                 
                 // Charger le prix du shop lié
-                // DynamicPrice linkedPrice = getOrLoadPrice(linkedShopID, linkedItemID, itemStack);
                 DynamicPrice linkedPrice = getOrLoadPriceInternal(null, linkedShopID, linkedItemID, itemStack, new HashSet<>(), new HashMap<>(), false);
                 if (linkedPrice != null) {
-                    DynaShopType linkedType = shopConfigManager.resolveTypeDynaShop(linkedShopID, linkedItemID, ShopAction.BUY == action);
-                    if (linkedType == DynaShopType.DYNAMIC) {
-                        // Gérer les prix dynamiques liés
-                        handleDynamicPrice(linkedPrice, action, amount);
-                    // } else if (linkedType == DynaShopType.RECIPE || linkedPrice.isFromRecipe()) {
-                    } else if (linkedType == DynaShopType.RECIPE) {
-                        // Gérer les prix basés sur les recettes liés
-                        handleRecipePrice(linkedShopID, linkedItemID, amount, action);
-                    // } else if (linkedType == DynaShopType.STOCK || linkedType == DynaShopType.STATIC_STOCK || linkedPrice.isFromStock()) {
+                    // Traiter l'item lié selon son type
+                    DynaShopType linkedType = linkedPrice.getDynaShopType();
+                    DynaShopType buyTypeDynaShop = linkedPrice.getBuyTypeDynaShop();
+                    DynaShopType sellTypeDynaShop = linkedPrice.getSellTypeDynaShop();
+                    
+                    if (buyTypeDynaShop == DynaShopType.NONE || buyTypeDynaShop == DynaShopType.UNKNOWN) { buyTypeDynaShop = linkedType; }
+                    if (sellTypeDynaShop == DynaShopType.NONE || sellTypeDynaShop == DynaShopType.UNKNOWN) { sellTypeDynaShop = linkedType; }
+                    
+                    // Appliquer les modifications à l'item lié selon son type
+                    if (action == ShopAction.BUY && buyTypeDynaShop == DynaShopType.DYNAMIC) {
+                        linkedPrice.applyGrowth(amount);
+                    } else if ((action == ShopAction.SELL || action == ShopAction.SELL_ALL) && sellTypeDynaShop == DynaShopType.DYNAMIC) {
+                        linkedPrice.applyDecay(amount);
                     } else if (linkedType == DynaShopType.STOCK || linkedType == DynaShopType.STATIC_STOCK) {
-                        // Gérer les prix basés sur le stock lié
-                        handleStockPrice(linkedPrice, linkedShopID, linkedItemID, action, amount);
+                        if (action == ShopAction.BUY) {
+                            plugin.getPriceStock().processBuyTransaction(linkedShopID, linkedItemID, amount);
+                        } else {
+                            plugin.getPriceStock().processSellTransaction(linkedShopID, linkedItemID, amount);
+                        }
+                        updatePriceFromStock(linkedShopID, linkedItemID, linkedPrice);
+                    } else if (linkedType == DynaShopType.RECIPE) {
+                        // Appliquer la récursion pour les items RECIPE
+                        handleRecipePrice(linkedShopID, linkedItemID, amount, action);
                     }
                     
-                    // Sauvegarder les modifications de l'item lié
-                    // if (!linkedPrice.isFromRecipe()) {
-                    if (linkedPrice.getDynaShopType() != DynaShopType.RECIPE) {
+                    // Sauvegarder les modifications sur l'item lié
+                    if (linkedType != DynaShopType.RECIPE) {
                         plugin.getBatchDatabaseUpdater().queueUpdate(linkedShopID, linkedItemID, linkedPrice, true);
                     }
                     
-                    // AJOUT: Créer une copie du prix lié pour l'item principal
+                    // Créer une copie pour l'item principal
                     DynamicPrice copyForMainItem = new DynamicPrice(
                         linkedPrice.getBuyPrice(), linkedPrice.getSellPrice(),
                         linkedPrice.getMinBuyPrice(), linkedPrice.getMaxBuyPrice(),
@@ -553,25 +714,28 @@ public class DynaShopListener implements Listener {
                     );
                     
                     // Conserver les flags spéciaux
-                    // copyForMainItem.setFromRecipe(linkedPrice.isFromRecipe());
-                    // copyForMainItem.setFromStock(linkedPrice.isFromStock());
-                    copyForMainItem.setDynaShopType(linkedPrice.getDynaShopType());
+                    copyForMainItem.setDynaShopType(DynaShopType.LINK);
+                    copyForMainItem.setBuyTypeDynaShop(linkedPrice.getBuyTypeDynaShop());
+                    copyForMainItem.setSellTypeDynaShop(linkedPrice.getSellTypeDynaShop());
                     
-                    // AJOUT: Sauvegarder également cette copie pour l'item principal
-                    // if (!copyForMainItem.isFromRecipe()) {
-                    if (copyForMainItem.getDynaShopType() != DynaShopType.RECIPE) {
-                        plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, copyForMainItem, true);
-                    }
+                    // Sauvegarder directement via le StorageManager
+                    plugin.getStorageManager().savePrice(
+                        shopID, 
+                        itemID, 
+                        copyForMainItem.getBuyPrice(), 
+                        copyForMainItem.getSellPrice(), 
+                        copyForMainItem.getStock()
+                    );
                     
-                    // AJOUT: Invalider le cache pour l'item lié ET l'item qui a le lien
+                    // Invalider les caches
                     plugin.invalidatePriceCache(linkedShopID, linkedItemID, null);
                     plugin.invalidatePriceCache(shopID, itemID, null);
                 }
             } else {
-                plugin.getLogger().warning("Invalid link reference for item " + itemID + " in shop " + shopID + ": " + linkedItemRef);
+                plugin.getLogger().warning("Format de lien invalide pour " + shopID + ":" + itemID + ": " + linkedItemRef);
             }
         } else {
-            plugin.getLogger().warning("No link reference found for item " + itemID + " in shop " + shopID);
+            plugin.getLogger().warning("Pas de référence de lien trouvée pour " + shopID + ":" + itemID);
         }
     }
     
@@ -636,14 +800,18 @@ public class DynaShopListener implements Listener {
                 final String cacheKey = shopID + ":" + itemID + (player != null ? ":" + player.getUniqueId().toString() : "");
                 price = plugin.getPriceCache().get(cacheKey, () -> {
                     DynamicPrice p = loadPriceFromSourceInternal(player, shopID, itemID, itemStack, visited, lastResults);
-                    if (p != null && player != null) {
+                    // Ne pas appliquer les modificateurs si c'est un LINK (ils seront appliqués plus tard)
+                    DynaShopType type = p != null ? p.getDynaShopType() : null;
+                    if (p != null && player != null && type != DynaShopType.LINK) {
                         p.applyShopGuiPlusModifiers(player, shopID, itemID);
                     }
                     return p;
                 });
             } else {
                 price = loadPriceFromSourceInternal(player, shopID, itemID, itemStack, visited, lastResults);
-                if (price != null && player != null) {
+                // Ne pas appliquer les modificateurs si c'est un LINK (ils seront appliqués plus tard)
+                DynaShopType type = price != null ? price.getDynaShopType() : null;
+                if (price != null && player != null && type != DynaShopType.LINK) {
                     price.applyShopGuiPlusModifiers(player, shopID, itemID);
                 }
             }
@@ -769,11 +937,11 @@ public class DynaShopListener implements Listener {
             }
         } else {
             // Charger les prix dynamiques depuis la base de données
-            Optional<DynamicPrice> priceFromDatabase = plugin.getItemDataManager().getItemValues(shopID, itemID);
-            
+            Optional<DynamicPrice> priceFromDatabase = plugin.getStorageManager().getPrices(shopID, itemID);
+
             // Charger les données supplémentaires depuis les fichiers de configuration
             ItemPriceData priceData = shopConfigManager.getItemAllValues(shopID, itemID);
-            
+
             buyPrice = priceFromDatabase.map(DynamicPrice::getBuyPrice).orElse(priceData.buyPrice.orElse(-1.0));
             minBuy = priceData.minBuy.orElse(buyPrice);
             maxBuy = priceData.maxBuy.orElse(buyPrice);
@@ -1032,7 +1200,7 @@ public class DynaShopListener implements Listener {
             }
         } else {
             // Charger les prix dynamiques depuis la base de données
-            Optional<DynamicPrice> priceFromDatabase = plugin.getItemDataManager().getItemValues(shopID, itemID);
+            Optional<DynamicPrice> priceFromDatabase = plugin.getStorageManager().getPrices(shopID, itemID);
             
             // Charger les données supplémentaires depuis les fichiers de configuration
             ItemPriceData priceData = shopConfigManager.getItemAllValues(shopID, itemID);
@@ -1242,14 +1410,13 @@ public class DynaShopListener implements Listener {
 
         // Éviter les boucles infinies - utiliser une clé composée
         String itemKey = shopID + ":" + itemID;
+        plugin.info("Applying growth/decay to ingredients for " + itemKey + " (depth: " + depth + ")");
 
         if (visitedItems.contains(itemKey)) {
             // plugin.getLogger().info("Boucle de recette détectée pour " + itemKey + ", arrêt de la récursion");
             return;
         }
         visitedItems.add(itemKey);
-        
-        // plugin.getLogger().info("Traitement des ingrédients pour " + shopID + ":" + itemID + " (profondeur: " + depth + ")");
 
         // Récupérer directement les ingrédients depuis PriceRecipe
         List<ItemStack> ingredients = plugin.getPriceRecipe().getIngredients(shopID, itemID);
@@ -1288,6 +1455,11 @@ public class DynaShopListener implements Listener {
                 continue;
             }
             DynaShopType ingredientType = ingredientPrice.getDynaShopType();
+            DynaShopType buyTypeDynaShop = ingredientPrice.getBuyTypeDynaShop();
+            DynaShopType sellTypeDynaShop = ingredientPrice.getSellTypeDynaShop();
+
+            if (buyTypeDynaShop == DynaShopType.NONE || buyTypeDynaShop == DynaShopType.UNKNOWN) buyTypeDynaShop = ingredientType;
+            if (sellTypeDynaShop == DynaShopType.NONE || sellTypeDynaShop == DynaShopType.UNKNOWN) sellTypeDynaShop = ingredientType;
 
             // // Si l'ingrédient est une recette, appliquer la récursion d'abord
             // if (isIngredientRecipe) {
@@ -1305,9 +1477,27 @@ public class DynaShopListener implements Listener {
             // }
             // Si l'ingrédient est une recette, appliquer la récursion d'abord
             // if (isIngredientRecipe) {
-            if (ingredientType == DynaShopType.RECIPE) {
+
+            // if (ingredientType == DynaShopType.RECIPE) {
+            //     // Appliquer la récursion uniquement, sans modifier le prix directement
+            //     applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, ingredientQuantity, isGrowth, new HashSet<>(visitedItems), lastResults, depth + 1);
+            // } else if (ingredientType == DynaShopType.LINK) {
+            //     // Pour les liens, on applique la récursion mais on ne modifie pas le prix
+            //     applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, ingredientQuantity, isGrowth, new HashSet<>(visitedItems), lastResults, depth + 1);
+            // } else {
+            //     // Traiter selon le type d'ingrédient (uniquement pour les non-recettes)
+            //     processIngredient(ingredientShopID, ingredientID, ingredientPrice, ingredientType, ingredientQuantity, isGrowth);
+                
+            //     // Sauvegarder les modifications
+            //     plugin.getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice, true);
+            // }
+
+            if (buyTypeDynaShop == DynaShopType.RECIPE || sellTypeDynaShop == DynaShopType.RECIPE) {
                 // Appliquer la récursion uniquement, sans modifier le prix directement
                 applyGrowthOrDecayToIngredients(ingredientShopID, ingredientID, ingredientQuantity, isGrowth, new HashSet<>(visitedItems), lastResults, depth + 1);
+            } else if (buyTypeDynaShop == DynaShopType.LINK || sellTypeDynaShop == DynaShopType.LINK) {
+                // Pour les liens, on applique la récursion mais on ne modifie pas le prix
+                handleLinkedPrice(ingredientShopID, ingredientID, ingredient, isGrowth ? ShopAction.BUY : ShopAction.SELL, ingredientQuantity);
             } else {
                 // Traiter selon le type d'ingrédient (uniquement pour les non-recettes)
                 processIngredient(ingredientShopID, ingredientID, ingredientPrice, ingredientType, ingredientQuantity, isGrowth);
@@ -1315,6 +1505,7 @@ public class DynaShopListener implements Listener {
                 // Sauvegarder les modifications
                 plugin.getBatchDatabaseUpdater().queueUpdate(ingredientShopID, ingredientID, ingredientPrice, true);
             }
+
         }
     }
 
@@ -1352,7 +1543,7 @@ public class DynaShopListener implements Listener {
         
         price.setBuyPrice(newBuyPrice);
         price.setSellPrice(newSellPrice);
-        price.setStock(plugin.getItemDataManager().getStock(shopID, itemID).orElse(0));
+        price.setStock(plugin.getStorageManager().getStock(shopID, itemID).orElse(0));
     }
 
     // // Méthode utilitaire pour formater le temps
@@ -1537,33 +1728,37 @@ public class DynaShopListener implements Listener {
         // Extraire les informations de limite de manière asynchrone
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
-                // int remaining = plugin.getTransactionLimiter()
-                //         .getRemainingAmount(player, shopID, itemID, isBuy)
-                //         .get();
-                int remaining = plugin.getTransactionLimiter().getRemainingAmountSync(player, shopID, itemID, isBuy);
+                // Récupérer directement du cache pour plus d'efficacité
+                final String cacheKey = DynaShopPlugin.getLimitCacheKey(player.getUniqueId(), shopID, itemID, isBuy);
+                LimitCacheEntry limitEntry = plugin.getLimitCache().getIfPresent(cacheKey);
+
+                int remaining = 0;
+                long nextAvailable = 0;
+                if (limitEntry != null) {
+                    remaining = limitEntry.remaining;
+                    nextAvailable = limitEntry.nextAvailable;
+                } else {
+                    // Récupérer les limites depuis le TransactionLimiter
+                    remaining = plugin.getTransactionLimiter().getRemainingAmountSync(player, shopID, itemID, isBuy);
+                    nextAvailable = plugin.getTransactionLimiter().getNextAvailableTimeSync(player, shopID, itemID, isBuy);
+                }
                 
                 final String message;
                 if (remaining > 0) {
                     message = isBuy 
-                        ? ChatColor.translateAlternateColorCodes('&', plugin.getLangConfig().getMsgLimitCannotBuy().replace("%limit%", String.valueOf(remaining)))
-                        : ChatColor.translateAlternateColorCodes('&', plugin.getLangConfig().getMsgLimitCannotSell().replace("%limit%", String.valueOf(remaining)));
+                        ? plugin.getLangConfig().getMsgLimitCannotBuy().replace("%limit%", String.valueOf(remaining))
+                        : plugin.getLangConfig().getMsgLimitCannotSell().replace("%limit%", String.valueOf(remaining));
                 } else {
-                    // long nextAvailable = plugin.getTransactionLimiter()
-                    //         .getNextAvailableTime(player, shopID, itemID, isBuy)
-                    //         .get();
-                    long nextAvailable = plugin.getTransactionLimiter().getNextAvailableTimeSync(player, shopID, itemID, isBuy);
-
                     if (nextAvailable > 0) {
-                        long seconds = nextAvailable / 1000;
-                        message = ChatColor.translateAlternateColorCodes('&', plugin.getLangConfig().getMsgLimitReached().replace("%time%", formatTime(seconds)));
+                        message = plugin.getLangConfig().getMsgLimitReached().replace("%time%", formatTime(nextAvailable / 1000));
                     } else {
-                        message = ChatColor.translateAlternateColorCodes('&', plugin.getLangConfig().getMsgLimit());
+                        message = plugin.getLangConfig().getMsgLimit();
                     }
                 }
                 
                 // Envoyer le message de manière synchrone
                 Bukkit.getScheduler().runTask(plugin, () -> {
-                    player.sendMessage(message);
+                    player.sendMessage(ChatColor.translateAlternateColorCodes('&', message));
                     player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
                 });
                 
@@ -1584,86 +1779,103 @@ public class DynaShopListener implements Listener {
      * @param amount Quantité échangée (volume)
      */
     public void recordPriceForHistory(String shopId, String itemId, DynamicPrice price, boolean isBuy, double amount) {
-        // plugin.getLogger().info("Volume pour " + shopId + ":" + itemId + " - Valeur reçue: " + amount);
-        // Récupérer l'historique existant
-        PriceHistory history = DynaShopPlugin.getInstance().getDataManager().getPriceHistory(shopId, itemId);
+        // Définir l'intervalle de regroupement (en minutes)
+        final int INTERVAL_MINUTES = 15; // Par exemple, 15 minutes
         
-        // Si aucun point de données n'existe encore, utiliser le prix actuel comme référence
-        if (history.getDataPoints().isEmpty()) {
-            // if (isBuy) {
-            //     history.addDataPoint(price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(), 0, 0, 0, 0, amount);
-            // } else {
-            //     history.addDataPoint(0, 0, 0, 0, price.getSellPrice(), price.getSellPrice(), price.getSellPrice(), price.getSellPrice(), amount);
-            // }
-            history.addDataPoint(price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(), price.getSellPrice(), price.getSellPrice(), price.getSellPrice(), price.getSellPrice(), amount);
-            return;
-        }
-        
-        // Récupérer le dernier point de données
-        PriceDataPoint lastPoint = history.getDataPoints().get(history.getDataPoints().size() - 1);
-        
-        // Si le dernier point date de moins d'une heure, mettre à jour ce point
         LocalDateTime now = LocalDateTime.now();
-        if (lastPoint.getTimestamp().plusHours(1).isAfter(now)) {
-            // Garder les valeurs existantes pour l'autre type de prix
-            double openBuy = lastPoint.getOpenBuyPrice();
-            double closeBuy = lastPoint.getCloseBuyPrice();
-            double highBuy = lastPoint.getHighBuyPrice();
-            double lowBuy = lastPoint.getLowBuyPrice();
-            
-            double openSell = lastPoint.getOpenSellPrice();
-            double closeSell = lastPoint.getCloseSellPrice(); 
-            double highSell = lastPoint.getHighSellPrice();
-            double lowSell = lastPoint.getLowSellPrice();
-
-            // double volume = lastPoint.getVolume() + amount;
-            double volume = amount;
-            
-            if (isBuy) {
-                // Mise à jour des valeurs d'achat uniquement
-                if (openBuy == 0) openBuy = price.getBuyPrice(); // Premier prix d'achat enregistré
-                closeBuy = price.getBuyPrice();
-                highBuy = Math.max(highBuy == 0 ? price.getBuyPrice() : highBuy, price.getBuyPrice());
-                lowBuy = lowBuy == 0 ? price.getBuyPrice() : Math.min(lowBuy, price.getBuyPrice());
-            } else {
-                // Mise à jour des valeurs de vente uniquement
-                if (openSell == 0) openSell = price.getSellPrice(); // Premier prix de vente enregistré
-                closeSell = price.getSellPrice();
-                highSell = Math.max(highSell == 0 ? price.getSellPrice() : highSell, price.getSellPrice());
-                lowSell = lowSell == 0 ? price.getSellPrice() : Math.min(lowSell, price.getSellPrice());
-            }
-            
-            // Supprimer le dernier point et ajouter le point mis à jour
-            history.getDataPoints().remove(history.getDataPoints().size() - 1);
-            history.addDataPoint(openBuy, closeBuy, highBuy, lowBuy, openSell, closeSell, highSell, lowSell, volume);
-        } else {
-            // Sinon, ajouter un nouveau point en conservant les dernières valeurs de l'autre type
-            if (isBuy) {
-                history.addDataPoint(
-                    lastPoint.getCloseBuyPrice() > 0 ? lastPoint.getCloseBuyPrice() : price.getBuyPrice(),
-                    price.getBuyPrice(),
-                    Math.max(lastPoint.getCloseBuyPrice() > 0 ? lastPoint.getCloseBuyPrice() : price.getBuyPrice(), price.getBuyPrice()),
-                    Math.min(lastPoint.getCloseBuyPrice() > 0 ? lastPoint.getCloseBuyPrice() : price.getBuyPrice(), price.getBuyPrice()),
-                    lastPoint.getCloseSellPrice(),
-                    lastPoint.getCloseSellPrice(),
-                    lastPoint.getHighSellPrice(),
-                    lastPoint.getLowSellPrice(),
-                    amount
-                );
-            } else {
-                history.addDataPoint(
-                    lastPoint.getCloseBuyPrice(),
-                    lastPoint.getCloseBuyPrice(),
-                    lastPoint.getHighBuyPrice(),
-                    lastPoint.getLowBuyPrice(),
-                    lastPoint.getCloseSellPrice() > 0 ? lastPoint.getCloseSellPrice() : price.getSellPrice(),
-                    price.getSellPrice(),
-                    Math.max(lastPoint.getCloseSellPrice() > 0 ? lastPoint.getCloseSellPrice() : price.getSellPrice(), price.getSellPrice()),
-                    Math.min(lastPoint.getCloseSellPrice() > 0 ? lastPoint.getCloseSellPrice() : price.getSellPrice(), price.getSellPrice()),
-                    amount
-                );
-            }
-        }
+        
+        // Créer un nouveau point de données
+        PriceDataPoint newPoint = new PriceDataPoint(
+            now,
+            price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(),
+            price.getSellPrice(), price.getSellPrice(), price.getSellPrice(), price.getSellPrice(),
+            amount
+        );
+        
+        // Utiliser la nouvelle méthode avec regroupement temporel
+        plugin.getStorageManager().savePriceDataPoint(shopId, itemId, newPoint, INTERVAL_MINUTES);
     }
+    // public void recordPriceForHistory(String shopId, String itemId, DynamicPrice price, boolean isBuy, double amount) {
+    //     // plugin.getLogger().info("Volume pour " + shopId + ":" + itemId + " - Valeur reçue: " + amount);
+    //     // Récupérer l'historique existant
+    //     PriceHistory history = DynaShopPlugin.getInstance().getStorageManager().getPriceHistory(shopId, itemId);
+        
+    //     // Si aucun point de données n'existe encore, utiliser le prix actuel comme référence
+    //     if (history.getDataPoints().isEmpty()) {
+    //         // if (isBuy) {
+    //         //     history.addDataPoint(price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(), 0, 0, 0, 0, amount);
+    //         // } else {
+    //         //     history.addDataPoint(0, 0, 0, 0, price.getSellPrice(), price.getSellPrice(), price.getSellPrice(), price.getSellPrice(), amount);
+    //         // }
+    //         history.addDataPoint(price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(), price.getSellPrice(), price.getSellPrice(), price.getSellPrice(), price.getSellPrice(), amount);
+    //         return;
+    //     }
+        
+    //     // Récupérer le dernier point de données
+    //     PriceDataPoint lastPoint = history.getDataPoints().get(history.getDataPoints().size() - 1);
+        
+    //     // Si le dernier point date de moins d'une heure, mettre à jour ce point
+    //     LocalDateTime now = LocalDateTime.now();
+    //     if (lastPoint.getTimestamp().plusHours(1).isAfter(now)) {
+    //         // Garder les valeurs existantes pour l'autre type de prix
+    //         double openBuy = lastPoint.getOpenBuyPrice();
+    //         double closeBuy = lastPoint.getCloseBuyPrice();
+    //         double highBuy = lastPoint.getHighBuyPrice();
+    //         double lowBuy = lastPoint.getLowBuyPrice();
+            
+    //         double openSell = lastPoint.getOpenSellPrice();
+    //         double closeSell = lastPoint.getCloseSellPrice(); 
+    //         double highSell = lastPoint.getHighSellPrice();
+    //         double lowSell = lastPoint.getLowSellPrice();
+
+    //         // double volume = lastPoint.getVolume() + amount;
+    //         double volume = amount;
+            
+    //         if (isBuy) {
+    //             // Mise à jour des valeurs d'achat uniquement
+    //             if (openBuy == 0) openBuy = price.getBuyPrice(); // Premier prix d'achat enregistré
+    //             closeBuy = price.getBuyPrice();
+    //             highBuy = Math.max(highBuy == 0 ? price.getBuyPrice() : highBuy, price.getBuyPrice());
+    //             lowBuy = lowBuy == 0 ? price.getBuyPrice() : Math.min(lowBuy, price.getBuyPrice());
+    //         } else {
+    //             // Mise à jour des valeurs de vente uniquement
+    //             if (openSell == 0) openSell = price.getSellPrice(); // Premier prix de vente enregistré
+    //             closeSell = price.getSellPrice();
+    //             highSell = Math.max(highSell == 0 ? price.getSellPrice() : highSell, price.getSellPrice());
+    //             lowSell = lowSell == 0 ? price.getSellPrice() : Math.min(lowSell, price.getSellPrice());
+    //         }
+            
+    //         // Supprimer le dernier point et ajouter le point mis à jour
+    //         history.getDataPoints().remove(history.getDataPoints().size() - 1);
+    //         history.addDataPoint(openBuy, closeBuy, highBuy, lowBuy, openSell, closeSell, highSell, lowSell, volume);
+    //     } else {
+    //         // Sinon, ajouter un nouveau point en conservant les dernières valeurs de l'autre type
+    //         if (isBuy) {
+    //             history.addDataPoint(
+    //                 lastPoint.getCloseBuyPrice() > 0 ? lastPoint.getCloseBuyPrice() : price.getBuyPrice(),
+    //                 price.getBuyPrice(),
+    //                 Math.max(lastPoint.getCloseBuyPrice() > 0 ? lastPoint.getCloseBuyPrice() : price.getBuyPrice(), price.getBuyPrice()),
+    //                 Math.min(lastPoint.getCloseBuyPrice() > 0 ? lastPoint.getCloseBuyPrice() : price.getBuyPrice(), price.getBuyPrice()),
+    //                 lastPoint.getCloseSellPrice(),
+    //                 lastPoint.getCloseSellPrice(),
+    //                 lastPoint.getHighSellPrice(),
+    //                 lastPoint.getLowSellPrice(),
+    //                 amount
+    //             );
+    //         } else {
+    //             history.addDataPoint(
+    //                 lastPoint.getCloseBuyPrice(),
+    //                 lastPoint.getCloseBuyPrice(),
+    //                 lastPoint.getHighBuyPrice(),
+    //                 lastPoint.getLowBuyPrice(),
+    //                 lastPoint.getCloseSellPrice() > 0 ? lastPoint.getCloseSellPrice() : price.getSellPrice(),
+    //                 price.getSellPrice(),
+    //                 Math.max(lastPoint.getCloseSellPrice() > 0 ? lastPoint.getCloseSellPrice() : price.getSellPrice(), price.getSellPrice()),
+    //                 Math.min(lastPoint.getCloseSellPrice() > 0 ? lastPoint.getCloseSellPrice() : price.getSellPrice(), price.getSellPrice()),
+    //                 amount
+    //             );
+    //         }
+    //     }
+    // }
 
 }

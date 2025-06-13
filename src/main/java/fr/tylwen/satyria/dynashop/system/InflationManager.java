@@ -10,7 +10,7 @@ import org.bukkit.scheduler.BukkitTask;
 import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
+// import java.util.UUID;
 import java.util.logging.Level;
 
 public class InflationManager {
@@ -86,15 +86,15 @@ public class InflationManager {
             }
             
             // Charger le facteur d'inflation actuel s'il existe
-            inflationFactor = plugin.getDataManager().getInflationFactor();
+            inflationFactor = plugin.getStorageManager().getInflationFactor();
             if (inflationFactor <= 0) {
                 inflationFactor = 1.0; // Valeur par défaut si non définie
             }
             
-            lastInflationUpdate = plugin.getDataManager().getLastInflationUpdate();
+            lastInflationUpdate = plugin.getStorageManager().getLastInflationUpdate();
             if (lastInflationUpdate <= 0) {
                 lastInflationUpdate = System.currentTimeMillis(); // Initialiser à maintenant
-                plugin.getDataManager().saveInflationData(inflationFactor, lastInflationUpdate);
+                plugin.getStorageManager().saveInflationData(inflationFactor, lastInflationUpdate);
             }
         }
         
@@ -140,7 +140,27 @@ public class InflationManager {
         double deflation = 1.0 - (deflationRate / 100.0 * elapsedDays);
         
         // Calculer l'inflation basée sur les transactions
-        int transactionCount = plugin.getTransactionLimiter().getMetrics().getOrDefault("total_transactions", 0);
+        // int transactionCount = plugin.getTransactionLimiter().getMetrics().getOrDefault("total_transactions", 0);
+        // Calculer l'inflation basée sur les transactions
+        // Obtenir les statistiques via CompletableFuture
+        int transactionCount = 0;
+        try {
+            Map<String, Object> stats = plugin.getTransactionLimiter().getStatistics().get(); // Attendre le résultat
+            // Extraire et convertir la valeur, en gérant le fait que c'est un Object
+            if (stats.containsKey("total_records")) {
+                Object value = stats.get("total_records");
+                if (value instanceof Integer) {
+                    transactionCount = (Integer) value;
+                } else if (value instanceof Number) {
+                    transactionCount = ((Number) value).intValue();
+                } else if (value != null) {
+                    transactionCount = Integer.parseInt(value.toString());
+                }
+            }
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.WARNING, "Erreur lors de la récupération des statistiques de transactions", e);
+        }
+
         double transactionInflation = 1.0 + (transactionCount * transactionMultiplier / 100.0);
         
         // Calculer l'inflation basée sur la masse monétaire
@@ -165,7 +185,7 @@ public class InflationManager {
         this.lastInflationUpdate = now;
         
         // Sauvegarder les données d'inflation
-        plugin.getDataManager().saveInflationData(inflationFactor, lastInflationUpdate);
+        plugin.getStorageManager().saveInflationData(inflationFactor, lastInflationUpdate);
         
         plugin.getLogger().info("Inflation updated: Factor=" + df.format(inflationFactor) + 
                                " (Time=" + df.format(timeInflation) + 
@@ -241,6 +261,6 @@ public class InflationManager {
     public void resetInflation() {
         inflationFactor = 1.0;
         lastInflationUpdate = System.currentTimeMillis();
-        plugin.getDataManager().saveInflationData(inflationFactor, lastInflationUpdate);
+        plugin.getStorageManager().saveInflationData(inflationFactor, lastInflationUpdate);
     }
 }

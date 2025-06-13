@@ -16,10 +16,11 @@ import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.inventory.InventoryView;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import fr.tylwen.satyria.dynashop.data.cache.LimitCacheEntry;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 import fr.tylwen.satyria.dynashop.system.TransactionLimiter.LimitPeriod;
-import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionLimit;
+// import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionLimit;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.item.ShopItem;
@@ -972,11 +973,31 @@ public class ShopItemPlaceholderListener implements Listener {
         Map<String, String> prices = new HashMap<>();
         
         // Récupérer le type d'achat et de vente
+        DynaShopType generalType = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId);
         DynaShopType buyType = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId, "buy");
         DynaShopType sellType = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId, "sell");
+        
+        if (buyType == DynaShopType.NONE || buyType == DynaShopType.UNKNOWN) { buyType = generalType; }
+        if (sellType == DynaShopType.NONE || sellType == DynaShopType.UNKNOWN) { sellType = generalType; }
 
         // Obtenir le prix dynamique
         DynamicPrice price = plugin.getDynaShopListener().getOrLoadPrice(player, shopId, itemId, itemStack, visited, lastResults);
+
+        // plugin.info("getItemAllValues: " + shopId + ":" + itemId + " - buyPrice: " + price.getBuyPrice() +
+        //     ", sellPrice: " + price.getSellPrice() +
+        //     ", minBuy: " + price.getMinBuyPrice() +
+        //     ", maxBuy: " + price.getMaxBuyPrice() +
+        //     ", growthBuy: " + price.getGrowthBuy() +
+        //     ", decayBuy: " + price.getDecayBuy() +
+        //     ", minSell: " + price.getMinSellPrice() +
+        //     ", maxSell: " + price.getMaxSellPrice() +
+        //     ", growthSell: " + price.getGrowthSell() +
+        //     ", decaySell: " + price.getDecaySell() +
+        //     ", stock: " + price.getStock() +
+        //     ", minStock: " + price.getMinStock() +
+        //     ", maxStock: " + price.getMaxStock() +
+        //     ", stockBuyModifier: " + price.getStockBuyModifier() +
+        //     ", stockSellModifier: " + price.getStockSellModifier());
 
         // Remplir les prix de base
         if (price != null) {
@@ -985,10 +1006,14 @@ public class ShopItemPlaceholderListener implements Listener {
         fillModifierInfo(prices, player, shopId, itemId);
 
         // Identifier les modes
-        boolean isStockMode = buyType == DynaShopType.STOCK || sellType == DynaShopType.STOCK;
-        boolean isStaticStockMode = buyType == DynaShopType.STATIC_STOCK || sellType == DynaShopType.STATIC_STOCK;
-        boolean isRecipeMode = buyType == DynaShopType.RECIPE || sellType == DynaShopType.RECIPE;
-        boolean isLinkMode = buyType == DynaShopType.LINK || sellType == DynaShopType.LINK;
+        boolean isStockMode = buyType == DynaShopType.STOCK || sellType == DynaShopType.STOCK || generalType == DynaShopType.STOCK;
+        boolean isStaticStockMode = buyType == DynaShopType.STATIC_STOCK || sellType == DynaShopType.STATIC_STOCK || generalType == DynaShopType.STATIC_STOCK;
+        boolean isRecipeMode = buyType == DynaShopType.RECIPE || sellType == DynaShopType.RECIPE || generalType == DynaShopType.RECIPE;
+        boolean isLinkMode = buyType == DynaShopType.LINK || sellType == DynaShopType.LINK || generalType == DynaShopType.LINK;
+        // boolean isStockMode = buyType == DynaShopType.STOCK || sellType == DynaShopType.STOCK;
+        // boolean isStaticStockMode = buyType == DynaShopType.STATIC_STOCK || sellType == DynaShopType.STATIC_STOCK;
+        // boolean isRecipeMode = buyType == DynaShopType.RECIPE || sellType == DynaShopType.RECIPE;
+        // boolean isLinkMode = buyType == DynaShopType.LINK || sellType == DynaShopType.LINK;
 
         prices.put("is_stock_mode", String.valueOf(isStockMode));
         prices.put("is_static_stock_mode", String.valueOf(isStaticStockMode));
@@ -1136,39 +1161,102 @@ public class ShopItemPlaceholderListener implements Listener {
         }
     }
     
+    // /**
+    //  * Remplit les informations de limites
+    //  */
+    // private void fillLimitInfo(Map<String, String> prices, Player player, String shopId, String itemId) {
+    //     // Récupérer les limites d'achat
+    //     TransactionLimit buyLimit = plugin.getTransactionLimiter().getTransactionLimit(shopId, itemId, true);
+    //     if (buyLimit != null && buyLimit.getAmount() > 0) {
+    //         // plugin.info("Checking buy limit for shop: " + shopId + ", item: " + itemId + ", player: " + player.getName() + 
+    //         //             ", limit: " + buyLimit.getAmount());
+    //         try {
+    //             int buyRemaining = plugin.getTransactionLimiter().getRemainingAmountSync(player, shopId, itemId, true);
+    //             prices.put("buy_limit", String.valueOf(buyRemaining));
+
+    //             // if (buyRemaining <= 0) {
+    //             //     long buyResetTime = plugin.getTransactionLimiter().getNextAvailableTimeSync(player, shopId, itemId, true);
+    //             //     prices.put("buy_reset_time", formatTimeRemaining(buyResetTime, buyLimit));
+    //             //     prices.put("buy_limit_reached", "true");
+    //             //     plugin.info("Checking buy limit for shop: " + shopId + ", item: " + itemId + ", player: " + player.getName() + 
+    //             //                 ", limit: " + (buyLimit != null ? buyLimit.getAmount() : "N/A") + 
+    //             //                 ", remaining: " + buyRemaining + ", reset time: " + formatTimeRemaining(buyResetTime, buyLimit));
+    //             // } else {
+    //             //     prices.put("buy_reset_time", "∞");
+    //             //     prices.put("buy_limit_reached", "false");
+    //             // }
+                
+    //             long buyResetTime = plugin.getTransactionLimiter().getNextAvailableTimeSync(player, shopId, itemId, true);
+    //             prices.put("buy_reset_time", formatTimeRemaining(buyResetTime, buyLimit));
+    //             if (buyRemaining <= 0) {
+    //                 prices.put("buy_limit_reached", "true");
+    //             } else {
+    //                 // plugin.info("Checking buy limit for shop: " + shopId + ", item: " + itemId + ", player: " + player.getName() + 
+    //                 //     ", limit: " + (buyLimit != null ? buyLimit.getAmount() : "N/A") + 
+    //                 //     ", remaining: " + buyRemaining + ", reset time: " + formatTimeRemaining(buyResetTime, buyLimit));
+    //                 prices.put("buy_limit_reached", "false");
+    //             }
+    //         } catch (Exception e) {
+    //             prices.put("buy_limit", "N/A");
+    //             prices.put("buy_reset_time", "N/A");
+    //             prices.put("buy_limit_reached", "false");
+    //         }
+    //     } else {
+    //         // plugin.info("No buy limit found for shop: " + shopId + ", item: " + itemId + ", player: " + player.getName());
+    //         prices.put("buy_limit", "∞");
+    //         prices.put("buy_reset_time", "∞");
+    //         prices.put("buy_limit_reached", "false");
+    //     }
+        
+    //     // Récupérer les limites de vente
+    //     TransactionLimit sellLimit = plugin.getTransactionLimiter().getTransactionLimit(shopId, itemId, false);
+    //     if (sellLimit != null && sellLimit.getAmount() > 0) {
+    //         try {
+    //             int sellRemaining = plugin.getTransactionLimiter().getRemainingAmountSync(player, shopId, itemId, false);
+    //             prices.put("sell_limit", String.valueOf(sellRemaining));
+                
+    //             // if (sellRemaining <= 0) {
+    //             //     long sellResetTime = plugin.getTransactionLimiter().getNextAvailableTimeSync(player, shopId, itemId, false);
+    //             //     prices.put("sell_reset_time", formatTimeRemaining(sellResetTime, sellLimit));
+    //             //     prices.put("sell_limit_reached", "true");
+    //             // } else {
+    //             //     prices.put("sell_reset_time", "∞");
+    //             //     prices.put("sell_limit_reached", "false");
+    //             // }
+    //             long sellResetTime = plugin.getTransactionLimiter().getNextAvailableTimeSync(player, shopId, itemId, false);
+    //             prices.put("sell_reset_time", formatTimeRemaining(sellResetTime, sellLimit));
+    //             if (sellRemaining <= 0) {
+    //                 prices.put("sell_limit_reached", "true");
+    //             } else {
+    //                 prices.put("sell_limit_reached", "false");
+    //             }
+    //         } catch (Exception e) {
+    //             prices.put("sell_limit", "N/A");
+    //             prices.put("sell_reset_time", "N/A");
+    //             prices.put("sell_limit_reached", "false");
+    //         }
+    //     } else {
+    //         prices.put("sell_limit", "∞");
+    //         prices.put("sell_reset_time", "∞");
+    //         prices.put("sell_limit_reached", "false");
+    //     }
+    // }
+
     /**
      * Remplit les informations de limites
      */
     private void fillLimitInfo(Map<String, String> prices, Player player, String shopId, String itemId) {
-        // Récupérer les limites d'achat
-        TransactionLimit buyLimit = plugin.getTransactionLimiter().getTransactionLimit(shopId, itemId, true);
-        if (buyLimit != null && buyLimit.getAmount() > 0) {
-            // plugin.info("Checking buy limit for shop: " + shopId + ", item: " + itemId + ", player: " + player.getName() + 
-            //             ", limit: " + buyLimit.getAmount());
+        // Récupérer les limites d'achat avec le nouveau système
+        LimitCacheEntry buyLimit = plugin.getTransactionLimiter().getTransactionLimit(player, shopId, itemId, true);
+        if (buyLimit != null && buyLimit.getLimit() > 0) {
             try {
-                int buyRemaining = plugin.getTransactionLimiter().getRemainingAmountSync(player, shopId, itemId, true);
-                prices.put("buy_limit", String.valueOf(buyRemaining));
-
-                // if (buyRemaining <= 0) {
-                //     long buyResetTime = plugin.getTransactionLimiter().getNextAvailableTimeSync(player, shopId, itemId, true);
-                //     prices.put("buy_reset_time", formatTimeRemaining(buyResetTime, buyLimit));
-                //     prices.put("buy_limit_reached", "true");
-                //     plugin.info("Checking buy limit for shop: " + shopId + ", item: " + itemId + ", player: " + player.getName() + 
-                //                 ", limit: " + (buyLimit != null ? buyLimit.getAmount() : "N/A") + 
-                //                 ", remaining: " + buyRemaining + ", reset time: " + formatTimeRemaining(buyResetTime, buyLimit));
-                // } else {
-                //     prices.put("buy_reset_time", "∞");
-                //     prices.put("buy_limit_reached", "false");
-                // }
+                // Utiliser directement les valeurs du cache
+                prices.put("buy_limit", String.valueOf(buyLimit.remaining));
+                prices.put("buy_reset_time", formatTimeRemaining(buyLimit.nextAvailable, buyLimit));
                 
-                long buyResetTime = plugin.getTransactionLimiter().getNextAvailableTimeSync(player, shopId, itemId, true);
-                prices.put("buy_reset_time", formatTimeRemaining(buyResetTime, buyLimit));
-                if (buyRemaining <= 0) {
+                if (buyLimit.remaining <= 0) {
                     prices.put("buy_limit_reached", "true");
                 } else {
-                    // plugin.info("Checking buy limit for shop: " + shopId + ", item: " + itemId + ", player: " + player.getName() + 
-                    //     ", limit: " + (buyLimit != null ? buyLimit.getAmount() : "N/A") + 
-                    //     ", remaining: " + buyRemaining + ", reset time: " + formatTimeRemaining(buyResetTime, buyLimit));
                     prices.put("buy_limit_reached", "false");
                 }
             } catch (Exception e) {
@@ -1177,30 +1265,20 @@ public class ShopItemPlaceholderListener implements Listener {
                 prices.put("buy_limit_reached", "false");
             }
         } else {
-            // plugin.info("No buy limit found for shop: " + shopId + ", item: " + itemId + ", player: " + player.getName());
             prices.put("buy_limit", "∞");
             prices.put("buy_reset_time", "∞");
             prices.put("buy_limit_reached", "false");
         }
         
-        // Récupérer les limites de vente
-        TransactionLimit sellLimit = plugin.getTransactionLimiter().getTransactionLimit(shopId, itemId, false);
-        if (sellLimit != null && sellLimit.getAmount() > 0) {
+        // Récupérer les limites de vente avec le nouveau système
+        LimitCacheEntry sellLimit = plugin.getTransactionLimiter().getTransactionLimit(player, shopId, itemId, false);
+        if (sellLimit != null && sellLimit.getLimit() > 0) {
             try {
-                int sellRemaining = plugin.getTransactionLimiter().getRemainingAmountSync(player, shopId, itemId, false);
-                prices.put("sell_limit", String.valueOf(sellRemaining));
+                // Utiliser directement les valeurs du cache
+                prices.put("sell_limit", String.valueOf(sellLimit.remaining));
+                prices.put("sell_reset_time", formatTimeRemaining(sellLimit.nextAvailable, sellLimit));
                 
-                // if (sellRemaining <= 0) {
-                //     long sellResetTime = plugin.getTransactionLimiter().getNextAvailableTimeSync(player, shopId, itemId, false);
-                //     prices.put("sell_reset_time", formatTimeRemaining(sellResetTime, sellLimit));
-                //     prices.put("sell_limit_reached", "true");
-                // } else {
-                //     prices.put("sell_reset_time", "∞");
-                //     prices.put("sell_limit_reached", "false");
-                // }
-                long sellResetTime = plugin.getTransactionLimiter().getNextAvailableTimeSync(player, shopId, itemId, false);
-                prices.put("sell_reset_time", formatTimeRemaining(sellResetTime, sellLimit));
-                if (sellRemaining <= 0) {
+                if (sellLimit.remaining <= 0) {
                     prices.put("sell_limit_reached", "true");
                 } else {
                     prices.put("sell_limit_reached", "false");
@@ -1580,13 +1658,47 @@ public class ShopItemPlaceholderListener implements Listener {
         );
     }
 
+    // /**
+    //  * Formate un temps en millisecondes en une chaîne lisible selon le type de limite
+    //  * @param millisRemaining Temps restant en millisecondes
+    //  * @param limit La limite de transaction pour déterminer le format
+    //  * @return Chaîne formatée (ex: "04.03.2023 00:00:00" ou "01h 30m 45s")
+    //  */
+    // private String formatTimeRemaining(long millisRemaining, TransactionLimit limit) {
+    //     if (millisRemaining <= 0) {
+    //         return "∞";
+    //     }
+        
+    //     // Si c'est une période prédéfinie (DAILY, WEEKLY, etc.), afficher la date complète
+    //     LimitPeriod period = limit.getPeriodEquivalent();
+    //     if (period != LimitPeriod.NONE) {
+    //         LocalDateTime resetTime = LocalDateTime.now().plus(millisRemaining, ChronoUnit.MILLIS);
+    //         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
+    //         return resetTime.format(formatter);
+    //     }
+        
+    //     // Sinon c'est un cooldown numérique, on affiche juste le temps restant
+    //     long secondsRemaining = millisRemaining / 1000;
+    //     long hours = secondsRemaining / 3600;
+    //     long minutes = (secondsRemaining % 3600) / 60;
+    //     long seconds = secondsRemaining % 60;
+        
+    //     if (hours > 0) {
+    //         return String.format("%02dh %02dm %02ds", hours, minutes, seconds);
+    //     } else if (minutes > 0) {
+    //         return String.format("%02dm %02ds", minutes, seconds);
+    //     } else {
+    //         return String.format("%02ds", seconds);
+    //     }
+    // }
+
     /**
      * Formate un temps en millisecondes en une chaîne lisible selon le type de limite
      * @param millisRemaining Temps restant en millisecondes
      * @param limit La limite de transaction pour déterminer le format
      * @return Chaîne formatée (ex: "04.03.2023 00:00:00" ou "01h 30m 45s")
      */
-    private String formatTimeRemaining(long millisRemaining, TransactionLimit limit) {
+    private String formatTimeRemaining(long millisRemaining, LimitCacheEntry limit) {
         if (millisRemaining <= 0) {
             return "∞";
         }

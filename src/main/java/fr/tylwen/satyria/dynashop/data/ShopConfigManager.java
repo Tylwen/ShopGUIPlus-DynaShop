@@ -6,20 +6,20 @@ import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.PotionMeta;
+// import org.bukkit.inventory.ItemStack;
+// import org.bukkit.inventory.meta.PotionMeta;
 
 import de.tr7zw.changeme.nbtapi.NBT;
-import de.tr7zw.changeme.nbtapi.NBTCompound;
-import de.tr7zw.changeme.nbtapi.NBTItem;
+// import de.tr7zw.changeme.nbtapi.NBTCompound;
+// import de.tr7zw.changeme.nbtapi.NBTItem;
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
-import fr.tylwen.satyria.dynashop.cache.CacheManager;
 import fr.tylwen.satyria.dynashop.compatibility.ItemNameManager;
+import fr.tylwen.satyria.dynashop.data.cache.CacheManager;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.data.param.RecipeType;
-import fr.tylwen.satyria.dynashop.hook.ShopGUIPlusHook;
+// import fr.tylwen.satyria.dynashop.hook.ShopGUIPlusHook;
 import fr.tylwen.satyria.dynashop.price.DynamicPrice;
-import net.brcdev.shopgui.ShopGuiPlugin;
+// import net.brcdev.shopgui.ShopGuiPlugin;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 // import net.brcdev.shopgui.exception.shop.ShopsNotLoadedException;
 import net.brcdev.shopgui.shop.Shop;
@@ -27,14 +27,14 @@ import net.brcdev.shopgui.shop.item.ShopItem;
 
 import java.io.File;
 import java.util.Map;
-import java.util.ArrayList;
+// import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
+// import java.util.stream.Collectors;
 
 public class ShopConfigManager {
 
@@ -252,9 +252,9 @@ public class ShopConfigManager {
         if (shopDir == null || !shopDir.exists()) {
             return;
         }
-    
-        plugin.getDataManager().loadPricesFromDatabase();
-    
+
+        plugin.getStorageManager().loadAllPrices();
+
         // ShopFile shopFile = new ShopFile(shopDir);
         // shopFile.loadShopFiles();
         ShopFile.loadShopFiles(shopDir);
@@ -346,8 +346,8 @@ public class ShopConfigManager {
 
         // if ((!itemSec.isConfigurationSection("buyDynamic") || !itemSec.isConfigurationSection("sellDynamic")) && getTypeDynaShop(shop.getId(), item.getId()) != DynaShopType.STATIC_STOCK) {
         if ((!itemSec.isConfigurationSection("buyDynamic") && !itemSec.isConfigurationSection("sellDynamic")) && typeGeneral != DynaShopType.STATIC_STOCK) {
-            if (plugin.getItemDataManager().itemExists(shop.getId(), item.getId())) {
-                plugin.getItemDataManager().deleteItem(shop.getId(), item.getId());
+            if (plugin.getStorageManager().itemExists(shop.getId(), item.getId())) {
+                plugin.getStorageManager().deleteItem(shop.getId(), item.getId());
             }
             priceMap.remove(item);
             return;
@@ -365,19 +365,19 @@ public class ShopConfigManager {
         priceMap.put(item, price);
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            if (!plugin.getItemDataManager().itemHasPrice(shop.getId(), item.getId())) {
+            if (!plugin.getStorageManager().itemExists(shop.getId(), item.getId())) {
                 // plugin.getItemDataManager().createItem(shop.getId(), item.getId());
                 // plugin.getLogger().info("Adding new item price for " + item.getId() + " in shop " + shop.getId());
                 // plugin.getItemDataManager().savePrice(shop.getId(), item.getId(), price.getBuyPrice(), price.getSellPrice());
                 if (price.getBuyPrice() > 0) {
-                    plugin.getDataManager().insertBuyPrice(shop.getId(), item.getId(), price.getBuyPrice());
+                    plugin.getStorageManager().saveBuyPrice(shop.getId(), item.getId(), price.getBuyPrice());
                 }
                 if (price.getSellPrice() > 0) {
-                    plugin.getDataManager().insertSellPrice(shop.getId(), item.getId(), price.getSellPrice());
+                    plugin.getStorageManager().saveSellPrice(shop.getId(), item.getId(), price.getSellPrice());
                 }
                 // if ((getTypeDynaShop(shop.getId(), item.getId()) == DynaShopType.STATIC_STOCK || getTypeDynaShop(shop.getId(), item.getId()) == DynaShopType.STOCK) && price.getStock() > 0) {
                 if ((typeGeneral == DynaShopType.STATIC_STOCK || typeGeneral == DynaShopType.STOCK) && price.getStock() > 0) {
-                    plugin.getDataManager().insertStock(shop.getId(), item.getId(), price.getStock());
+                    plugin.getStorageManager().saveStock(shop.getId(), item.getId(), price.getStock());
                 }
             }
         });
@@ -872,6 +872,22 @@ public class ShopConfigManager {
             itemPriceData.stockBuyModifier = getOptionalDouble(stock, "buyModifier");
             itemPriceData.stockSellModifier = getOptionalDouble(stock, "sellModifier");
         }
+
+        // plugin.info("getItemAllValues: " + shopID + ":" + itemID + " - buyPrice: " + itemPriceData.buyPrice +
+        //     ", sellPrice: " + itemPriceData.sellPrice +
+        //     ", minBuy: " + itemPriceData.minBuy +
+        //     ", maxBuy: " + itemPriceData.maxBuy +
+        //     ", growthBuy: " + itemPriceData.growthBuy +
+        //     ", decayBuy: " + itemPriceData.decayBuy +
+        //     ", minSell: " + itemPriceData.minSell +
+        //     ", maxSell: " + itemPriceData.maxSell +
+        //     ", growthSell: " + itemPriceData.growthSell +
+        //     ", decaySell: " + itemPriceData.decaySell +
+        //     ", stock: " + itemPriceData.stock +
+        //     ", minStock: " + itemPriceData.minStock +
+        //     ", maxStock: " + itemPriceData.maxStock +
+        //     ", stockBuyModifier: " + itemPriceData.stockBuyModifier +
+        //     ", stockSellModifier: " + itemPriceData.stockSellModifier);
         
         return itemPriceData;
     }

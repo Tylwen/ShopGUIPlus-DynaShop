@@ -31,7 +31,7 @@ public class DataManager {
     private final DynaShopPlugin plugin;
     private final DataConfig dataConfig;
     private HikariDataSource dataSource;
-    private Connection sqliteConnection;
+    // private Connection sqliteConnection;
     private boolean isInitialized = false;
     private final ExecutorService databaseExecutor = Executors.newSingleThreadExecutor();
 
@@ -47,6 +47,12 @@ public class DataManager {
      * Initialise la connexion à la base de données avec un pool de connexions.
      */
     public synchronized void initDatabase() {
+        // Vérifier si nous sommes en mode flatfile - ne pas initialiser MySQL dans ce cas
+        if (dataConfig.getDatabaseType().equals("flatfile")) {
+            plugin.getLogger().info("Mode FLATFILE détecté, les tables de transactions ne seront pas créées en SQL");
+            return;
+        }
+
         if (isInitialized && dataSource != null && !dataSource.isClosed()) {
             return;
         }
@@ -68,9 +74,9 @@ public class DataManager {
                 config.setConnectionTestQuery("SELECT 1");
                 config.setPoolName("DynaShopHikariPool");
                 dataSource = new HikariDataSource(config);
-            } else {
-                setupSQLiteConnection();
-                dataSource = null; // Important : pas de pool pour SQLite
+            // } else {
+            //     setupSQLiteConnection();
+            //     dataSource = null; // Important : pas de pool pour SQLite
             }
 
             isInitialized = true;
@@ -109,41 +115,41 @@ public class DataManager {
         config.addDataSourceProperty("maintainTimeStats", "false");
     }
 
-    private void setupSQLiteConnection() {
-        File databaseFile = new File(plugin.getDataFolder(), dataConfig.getDatabaseSqliteFile());
+    // private void setupSQLiteConnection() {
+    //     File databaseFile = new File(plugin.getDataFolder(), dataConfig.getDatabaseSqliteFile());
         
-        if (!databaseFile.exists()) {
-            try {
-                if (!plugin.getDataFolder().exists()) {
-                    plugin.getDataFolder().mkdirs();
-                }
-                databaseFile.createNewFile();
-                // plugin.getLogger().info("Fichier de base de données SQLite créé: " + databaseFile.getAbsolutePath());
-            } catch (IOException e) {
-                // plugin.getLogger().severe("Impossible de créer le fichier SQLite: " + e.getMessage());
-                e.printStackTrace();
-            }
-        }
+    //     if (!databaseFile.exists()) {
+    //         try {
+    //             if (!plugin.getDataFolder().exists()) {
+    //                 plugin.getDataFolder().mkdirs();
+    //             }
+    //             databaseFile.createNewFile();
+    //             // plugin.getLogger().info("Fichier de base de données SQLite créé: " + databaseFile.getAbsolutePath());
+    //         } catch (IOException e) {
+    //             // plugin.getLogger().severe("Impossible de créer le fichier SQLite: " + e.getMessage());
+    //             e.printStackTrace();
+    //         }
+    //     }
         
-        // config.setJdbcUrl("jdbc:sqlite:" + databaseFile.getAbsolutePath());
-        // config.setDriverClassName("org.sqlite.JDBC");
+    //     // config.setJdbcUrl("jdbc:sqlite:" + databaseFile.getAbsolutePath());
+    //     // config.setDriverClassName("org.sqlite.JDBC");
         
-        // // La connexion SQLite ne supporte pas la concurrence, il faut limiter
-        // config.setMaximumPoolSize(1);
-        // config.setConnectionTimeout(30000);
-        try {
-            Class.forName("org.sqlite.JDBC");
-            String url = "jdbc:sqlite:" + databaseFile.getAbsolutePath();
-            sqliteConnection = DriverManager.getConnection(url);
-            try (Statement stmt = sqliteConnection.createStatement()) {
-                stmt.execute("PRAGMA foreign_keys = ON");
-                stmt.execute("PRAGMA busy_timeout = 5000"); // Timeout de 5 secondes pour éviter les blocages
-            }
-        } catch (SQLException | ClassNotFoundException e) {
-            plugin.getLogger().severe("Erreur SQLite: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
+    //     // // La connexion SQLite ne supporte pas la concurrence, il faut limiter
+    //     // config.setMaximumPoolSize(1);
+    //     // config.setConnectionTimeout(30000);
+    //     try {
+    //         Class.forName("org.sqlite.JDBC");
+    //         String url = "jdbc:sqlite:" + databaseFile.getAbsolutePath();
+    //         sqliteConnection = DriverManager.getConnection(url);
+    //         try (Statement stmt = sqliteConnection.createStatement()) {
+    //             stmt.execute("PRAGMA foreign_keys = ON");
+    //             stmt.execute("PRAGMA busy_timeout = 5000"); // Timeout de 5 secondes pour éviter les blocages
+    //         }
+    //     } catch (SQLException | ClassNotFoundException e) {
+    //         plugin.getLogger().severe("Erreur SQLite: " + e.getMessage());
+    //         e.printStackTrace();
+    //     }
+    // }
 
     /**
      * Crée les tables nécessaires si elles n'existent pas.
@@ -316,17 +322,16 @@ public class DataManager {
     /**
      * Obtient une connexion à partir du pool de connexions.
      */
-    public synchronized Connection getConnection() throws SQLException {
-        if (dataConfig.getDatabaseType().equals("sqlite")) {
-            File databaseFile = new File(plugin.getDataFolder(), dataConfig.getDatabaseSqliteFile());
-            String url = "jdbc:sqlite:" + databaseFile.getAbsolutePath();
-            return DriverManager.getConnection(url); // Nouvelle connexion à chaque fois
-        } else {
-            if (!isInitialized || dataSource == null || dataSource.isClosed()) {
-                initDatabase();
-            }
-            return dataSource.getConnection();
+    public Connection getConnection() throws SQLException {
+        if (dataConfig.getDatabaseType().equals("flatfile")) {
+            throw new SQLException("Tentative d'utilisation d'une connexion de base de données en mode flatfile");
         }
+
+        if (!isInitialized || dataSource == null || dataSource.isClosed()) {
+            initDatabase();
+        }
+
+        return dataSource.getConnection();
     }
 
     /**
@@ -1456,7 +1461,7 @@ public class DataManager {
             // // Construction de la requête en fonction du type de base de données
             // String timeFloorFunction;
             // String dateAddFunction;
-            
+            // 
             // if (dataConfig.getDatabaseType().equals("mysql")) {
             //     // MySQL utilise une syntaxe différente pour tronquer les dates
             //     timeFloorFunction = "DATE_FORMAT(timestamp, '%Y-%m-%d %H:%i:00')";
@@ -1466,7 +1471,7 @@ public class DataManager {
             //     timeFloorFunction = "strftime('%Y-%m-%d %H:%M:00', timestamp)";
             //     dateAddFunction = "datetime('now', '-' || ? || ' days')";
             // }
-            
+            // 
             // String sql = 
             //     "WITH intervals AS (" +
             //     "  SELECT " +

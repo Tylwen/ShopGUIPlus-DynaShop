@@ -1,8 +1,8 @@
 package fr.tylwen.satyria.dynashop.price;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
-import fr.tylwen.satyria.dynashop.cache.CacheManager;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
+import fr.tylwen.satyria.dynashop.data.cache.CacheManager;
 // import org.bukkit.inventory.ItemStack;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 // import net.brcdev.shopgui.ShopGuiPlusApi;
@@ -39,7 +39,7 @@ public class PriceStock {
         }
         
         // Récupérer stock actuel
-        Optional<Integer> stockOptional = plugin.getItemDataManager().getStock(shopID, itemID);
+        Optional<Integer> stockOptional = plugin.getStorageManager().getStock(shopID, itemID);
         int stock = stockOptional.orElse(0);
         
         // Récupérer les configurations de stock
@@ -97,13 +97,13 @@ public class PriceStock {
      */
     private Optional<Double> getBasePrice(String shopID, String itemID, String typePrice) {
         if (typePrice.equals("buyPrice")) {
-            Optional<Double> price = plugin.getItemDataManager().getBuyPrice(shopID, itemID);
+            Optional<Double> price = plugin.getStorageManager().getBuyPrice(shopID, itemID);
             if (price.isPresent()) {
                 return price;
             }
             return plugin.getShopConfigManager().getItemValue(shopID, itemID, "buyPrice", Double.class);
         } else {
-            Optional<Double> price = plugin.getItemDataManager().getSellPrice(shopID, itemID);
+            Optional<Double> price = plugin.getStorageManager().getSellPrice(shopID, itemID);
             if (price.isPresent()) {
                 return price;
             }
@@ -159,14 +159,14 @@ public class PriceStock {
             return;
         }
         
-        Optional<Integer> currentStock = plugin.getItemDataManager().getStock(shopID, itemID);
+        Optional<Integer> currentStock = plugin.getStorageManager().getStock(shopID, itemID);
         int minStock = plugin.getShopConfigManager()
             .getItemValue(shopID, itemID, "stock.min", Integer.class)
             .orElse(dataConfig.getStockMin());
         
         int newStock = Math.max(currentStock.orElse(0) - amount, minStock);
-        plugin.getDataManager().insertStock(shopID, itemID, newStock);
-        
+        plugin.getStorageManager().saveStock(shopID, itemID, newStock);
+
         // Mettre à jour les prix dans la BD
         updatePricesInDatabase(shopID, itemID);
     }
@@ -195,13 +195,13 @@ public class PriceStock {
             return;
         }
         
-        Optional<Integer> currentStock = plugin.getItemDataManager().getStock(shopID, itemID);
+        Optional<Integer> currentStock = plugin.getStorageManager().getStock(shopID, itemID);
         int maxStock = plugin.getShopConfigManager()
             .getItemValue(shopID, itemID, "stock.max", Integer.class)
             .orElse(dataConfig.getStockMax());
         
         int newStock = Math.min(currentStock.orElse(0) + amount, maxStock);
-        plugin.getDataManager().insertStock(shopID, itemID, newStock);
+        plugin.getStorageManager().saveStock(shopID, itemID, newStock);
         
         // Mettre à jour les prix dans la BD
         updatePricesInDatabase(shopID, itemID);
@@ -236,7 +236,7 @@ public class PriceStock {
             return true;
         }
         
-        Optional<Integer> stockOptional = plugin.getItemDataManager().getStock(shopID, itemID);
+        Optional<Integer> stockOptional = plugin.getStorageManager().getStock(shopID, itemID);
         return stockOptional.map(stock -> stock >= amount).orElse(true);
     }
     
@@ -258,7 +258,7 @@ public class PriceStock {
             return true;
         }
         
-        Optional<Integer> stockOptional = plugin.getItemDataManager().getStock(shopID, itemID);
+        Optional<Integer> stockOptional = plugin.getStorageManager().getStock(shopID, itemID);
         int maxStock = plugin.getShopConfigManager()
             .getItemValue(shopID, itemID, "stock.max", Integer.class)
             .orElse(dataConfig.getStockMax());
@@ -273,7 +273,7 @@ public class PriceStock {
         double buyPrice = calculatePrice(shopID, itemID, "buyPrice");
         double sellPrice = calculatePrice(shopID, itemID, "sellPrice");
         
-        Optional<Integer> stockOptional = plugin.getItemDataManager().getStock(shopID, itemID);
+        Optional<Integer> stockOptional = plugin.getStorageManager().getStock(shopID, itemID);
         int stock = stockOptional.orElse(0);
         
         int minStock = plugin.getShopConfigManager()
@@ -328,8 +328,8 @@ public class PriceStock {
             .orElse(-1.0);
         double sellPrice = plugin.getShopConfigManager().getItemValue(shopID, itemID, "sellPrice", Double.class)
             .orElse(-1.0);
-        
-        Optional<Integer> stockOptional = plugin.getItemDataManager().getStock(shopID, itemID);
+
+        Optional<Integer> stockOptional = plugin.getStorageManager().getStock(shopID, itemID);
         int stock = stockOptional.orElse(0);
         
         int minStock = plugin.getShopConfigManager()

@@ -1,0 +1,215 @@
+package fr.tylwen.satyria.dynashop.data.storage.limit;
+
+import fr.tylwen.satyria.dynashop.data.storage.JsonStorage;
+import fr.tylwen.satyria.dynashop.system.TransactionLimiter.LimitPeriod;
+
+import com.google.gson.reflect.TypeToken;
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
+/**
+ * Gestionnaire pour les données de transactions (limites)
+ */
+public class TransactionDataManager {
+    private final File baseFolder;
+    private final Map<LimitPeriod, Map<String, List<TransactionRecord>>> transactionsByPeriod = new ConcurrentHashMap<>();
+    
+    public TransactionDataManager(File baseFolder) {
+        this.baseFolder = baseFolder;
+        if (!baseFolder.exists()) {
+            baseFolder.mkdirs();
+        }
+        
+        // Initialiser les maps pour chaque période
+        for (LimitPeriod period : LimitPeriod.values()) {
+            transactionsByPeriod.put(period, new ConcurrentHashMap<>());
+        }
+    }
+    
+    public void load() {
+        for (LimitPeriod period : LimitPeriod.values()) {
+            if (period == LimitPeriod.NONE) continue;
+            
+            File periodFile = new File(baseFolder, "transactions_" + period.name().toLowerCase() + ".json");
+            
+            try {
+                Type type = new TypeToken<Map<String, List<TransactionRecord>>>(){}.getType();
+                Map<String, List<TransactionRecord>> data = JsonStorage.loadFromFile(periodFile, type, new HashMap<>());
+                transactionsByPeriod.put(period, new ConcurrentHashMap<>(data));
+            } catch (Exception e) {
+                // Fichier n'existe pas encore ou erreur de lecture
+            }
+        }
+    }
+    
+    public void save() {
+        CompletableFuture.runAsync(() -> {
+            for (LimitPeriod period : LimitPeriod.values()) {
+                if (period == LimitPeriod.NONE) continue;
+                
+                File periodFile = new File(baseFolder, "transactions_" + period.name().toLowerCase() + ".json");
+                
+                try {
+                    JsonStorage.saveToFile(periodFile, transactionsByPeriod.get(period));
+                } catch (IOException e) {
+                    // Log error if needed
+                }
+            }
+        });
+    }
+    
+    /**
+     * Ajoute une transaction
+     */
+    public void addTransaction(UUID playerUuid, String shopId, String itemId, boolean isBuy, int amount) {
+        String key = getTransactionKey(playerUuid, shopId, itemId, isBuy);
+        LocalDateTime now = LocalDateTime.now();
+        TransactionRecord record = new TransactionRecord(playerUuid, shopId, itemId, isBuy, amount, now);
+        
+        // Ajouter aux périodes appropriées
+        for (LimitPeriod period : LimitPeriod.values()) {
+            if (period == LimitPeriod.NONE) continue;
+            
+            Map<String, List<TransactionRecord>> periodMap = transactionsByPeriod.get(period);
+            
+            if (!periodMap.containsKey(key)) {
+                periodMap.put(key, new ArrayList<>());
+            }
+            
+            periodMap.get(key).add(record);
+        }
+    }
+    
+    /**
+     * Calcule la quantité restante pour une limite
+     */
+    public int getRemainingAmount(UUID playerUuid, String shopId, String itemId, boolean isBuy, int limit, LimitPeriod period) {
+        if (period == LimitPeriod.NONE) return Integer.MAX_VALUE;
+        
+        String key = getTransactionKey(playerUuid, shopId, itemId, isBuy);
+        Map<String, List<TransactionRecord>> periodMap = transactionsByPeriod.get(period);
+        
+        if (!periodMap.containsKey(key)) {
+            return limit;
+        }
+        
+        LocalDateTime startDate = getStartDateForPeriod(period);
+        
+        int used = periodMap.get(key).stream()
+            .filter(r -> !r.timestamp.isBefore(startDate))
+            .mapToInt(r -> r.amount)
+            .sum();
+            
+        return Math.max(0, limit - used);
+    }
+    
+    /**
+     * Calcule le temps avant la prochaine disponibilité
+     */
+    public long getNextAvailableTime(UUID playerUuid, String shopId, String itemId, boolean isBuy, LimitPeriod period) {
+        if (period == LimitPeriod.NONE) return 0L;
+        
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime nextReset;
+        
+        switch (period) {
+            case DAILY:
+                nextReset = now.withHour(0).withMinute(0).withSecond(0).withNano(0).plusDays(1);
+                break;
+            case WEEKLY:
+                nextReset = now.with(java.time.temporal.TemporalAdjusters.next(java.time.DayOfWeek.MONDAY))
+                    .withHour(0).withMinute(0).withSecond(0).withNano(0);
+                break;
+            case MONTHLY:
+                nextReset = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0).plusMonths(1);
+                break;
+            case YEARLY:
+                nextReset = now.withDayOfYear(1).withHour(0).withMinute(0).withSecond(0).withNano(0).plusYears(1);
+                break;
+            case FOREVER:
+            default:
+                return -1L;
+        }
+        
+        return ChronoUnit.MILLIS.between(now, nextReset);
+    }
+    
+    /**
+     * Nettoie les transactions expirées
+     */
+    public void cleanupExpiredTransactions() {
+        LocalDateTime now = LocalDateTime.now();
+        
+        for (LimitPeriod period : LimitPeriod.values()) {
+            if (period == LimitPeriod.NONE) continue;
+            
+            LocalDateTime cutoffDate = getStartDateForPeriod(period);
+            Map<String, List<TransactionRecord>> periodMap = transactionsByPeriod.get(period);
+            
+            for (Map.Entry<String, List<TransactionRecord>> entry : periodMap.entrySet()) {
+                List<TransactionRecord> filtered = entry.getValue().stream()
+                    .filter(r -> !r.timestamp.isBefore(cutoffDate))
+                    .collect(Collectors.toList());
+                
+                if (filtered.isEmpty()) {
+                    periodMap.remove(entry.getKey());
+                } else if (filtered.size() < entry.getValue().size()) {
+                    entry.setValue(filtered);
+                }
+            }
+        }
+    }
+    
+    private String getTransactionKey(UUID playerUuid, String shopId, String itemId, boolean isBuy) {
+        return playerUuid.toString() + ":" + shopId + ":" + itemId + ":" + (isBuy ? "buy" : "sell");
+    }
+    
+    private LocalDateTime getStartDateForPeriod(LimitPeriod period) {
+        LocalDateTime now = LocalDateTime.now();
+        
+        switch (period) {
+            case DAILY:
+                return now.truncatedTo(ChronoUnit.DAYS);
+            case WEEKLY:
+                return now.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+                    .truncatedTo(ChronoUnit.DAYS);
+            case MONTHLY:
+                return now.withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS);
+            case YEARLY:
+                return now.withDayOfYear(1).truncatedTo(ChronoUnit.DAYS);
+            case FOREVER:
+            default:
+                return LocalDateTime.MIN;
+        }
+    }
+    
+    /**
+     * Classe pour stocker les données de transaction
+     */
+    public static class TransactionRecord {
+        public UUID playerUuid;
+        public String shopId;
+        public String itemId;
+        public boolean isBuy;
+        public int amount;
+        public LocalDateTime timestamp;
+        
+        public TransactionRecord() {}
+        
+        public TransactionRecord(UUID playerUuid, String shopId, String itemId, boolean isBuy, int amount, LocalDateTime timestamp) {
+            this.playerUuid = playerUuid;
+            this.shopId = shopId;
+            this.itemId = itemId;
+            this.isBuy = isBuy;
+            this.amount = amount;
+            this.timestamp = timestamp;
+        }
+    }
+}

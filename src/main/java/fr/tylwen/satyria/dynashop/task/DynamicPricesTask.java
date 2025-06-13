@@ -92,9 +92,9 @@ public class DynamicPricesTask implements Runnable {
             // plugin.getLogger().warning("Démarrage de la tâche de mise à jour des prix...");
 
             // Au lieu de charger tous les prix synchrones, on fait la requête dans un thread séparé
-            plugin.getDataManager().executeAsync(() -> {
+            plugin.getStorageManager().executeAsync(() -> {
                 // Charger les prix depuis la base de données (fait en thread asynchrone)
-                Map<ShopItem, DynamicPrice> priceMap = plugin.getDataManager().loadPricesFromDatabase();
+                Map<ShopItem, DynamicPrice> priceMap = plugin.getStorageManager().loadAllPrices();
                 if (priceMap == null || priceMap.isEmpty()) {
                     // plugin.getLogger().info("Aucun prix à mettre à jour (priceMap vide ou null)");
                     return null;

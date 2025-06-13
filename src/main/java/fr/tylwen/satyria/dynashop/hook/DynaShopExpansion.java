@@ -24,15 +24,17 @@ import org.bukkit.inventory.ItemStack;
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 // import fr.tylwen.satyria.dynashop.data.ItemPriceData;
 import fr.tylwen.satyria.dynashop.data.ShopConfigManager;
+import fr.tylwen.satyria.dynashop.data.cache.LimitCacheEntry;
+import fr.tylwen.satyria.dynashop.data.storage.StorageManager;
 // import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 // import fr.tylwen.satyria.dynashop.database.DataManager;
-import fr.tylwen.satyria.dynashop.database.ItemDataManager;
+// import fr.tylwen.satyria.dynashop.database.ItemDataManager;
 // import fr.tylwen.satyria.dynashop.listener.DynaShopListener;
 import fr.tylwen.satyria.dynashop.listener.ShopItemPlaceholderListener;
 // import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 import fr.tylwen.satyria.dynashop.price.PriceRecipe;
 import fr.tylwen.satyria.dynashop.system.TransactionLimiter.LimitPeriod;
-import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionLimit;
+// import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionLimit;
 import me.clip.placeholderapi.PlaceholderAPI;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import net.brcdev.shopgui.ShopGuiPlusApi;
@@ -43,15 +45,17 @@ public class DynaShopExpansion extends PlaceholderExpansion {
     private final DynaShopPlugin plugin;
     // private DataManager dataManager;
     // ItemDataManager itemDataManager = new ItemDataManager(dataManager);
-    private final ItemDataManager itemDataManager;
+    // private final ItemDataManager itemDataManager;
+    private final StorageManager storageManager;
     private final ShopConfigManager shopConfigManager;
     private final PriceRecipe priceRecipe;
 
     public DynaShopExpansion(DynaShopPlugin plugin) {
         this.plugin = plugin;
-        this.itemDataManager = plugin.getItemDataManager();
+        // this.itemDataManager = plugin.getItemDataManager();
         this.shopConfigManager = plugin.getShopConfigManager();
         this.priceRecipe = plugin.getPriceRecipe();
+        this.storageManager = plugin.getStorageManager();
     }
 
     // public DynaShopExpansion(ItemDataManager itemDataManager, ShopConfigManager shopConfigManager, PriceRecipe priceRecipe) {
@@ -786,7 +790,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             }
 
             // Priorité à la base de données
-            Optional<Double> buyPrice = this.itemDataManager.getBuyPrice(shopID, itemID);
+            Optional<Double> buyPrice = this.storageManager.getBuyPrice(shopID, itemID);
             if (buyPrice.isPresent()) {
                 return String.valueOf(buyPrice.get());
             }
@@ -830,7 +834,7 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             }
 
             // Priorité à la base de données
-            Optional<Double> sellPrice = this.itemDataManager.getSellPrice(shopID, itemID);
+            Optional<Double> sellPrice = this.storageManager.getSellPrice(shopID, itemID);
             if (sellPrice.isPresent()) {
                 return String.valueOf(sellPrice.get());
             }
@@ -974,12 +978,13 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             
             if (!(player instanceof Player)) return "N/A";
             
-            try {
-                // int remaining = plugin.getTransactionLimiter().getRemainingAmount((Player)player, shopID, itemID, true).get();
-                int remaining = plugin.getTransactionLimiter().getRemainingAmountSync((Player)player, shopID, itemID, true);
-                return String.valueOf(remaining);
-            } catch (Exception e) {
-                return "Erreur";
+            // Utiliser directement LimitCacheEntry au lieu de getRemainingAmountSync
+            LimitCacheEntry limit = plugin.getTransactionLimiter().getTransactionLimit((Player)player, shopID, itemID, true);
+            if (limit != null && limit.baseLimit > 0) {
+                // Accéder directement à la propriété remaining
+                return String.valueOf(limit.remaining);
+            } else {
+                return plugin.getLangConfig().getPlaceholderNoLimit();
             }
         }
 
@@ -993,12 +998,13 @@ public class DynaShopExpansion extends PlaceholderExpansion {
             
             if (!(player instanceof Player)) return "N/A";
             
-            try {
-                // int remaining = plugin.getTransactionLimiter().getRemainingAmount((Player)player, shopID, itemID, false).get();
-                int remaining = plugin.getTransactionLimiter().getRemainingAmountSync((Player)player, shopID, itemID, false);
-                return String.valueOf(remaining);
-            } catch (Exception e) {
-                return "Erreur";
+            // Utiliser directement LimitCacheEntry au lieu de getRemainingAmountSync
+            LimitCacheEntry limit = plugin.getTransactionLimiter().getTransactionLimit((Player)player, shopID, itemID, false);
+            if (limit != null && limit.baseLimit > 0) {
+                // Accéder directement à la propriété remaining
+                return String.valueOf(limit.remaining);
+            } else {
+                return plugin.getLangConfig().getPlaceholderNoLimit();
             }
         }
 
@@ -1010,15 +1016,14 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                 if (parts.length == 2) {
                     String shopId = parts[0];
                     String itemId = parts[1];
-                    TransactionLimit limit = plugin.getTransactionLimiter().getTransactionLimit(shopId, itemId, true);
-                    if (limit == null || limit.getAmount() <= 0) {
+                    LimitCacheEntry limit = plugin.getTransactionLimiter().getTransactionLimit((Player) player, shopId, itemId, true);
+                    if (limit == null || limit.baseLimit <= 0) {
                         return plugin.getLangConfig().getPlaceholderNoLimit();
                     }
             
                     try {
-                        // int remaining = plugin.getTransactionLimiter().getRemainingAmount((Player) player, shopId, itemId, true).get();
-                        int remaining = plugin.getTransactionLimiter().getRemainingAmountSync((Player) player, shopId, itemId, true);
-                        return String.valueOf(remaining);
+                        // Accès direct à la propriété remaining
+                        return String.valueOf(limit.remaining);
                     } catch (Exception e) {
                         return "N/A";
                     }
@@ -1032,15 +1037,14 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                 if (parts.length == 2) {
                     String shopId = parts[0];
                     String itemId = parts[1];
-                    TransactionLimit limit = plugin.getTransactionLimiter().getTransactionLimit(shopId, itemId, false);
-                    if (limit == null || limit.getAmount() <= 0) {
+                    LimitCacheEntry limit = plugin.getTransactionLimiter().getTransactionLimit((Player) player, shopId, itemId, false);
+                    if (limit == null || limit.baseLimit <= 0) {
                         return plugin.getLangConfig().getPlaceholderNoLimit();
                     }
                     
                     try {
-                        // int remaining = plugin.getTransactionLimiter().getRemainingAmount((Player) player, shopId, itemId, false).get();
-                        int remaining = plugin.getTransactionLimiter().getRemainingAmountSync((Player) player, shopId, itemId, false);
-                        return String.valueOf(remaining);
+                        // Accès direct à la propriété remaining
+                        return String.valueOf(limit.remaining);
                     } catch (Exception e) {
                         return "N/A";
                     }
@@ -1054,15 +1058,14 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                 if (parts.length == 2) {
                     String shopId = parts[0];
                     String itemId = parts[1];
-                    TransactionLimit limit = plugin.getTransactionLimiter().getTransactionLimit(shopId, itemId, true);
-                    if (limit == null || limit.getAmount() <= 0) {
+                    LimitCacheEntry limit = plugin.getTransactionLimiter().getTransactionLimit((Player) player, shopId, itemId, true);
+                    if (limit == null || limit.baseLimit <= 0) {
                         return plugin.getLangConfig().getPlaceholderNoLimit();
                     }
                     
                     try {
-                        // long millisRemaining = plugin.getTransactionLimiter().getNextAvailableTime((Player) player, shopId, itemId, true).get();
-                        long millisRemaining = plugin.getTransactionLimiter().getNextAvailableTimeSync((Player) player, shopId, itemId, true);
-                        return formatTimeRemaining(millisRemaining, limit);
+                        // Accès direct à la propriété nextAvailable
+                        return formatTimeRemaining(limit.nextAvailable, limit);
                     } catch (Exception e) {
                         return "N/A";
                     }
@@ -1076,15 +1079,14 @@ public class DynaShopExpansion extends PlaceholderExpansion {
                 if (parts.length == 2) {
                     String shopId = parts[0];
                     String itemId = parts[1];
-                    TransactionLimit limit = plugin.getTransactionLimiter().getTransactionLimit(shopId, itemId, false);
-                    if (limit == null || limit.getAmount() <= 0) {
+                    LimitCacheEntry limit = plugin.getTransactionLimiter().getTransactionLimit((Player) player, shopId, itemId, false);
+                    if (limit == null || limit.baseLimit <= 0) {
                         return plugin.getLangConfig().getPlaceholderNoLimit();
                     }
                     
                     try {
-                        // long millisRemaining = plugin.getTransactionLimiter().getNextAvailableTime((Player) player, shopId, itemId, false).get();
-                        long millisRemaining = plugin.getTransactionLimiter().getNextAvailableTimeSync((Player) player, shopId, itemId, false);
-                        return formatTimeRemaining(millisRemaining, limit);
+                        // Accès direct à la propriété nextAvailable
+                        return formatTimeRemaining(limit.nextAvailable, limit);
                     } catch (Exception e) {
                         return "N/A";
                     }
@@ -1162,25 +1164,16 @@ public class DynaShopExpansion extends PlaceholderExpansion {
     /**
      * Formate un temps en millisecondes en une chaîne lisible
      * @param millisRemaining Temps restant en millisecondes
+     * @param limit L'entrée de cache de la limite
      * @return Chaîne formatée (ex: "04.03.2023 00:00:00" ou "01h 30m 45s")
      */
-    private String formatTimeRemaining(long millisRemaining, TransactionLimit limit) {
+    private String formatTimeRemaining(long millisRemaining, LimitCacheEntry limit) {
         if (millisRemaining <= 0) {
             return plugin.getLangConfig().getPlaceholderNoLimit();
         }
         
-        // // Vérifier si c'est un reset basé sur une période (DAILY, WEEKLY, etc.)
-        // // Dans ce cas, on affiche la date complète
-        // LocalDateTime resetTime = LocalDateTime.now().plus(millisRemaining, ChronoUnit.MILLIS);
-        
-        // // Si le reset est à minuit pile ou début de semaine/mois, c'est probablement un reset périodique
-        // if (resetTime.getHour() == 0 && resetTime.getMinute() == 0 && resetTime.getSecond() == 0) {
-        //     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
-        //     return resetTime.format(formatter);
-        // }
-        
         // Si c'est une période prédéfinie (DAILY, WEEKLY, etc.), on affiche la date complète
-        LimitPeriod period = limit.getPeriodEquivalent();
+        LimitPeriod period = getPeriodForCooldown(limit.cooldown);
         if (period != LimitPeriod.NONE) {
             LocalDateTime resetTime = LocalDateTime.now().plus(millisRemaining, ChronoUnit.MILLIS);
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
@@ -1200,6 +1193,17 @@ public class DynaShopExpansion extends PlaceholderExpansion {
         } else {
             return String.format("%02ds", seconds);
         }
+    }
+
+    /**
+     * Détermine la période équivalente pour un cooldown donné
+     */
+    private LimitPeriod getPeriodForCooldown(int cooldown) {
+        if (cooldown >= 31536000) return LimitPeriod.FOREVER;
+        if (cooldown >= 2592000) return LimitPeriod.MONTHLY;
+        if (cooldown >= 604800) return LimitPeriod.WEEKLY;
+        if (cooldown >= 86400) return LimitPeriod.DAILY;
+        return LimitPeriod.NONE;
     }
 
     public String setPlaceholders(Player player, String identifier) {

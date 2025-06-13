@@ -94,7 +94,7 @@ public class WaitForShopsTask implements Runnable {
             if (!isTasksInitialized) {
                 // Initialiser les prix à partir des configurations des shops
                 plugin.getShopConfigManager().initPricesFromShopConfigs();
-                plugin.getDataManager().cleanupStockTable();
+                plugin.getStorageManager().cleanupStockTable();
                 
                 // Démarrer les tâches qui dépendent des shops
                 startDependentTasks();
@@ -158,7 +158,7 @@ public class WaitForShopsTask implements Runnable {
                             DynamicPrice price = plugin.getDynaShopListener().getOrLoadPrice(null, shop.getId(), item.getId(), item.getItem(), new HashSet<>(), new HashMap<>());
                             if (price != null) {
                                 // Récupérer l'historique existant
-                                PriceHistory history = plugin.getDataManager().getPriceHistory(shop.getId(), item.getId());
+                                PriceHistory history = plugin.getStorageManager().getPriceHistory(shop.getId(), item.getId());
                                 
                                 // Ajouter un nouveau point toutes les heures
                                 LocalDateTime now = LocalDateTime.now();

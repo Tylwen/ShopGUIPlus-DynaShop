@@ -1,4 +1,4 @@
-package fr.tylwen.satyria.dynashop.cache;
+package fr.tylwen.satyria.dynashop.data.cache;
 
 import java.util.Map;
 import java.util.Set;
@@ -20,10 +20,10 @@ public class CacheManager<K, V> {
     
     private final long cacheDuration;
     private final TimeUnit timeUnit;
-    private final String cacheType;
+    // private final String cacheType;
     private final int promotionThreshold;
     
-    private final DynaShopPlugin plugin;
+    // private final DynaShopPlugin plugin;
     
     /**
      * Crée un nouveau gestionnaire de cache
@@ -34,8 +34,8 @@ public class CacheManager<K, V> {
      * @param promotionThreshold Nombre d'accès avant promotion dans le hot cache
      */
     public CacheManager(DynaShopPlugin plugin, String cacheType, long duration, TimeUnit timeUnit, int promotionThreshold) {
-        this.plugin = plugin;
-        this.cacheType = cacheType;
+        // this.plugin = plugin;
+        // this.cacheType = cacheType;
         this.cacheDuration = duration;
         this.timeUnit = timeUnit;
         this.promotionThreshold = promotionThreshold;

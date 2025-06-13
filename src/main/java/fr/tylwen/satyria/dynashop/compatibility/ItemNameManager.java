@@ -20,7 +20,7 @@ public class ItemNameManager {
     
     private static ItemNameProvider provider;
     private static final Logger logger = Bukkit.getLogger();
-    private static MinecraftVersion version;
+    // private static MinecraftVersion version;
 
 
     // static {

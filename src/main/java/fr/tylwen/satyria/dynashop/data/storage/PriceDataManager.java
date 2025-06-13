@@ -43,15 +43,20 @@ public class PriceDataManager {
         });
     }
 
-    public DynamicPrice getPrice(String key) {
+    public DynamicPrice get(String key) {
         return prices.get(key);
     }
 
-    public void setPrice(String key, DynamicPrice price) {
+    public void set(String key, DynamicPrice price) {
         prices.put(key, price);
     }
 
     public Map<String, DynamicPrice> getAll() {
         return prices;
+    }
+
+    public void remove(String key) {
+        prices.remove(key);
+        save(); // Sauvegarde après suppression
     }
 }

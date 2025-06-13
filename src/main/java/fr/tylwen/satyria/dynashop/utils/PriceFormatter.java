@@ -7,7 +7,7 @@ import net.brcdev.shopgui.ShopGuiPlusApi;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
-import java.util.ArrayList;
+// import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Optional;
 
@@ -121,7 +121,7 @@ public class PriceFormatter {
                 }
 
                 // Priorité à la base de données
-                Optional<Double> buyPrice = plugin.getItemDataManager().getBuyPrice(shopID, itemID);
+                Optional<Double> buyPrice = plugin.getStorageManager().getBuyPrice(shopID, itemID);
                 if (buyPrice.isPresent()) {
                     return formatPrice(buyPrice.get());
                 }
@@ -148,7 +148,7 @@ public class PriceFormatter {
                 }
 
                 // Priorité à la base de données
-                Optional<Double> sellPrice = plugin.getItemDataManager().getSellPrice(shopID, itemID);
+                Optional<Double> sellPrice = plugin.getStorageManager().getSellPrice(shopID, itemID);
                 if (sellPrice.isPresent()) {
                     return formatPrice(sellPrice.get());
                 }
@@ -256,7 +256,7 @@ public class PriceFormatter {
     public String getStockByType(String shopID, String itemID, String stockType) {
         switch (stockType) {
             case "stock":
-                Optional<Integer> stockOptional = plugin.getItemDataManager().getStock(shopID, itemID);
+                Optional<Integer> stockOptional = plugin.getStorageManager().getStock(shopID, itemID);
                 if (stockOptional.isPresent()) {
                     return formatStock(stockOptional.get());
                 }

@@ -19,7 +19,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Consumer;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
-import fr.tylwen.satyria.dynashop.cache.CacheManager;
+import fr.tylwen.satyria.dynashop.data.cache.CacheManager;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.data.param.RecipeType;
 import fr.tylwen.satyria.dynashop.utils.PrioritizedRunnable;
@@ -1761,9 +1761,8 @@ public class PriceRecipe {
         visitedItems.add(ingredientID);
 
         // Récupérer le stock de l'item
-        Optional<Integer> stockOptional = plugin.getItemDataManager()
-            .getStock(ingredientShopID, ingredientID);
-        
+        Optional<Integer> stockOptional = plugin.getStorageManager().getStock(ingredientShopID, ingredientID);
+
         if (stockOptional.isPresent()) {
             return stockOptional.get();
         }

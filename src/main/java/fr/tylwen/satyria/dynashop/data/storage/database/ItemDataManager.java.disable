@@ -15,6 +15,7 @@ import org.bukkit.Bukkit;
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
+import fr.tylwen.satyria.dynashop.data.storage.StorageManager;
 import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 import net.brcdev.shopgui.shop.item.ShopItem;
 
@@ -23,7 +24,7 @@ import net.brcdev.shopgui.shop.item.ShopItem;
  * Utilise les méthodes sécurisées du DataManager optimisé.
  */
 public class ItemDataManager {
-    private final DataManager dataManager;
+    private final StorageManager dataManager;
     private final DataConfig dataConfig;
     private final DynaShopPlugin plugin;
 
@@ -31,7 +32,7 @@ public class ItemDataManager {
     private final Map<String, Boolean> existenceCache = new ConcurrentHashMap<>();
     private final Map<String, Boolean> priceExistsCache = new ConcurrentHashMap<>();
 
-    public ItemDataManager(DataManager dataManager) {
+    public ItemDataManager(StorageManager dataManager) {
         this.dataManager = dataManager;
         this.plugin = DynaShopPlugin.getInstance();
         this.dataConfig = new DataConfig(plugin.getConfigMain());
@@ -192,7 +193,7 @@ public class ItemDataManager {
         // }
         // N'insérer que les items en mode STOCK ou STATIC_STOCK
         if (typeDynaShop == DynaShopType.STOCK || typeDynaShop == DynaShopType.STATIC_STOCK) {
-            dataManager.insertStock(shopID, itemID, stock);
+            dataManager.saveStock(shopID, itemID, stock);
         } else {
             // Pour les autres types, supprimer l'entrée si elle existe
             dataManager.deleteStock(shopID, itemID);

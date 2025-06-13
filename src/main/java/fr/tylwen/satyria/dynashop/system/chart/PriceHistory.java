@@ -3,10 +3,12 @@ package fr.tylwen.satyria.dynashop.system.chart;
 import java.time.LocalDateTime;
 // import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+// import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 // import java.util.UUID;
+// import java.util.stream.Collectors;
 
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 
@@ -68,7 +70,8 @@ public class PriceHistory implements ConfigurationSerializable {
         
         // Sauvegarder l'historique dans la base de données
         // DynaShopPlugin.getInstance().getDataManager().savePriceHistory(this);
-        DynaShopPlugin.getInstance().getDataManager().saveSinglePriceDataPoint(this.shopId, this.itemId, dataPoint);
+        // DynaShopPlugin.getInstance().getDataManager().saveSinglePriceDataPoint(this.shopId, this.itemId, dataPoint);
+        DynaShopPlugin.getInstance().getStorageManager().savePriceDataPoint(this.shopId, this.itemId, dataPoint, 15);
     }
 
     // public void addDataPoint(double openBuyPrice, double closeBuyPrice, double highBuyPrice, double lowBuyPrice,
@@ -83,7 +86,7 @@ public class PriceHistory implements ConfigurationSerializable {
     //     addDataPoint(openPrice, closePrice, highPrice, lowPrice, 0, 0, 0, 0);
     // }
 
-    public void addDataPointFromDB(PriceDataPoint dataPoint) {
+    public void addDataPoint(PriceDataPoint dataPoint) {
         dataPoints.add(dataPoint);
         
         // Limiter la taille de l'historique
@@ -92,7 +95,22 @@ public class PriceHistory implements ConfigurationSerializable {
         }
         
         // // Sauvegarder l'historique dans la base de données
-        // DynaShopPlugin.getInstance().getDataManager().savePriceHistory(this);
+        // DynaShopPlugin.getInstance().getStorageManager().savePriceHistory(this);
+    }
+
+    public void setDataPoints(List<PriceDataPoint> newDataPoints) {
+        this.dataPoints.clear();
+        if (newDataPoints != null) {
+            this.dataPoints.addAll(newDataPoints);
+        }
+    }
+
+    public void updateDataPoint(int index, PriceDataPoint dataPoint) {
+        if (index >= 0 && index < dataPoints.size()) {
+            dataPoints.set(index, dataPoint);
+        } else {
+            throw new IndexOutOfBoundsException("Index out of bounds for data points list.");
+        }
     }
     
     public List<PriceDataPoint> getDataPoints() {
@@ -244,5 +262,97 @@ public class PriceHistory implements ConfigurationSerializable {
     //         // Sinon, ajouter un nouveau point
     //         history.addDataPoint(lastPoint.getClosePrice(), price, Math.max(lastPoint.getClosePrice(), price), Math.min(lastPoint.getClosePrice(), price));
     //     }
+    // }
+
+    // /**
+    //  * Agrège les données d'historique selon un intervalle spécifié
+    //  * @param intervalMinutes Intervalle en minutes
+    //  * @param startTime Date de début (optionnelle)
+    //  * @param maxPoints Nombre maximum de points à retourner
+    //  * @return Liste de points de données agrégés
+    //  */
+    // public List<PriceDataPoint> getAggregatedData(int intervalMinutes, LocalDateTime startTime, int maxPoints) {
+    //     List<PriceDataPoint> points = new ArrayList<>(dataPoints);
+        
+    //     // 1. Filtrer par date de début si spécifiée
+    //     if (startTime != null) {
+    //         points = points.stream()
+    //             .filter(p -> p.getTimestamp().isAfter(startTime))
+    //             .collect(Collectors.toList());
+    //     }
+        
+    //     // 2. Agréger par intervalle
+    //     Map<String, List<PriceDataPoint>> groupedPoints = new HashMap<>();
+    //     for (PriceDataPoint point : points) {
+    //         // Tronquer le timestamp à l'intervalle spécifié
+    //         LocalDateTime truncated = truncateToInterval(point.getTimestamp(), intervalMinutes);
+    //         String key = truncated.toString();
+            
+    //         // Regrouper les points par intervalle
+    //         groupedPoints.computeIfAbsent(key, k -> new ArrayList<>()).add(point);
+    //     }
+        
+    //     // 3. Calculer les valeurs agrégées pour chaque groupe
+    //     List<PriceDataPoint> aggregatedPoints = new ArrayList<>();
+    //     for (Map.Entry<String, List<PriceDataPoint>> entry : groupedPoints.entrySet()) {
+    //         List<PriceDataPoint> group = entry.getValue();
+    //         LocalDateTime timestamp = LocalDateTime.parse(entry.getKey());
+            
+    //         // Ignorer les groupes vides
+    //         if (group.isEmpty()) continue;
+            
+    //         // 3.1 Calculer les valeurs pour le prix d'achat
+    //         double openBuy = group.get(0).getOpenBuyPrice();
+    //         double closeBuy = group.get(group.size() - 1).getCloseBuyPrice();
+    //         double highBuy = group.stream().mapToDouble(PriceDataPoint::getHighBuyPrice).max().orElse(0);
+    //         double lowBuy = group.stream().mapToDouble(PriceDataPoint::getLowBuyPrice).filter(p -> p > 0).min().orElse(0);
+            
+    //         // 3.2 Calculer les valeurs pour le prix de vente
+    //         double openSell = group.get(0).getOpenSellPrice();
+    //         double closeSell = group.get(group.size() - 1).getCloseSellPrice();
+    //         double highSell = group.stream().mapToDouble(PriceDataPoint::getHighSellPrice).max().orElse(0);
+    //         double lowSell = group.stream().mapToDouble(PriceDataPoint::getLowSellPrice).filter(p -> p > 0).min().orElse(0);
+            
+    //         // 3.3 Calculer le volume total
+    //         double volume = group.stream().mapToDouble(PriceDataPoint::getVolume).sum();
+            
+    //         // 3.4 Créer le point agrégé
+    //         PriceDataPoint aggregatedPoint = new PriceDataPoint(
+    //             timestamp, 
+    //             openBuy, closeBuy, highBuy, lowBuy, 
+    //             openSell, closeSell, highSell, lowSell, 
+    //             volume
+    //         );
+            
+    //         aggregatedPoints.add(aggregatedPoint);
+    //     }
+        
+    //     // 4. Trier par ordre chronologique
+    //     aggregatedPoints.sort(Comparator.comparing(PriceDataPoint::getTimestamp));
+        
+    //     // 5. Limiter le nombre de points
+    //     if (aggregatedPoints.size() > maxPoints) {
+    //         // Prendre les N derniers points (les plus récents)
+    //         aggregatedPoints = aggregatedPoints.subList(
+    //             Math.max(0, aggregatedPoints.size() - maxPoints), 
+    //             aggregatedPoints.size()
+    //         );
+    //     }
+        
+    //     return aggregatedPoints;
+    // }
+
+    // /**
+    //  * Tronque un timestamp à un intervalle de minutes spécifié
+    //  */
+    // private LocalDateTime truncateToInterval(LocalDateTime dateTime, int intervalMinutes) {
+    //     int totalMinutes = dateTime.getHour() * 60 + dateTime.getMinute();
+    //     int truncatedMinutes = (totalMinutes / intervalMinutes) * intervalMinutes;
+        
+    //     return dateTime
+    //         .withHour(truncatedMinutes / 60)
+    //         .withMinute(truncatedMinutes % 60)
+    //         .withSecond(0)
+    //         .withNano(0);
     // }
 }
