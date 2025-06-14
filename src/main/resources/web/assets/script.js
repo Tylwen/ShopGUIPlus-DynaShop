@@ -245,6 +245,63 @@ function updateRefreshDisplay() {
     }
 }
 
+// async function loadShops() {
+//     fetch('/api/shops')
+//         .then(response => response.json())
+//         .then(shops => {
+//             const shopSelect = document.getElementById('shop-select');
+            
+//             // Vider la liste actuelle (sauf la première option)
+//             while (shopSelect.options.length > 1) {
+//                 shopSelect.remove(1);
+//             }
+            
+//             // Trier les boutiques par nom
+//             shops.sort((a, b) => a.name.localeCompare(b.name));
+            
+//             // Ajouter les options de boutiques
+//             shops.forEach(shop => {
+//                 const option = document.createElement('option');
+//                 option.value = shop.id;  // L'ID comme valeur
+//                 option.textContent = shop.name;  // Le nom comme texte affiché
+//                 shopSelect.appendChild(option);
+//             });
+            
+//             // Réactiver le select
+//             shopSelect.disabled = false;
+            
+//             // Si un paramètre shop est présent dans l'URL, sélectionner cette boutique
+//             const urlParams = new URLSearchParams(window.location.search);
+//             const shopParam = urlParams.get('shop');
+//             if (shopParam) {
+//                 shopSelect.value = shopParam;
+//                 shopSelect.dispatchEvent(new Event('change'));
+//             }
+//         })
+//         .catch(error => console.error('Erreur lors du chargement des boutiques:', error));
+// }
+
+// Chargement des items d'un shop
+// async function loadItems(shopId) {
+//     try {
+//         const response = await fetch(`/api/items?shop=${shopId}`);
+//         const items = await response.json();
+        
+//         const itemSelect = document.getElementById('item-select');
+//         itemSelect.innerHTML = '<option value="">Choisir un item</option>';
+//         itemSelect.disabled = false;
+        
+//         items.forEach(item => {
+//             const option = document.createElement('option');
+//             option.value = item.id;
+//             option.textContent = item.name || item.id;
+//             itemSelect.appendChild(option);
+//         });
+//     } catch (error) {
+//         console.error("Erreur lors du chargement des items:", error);
+//     }
+// }
+
 async function loadShops() {
     fetch('/api/shops')
         .then(response => response.json())
@@ -571,6 +628,26 @@ function filterDataByPeriod(data, period) {
     });
 }
 
+// Mise à jour des graphiques
+// function updateCharts(data) {
+//     // Vérifier si on a des données
+//     if (!data || data.length === 0) {
+//         console.warn('Aucune donnée disponible pour les graphiques');
+//         return;
+//     }
+    
+//     // Convertir les timestamps en objets Date pour Chart.js
+//     const processedData = data.map(point => ({
+//         ...point,
+//         // Assurez-vous que timestamp est correctement parsé
+//         x: luxon.DateTime.fromISO(point.timestamp)
+//     }));
+    
+//     // Mettre à jour les graphiques
+//     updatePriceChart(processedData);
+//     updateVolumeChart(processedData);
+//     updateCandlestickChart(processedData);
+// }
 function updateCharts(data) {
     // Vérifier si on a des données
     if (!data || data.length === 0) {
@@ -588,6 +665,7 @@ function updateCharts(data) {
     // Mettre à jour les graphiques en passant également les stats
     updatePriceChart(processedData);
     updateVolumeChart(processedData); // Transmettre les stats ici
+    // updateCandlestickChart(processedData); // Transmettre les stats ici
 }
 
 // Mise à jour du graphique de prix
@@ -677,6 +755,96 @@ function updatePriceChart(data) {
     });
 }
 
+// function normalizeVolume(volume) {
+//     if (!volume || volume <= 0) return 0;
+//     // Pour rendre les petites valeurs plus visibles
+//     return Math.max(0.5, volume);
+// }
+
+// // Mise à jour du graphique de volume
+// function updateVolumeChart(data) {
+//     const ctx = document.getElementById('volume-chart').getContext('2d');
+    
+//     // Vérifier si nous avons des données de volume
+//     const volumeArray = data.map(point => point.volume || 0);
+//     const maxVolume = Math.max(...volumeArray);
+//     const hasVolumeData = maxVolume > 0;
+    
+//     console.log('Données de volume:', volumeArray);
+//     console.log('Volume maximum:', maxVolume);
+    
+//     // // Si aucun volume significatif, afficher un message
+//     // if (!hasVolumeData) {
+//     //     // Nettoyer le canvas existant
+//     //     if (volumeChart) {
+//     //         volumeChart.destroy();
+//     //         volumeChart = null;
+//     //     }
+        
+//     //     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+//     //     ctx.font = '14px Arial';
+//     //     ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim();
+//     //     ctx.textAlign = 'center';
+//     //     ctx.fillText('Aucune donnée de volume disponible', ctx.canvas.width / 2, ctx.canvas.height / 2);
+//     //     return;
+//     // }
+    
+//     // Extraire et formater les données
+//     const volumeData = data.map(point => ({
+//         x: luxon.DateTime.fromISO(point.timestamp).toFormat('dd/MM HH:mm'),
+//         y: point.volume
+//         // y: normalizeVolume(point.volume)
+//     }));
+    
+//     // Détruire le graphique existant s'il existe
+//     if (volumeChart) {
+//         volumeChart.destroy();
+//     }
+    
+//     // Créer un nouveau graphique
+//     volumeChart = new Chart(ctx, {
+//         type: 'bar',
+//         data: {
+//             // labels: volumeData.map(item => item.x),
+//             datasets: [
+//                 {
+//                     label: 'Volume',
+//                     // data: volumeData,
+//                     data: volumeData.map(item => ({ x: item.x, y: item.y })),
+//                     backgroundColor: 'rgba(75, 192, 192, 0.6)',
+//                     borderColor: 'rgba(75, 192, 192, 1)',
+//                     borderWidth: 1
+//                 }
+//             ]
+//         },
+//         options: {
+//             responsive: true,
+//             scales: {
+//                 x: {
+//                     // Utiliser un axe catégoriel au lieu d'un axe temporel
+//                     type: 'category',
+//                     title: {
+//                         display: true,
+//                         text: 'Date/Heure'
+//                     },
+//                     ticks: {
+//                         // Limiter le nombre d'étiquettes affichées
+//                         maxTicksLimit: 10,
+//                         autoSkip: true
+//                     }
+//                 },
+//                 y: {
+//                     title: {
+//                         display: true,
+//                         text: 'Volume'
+//                     },
+//                     beginAtZero: true
+//                 }
+//             }
+//         }
+//     });
+// }
+
 // Mise à jour du graphique de volume
 function updateVolumeChart(data) {
     const ctx = document.getElementById('volume-chart').getContext('2d');
@@ -686,8 +854,33 @@ function updateVolumeChart(data) {
         return;
     }
     
+    // // Vérifier si les données de stats contiennent des infos sur le volume total
+    // const hasVolumeStats = stats && typeof stats.totalVolume !== 'undefined';
+    // console.log('Données de volume dans stats:', hasVolumeStats ? stats.totalVolume : 'non disponible');
+    
     // Regrouper les données par période pour rendre les barres visibles
     const aggregatedData = aggregateVolumeData(data);
+    
+    // // Vérifier s'il y a des données après agrégation
+    // if (Object.keys(aggregatedData).length === 0) {
+    //     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    //     ctx.font = '14px Arial';
+    //     ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim();
+    //     ctx.textAlign = 'center';
+    //     ctx.fillText('Aucune donnée de volume disponible', ctx.canvas.width / 2, ctx.canvas.height / 2);
+    //     return;
+    // }
+    
+    // // Vérifier s'il y a des données de volume significatives
+    // const totalVolume = aggregatedData.values.reduce((sum, val) => sum + val, 0);
+    // if (totalVolume === 0 && (!hasVolumeStats || stats.totalVolume === 0)) {
+    //     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    //     ctx.font = '14px Arial';
+    //     ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim();
+    //     ctx.textAlign = 'center';
+    //     ctx.fillText('Aucune donnée de volume disponible', ctx.canvas.width / 2, ctx.canvas.height / 2);
+    //     return;
+    // }
     
     // Détruire le graphique existant s'il existe
     if (volumeChart) {
@@ -711,6 +904,16 @@ function updateVolumeChart(data) {
             responsive: true,
             scales: {
                 x: {
+                    // type: 'category',
+                    // title: {
+                    //     display: true,
+                    //     text: 'Date/Heure'
+                    // }
+                    // ticks: {
+                    //     maxTicksLimit: 10,
+                    //     autoSkip: true
+                    // }
+                    // type: 'time',
                     time: {
                         unit: determineTimeUnit(aggregatedData.values.length),
                         tooltipFormat: 'dd/MM HH:mm',
@@ -735,6 +938,108 @@ function updateVolumeChart(data) {
         }
     });
 }
+
+// function updateVolumeChart(data, stats) {
+//     const ctx = document.getElementById('volume-chart').getContext('2d');
+    
+//     // Vérifier si nous avons des données
+//     if (!data || data.length === 0) {
+//         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+//         ctx.font = '14px Arial';
+//         ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim();
+//         ctx.textAlign = 'center';
+//         ctx.fillText('Aucune donnée de volume disponible', ctx.canvas.width / 2, ctx.canvas.height / 2);
+//         return;
+//     }
+    
+//     // Extraire les données
+//     const timestamps = data.map(point => point.timestamp);
+//     // const volumes = data.map(point => point.volume);
+// //     // Extraire et formater les données
+// //     const volumeData = data.map(point => ({
+// //         x: luxon.DateTime.fromISO(point.timestamp).toFormat('dd/MM HH:mm'),
+// //         y: point.volume
+// //         // y: normalizeVolume(point.volume)
+// //     }));
+
+//     // Vérifier si les données de volume contiennent des valeurs non nulles
+//     const volumeArray = data.map(point => point.volume || 0);
+//     const maxVolume = Math.max(...volumeArray);
+//     const hasVolumeData = maxVolume > 0;
+    
+//     // Vérifier aussi les stats pour le volume total
+//     const hasVolumeStats = stats && stats.totalVolume && stats.totalVolume > 0;
+    
+//     if (!hasVolumeData && !hasVolumeStats) {
+//         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+//         ctx.font = '14px Arial';
+//         ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim();
+//         ctx.textAlign = 'center';
+//         ctx.fillText('Aucune donnée de volume disponible', ctx.canvas.width / 2, ctx.canvas.height / 2);
+//         return;
+//     }
+
+//     const aggregatedData = aggregateVolumeData(data);
+    
+//     // Détruire le graphique existant s'il existe
+//     if (volumeChart) {
+//         volumeChart.destroy();
+//     }
+    
+//     // Créer un nouveau graphique
+//     volumeChart = new Chart(ctx, {
+//         type: 'bar',
+//         data: {
+//             labels: timestamps,
+//             // labels: aggregatedData.labels,
+//             datasets: [
+//                 {
+//                     label: 'Volume',
+//                     // data: volumes,
+//                     data: aggregatedData.values,
+//                     backgroundColor: 'rgba(75, 192, 192, 0.6)',
+//                     borderColor: 'rgba(75, 192, 192, 1)',
+//                     borderWidth: 1
+//                 }
+//             ]
+//         },
+//         options: {
+//             responsive: true,
+//             scales: {
+//                 x: {
+//                     type: 'time',
+//                     // time: {
+//                     //     // unit: determineTimeUnit(data.length),
+//                     //     tooltipFormat: 'dd/MM/yyyy HH:mm',
+//                     //     // displayFormats: {
+//                     //     //     hour: 'mm',
+//                     //     //     day: 'dd/MM'
+//                     //     // }
+//                     //     // tooltipFormat: 'DD T'
+//                     // },
+//                     title: {
+//                         display: true,
+//                         text: 'Date/Heure'
+//                     }
+//                 },
+//                 // x: {
+//                 //     type: 'category', // Au lieu de 'time'
+//                 //     title: {
+//                 //         display: true,
+//                 //         text: 'Date'
+//                 //     }
+//                 // },
+//                 y: {
+//                     title: {
+//                         display: true,
+//                         text: 'Volume'
+//                     },
+//                     beginAtZero: true
+//                 }
+//             }
+//         }
+//     });
+// }
 
 // Fonction pour agréger les données de volume par période
 function aggregateVolumeData(data) {
@@ -800,6 +1105,422 @@ function determineTimeUnit(dataLength) {
     if (dataLength <= 24 * 7) return 'day';
     return 'week';
 }
+
+// // Mise à jour du graphique en chandelier
+// function updateCandlestickChart(data) {
+//     const ctx = document.getElementById('candlestick-chart').getContext('2d');
+    
+//     // Si aucune donnée, sortir
+//     if (!data || data.length === 0) {
+//         return;
+//     }
+    
+//     // Filtrer les données invalides (prix à -1) et formater pour le graphique en chandelier
+//     const candlestickData = data
+//         .filter(point => 
+//             point.openBuy !== -1 && point.closeBuy !== -1 && 
+//             point.highBuy !== -1 && point.lowBuy !== -1
+//         )
+//         .map(point => ({
+//             x: luxon.DateTime.fromISO(point.timestamp),
+//             o: point.openBuy,
+//             h: point.highBuy,
+//             l: point.lowBuy,
+//             c: point.closeBuy
+//         }));
+    
+//     // Créer des données pour les prix de vente si disponibles
+//     const sellData = data
+//         .filter(point => 
+//             point.openSell !== -1 && point.closeSell !== -1 && 
+//             point.highSell !== -1 && point.lowSell !== -1
+//         )
+//         .map(point => ({
+//             x: luxon.DateTime.fromISO(point.timestamp),
+//             o: point.openSell,
+//             h: point.highSell,
+//             l: point.lowSell,
+//             c: point.closeSell
+//         }));
+    
+//     // Détruire le graphique existant s'il existe
+//     if (candlestickChart) {
+//         candlestickChart.destroy();
+//     }
+    
+//     // Définir les couleurs selon le thème
+//     const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim();
+//     const gridColor = getComputedStyle(document.documentElement).getPropertyValue('--chart-grid-color').trim();
+    
+//     // Créer le nouveau graphique
+//     candlestickChart = new Chart(ctx, {
+//         type: 'candlestick',
+//         data: {
+//             datasets: [
+//                 // Données d'achat
+//                 ...(candlestickData.length > 0 ? [{
+//                     label: 'Prix d\'achat',
+//                     data: candlestickData,
+//                     color: {
+//                         up: 'rgba(75, 192, 192, 1)',
+//                         down: 'rgba(255, 99, 132, 1)',
+//                         unchanged: 'rgba(180, 180, 180, 1)',
+//                     },
+//                     borderColor: {
+//                         up: 'rgba(75, 192, 192, 1)',
+//                         down: 'rgba(255, 99, 132, 1)',
+//                         unchanged: 'rgba(180, 180, 180, 1)',
+//                     },
+//                     borderWidth: 1,
+//                     yAxisID: 'y-acheter'
+//                 }] : []),
+//                 // Données de vente
+//                 ...(sellData.length > 0 ? [{
+//                     label: 'Prix de vente',
+//                     data: sellData,
+//                     color: {
+//                         up: 'rgba(54, 162, 235, 0.6)',
+//                         down: 'rgba(255, 159, 64, 0.6)',
+//                         unchanged: 'rgba(180, 180, 180, 0.6)',
+//                     },
+//                     borderColor: {
+//                         up: 'rgba(54, 162, 235, 1)',
+//                         down: 'rgba(255, 159, 64, 1)',
+//                         unchanged: 'rgba(180, 180, 180, 1)',
+//                     },
+//                     borderWidth: 1,
+//                     yAxisID: 'y-vendre'
+//                 }] : [])
+//             ]
+//         },
+//         options: {
+//             responsive: true,
+//             interaction: {
+//                 mode: 'index',
+//                 intersect: false,
+//             },
+//             scales: {
+//                 x: {
+//                     type: 'time',
+//                     time: {
+//                         unit: determineTimeUnit(data.length),
+//                         tooltipFormat: 'dd/MM HH:mm',
+//                         displayFormats: {
+//                             hour: 'HH:mm',
+//                             day: 'dd/MM'
+//                         }
+//                     },
+//                     grid: {
+//                         color: gridColor
+//                     },
+//                     ticks: {
+//                         color: textColor
+//                     },
+//                     title: {
+//                         display: true,
+//                         text: 'Date/Heure',
+//                         color: textColor
+//                     }
+//                 },
+//                 'y-acheter': {
+//                     position: 'left',
+//                     title: {
+//                         display: true,
+//                         text: 'Prix d\'achat',
+//                         color: textColor
+//                     },
+//                     grid: {
+//                         color: gridColor
+//                     },
+//                     ticks: {
+//                         color: textColor
+//                     }
+//                 },
+//                 'y-vendre': {
+//                     position: 'right',
+//                     title: {
+//                         display: true,
+//                         text: 'Prix de vente',
+//                         color: textColor
+//                     },
+//                     grid: {
+//                         display: false
+//                     },
+//                     ticks: {
+//                         color: textColor
+//                     }
+//                 }
+//             },
+//             plugins: {
+//                 legend: {
+//                     labels: {
+//                         color: textColor
+//                     }
+//                 },
+//                 tooltip: {
+//                     callbacks: {
+//                         label: function(context) {
+//                             const dataset = context.dataset;
+//                             const point = dataset.data[context.dataIndex];
+//                             return [
+//                                 `${dataset.label}:`,
+//                                 `Ouverture: ${point.o.toFixed(2)}`,
+//                                 `Fermeture: ${point.c.toFixed(2)}`,
+//                                 `Plus haut: ${point.h.toFixed(2)}`,
+//                                 `Plus bas: ${point.l.toFixed(2)}`
+//                             ];
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//     });
+// }
+
+// function updateCandlestickChart(data) {
+//     const canvasElement = document.getElementById('candlestick-chart');
+//     if (!canvasElement) {
+//         console.error("Élément canvas 'candlestick-chart' introuvable");
+//         return;
+//     }
+    
+//     const ctx = canvasElement.getContext('2d');
+    
+//     // Si aucune donnée, sortir
+//     if (!data || data.length === 0) {
+//         console.warn('Aucune donnée pour le graphique en chandelier');
+//         return;
+//     }
+    
+//     // Détruire le graphique existant s'il existe
+//     if (candlestickChart) {
+//         candlestickChart.destroy();
+//         candlestickChart = null;
+//     }
+    
+//     // Filtrer les données invalides avec une approche moins restrictive
+//     const buyData = data
+//         .filter(point => {
+//             // Vérifier si un point a au moins certaines données valides
+//             const hasValidBuyData = point.openBuy !== undefined && point.closeBuy !== undefined;
+            
+//             // Reconstruire les points manquants si nécessaire
+//             if (hasValidBuyData) {
+//                 if (point.highBuy === undefined || point.highBuy === -1) {
+//                     point.highBuy = Math.max(point.openBuy, point.closeBuy);
+//                 }
+//                 if (point.lowBuy === undefined || point.lowBuy === -1) {
+//                     point.lowBuy = Math.min(point.openBuy, point.closeBuy);
+//                 }
+//             }
+            
+//             return hasValidBuyData && point.openBuy !== -1 && point.closeBuy !== -1;
+//         })
+//         .map(point => ({
+//             x: luxon.DateTime.fromISO(point.timestamp),
+//             o: point.openBuy,
+//             h: point.highBuy || Math.max(point.openBuy, point.closeBuy),
+//             l: point.lowBuy || Math.min(point.openBuy, point.closeBuy),
+//             c: point.closeBuy
+//         }));
+    
+//     // Créer des données pour les prix de vente si disponibles avec la même approche
+//     const sellData = data
+//         .filter(point => {
+//             const hasValidSellData = point.openSell !== undefined && point.closeSell !== undefined;
+            
+//             if (hasValidSellData) {
+//                 if (point.highSell === undefined || point.highSell === -1) {
+//                     point.highSell = Math.max(point.openSell, point.closeSell);
+//                 }
+//                 if (point.lowSell === undefined || point.lowSell === -1) {
+//                     point.lowSell = Math.min(point.openSell, point.closeSell);
+//                 }
+//             }
+            
+//             return hasValidSellData && point.openSell !== -1 && point.closeSell !== -1;
+//         })
+//         .map(point => ({
+//             x: luxon.DateTime.fromISO(point.timestamp),
+//             o: point.openSell,
+//             h: point.highSell || Math.max(point.openSell, point.closeSell),
+//             l: point.lowSell || Math.min(point.openSell, point.closeSell),
+//             c: point.closeSell
+//         }));
+    
+//     // Vérifier si nous avons des données après filtrage
+//     if (buyData.length === 0 && sellData.length === 0) {
+//         console.warn('Aucune donnée valide pour le graphique en chandelier après filtrage');
+//         return;
+//     }
+    
+//     // Définir les couleurs selon le thème
+//     const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim();
+//     const gridColor = getComputedStyle(document.documentElement).getPropertyValue('--chart-grid-color').trim();
+    
+//     try {
+//         // S'assurer que le type de graphique 'candlestick' est disponible
+//         if (!Chart.controllers.candlestick) {
+//             console.error("Le type de graphique 'candlestick' n'est pas disponible. Vérifiez que chartjs-chart-financial est chargé correctement.");
+//             return;
+//         }
+        
+//         // Créer le nouveau graphique
+//         candlestickChart = new Chart(ctx, {
+//             type: 'candlestick',
+//             data: {
+//                 datasets: [
+//                     // Données d'achat
+//                     ...(buyData.length > 0 ? [{
+//                         label: 'Prix d\'achat',
+//                         data: buyData,
+//                         color: {
+//                             up: 'rgba(75, 192, 192, 1)',
+//                             down: 'rgba(255, 99, 132, 1)',
+//                             unchanged: 'rgba(180, 180, 180, 1)',
+//                         },
+//                         borderColor: {
+//                             up: 'rgba(75, 192, 192, 1)',
+//                             down: 'rgba(255, 99, 132, 1)',
+//                             unchanged: 'rgba(180, 180, 180, 1)',
+//                         },
+//                         borderWidth: 1,
+//                         yAxisID: 'y-acheter'
+//                     }] : []),
+//                     // Données de vente
+//                     ...(sellData.length > 0 ? [{
+//                         label: 'Prix de vente',
+//                         data: sellData,
+//                         color: {
+//                             up: 'rgba(54, 162, 235, 0.6)',
+//                             down: 'rgba(255, 159, 64, 0.6)',
+//                             unchanged: 'rgba(180, 180, 180, 0.6)',
+//                         },
+//                         borderColor: {
+//                             up: 'rgba(54, 162, 235, 1)',
+//                             down: 'rgba(255, 159, 64, 1)',
+//                             unchanged: 'rgba(180, 180, 180, 1)',
+//                         },
+//                         borderWidth: 1,
+//                         yAxisID: 'y-vendre'
+//                     }] : [])
+//                 ]
+//             },
+//             options: {
+//                 responsive: true,
+//                 maintainAspectRatio: true,
+//                 interaction: {
+//                     mode: 'index',
+//                     intersect: false,
+//                 },
+//                 plugins: {
+//                     tooltip: {
+//                         callbacks: {
+//                             label: function(context) {
+//                                 const dataset = context.dataset;
+//                                 const point = dataset.data[context.dataIndex];
+//                                 return [
+//                                     `${dataset.label}:`,
+//                                     `Ouverture: ${point.o.toFixed(2)}`,
+//                                     `Fermeture: ${point.c.toFixed(2)}`,
+//                                     `Plus haut: ${point.h.toFixed(2)}`,
+//                                     `Plus bas: ${point.l.toFixed(2)}`
+//                                 ];
+//                             }
+//                         }
+//                     },
+//                     legend: {
+//                         display: true,
+//                         labels: {
+//                             color: textColor
+//                         }
+//                     }
+//                 },
+//                 scales: {
+//                     x: {
+//                         type: 'time',
+//                         time: {
+//                             unit: determineTimeUnit(data.length),
+//                             tooltipFormat: 'dd/MM HH:mm',
+//                             displayFormats: {
+//                                 hour: 'HH:mm',
+//                                 day: 'dd/MM',
+//                                 week: 'dd/MM',
+//                                 month: 'MM/yyyy'
+//                             }
+//                         },
+//                         grid: {
+//                             color: gridColor
+//                         },
+//                         ticks: {
+//                             color: textColor,
+//                             maxTicksLimit: 10,
+//                             autoSkip: true
+//                         },
+//                         title: {
+//                             display: true,
+//                             text: 'Date/Heure',
+//                             color: textColor
+//                         }
+//                     },
+//                     // x: {
+//                     //     type: 'category',
+//                     //     title: {
+//                     //         display: true,
+//                     //         text: 'Date/Heure'
+//                     //     },
+//                     //     grid: {
+//                     //         color: gridColor
+//                     //     },
+//                     //     ticks: {
+//                     //         color: textColor
+//                     //     }
+//                     // },
+//                     // x: {
+//                     //     type: 'time',
+//                     //     time: {
+//                     //     unit: 'day',
+//                     //     tooltipFormat: 'dd/MM/yyyy',
+//                     //     displayFormats: {
+//                     //         week: 'dd/MM/yyyy',
+//                     //         }
+//                     //     }
+//                     // },
+//                     'y-acheter': {
+//                         position: 'left',
+//                         title: {
+//                             display: true,
+//                             text: 'Prix d\'achat',
+//                             color: textColor
+//                         },
+//                         grid: {
+//                             color: gridColor
+//                         },
+//                         ticks: {
+//                             color: textColor
+//                         }
+//                     },
+//                     'y-vendre': {
+//                         position: 'right',
+//                         title: {
+//                             display: true,
+//                             text: 'Prix de vente',
+//                             color: textColor
+//                         },
+//                         grid: {
+//                             display: false
+//                         },
+//                         ticks: {
+//                             color: textColor
+//                         }
+//                     }
+//                 }
+//             }
+//         });
+//     } catch (error) {
+//         console.error("Erreur lors de la création du graphique en chandelier:", error);
+//     }
+// }
 
 // Mise à jour des statistiques
 function updateStats(chartData, statsData) {
