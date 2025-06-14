@@ -1,3 +1,5 @@
+config-version: 1.0 # Version of the configuration file
+
 # Database Configuration
 database:
   type: FLATFILE # MYSQL or FLATFILE
@@ -14,7 +16,7 @@ web-dashboard:
   port: 7070 # Port for the web interface
   history:
     # Nombre de jours de conservation des données d'historique
-    retention-days: 30
+    retention-days: 90
     # Activer la purge automatique
     auto-purge: true
 
