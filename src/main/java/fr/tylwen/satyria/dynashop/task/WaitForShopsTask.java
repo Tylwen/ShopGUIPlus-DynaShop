@@ -163,7 +163,8 @@ public class WaitForShopsTask implements Runnable {
                                 // Ajouter un nouveau point toutes les heures
                                 LocalDateTime now = LocalDateTime.now();
                                 if (history.getDataPoints().isEmpty() || 
-                                    history.getDataPoints().get(history.getDataPoints().size() - 1).getTimestamp().plusHours(1).isBefore(now)) {
+                                    // history.getDataPoints().get(history.getDataPoints().size() - 1).getTimestamp().plusHours(1).isBefore(now)) {
+                                    history.getDataPoints().get(history.getDataPoints().size() - 1).getTimestamp().plusMinutes(15).isBefore(now)) {
                                     
                                     history.addDataPoint(
                                         price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(),

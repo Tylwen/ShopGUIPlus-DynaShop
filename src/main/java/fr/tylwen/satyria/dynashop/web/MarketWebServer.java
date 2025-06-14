@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.List;
@@ -515,6 +516,41 @@ public class MarketWebServer {
             stats.put("totalVolume", totalVolume);
             stats.put("recommendedGranularity", recommendGranularity(dataPoints.size()));
         }
+        
+        // Ajouter les informations de stock pour les types STOCK/STATIC_STOCK
+        DynaShopType dynaShopType = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId);
+        DynaShopType buyType = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId, "buy");
+        DynaShopType sellType = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId, "sell");
+        if (dynaShopType == DynaShopType.STOCK || dynaShopType == DynaShopType.STATIC_STOCK) {
+            Optional<Integer> stockOpt = plugin.getStorageManager().getStock(shopId, itemId);
+            int stock = stockOpt.orElse(0);
+            
+            int maxStock = plugin.getShopConfigManager()
+                .getItemValue(shopId, itemId, "stock.max", Integer.class)
+                .orElse(plugin.getDataConfig().getStockMax());
+            
+            stats.put("currentStock", stock);
+            stats.put("maxStock", maxStock);
+            stats.put("isStockItem", true);
+        } else if (dynaShopType == DynaShopType.RECIPE) {
+            // Si l'item est de type RECIPE, calculer son stock potentiel à partir des ingrédients
+            // Utiliser la méthode calculateStock de PriceRecipe pour obtenir le stock disponible
+            int recipeStock = plugin.getPriceRecipe().calculateStock(shopId, itemId, new ArrayList<>());
+            
+            if (recipeStock > 0) {
+                // Récupérer le stock maximum (si configuré)
+                int maxStock = plugin.getPriceRecipe().calculateMaxStock(shopId, itemId, new ArrayList<>());
+                
+                stats.put("currentStock", recipeStock);
+                stats.put("maxStock", maxStock > 0 ? maxStock : recipeStock * 2); // Valeur par défaut si maxStock n'est pas défini
+                stats.put("isRecipeStock", true);
+            }
+        }
+        
+        // Ajouter le type d'item
+        stats.put("shopType", dynaShopType.toString());
+        stats.put("buyType", buyType.toString());
+        stats.put("sellType", sellType.toString());
         
         String jsonResponse = gson.toJson(stats);
         sendJsonResponse(exchange, jsonResponse);

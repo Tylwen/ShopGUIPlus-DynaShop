@@ -171,27 +171,27 @@ function updateChartsTheme() {
         volumeChart.update();
     }
     
-    // if (candlestickChart) {
-    //     // Et pour le graphique en chandelier
-    //     candlestickChart.options.scales.x.grid.color = gridColor;
-    //     candlestickChart.options.scales['y-acheter'].grid.color = gridColor;
-    //     candlestickChart.options.scales['y-vendre'].grid.color = gridColor;
+    if (candlestickChart) {
+        // Et pour le graphique en chandelier
+        candlestickChart.options.scales.x.grid.color = gridColor;
+        candlestickChart.options.scales['y-acheter'].grid.color = gridColor;
+        candlestickChart.options.scales['y-vendre'].grid.color = gridColor;
         
-    //     candlestickChart.options.scales.x.ticks.color = textColor;
-    //     candlestickChart.options.scales['y-acheter'].ticks.color = textColor;
-    //     candlestickChart.options.scales['y-vendre'].ticks.color = textColor;
+        candlestickChart.options.scales.x.ticks.color = textColor;
+        candlestickChart.options.scales['y-acheter'].ticks.color = textColor;
+        candlestickChart.options.scales['y-vendre'].ticks.color = textColor;
         
-    //     candlestickChart.options.scales.x.title.color = textColor;
-    //     candlestickChart.options.scales['y-acheter'].title.color = textColor;
-    //     candlestickChart.options.scales['y-vendre'].title.color = textColor;
+        candlestickChart.options.scales.x.title.color = textColor;
+        candlestickChart.options.scales['y-acheter'].title.color = textColor;
+        candlestickChart.options.scales['y-vendre'].title.color = textColor;
         
-    //     // Mettre à jour les couleurs de légende
-    //     if (candlestickChart.options.plugins && candlestickChart.options.plugins.legend) {
-    //         candlestickChart.options.plugins.legend.labels.color = textColor;
-    //     }
+        // Mettre à jour les couleurs de légende
+        if (candlestickChart.options.plugins && candlestickChart.options.plugins.legend) {
+            candlestickChart.options.plugins.legend.labels.color = textColor;
+        }
         
-    //     candlestickChart.update();
-    // }
+        candlestickChart.update();
+    }
 }
 
 // Fonction pour démarrer l'actualisation automatique
@@ -244,63 +244,6 @@ function updateRefreshDisplay() {
         refreshSelect.value = autoRefreshInterval;
     }
 }
-
-// async function loadShops() {
-//     fetch('/api/shops')
-//         .then(response => response.json())
-//         .then(shops => {
-//             const shopSelect = document.getElementById('shop-select');
-            
-//             // Vider la liste actuelle (sauf la première option)
-//             while (shopSelect.options.length > 1) {
-//                 shopSelect.remove(1);
-//             }
-            
-//             // Trier les boutiques par nom
-//             shops.sort((a, b) => a.name.localeCompare(b.name));
-            
-//             // Ajouter les options de boutiques
-//             shops.forEach(shop => {
-//                 const option = document.createElement('option');
-//                 option.value = shop.id;  // L'ID comme valeur
-//                 option.textContent = shop.name;  // Le nom comme texte affiché
-//                 shopSelect.appendChild(option);
-//             });
-            
-//             // Réactiver le select
-//             shopSelect.disabled = false;
-            
-//             // Si un paramètre shop est présent dans l'URL, sélectionner cette boutique
-//             const urlParams = new URLSearchParams(window.location.search);
-//             const shopParam = urlParams.get('shop');
-//             if (shopParam) {
-//                 shopSelect.value = shopParam;
-//                 shopSelect.dispatchEvent(new Event('change'));
-//             }
-//         })
-//         .catch(error => console.error('Erreur lors du chargement des boutiques:', error));
-// }
-
-// Chargement des items d'un shop
-// async function loadItems(shopId) {
-//     try {
-//         const response = await fetch(`/api/items?shop=${shopId}`);
-//         const items = await response.json();
-        
-//         const itemSelect = document.getElementById('item-select');
-//         itemSelect.innerHTML = '<option value="">Choisir un item</option>';
-//         itemSelect.disabled = false;
-        
-//         items.forEach(item => {
-//             const option = document.createElement('option');
-//             option.value = item.id;
-//             option.textContent = item.name || item.id;
-//             itemSelect.appendChild(option);
-//         });
-//     } catch (error) {
-//         console.error("Erreur lors du chargement des items:", error);
-//     }
-// }
 
 async function loadShops() {
     fetch('/api/shops')
@@ -628,26 +571,6 @@ function filterDataByPeriod(data, period) {
     });
 }
 
-// Mise à jour des graphiques
-// function updateCharts(data) {
-//     // Vérifier si on a des données
-//     if (!data || data.length === 0) {
-//         console.warn('Aucune donnée disponible pour les graphiques');
-//         return;
-//     }
-    
-//     // Convertir les timestamps en objets Date pour Chart.js
-//     const processedData = data.map(point => ({
-//         ...point,
-//         // Assurez-vous que timestamp est correctement parsé
-//         x: luxon.DateTime.fromISO(point.timestamp)
-//     }));
-    
-//     // Mettre à jour les graphiques
-//     updatePriceChart(processedData);
-//     updateVolumeChart(processedData);
-//     updateCandlestickChart(processedData);
-// }
 function updateCharts(data) {
     // Vérifier si on a des données
     if (!data || data.length === 0) {
@@ -665,7 +588,6 @@ function updateCharts(data) {
     // Mettre à jour les graphiques en passant également les stats
     updatePriceChart(processedData);
     updateVolumeChart(processedData); // Transmettre les stats ici
-    // updateCandlestickChart(processedData); // Transmettre les stats ici
 }
 
 // Mise à jour du graphique de prix
@@ -755,96 +677,6 @@ function updatePriceChart(data) {
     });
 }
 
-// function normalizeVolume(volume) {
-//     if (!volume || volume <= 0) return 0;
-//     // Pour rendre les petites valeurs plus visibles
-//     return Math.max(0.5, volume);
-// }
-
-// // Mise à jour du graphique de volume
-// function updateVolumeChart(data) {
-//     const ctx = document.getElementById('volume-chart').getContext('2d');
-    
-//     // Vérifier si nous avons des données de volume
-//     const volumeArray = data.map(point => point.volume || 0);
-//     const maxVolume = Math.max(...volumeArray);
-//     const hasVolumeData = maxVolume > 0;
-    
-//     console.log('Données de volume:', volumeArray);
-//     console.log('Volume maximum:', maxVolume);
-    
-//     // // Si aucun volume significatif, afficher un message
-//     // if (!hasVolumeData) {
-//     //     // Nettoyer le canvas existant
-//     //     if (volumeChart) {
-//     //         volumeChart.destroy();
-//     //         volumeChart = null;
-//     //     }
-        
-//     //     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-//     //     ctx.font = '14px Arial';
-//     //     ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim();
-//     //     ctx.textAlign = 'center';
-//     //     ctx.fillText('Aucune donnée de volume disponible', ctx.canvas.width / 2, ctx.canvas.height / 2);
-//     //     return;
-//     // }
-    
-//     // Extraire et formater les données
-//     const volumeData = data.map(point => ({
-//         x: luxon.DateTime.fromISO(point.timestamp).toFormat('dd/MM HH:mm'),
-//         y: point.volume
-//         // y: normalizeVolume(point.volume)
-//     }));
-    
-//     // Détruire le graphique existant s'il existe
-//     if (volumeChart) {
-//         volumeChart.destroy();
-//     }
-    
-//     // Créer un nouveau graphique
-//     volumeChart = new Chart(ctx, {
-//         type: 'bar',
-//         data: {
-//             // labels: volumeData.map(item => item.x),
-//             datasets: [
-//                 {
-//                     label: 'Volume',
-//                     // data: volumeData,
-//                     data: volumeData.map(item => ({ x: item.x, y: item.y })),
-//                     backgroundColor: 'rgba(75, 192, 192, 0.6)',
-//                     borderColor: 'rgba(75, 192, 192, 1)',
-//                     borderWidth: 1
-//                 }
-//             ]
-//         },
-//         options: {
-//             responsive: true,
-//             scales: {
-//                 x: {
-//                     // Utiliser un axe catégoriel au lieu d'un axe temporel
-//                     type: 'category',
-//                     title: {
-//                         display: true,
-//                         text: 'Date/Heure'
-//                     },
-//                     ticks: {
-//                         // Limiter le nombre d'étiquettes affichées
-//                         maxTicksLimit: 10,
-//                         autoSkip: true
-//                     }
-//                 },
-//                 y: {
-//                     title: {
-//                         display: true,
-//                         text: 'Volume'
-//                     },
-//                     beginAtZero: true
-//                 }
-//             }
-//         }
-//     });
-// }
-
 // Mise à jour du graphique de volume
 function updateVolumeChart(data) {
     const ctx = document.getElementById('volume-chart').getContext('2d');
@@ -854,33 +686,8 @@ function updateVolumeChart(data) {
         return;
     }
     
-    // // Vérifier si les données de stats contiennent des infos sur le volume total
-    // const hasVolumeStats = stats && typeof stats.totalVolume !== 'undefined';
-    // console.log('Données de volume dans stats:', hasVolumeStats ? stats.totalVolume : 'non disponible');
-    
     // Regrouper les données par période pour rendre les barres visibles
     const aggregatedData = aggregateVolumeData(data);
-    
-    // // Vérifier s'il y a des données après agrégation
-    // if (Object.keys(aggregatedData).length === 0) {
-    //     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    //     ctx.font = '14px Arial';
-    //     ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim();
-    //     ctx.textAlign = 'center';
-    //     ctx.fillText('Aucune donnée de volume disponible', ctx.canvas.width / 2, ctx.canvas.height / 2);
-    //     return;
-    // }
-    
-    // // Vérifier s'il y a des données de volume significatives
-    // const totalVolume = aggregatedData.values.reduce((sum, val) => sum + val, 0);
-    // if (totalVolume === 0 && (!hasVolumeStats || stats.totalVolume === 0)) {
-    //     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    //     ctx.font = '14px Arial';
-    //     ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim();
-    //     ctx.textAlign = 'center';
-    //     ctx.fillText('Aucune donnée de volume disponible', ctx.canvas.width / 2, ctx.canvas.height / 2);
-    //     return;
-    // }
     
     // Détruire le graphique existant s'il existe
     if (volumeChart) {
@@ -904,16 +711,6 @@ function updateVolumeChart(data) {
             responsive: true,
             scales: {
                 x: {
-                    // type: 'category',
-                    // title: {
-                    //     display: true,
-                    //     text: 'Date/Heure'
-                    // }
-                    // ticks: {
-                    //     maxTicksLimit: 10,
-                    //     autoSkip: true
-                    // }
-                    // type: 'time',
                     time: {
                         unit: determineTimeUnit(aggregatedData.values.length),
                         tooltipFormat: 'dd/MM HH:mm',
@@ -938,108 +735,6 @@ function updateVolumeChart(data) {
         }
     });
 }
-
-// function updateVolumeChart(data, stats) {
-//     const ctx = document.getElementById('volume-chart').getContext('2d');
-    
-//     // Vérifier si nous avons des données
-//     if (!data || data.length === 0) {
-//         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-//         ctx.font = '14px Arial';
-//         ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim();
-//         ctx.textAlign = 'center';
-//         ctx.fillText('Aucune donnée de volume disponible', ctx.canvas.width / 2, ctx.canvas.height / 2);
-//         return;
-//     }
-    
-//     // Extraire les données
-//     const timestamps = data.map(point => point.timestamp);
-//     // const volumes = data.map(point => point.volume);
-// //     // Extraire et formater les données
-// //     const volumeData = data.map(point => ({
-// //         x: luxon.DateTime.fromISO(point.timestamp).toFormat('dd/MM HH:mm'),
-// //         y: point.volume
-// //         // y: normalizeVolume(point.volume)
-// //     }));
-
-//     // Vérifier si les données de volume contiennent des valeurs non nulles
-//     const volumeArray = data.map(point => point.volume || 0);
-//     const maxVolume = Math.max(...volumeArray);
-//     const hasVolumeData = maxVolume > 0;
-    
-//     // Vérifier aussi les stats pour le volume total
-//     const hasVolumeStats = stats && stats.totalVolume && stats.totalVolume > 0;
-    
-//     if (!hasVolumeData && !hasVolumeStats) {
-//         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-//         ctx.font = '14px Arial';
-//         ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim();
-//         ctx.textAlign = 'center';
-//         ctx.fillText('Aucune donnée de volume disponible', ctx.canvas.width / 2, ctx.canvas.height / 2);
-//         return;
-//     }
-
-//     const aggregatedData = aggregateVolumeData(data);
-    
-//     // Détruire le graphique existant s'il existe
-//     if (volumeChart) {
-//         volumeChart.destroy();
-//     }
-    
-//     // Créer un nouveau graphique
-//     volumeChart = new Chart(ctx, {
-//         type: 'bar',
-//         data: {
-//             labels: timestamps,
-//             // labels: aggregatedData.labels,
-//             datasets: [
-//                 {
-//                     label: 'Volume',
-//                     // data: volumes,
-//                     data: aggregatedData.values,
-//                     backgroundColor: 'rgba(75, 192, 192, 0.6)',
-//                     borderColor: 'rgba(75, 192, 192, 1)',
-//                     borderWidth: 1
-//                 }
-//             ]
-//         },
-//         options: {
-//             responsive: true,
-//             scales: {
-//                 x: {
-//                     type: 'time',
-//                     // time: {
-//                     //     // unit: determineTimeUnit(data.length),
-//                     //     tooltipFormat: 'dd/MM/yyyy HH:mm',
-//                     //     // displayFormats: {
-//                     //     //     hour: 'mm',
-//                     //     //     day: 'dd/MM'
-//                     //     // }
-//                     //     // tooltipFormat: 'DD T'
-//                     // },
-//                     title: {
-//                         display: true,
-//                         text: 'Date/Heure'
-//                     }
-//                 },
-//                 // x: {
-//                 //     type: 'category', // Au lieu de 'time'
-//                 //     title: {
-//                 //         display: true,
-//                 //         text: 'Date'
-//                 //     }
-//                 // },
-//                 y: {
-//                     title: {
-//                         display: true,
-//                         text: 'Volume'
-//                     },
-//                     beginAtZero: true
-//                 }
-//             }
-//         }
-//     });
-// }
 
 // Fonction pour agréger les données de volume par période
 function aggregateVolumeData(data) {
@@ -1182,10 +877,11 @@ function updateStats(chartData, statsData) {
         const element = document.getElementById('price-change');
         
         // Si les deux variations sont identiques ou si un prix n'est pas disponible
-        if (buyChange === sellChange || buyChange === '--' && sellChange === '--') {
-            element.textContent = `${buyChange === '--' ? '--' : buyChange + '%'}`;
-            element.style.color = buyChange >= 0 && buyChange !== '--' ? 'green' : 'red';
-        } else if (buyChange === '--' && sellChange !== '--') {
+        // if (buyChange === sellChange || buyChange === '--' && sellChange === '--') {
+        //     element.textContent = `${buyChange === '--' ? '--' : buyChange + '%'}`;
+        //     element.style.color = buyChange >= 0 && buyChange !== '--' ? 'green' : 'red';
+        // } else if (buyChange === '--' && sellChange !== '--') {
+        if (buyChange === '--' && sellChange !== '--') {
             element.innerHTML = `Vente: <span style="color:${sellChange >= 0 ? 'red' : 'green'}">${sellChange}%</span>`;
         } else if (buyChange !== '--' && sellChange === '--') {
             element.innerHTML = `Achat: <span style="color:${buyChange >= 0 ? 'green' : 'red'}">${buyChange}%</span>`;
@@ -1217,6 +913,40 @@ function updateStats(chartData, statsData) {
             document.getElementById('time-span').textContent = 
                 statsData.timeSpanHours ? `${statsData.timeSpanHours} heures` : '--';
         }
+    }
+    
+    // Afficher le stock si disponible (pour les types STOCK/STATIC_STOCK ou RECIPE avec ingrédients en STOCK)
+    if (statsData && (
+        (['STOCK', 'STATIC_STOCK'].includes(statsData.shopType)) || 
+        statsData.isStockItem || statsData.isRecipeStock)) {
+        
+        if (statsData.currentStock !== undefined) {
+            const currentStock = statsData.currentStock;
+            const maxStock = statsData.maxStock || '--';
+            
+            // Déterminer la couleur du stock
+            let colorClass = '';
+            if (maxStock !== '--' && !isNaN(maxStock)) {
+                const ratio = currentStock / maxStock;
+                
+                if (ratio < 0.10) {
+                    colorClass = 'stock-critical'; // Rouge foncé pour stock critique
+                } else if (ratio < 0.25) {
+                    colorClass = 'stock-low'; // Rouge pour stock faible
+                } else if (ratio < 0.50) {
+                    colorClass = 'stock-medium'; // Jaune pour stock moyen
+                } else {
+                    colorClass = 'stock-high'; // Vert pour stock élevé
+                }
+            }
+            
+            document.getElementById('stock-info').innerHTML = `<span class="${colorClass}">${currentStock}</span><span class="separator">/</span><span>${maxStock}</span>`;
+            document.getElementById('stock-container').style.display = 'block';
+        } else {
+            document.getElementById('stock-container').style.display = 'none';
+        }
+    } else {
+        document.getElementById('stock-container').style.display = 'none';
     }
 }
 

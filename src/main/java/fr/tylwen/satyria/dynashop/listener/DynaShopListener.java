@@ -250,7 +250,6 @@ public class DynaShopListener implements Listener {
         final double resultPrice = event.getResult().getPrice();
         final boolean isBuy = action == ShopAction.BUY;
 
-        // AJOUTEZ LE CODE DE TAXATION ICI
         if (plugin.getTaxService() != null && plugin.getTaxService().isEnabled()) {
             // double taxAmount = 0;
             if (isBuy) {
@@ -389,7 +388,6 @@ public class DynaShopListener implements Listener {
         // DynamicPrice price = getOrLoadPrice(shopID, itemID, itemStack);
         DynamicPrice price = getOrLoadPriceInternal(null, shopID, itemID, itemStack, new HashSet<>(), new HashMap<>(), false);
         if (price == null) {
-            // plugin.warning(itemID + " : Pas de prix dynamique trouvé dans le shop " + shopID);
             return;
         }
 
@@ -415,29 +413,49 @@ public class DynaShopListener implements Listener {
         //     handleLinkedPrice(shopID, itemID, itemStack, action, amount);
         // }
         
-        if (buyTypeDynaShop == DynaShopType.DYNAMIC) {
-            handleDynamicPrice(price, action, amount); // Gérer les prix dynamiques
-        } else if (buyTypeDynaShop == DynaShopType.RECIPE) {
-            handleRecipePrice(shopID, itemID, amount, action); // Gérer les prix basés sur les recettes
-        // } else if (buyTypeDynaShop == DynaShopType.STOCK || buyTypeDynaShop == DynaShopType.STATIC_STOCK) {
-        //     handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
-        } else if (buyTypeDynaShop == DynaShopType.LINK) {
-            handleLinkedPrice(shopID, itemID, itemStack, action, amount);
+        // Traiter selon le type d'achat
+        if (action == ShopAction.BUY) {
+            if (buyTypeDynaShop == DynaShopType.DYNAMIC) {
+                handleDynamicPrice(price, action, amount); // Gérer les prix dynamiques
+            } else if (buyTypeDynaShop == DynaShopType.RECIPE) {
+                handleRecipePrice(shopID, itemID, amount, action); // Gérer les prix basés sur les recettes
+            // } else if (buyTypeDynaShop == DynaShopType.STOCK || buyTypeDynaShop == DynaShopType.STATIC_STOCK) {
+            //     handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
+            } else if (buyTypeDynaShop == DynaShopType.LINK) {
+                handleLinkedPrice(shopID, itemID, itemStack, action, amount);
+            } else if (buyTypeDynaShop == DynaShopType.STOCK || buyTypeDynaShop == DynaShopType.STATIC_STOCK) {
+                handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
+            }
+        } else if (action == ShopAction.SELL || action == ShopAction.SELL_ALL) {
+            // Traiter selon le type de vente
+            if (sellTypeDynaShop == DynaShopType.DYNAMIC) {
+                handleDynamicPrice(price, action, amount); // Gérer les prix dynamiques
+            } else if (sellTypeDynaShop == DynaShopType.RECIPE) {
+                handleRecipePrice(shopID, itemID, amount, action); // Gérer les prix basés sur les recettes
+            // } else if (sellTypeDynaShop == DynaShopType.STOCK || sellTypeDynaShop == DynaShopType.STATIC_STOCK) {
+            //     handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
+            } else if (sellTypeDynaShop == DynaShopType.LINK) {
+                handleLinkedPrice(shopID, itemID, itemStack, action, amount);
+            } else if (sellTypeDynaShop == DynaShopType.STOCK || sellTypeDynaShop == DynaShopType.STATIC_STOCK) {
+                handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
+            }
         }
 
-        if (sellTypeDynaShop == DynaShopType.DYNAMIC) {
-            handleDynamicPrice(price, action, amount); // Gérer les prix dynamiques
-        } else if (sellTypeDynaShop == DynaShopType.RECIPE) {
-            handleRecipePrice(shopID, itemID, amount, action); // Gérer les prix basés sur les recettes
+        // if (sellTypeDynaShop == DynaShopType.DYNAMIC) {
+        //     handleDynamicPrice(price, action, amount); // Gérer les prix dynamiques
+        // } else if (sellTypeDynaShop == DynaShopType.RECIPE) {
+        //     handleRecipePrice(shopID, itemID, amount, action); // Gérer les prix basés sur les recettes
+        // // } else if (sellTypeDynaShop == DynaShopType.STOCK || sellTypeDynaShop == DynaShopType.STATIC_STOCK) {
+        // //     handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
+        // } else if (sellTypeDynaShop == DynaShopType.LINK) {
+        //     handleLinkedPrice(shopID, itemID, itemStack, action, amount);
         // } else if (sellTypeDynaShop == DynaShopType.STOCK || sellTypeDynaShop == DynaShopType.STATIC_STOCK) {
         //     handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
-        } else if (sellTypeDynaShop == DynaShopType.LINK) {
-            handleLinkedPrice(shopID, itemID, itemStack, action, amount);
-        }
+        // }
 
-        if (typeDynaShop == DynaShopType.STOCK || typeDynaShop == DynaShopType.STATIC_STOCK) {
-            handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
-        }
+        // if (typeDynaShop == DynaShopType.STOCK || typeDynaShop == DynaShopType.STATIC_STOCK) {
+        //     handleStockPrice(price, shopID, itemID, action, amount); // Gérer les prix basés sur le stock
+        // }
 
 
         // plugin.info(action + " - Prix mis à jour pour l'item " + itemID + " dans le shop " + shopID);
@@ -1418,7 +1436,7 @@ public class DynaShopListener implements Listener {
 
         // Éviter les boucles infinies - utiliser une clé composée
         String itemKey = shopID + ":" + itemID;
-        plugin.info("Applying growth/decay to ingredients for " + itemKey + " (depth: " + depth + ")");
+        // plugin.info("Applying growth/decay to ingredients for " + itemKey + " (depth: " + depth + ")");
 
         if (visitedItems.contains(itemKey)) {
             // plugin.getLogger().info("Boucle de recette détectée pour " + itemKey + ", arrêt de la récursion");
