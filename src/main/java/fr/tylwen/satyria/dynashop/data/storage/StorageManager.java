@@ -150,7 +150,17 @@ public interface StorageManager {
      * Sauvegarde un point de données historique
      */
     void savePriceDataPoint(String shopId, String itemId, PriceHistory.PriceDataPoint point, int intervalMinutes);
-    
+
+    // /**
+    //  * Enregistre l'historique des prix pour un item
+    //  */
+    // void savePriceHistory(String shopId, String itemId, PriceHistory history);
+
+    // /**
+    //  * Supprime l'historique des prix d'un item
+    //  */
+    // void deletePriceHistory(String shopId, String itemId);
+
     /**
      * Purge l'ancien historique des prix
      */

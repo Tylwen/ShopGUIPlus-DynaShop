@@ -44,6 +44,7 @@ import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
 import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 import fr.tylwen.satyria.dynashop.system.chart.PriceHistory;
+import fr.tylwen.satyria.dynashop.system.chart.PriceHistory.PriceDataPoint;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 import net.brcdev.shopgui.exception.shop.ShopsNotLoadedException;
 import net.brcdev.shopgui.shop.Shop;
@@ -132,6 +133,8 @@ public class WaitForShopsTask implements Runnable {
      * Démarre toutes les tâches qui dépendent des shops.
      */
     private void startDependentTasks() {
+        final int INTERVAL_MINUTES = plugin.getConfigMain().getInt("history.save-interval", 15);
+        
         // Démarrer DynamicPricesTask
         plugin.getLogger().info("Starting DynamicPricesTask...");
         plugin.setDynamicPricesTaskId(plugin.getServer().getScheduler().runTaskTimerAsynchronously(
@@ -162,15 +165,16 @@ public class WaitForShopsTask implements Runnable {
                                 
                                 // Ajouter un nouveau point toutes les heures
                                 LocalDateTime now = LocalDateTime.now();
-                                if (history.getDataPoints().isEmpty() || 
-                                    // history.getDataPoints().get(history.getDataPoints().size() - 1).getTimestamp().plusHours(1).isBefore(now)) {
-                                    history.getDataPoints().get(history.getDataPoints().size() - 1).getTimestamp().plusMinutes(15).isBefore(now)) {
-                                    
-                                    history.addDataPoint(
+                                if (history.getDataPoints().isEmpty() || history.getDataPoints().get(history.getDataPoints().size() - 1).getTimestamp().plusMinutes(INTERVAL_MINUTES).isBefore(now)) {
+
+                                    PriceDataPoint dataPoint = new PriceDataPoint(
+                                        now, 
                                         price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(), price.getBuyPrice(),
                                         price.getSellPrice(), price.getSellPrice(), price.getSellPrice(), price.getSellPrice(),
                                         0
                                     );
+
+                                    history.addDataPoint(dataPoint);
                                     
                                     // plugin.getLogger().info("Point d'historique ajouté pour " + shop.getId() + ":" + item.getId());
                                 }

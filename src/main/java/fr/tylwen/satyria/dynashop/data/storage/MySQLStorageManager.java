@@ -4,7 +4,7 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.config.DataConfig;
-import fr.tylwen.satyria.dynashop.data.cache.LimitCacheEntry;
+// import fr.tylwen.satyria.dynashop.data.cache.LimitCacheEntry;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionRecord;
@@ -32,6 +32,7 @@ public class MySQLStorageManager implements StorageManager {
     private HikariDataSource dataSource;
     private boolean isInitialized = false;
     private final ExecutorService databaseExecutor = Executors.newSingleThreadExecutor();
+    private final String timeReference;
     
     private static final int RETRY_LIMIT = 3;
     private static final int RETRY_DELAY_MS = 1000;
@@ -39,8 +40,9 @@ public class MySQLStorageManager implements StorageManager {
     public MySQLStorageManager(DynaShopPlugin plugin) {
         this.plugin = plugin;
         this.dataConfig = plugin.getDataConfig();
+        this.timeReference = plugin.getConfig().getString("limit.time-reference", "first");
     }
-    
+
     @Override
     public void initialize() {
         if (isInitialized && dataSource != null && !dataSource.isClosed()) {
@@ -705,24 +707,51 @@ public class MySQLStorageManager implements StorageManager {
         }, playerUuid.toString(), shopId, itemId, transactionType, Timestamp.valueOf(since)).orElse(0);
     }
     
+    // @Override
+    // public Optional<LocalDateTime> getLastTransactionTime(UUID playerUuid, String shopId, String itemId, boolean isBuy) {
+    //     String tablePrefix = dataConfig.getDatabaseTablePrefix();
+    //     String transactionType = isBuy ? "BUY" : "SELL";
+    //     String sql = "SELECT MAX(transaction_time) AS latest FROM " + tablePrefix + "_transactions_view " +
+    //             "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?";
+        
+    //     return executeQuery(sql, rs -> {
+    //         if (rs.next() && rs.getTimestamp("latest") != null) {
+    //             return rs.getTimestamp("latest").toLocalDateTime();
+    //         }
+    //         return null;
+    //     }, playerUuid.toString(), shopId, itemId, transactionType);
+    // }
     @Override
     public Optional<LocalDateTime> getLastTransactionTime(UUID playerUuid, String shopId, String itemId, boolean isBuy) {
         String tablePrefix = dataConfig.getDatabaseTablePrefix();
         String transactionType = isBuy ? "BUY" : "SELL";
-        String sql = "SELECT MAX(transaction_time) AS latest FROM " + tablePrefix + "_transactions_view " +
-                "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?";
-        
-        return executeQuery(sql, rs -> {
-            if (rs.next() && rs.getTimestamp("latest") != null) {
-                return rs.getTimestamp("latest").toLocalDateTime();
-            }
-            return null;
-        }, playerUuid.toString(), shopId, itemId, transactionType);
+        if (timeReference.equalsIgnoreCase("last")) {
+            // Si le temps de référence est "last", on utilise la dernière transaction
+            String sql = "SELECT MAX(transaction_time) AS latest FROM " + tablePrefix + "_transactions_view " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?";
+            
+            return executeQuery(sql, rs -> {
+                if (rs.next() && rs.getTimestamp("latest") != null) {
+                    return rs.getTimestamp("latest").toLocalDateTime();
+                }
+                return null;
+            }, playerUuid.toString(), shopId, itemId, transactionType);
+        } else {
+            String sql = "SELECT MIN(transaction_time) AS earliest FROM " + tablePrefix + "_transactions_view " +
+                    "WHERE player_uuid = ? AND shop_id = ? AND item_id = ? AND transaction_type = ?";
+            
+            return executeQuery(sql, rs -> {
+                if (rs.next() && rs.getTimestamp("earliest") != null) {
+                    return rs.getTimestamp("earliest").toLocalDateTime();
+                }
+                return null;
+            }, playerUuid.toString(), shopId, itemId, transactionType);
+        }
     }
     
     @Override
     public boolean resetLimits(UUID playerUuid, String shopId, String itemId) {
-        String tablePrefix = dataConfig.getDatabaseTablePrefix();
+        // String tablePrefix = dataConfig.getDatabaseTablePrefix();
         String[] transactionTables = getTransactionTables();
         boolean success = true;
         
@@ -750,7 +779,7 @@ public class MySQLStorageManager implements StorageManager {
     
     @Override
     public boolean resetAllLimits(UUID playerUuid) {
-        String tablePrefix = dataConfig.getDatabaseTablePrefix();
+        // String tablePrefix = dataConfig.getDatabaseTablePrefix();
         String[] transactionTables = getTransactionTables();
         boolean success = true;
         
@@ -776,7 +805,7 @@ public class MySQLStorageManager implements StorageManager {
     
     @Override
     public boolean resetAllLimits() {
-        String tablePrefix = dataConfig.getDatabaseTablePrefix();
+        // String tablePrefix = dataConfig.getDatabaseTablePrefix();
         String[] transactionTables = getTransactionTables();
         boolean success = true;
         
@@ -804,18 +833,14 @@ public class MySQLStorageManager implements StorageManager {
         LocalDateTime now = LocalDateTime.now();
         
         cleanupTable(dataConfig.getDatabaseTablePrefix() + "_tx_daily", now.truncatedTo(ChronoUnit.DAYS));
-        cleanupTable(dataConfig.getDatabaseTablePrefix() + "_tx_weekly", 
-                now.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
-                   .truncatedTo(ChronoUnit.DAYS));
-        cleanupTable(dataConfig.getDatabaseTablePrefix() + "_tx_monthly", 
-                now.withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS));
-        cleanupTable(dataConfig.getDatabaseTablePrefix() + "_tx_yearly", 
-                now.withDayOfYear(1).truncatedTo(ChronoUnit.DAYS));
+        cleanupTable(dataConfig.getDatabaseTablePrefix() + "_tx_weekly", now.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY)).truncatedTo(ChronoUnit.DAYS));
+        cleanupTable(dataConfig.getDatabaseTablePrefix() + "_tx_monthly", now.withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS));
+        cleanupTable(dataConfig.getDatabaseTablePrefix() + "_tx_yearly", now.withDayOfYear(1).truncatedTo(ChronoUnit.DAYS));
     }
-    
+
     private void cleanupTable(String tableName, LocalDateTime cutoffDate) {
         String sql = "DELETE FROM " + tableName + " WHERE transaction_time < ?";
-        
+
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
@@ -853,7 +878,9 @@ public class MySQLStorageManager implements StorageManager {
                 "volume " +
                 "FROM " + tablePrefix + "_price_history " +
                 "WHERE shop_id = ? AND item_id = ? " +
-                "ORDER BY timestamp ASC";
+                // "ORDER BY timestamp ASC"
+                "ORDER BY timestamp DESC " +
+                "LIMIT " + new PriceHistory(shopId, itemId).getMaxDataPoints(); // Limite le nombre de points récupérés
         
         executeQuery(sql, rs -> {
             while (rs.next()) {
@@ -875,7 +902,6 @@ public class MySQLStorageManager implements StorageManager {
                     volume
                 );
                 
-                // history.addDataPoint(point);
                 history.addDataPoint(point);
             }
             return null;
@@ -897,7 +923,7 @@ public class MySQLStorageManager implements StorageManager {
     public List<PriceDataPoint> getAggregatedPriceHistory(String shopId, String itemId, int interval, LocalDateTime startTime, int maxPoints) {
         List<PriceDataPoint> aggregatedPoints = new ArrayList<>();
         String tablePrefix = dataConfig.getDatabaseTablePrefix();
-        
+         
         try (Connection conn = getConnection()) {
             int paramIndex = 1;
 

@@ -320,8 +320,7 @@ public class TransactionLimiter {
         }
         
         // Pour les cooldowns personnalisés, vérifier la dernière transaction
-        Optional<LocalDateTime> lastTransaction = 
-            storageManager.getLastTransactionTime(playerUuid, shopId, itemId, isBuy);
+        Optional<LocalDateTime> lastTransaction = storageManager.getLastTransactionTime(playerUuid, shopId, itemId, isBuy);
         
         if (lastTransaction.isPresent()) {
             LocalDateTime nextAvailable = lastTransaction.get().plusSeconds(cooldownSeconds);

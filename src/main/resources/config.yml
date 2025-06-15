@@ -14,11 +14,21 @@ database:
 web-dashboard:
   enabled: false # Enable or disable the web interface
   port: 7070 # Port for the web interface
-  history:
-    # Nombre de jours de conservation des données d'historique
-    retention-days: 90
-    # Activer la purge automatique
-    auto-purge: true
+
+history:
+  # Nombre de jours de conservation des données d'historique
+  retention-days: 90
+  # Activer la purge automatique
+  auto-purge: true
+  # Intervalle de sauvegarde automatique (en minutes)
+  save-interval: 15
+
+limit:
+  sound: "ENTITY_VILLAGER_NO"
+  # Type de référence temporelle pour le calcul des limites de transaction
+  # "first" = utiliser la première transaction (timestamp le plus ancien)
+  # "last" = utiliser la dernière transaction (timestamp le plus récent)
+  time-reference: "first"
 
 # Dynamic store configuration
 actions:

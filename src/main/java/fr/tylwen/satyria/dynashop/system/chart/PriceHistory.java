@@ -12,7 +12,7 @@ import java.util.Map;
 
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 
-import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+// import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 
 public class PriceHistory implements ConfigurationSerializable {
     
@@ -23,7 +23,7 @@ public class PriceHistory implements ConfigurationSerializable {
 
     public PriceHistory(String shopId, String itemId) {
         // this(shopId, itemId, 50); // Par défaut, on garde 50 points de données
-        this(shopId, itemId, 10000); // Par défaut, on garde 10000 points de données
+        this(shopId, itemId, 1000000); // Par défaut, on garde 1 000 000 points de données
         // this(shopId, itemId, 100); // Par défaut, on garde 100 points de données
     }
 
@@ -52,27 +52,27 @@ public class PriceHistory implements ConfigurationSerializable {
     //     // Sauvegarder l'historique dans la base de données
     //     DynaShopPlugin.getInstance().getDataManager().savePriceHistory(this);
     // }
-    public void addDataPoint(double openBuyPrice, double closeBuyPrice, double highBuyPrice, double lowBuyPrice,
-                            double openSellPrice, double closeSellPrice, double highSellPrice, double lowSellPrice,
-                            double volume) {
-        PriceDataPoint dataPoint = new PriceDataPoint(
-            LocalDateTime.now(), 
-            openBuyPrice, closeBuyPrice, highBuyPrice, lowBuyPrice,
-            openSellPrice, closeSellPrice, highSellPrice, lowSellPrice,
-            volume);
+    // public void addDataPoint(double openBuyPrice, double closeBuyPrice, double highBuyPrice, double lowBuyPrice,
+    //                         double openSellPrice, double closeSellPrice, double highSellPrice, double lowSellPrice,
+    //                         double volume) {
+    //     PriceDataPoint dataPoint = new PriceDataPoint(
+    //         LocalDateTime.now(), 
+    //         openBuyPrice, closeBuyPrice, highBuyPrice, lowBuyPrice,
+    //         openSellPrice, closeSellPrice, highSellPrice, lowSellPrice,
+    //         volume);
         
-        dataPoints.add(dataPoint);
+    //     dataPoints.add(dataPoint);
         
-        // Limiter la taille de l'historique
-        if (dataPoints.size() > maxDataPoints) {
-            dataPoints.remove(0);
-        }
+    //     // Limiter la taille de l'historique
+    //     if (dataPoints.size() > maxDataPoints) {
+    //         dataPoints.remove(0);
+    //     }
         
-        // Sauvegarder l'historique dans la base de données
-        // DynaShopPlugin.getInstance().getDataManager().savePriceHistory(this);
-        // DynaShopPlugin.getInstance().getDataManager().saveSinglePriceDataPoint(this.shopId, this.itemId, dataPoint);
-        DynaShopPlugin.getInstance().getStorageManager().savePriceDataPoint(this.shopId, this.itemId, dataPoint, 15);
-    }
+    //     // Sauvegarder l'historique dans la base de données
+    //     // DynaShopPlugin.getInstance().getDataManager().savePriceHistory(this);
+    //     // DynaShopPlugin.getInstance().getDataManager().saveSinglePriceDataPoint(this.shopId, this.itemId, dataPoint);
+    //     DynaShopPlugin.getInstance().getStorageManager().savePriceDataPoint(this.shopId, this.itemId, dataPoint, 15);
+    // }
 
     // public void addDataPoint(double openBuyPrice, double closeBuyPrice, double highBuyPrice, double lowBuyPrice,
     //                         double openSellPrice, double closeSellPrice, double highSellPrice, double lowSellPrice) {
@@ -115,6 +115,14 @@ public class PriceHistory implements ConfigurationSerializable {
     
     public List<PriceDataPoint> getDataPoints() {
         return new ArrayList<>(dataPoints);
+    }
+
+    public PriceDataPoint getLastPoint() {
+        if (dataPoints.isEmpty()) {
+            // return null; // ou vous pouvez lancer une exception si vous préférez
+            throw new IllegalStateException("No data points available in the price history.");
+        }
+        return dataPoints.get(dataPoints.size() - 1);
     }
     
     public String getShopId() {

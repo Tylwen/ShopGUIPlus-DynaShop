@@ -502,7 +502,8 @@ public class FlatFileStorageManager implements StorageManager {
                 record.shopId, 
                 record.itemId, 
                 record.isBuy, 
-                record.amount
+                record.amount,
+                record.timestamp  // Ajouter le timestamp de la transaction
             );
         }
         
@@ -855,6 +856,7 @@ public class FlatFileStorageManager implements StorageManager {
     private static class LimitTrackingManager {
         private final File baseFolder;
         private final Map<UUID, PlayerLimits> playerLimits = new HashMap<>();
+        private final String timeReference; // "first" ou "last"
         
         public LimitTrackingManager(File baseFolder) {
             if (!baseFolder.exists()) {
@@ -866,6 +868,9 @@ public class FlatFileStorageManager implements StorageManager {
                 playerLimitFolder.mkdirs();
             }
             this.baseFolder = playerLimitFolder;
+            
+            // Lire la configuration
+            this.timeReference = DynaShopPlugin.getInstance().getConfig().getString("limit.time-reference", "first");
         }
         
         public void load() {
@@ -930,9 +935,9 @@ public class FlatFileStorageManager implements StorageManager {
             }
         }
         
-        public void addTransaction(UUID playerId, String shopId, String itemId, boolean isBuy, int amount) {
+        public void addTransaction(UUID playerId, String shopId, String itemId, boolean isBuy, int amount, LocalDateTime timestamp) {
             PlayerLimits limits = playerLimits.computeIfAbsent(playerId, k -> new PlayerLimits());
-            limits.updateLimit(shopId, itemId, isBuy, amount);
+            limits.updateLimit(shopId, itemId, isBuy, amount, timestamp);
         }
         
         public int getUsedAmount(UUID playerId, String shopId, String itemId, boolean isBuy, LocalDateTime since) {
@@ -946,7 +951,7 @@ public class FlatFileStorageManager implements StorageManager {
             PlayerLimits limits = playerLimits.get(playerId);
             if (limits == null) return Optional.empty();
             
-            return limits.getLastActivityTime(shopId, itemId, isBuy);
+            return limits.getLastActivityTime(shopId, itemId, isBuy, timeReference);
         }
         
         public boolean resetLimits(UUID playerId, String shopId, String itemId) {
@@ -1023,12 +1028,12 @@ public class FlatFileStorageManager implements StorageManager {
             private Map<String, ItemLimit> buyLimits = new HashMap<>();
             private Map<String, ItemLimit> sellLimits = new HashMap<>();
             
-            public void updateLimit(String shopId, String itemId, boolean isBuy, int amount) {
+            public void updateLimit(String shopId, String itemId, boolean isBuy, int amount, LocalDateTime timestamp) {
                 String key = shopId + ":" + itemId;
                 Map<String, ItemLimit> limitsMap = isBuy ? buyLimits : sellLimits;
                 
                 ItemLimit limit = limitsMap.computeIfAbsent(key, k -> new ItemLimit());
-                limit.addAmount(amount);
+                limit.addAmount(amount, timestamp);
             }
             
             public int getUsedAmount(String shopId, String itemId, boolean isBuy, LocalDateTime since) {
@@ -1041,14 +1046,14 @@ public class FlatFileStorageManager implements StorageManager {
                 return limit.getAmountSince(since);
             }
             
-            public Optional<LocalDateTime> getLastActivityTime(String shopId, String itemId, boolean isBuy) {
+            public Optional<LocalDateTime> getLastActivityTime(String shopId, String itemId, boolean isBuy, String timeReference) {
                 String key = shopId + ":" + itemId;
                 Map<String, ItemLimit> limitsMap = isBuy ? buyLimits : sellLimits;
                 
                 ItemLimit limit = limitsMap.get(key);
                 if (limit == null) return Optional.empty();
                 
-                return Optional.of(limit.getLastTransactionTime());
+                return Optional.of(limit.getLastTransactionTime(timeReference));
             }
             
             public boolean resetLimits(String shopId, String itemId) {
@@ -1146,21 +1151,20 @@ public class FlatFileStorageManager implements StorageManager {
                     this.totalAmount = 0;
                     this.lastUpdated = LocalDateTime.now();
                 }
-                
-                public void addAmount(int amount) {
+
+                public void addAmount(int amount, LocalDateTime timestamp) {
                     this.totalAmount += amount;
-                    this.lastUpdated = LocalDateTime.now();
+                    this.lastUpdated = timestamp;
                     
                     // Stocker chaque transaction avec son timestamp
-                    transactions.add(new TransactionEntry(LocalDateTime.now(), amount));
-                    
+                    transactions.add(new TransactionEntry(timestamp, amount));
+
                     // Mise à jour des périodes
-                    LocalDateTime now = LocalDateTime.now();
-                    LocalDateTime today = now.truncatedTo(java.time.temporal.ChronoUnit.DAYS);
-                    LocalDateTime thisWeek = now.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
-                                            .truncatedTo(java.time.temporal.ChronoUnit.DAYS);
-                    LocalDateTime thisMonth = now.withDayOfMonth(1).truncatedTo(java.time.temporal.ChronoUnit.DAYS);
-                    
+                    // LocalDateTime now = LocalDateTime.now();
+                    LocalDateTime today = timestamp.truncatedTo(java.time.temporal.ChronoUnit.DAYS);
+                    LocalDateTime thisWeek = timestamp.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY)).truncatedTo(java.time.temporal.ChronoUnit.DAYS);
+                    LocalDateTime thisMonth = timestamp.withDayOfMonth(1).truncatedTo(java.time.temporal.ChronoUnit.DAYS);
+
                     // Ajouter aux compteurs par période
                     dailyAmounts.merge(today, amount, Integer::sum);
                     weeklyAmounts.merge(thisWeek, amount, Integer::sum);
@@ -1175,14 +1179,31 @@ public class FlatFileStorageManager implements StorageManager {
                         .sum();
                 }
                 
-                public LocalDateTime getLastTransactionTime() {
+                // public LocalDateTime getLastTransactionTime() {
+                //     if (transactions.isEmpty()) {
+                //         return lastUpdated;
+                //     }
+                //     return transactions.stream()
+                //         .map(entry -> entry.timestamp)
+                //         .max(LocalDateTime::compareTo)
+                //         .orElse(lastUpdated);
+                // }
+                public LocalDateTime getLastTransactionTime(String timeReference) {
                     if (transactions.isEmpty()) {
                         return lastUpdated;
                     }
-                    return transactions.stream()
-                        .map(entry -> entry.timestamp)
-                        .max(LocalDateTime::compareTo)
-                        .orElse(lastUpdated);
+                    
+                    if ("first".equalsIgnoreCase(timeReference)) {
+                        return transactions.stream()
+                            .map(entry -> entry.timestamp)
+                            .min(LocalDateTime::compareTo)
+                            .orElse(lastUpdated);
+                    } else {
+                        return transactions.stream()
+                            .map(entry -> entry.timestamp)
+                            .max(LocalDateTime::compareTo)
+                            .orElse(lastUpdated);
+                    }
                 }
                 
                 public boolean isExpired(LocalDateTime cutoffDate) {
