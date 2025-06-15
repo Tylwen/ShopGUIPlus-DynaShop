@@ -389,26 +389,42 @@ public class MarketWebServer {
             }
             
             // Déterminer l'intervalle d'agrégation en minutes
+            final int INTERVAL_MINUTES = plugin.getConfigMain().getInt("history.save-interval", 15);
             int interval;
             if (granularity.equals("auto")) {
+                // // Sélection automatique basée sur la période
+                // if (period.equals("1h")) interval = 1;
+                // else if (period.equals("6h")) interval = 5;
+                // else if (period.equals("12h")) interval = 10;
+                // else if (period.equals("1d")) interval = 15;
+                // else if (period.equals("1w")) interval = 60;
+                // else if (period.equals("1m")) interval = 240; // 4 heures
+                // else interval = 15; // valeur par défaut
                 // Sélection automatique basée sur la période
-                if (period.equals("1h")) interval = 1;
-                else if (period.equals("6h")) interval = 5;
-                else if (period.equals("12h")) interval = 10;
-                else if (period.equals("1d")) interval = 15;
-                else if (period.equals("1w")) interval = 60;
-                else if (period.equals("1m")) interval = 240; // 4 heures
-                else interval = 15; // valeur par défaut
+                if (period.equals("1h")) interval = INTERVAL_MINUTES; // 15 minutes (0.25h)
+                else if (period.equals("6h")) interval = INTERVAL_MINUTES; // 15 minutes (0.25h)
+                else if (period.equals("12h")) interval = INTERVAL_MINUTES * 2; // 30 minutes (0.5h)
+                else if (period.equals("1d")) interval = INTERVAL_MINUTES * 4; // 60 minutes (1h)
+                else if (period.equals("1w")) interval = INTERVAL_MINUTES * 16; // 240 minutes (4h)
+                else if (period.equals("1m")) interval = INTERVAL_MINUTES * 48; // 720 minutes (12h)
+                else interval = INTERVAL_MINUTES; // Valeur par défaut (15 minutes)
             } else {
                 // Intervalle explicite
                 interval = switch(granularity) {
-                    case "minute" -> 1;
-                    case "5min" -> 5;
-                    case "15min" -> 15;
-                    case "30min" -> 30;
-                    case "hour" -> 60;
-                    case "day" -> 1440;
-                    default -> 15;
+                    // case "minute" -> 1;
+                    // case "5min" -> 5;
+                    // case "15min" -> 15;
+                    // case "30min" -> 30;
+                    // case "hour" -> 60;
+                    // case "day" -> 1440;
+                    // default -> 15;
+                    case "minute" -> INTERVAL_MINUTES; // 15 minutes (0.25h)
+                    case "5min" -> INTERVAL_MINUTES; // 15 minutes (0.25h)
+                    case "15min" -> INTERVAL_MINUTES; // 15 minutes (0.25h)
+                    case "30min" -> INTERVAL_MINUTES * 2; // 30 minutes (0.5h)
+                    case "hour" -> INTERVAL_MINUTES * 4; // 60 minutes (1h)
+                    case "day" -> INTERVAL_MINUTES * 96; // 1440 minutes (24h)
+                    default -> INTERVAL_MINUTES;
                 };
             }
             
