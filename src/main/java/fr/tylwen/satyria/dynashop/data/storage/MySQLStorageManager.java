@@ -7,7 +7,7 @@ import fr.tylwen.satyria.dynashop.config.DataConfig;
 // import fr.tylwen.satyria.dynashop.data.cache.LimitCacheEntry;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.price.DynamicPrice;
-import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionRecord;
+import fr.tylwen.satyria.dynashop.data.model.TransactionRecord;
 import fr.tylwen.satyria.dynashop.system.chart.PriceHistory;
 import fr.tylwen.satyria.dynashop.system.chart.PriceHistory.PriceDataPoint;
 import net.brcdev.shopgui.ShopGuiPlusApi;
@@ -22,6 +22,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
+
+import org.bukkit.Bukkit;
 
 /**
  * Implémentation MySQL/MariaDB du gestionnaire de stockage
@@ -642,7 +644,7 @@ public class MySQLStorageManager implements StorageManager {
             try {
                 for (TransactionRecord record : transactions) {
                     String tableName = getAppropriateTransactionTable(record);
-                    String transactionType = record.isBuy ? "BUY" : "SELL";
+                    String transactionType = record.isBuy() ? "BUY" : "SELL";
                     
                     String sql = "INSERT INTO " + tableName + 
                             " (player_uuid, shop_id, item_id, transaction_type, amount, transaction_time) " +
@@ -650,14 +652,14 @@ public class MySQLStorageManager implements StorageManager {
                             "ON DUPLICATE KEY UPDATE amount = amount + ?, transaction_time = VALUES(transaction_time)";
                     
                     try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                        stmt.setString(1, record.playerUuid.toString());
-                        stmt.setString(2, record.shopId);
-                        stmt.setString(3, record.itemId);
+                        stmt.setString(1, record.getPlayerUuid().toString());
+                        stmt.setString(2, record.getShopId());
+                        stmt.setString(3, record.getItemId());
                         stmt.setString(4, transactionType);
-                        stmt.setInt(5, record.amount);
-                        stmt.setTimestamp(6, Timestamp.valueOf(record.timestamp));
-                        stmt.setInt(7, record.amount);
-                        
+                        stmt.setInt(5, record.getQuantity());
+                        stmt.setTimestamp(6, Timestamp.valueOf(record.getTimestamp()));
+                        stmt.setInt(7, record.getQuantity());
+
                         stmt.executeUpdate();
                     }
                 }
@@ -677,8 +679,8 @@ public class MySQLStorageManager implements StorageManager {
     private String getAppropriateTransactionTable(TransactionRecord record) {
         String tablePrefix = dataConfig.getDatabaseTablePrefix();
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime timestamp = record.timestamp;
-        
+        LocalDateTime timestamp = record.getTimestamp();
+
         if (timestamp.isAfter(now.minusDays(1))) {
             return tablePrefix + "_tx_daily";
         } else if (timestamp.isAfter(now.minusWeeks(1))) {
@@ -747,6 +749,127 @@ public class MySQLStorageManager implements StorageManager {
                 return null;
             }, playerUuid.toString(), shopId, itemId, transactionType);
         }
+    }
+
+    @Override
+    public List<TransactionRecord> getPlayerTransactions(String playerUuid, String shopId, LocalDateTime startDate, int limit) {
+        String tablePrefix = dataConfig.getDatabaseTablePrefix();
+        
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT t.*, p.player_name FROM ");
+        sql.append(tablePrefix).append("_transactions_view t ");
+        sql.append("LEFT JOIN ").append(tablePrefix).append("_players p ON t.player_uuid = p.player_uuid ");
+        sql.append("WHERE t.player_uuid = ? ");
+        
+        List<Object> params = new ArrayList<>();
+        params.add(playerUuid);
+        
+        if (shopId != null && !shopId.isEmpty()) {
+            sql.append("AND t.shop_id = ? ");
+            params.add(shopId);
+        }
+        
+        sql.append("AND t.transaction_time >= ? ");
+        params.add(Timestamp.valueOf(startDate));
+        
+        sql.append("ORDER BY t.transaction_time DESC ");
+        sql.append("LIMIT ?");
+        params.add(limit);
+        
+        return executeQuery(sql.toString(), rs -> {
+            List<TransactionRecord> transactions = new ArrayList<>();
+            
+            while (rs.next()) {
+                TransactionRecord record = new TransactionRecord();
+                
+                UUID uuid = UUID.fromString(rs.getString("player_uuid"));
+                String currentShopId = rs.getString("shop_id");
+                String itemId = rs.getString("item_id");
+                boolean isBuy = rs.getString("transaction_type").equals("BUY");
+                int quantity = rs.getInt("amount");
+                double unitPrice = -1; // À calculer si possible
+                LocalDateTime timestamp = rs.getTimestamp("transaction_time").toLocalDateTime();
+                
+                // Obtenir le nom de l'item
+                String itemName = plugin.getShopConfigManager().getItemName(null, currentShopId, itemId);
+                
+                // Obtenir le nom du joueur
+                String playerName = rs.getString("player_name");
+                if (playerName == null) {
+                    playerName = Bukkit.getOfflinePlayer(uuid).getName();
+                    if (playerName == null) playerName = uuid.toString();
+                }
+                
+                // Créer l'enregistrement
+                record = new TransactionRecord(
+                    uuid, playerName, currentShopId, itemId, itemName,
+                    isBuy, quantity, unitPrice, timestamp
+                );
+                
+                record.setId(rs.getLong("id"));
+                transactions.add(record);
+            }
+            
+            return transactions;
+        }, params.toArray()).orElse(List.of());
+    }
+
+    @Override
+    public List<TransactionRecord> getAllTransactions(String shopId, LocalDateTime startDate) {
+        String tablePrefix = dataConfig.getDatabaseTablePrefix();
+        
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT t.*, p.player_name FROM ");
+        sql.append(tablePrefix).append("_transactions_view t ");
+        sql.append("LEFT JOIN ").append(tablePrefix).append("_players p ON t.player_uuid = p.player_uuid ");
+        sql.append("WHERE transaction_time >= ? ");
+        
+        List<Object> params = new ArrayList<>();
+        params.add(Timestamp.valueOf(startDate));
+        
+        if (shopId != null && !shopId.isEmpty()) {
+            sql.append("AND shop_id = ? ");
+            params.add(shopId);
+        }
+        
+        sql.append("ORDER BY transaction_time DESC");
+        
+        return executeQuery(sql.toString(), rs -> {
+            List<TransactionRecord> transactions = new ArrayList<>();
+            
+            while (rs.next()) {
+                TransactionRecord record = new TransactionRecord();
+                
+                UUID uuid = UUID.fromString(rs.getString("player_uuid"));
+                String currentShopId = rs.getString("shop_id");
+                String itemId = rs.getString("item_id");
+                boolean isBuy = rs.getString("transaction_type").equals("BUY");
+                int quantity = rs.getInt("amount");
+                double unitPrice = -1; // À calculer si possible
+                LocalDateTime timestamp = rs.getTimestamp("transaction_time").toLocalDateTime();
+                
+                // Obtenir le nom de l'item
+                String itemName = plugin.getShopConfigManager().getItemName(null, currentShopId, itemId);
+                
+                // Obtenir le nom du joueur
+                String playerName = rs.getString("player_name");
+                if (playerName == null) {
+                    playerName = Bukkit.getOfflinePlayer(uuid).getName();
+                    if (playerName == null) playerName = uuid.toString();
+                }
+                
+                // Créer l'enregistrement
+                record = new TransactionRecord(
+                    uuid, playerName, currentShopId, itemId, itemName,
+                    isBuy, quantity, unitPrice, timestamp
+                );
+                
+                record.setId(rs.getLong("id"));
+                transactions.add(record);
+            }
+            
+            return transactions;
+        }, params.toArray()).orElse(List.of());
     }
     
     @Override

@@ -4,7 +4,7 @@ import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 // import fr.tylwen.satyria.dynashop.data.cache.LimitCacheEntry;
 import fr.tylwen.satyria.dynashop.system.chart.PriceHistory;
 import fr.tylwen.satyria.dynashop.system.chart.PriceHistory.PriceDataPoint;
-import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionRecord;
+import fr.tylwen.satyria.dynashop.data.model.TransactionRecord;
 import net.brcdev.shopgui.shop.item.ShopItem;
 
 import java.time.LocalDateTime;
@@ -113,6 +113,24 @@ public interface StorageManager {
      * Obtient le timestamp de la dernière transaction
      */
     Optional<LocalDateTime> getLastTransactionTime(UUID playerUuid, String shopId, String itemId, boolean isBuy);
+
+    /**
+     * Récupère les transactions d'un joueur
+     * @param playerUuid UUID du joueur
+     * @param shopId ID du shop (optionnel, peut être null)
+     * @param startDate Date de début
+     * @param limit Nombre maximum de transactions à récupérer
+     * @return Liste des transactions
+     */
+    List<TransactionRecord> getPlayerTransactions(String playerUuid, String shopId, LocalDateTime startDate, int limit);
+
+    /**
+     * Récupère toutes les transactions pour un shop spécifique depuis une date donnée
+     * @param shopId ID du shop (optionnel, peut être null)
+     * @param startDate Date de début
+     * @return Liste des transactions
+     */
+    List<TransactionRecord> getAllTransactions(String shopId, LocalDateTime startDate);
     
     /**
      * Réinitialise les limites pour un item spécifique

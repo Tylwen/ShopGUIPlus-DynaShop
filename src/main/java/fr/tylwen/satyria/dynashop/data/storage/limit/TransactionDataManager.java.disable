@@ -2,6 +2,7 @@ package fr.tylwen.satyria.dynashop.data.storage.limit;
 
 import fr.tylwen.satyria.dynashop.data.storage.JsonStorage;
 import fr.tylwen.satyria.dynashop.system.TransactionLimiter.LimitPeriod;
+import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionRecord;
 
 import com.google.gson.reflect.TypeToken;
 import java.io.File;

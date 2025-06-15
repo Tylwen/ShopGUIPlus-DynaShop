@@ -6,7 +6,7 @@ import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 import fr.tylwen.satyria.dynashop.system.chart.PriceHistory;
 import fr.tylwen.satyria.dynashop.system.chart.PriceHistory.PriceDataPoint;
-import fr.tylwen.satyria.dynashop.system.TransactionLimiter.TransactionRecord;
+import fr.tylwen.satyria.dynashop.data.model.TransactionRecord;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.item.ShopItem;
@@ -14,6 +14,7 @@ import net.brcdev.shopgui.shop.item.ShopItem;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 // import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -498,12 +499,12 @@ public class FlatFileStorageManager implements StorageManager {
 
         for (TransactionRecord record : transactions) {
             limitManager.addTransaction(
-                record.playerUuid, 
-                record.shopId, 
-                record.itemId, 
-                record.isBuy, 
-                record.amount,
-                record.timestamp  // Ajouter le timestamp de la transaction
+                record.getPlayerUuid(), 
+                record.getShopId(), 
+                record.getItemId(), 
+                record.isBuy(), 
+                record.getQuantity(),
+                record.getTimestamp()  // Ajouter le timestamp de la transaction
             );
         }
         
@@ -534,6 +535,51 @@ public class FlatFileStorageManager implements StorageManager {
     @Override
     public Optional<LocalDateTime> getLastTransactionTime(UUID playerUuid, String shopId, String itemId, boolean isBuy) {
         return limitManager.getLastTransactionTime(playerUuid, shopId, itemId, isBuy);
+    }
+
+    @Override
+    public List<TransactionRecord> getPlayerTransactions(String playerUuid, String shopId, LocalDateTime startDate, int limit) {
+        if (playerUuid == null) {
+            return List.of();
+        }
+        
+        try {
+            UUID uuid = UUID.fromString(playerUuid);
+            List<TransactionRecord> result = new ArrayList<>();
+            
+            // Utiliser une méthode dans LimitTrackingManager pour accéder aux données
+            result.addAll(limitManager.getPlayerTransactions(uuid, shopId, startDate, true));  // transactions d'achat
+            result.addAll(limitManager.getPlayerTransactions(uuid, shopId, startDate, false)); // transactions de vente
+            
+            // Trier par date décroissante
+            result.sort((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()));
+            
+            // Limiter le nombre de résultats
+            if (result.size() > limit) {
+                return result.subList(0, limit);
+            }
+            
+            return result;
+        } catch (IllegalArgumentException e) {
+            plugin.getLogger().warning("UUID invalide: " + playerUuid);
+            return List.of();
+        }
+    }
+
+    @Override
+    public List<TransactionRecord> getAllTransactions(String shopId, LocalDateTime startDate) {
+        List<TransactionRecord> result = new ArrayList<>();
+        
+        // Parcourir tous les joueurs en utilisant la méthode getAllPlayerIds()
+        for (UUID uuid : limitManager.getAllPlayerIds()) {
+            // Ajouter toutes les transactions de ce joueur qui correspondent aux critères
+            result.addAll(getPlayerTransactions(uuid.toString(), shopId, startDate, Integer.MAX_VALUE));
+        }
+        
+        // Trier par date décroissante
+        result.sort((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()));
+        
+        return result;
     }
     
     @Override
@@ -953,6 +999,71 @@ public class FlatFileStorageManager implements StorageManager {
             
             return limits.getLastActivityTime(shopId, itemId, isBuy, timeReference);
         }
+
+        /**
+         * Récupère les transactions d'un joueur
+         * @param playerId UUID du joueur
+         * @param shopId ID du shop (peut être null)
+         * @param startDate Date de début pour filtrer les transactions
+         * @param isBuy true pour les achats, false pour les ventes
+         * @return Liste des transactions
+         */
+        public List<TransactionRecord> getPlayerTransactions(UUID playerId, String shopId, LocalDateTime startDate, boolean isBuy) {
+            List<TransactionRecord> result = new ArrayList<>();
+            
+            // Obtenir directement les données sous-jacentes depuis playerLimits
+            PlayerLimits playerLimit = this.playerLimits.get(playerId);
+            if (playerLimit == null) {
+                return result;
+            }
+            
+            // Choisir la map à utiliser (buy ou sell)
+            Map<String, ?> limitsMap = isBuy ? playerLimit.buyLimits : playerLimit.sellLimits;
+            
+            // Parcourir les clés de la map directement
+            for (String key : limitsMap.keySet()) {
+                String[] parts = key.split(":");
+                if (parts.length != 2) continue;
+                
+                String itemShopId = parts[0];
+                String itemId = parts[1];
+                
+                // Filtrer par shop si nécessaire
+                if (shopId != null && !shopId.equals(itemShopId)) {
+                    continue;
+                }
+                
+                // Construire un TransactionRecord pour chaque limite
+                // Note: cela ne montrera qu'une seule transaction agrégée par item,
+                // mais c'est plus simple que d'essayer d'accéder aux transactions individuelles
+                
+                String itemName = DynaShopPlugin.getInstance().getShopConfigManager().getItemName(null, itemShopId, itemId);
+                String playerName = Bukkit.getOfflinePlayer(playerId).getName();
+                if (playerName == null) playerName = playerId.toString();
+                
+                // Obtenir la quantité utilisée après la date de début
+                int amount = getUsedAmount(playerId, itemShopId, itemId, isBuy, startDate);
+                if (amount <= 0) continue; // Ignorer les entrées sans transactions
+                
+                // Obtenir le timestamp de la dernière transaction
+                LocalDateTime timestamp = getLastTransactionTime(playerId, itemShopId, itemId, isBuy)
+                    .orElse(LocalDateTime.now());
+                
+                // Créer l'enregistrement
+                TransactionRecord record = new TransactionRecord(
+                    playerId, playerName, itemShopId, itemId, itemName,
+                    isBuy, amount, -1, timestamp
+                );
+                record.setId(timestamp.toEpochSecond(ZoneOffset.UTC));
+                result.add(record);
+            }
+            
+            return result;
+        }
+
+        public Set<UUID> getAllPlayerIds() {
+            return new HashSet<>(playerLimits.keySet());
+        }
         
         public boolean resetLimits(UUID playerId, String shopId, String itemId) {
             PlayerLimits limits = playerLimits.get(playerId);
@@ -1151,6 +1262,13 @@ public class FlatFileStorageManager implements StorageManager {
                     this.totalAmount = 0;
                     this.lastUpdated = LocalDateTime.now();
                 }
+                
+                // Méthode d'accès aux transactions
+                public List<TransactionEntry.TransactionData> getTransactions() {
+                    return transactions.stream()
+                        .map(tx -> new TransactionEntry.TransactionData(tx.timestamp, tx.amount))
+                        .collect(Collectors.toList());
+                }
 
                 public void addAmount(int amount, LocalDateTime timestamp) {
                     this.totalAmount += amount;
@@ -1218,6 +1336,16 @@ public class FlatFileStorageManager implements StorageManager {
                     public TransactionEntry(LocalDateTime timestamp, int amount) {
                         this.timestamp = timestamp;
                         this.amount = amount;
+                    }
+                    
+                    public static class TransactionData {
+                        public final LocalDateTime timestamp;
+                        public final int amount;
+                        
+                        public TransactionData(LocalDateTime timestamp, int amount) {
+                            this.timestamp = timestamp;
+                            this.amount = amount;
+                        }
                     }
                 }
             }

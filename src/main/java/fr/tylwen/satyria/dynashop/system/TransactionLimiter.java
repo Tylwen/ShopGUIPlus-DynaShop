@@ -2,6 +2,7 @@ package fr.tylwen.satyria.dynashop.system;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.data.cache.LimitCacheEntry;
+import fr.tylwen.satyria.dynashop.data.model.TransactionRecord;
 import fr.tylwen.satyria.dynashop.data.storage.StorageManager;
 
 import org.bukkit.entity.Player;
@@ -416,27 +417,5 @@ public class TransactionLimiter {
      */
     private void incrementMetric(String metricName, int value) {
         metricsCounter.merge(metricName, value, Integer::sum);
-    }
-
-    /**
-     * Classe pour représenter une transaction
-     */
-    public static class TransactionRecord {
-        public final UUID playerUuid;
-        public final String shopId;
-        public final String itemId;
-        public final boolean isBuy;
-        public final int amount;
-        public final LocalDateTime timestamp;
-        
-        public TransactionRecord(UUID playerUuid, String shopId, String itemId, 
-                                boolean isBuy, int amount, LocalDateTime timestamp) {
-            this.playerUuid = playerUuid;
-            this.shopId = shopId;
-            this.itemId = itemId;
-            this.isBuy = isBuy;
-            this.amount = amount;
-            this.timestamp = timestamp;
-        }
     }
 }
