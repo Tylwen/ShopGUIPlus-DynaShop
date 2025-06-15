@@ -175,7 +175,8 @@ public class WaitForShopsTask implements Runnable {
                                     );
 
                                     history.addDataPoint(dataPoint);
-                                    
+                                    plugin.getStorageManager().savePriceDataPoint(shop.getId(), item.getId(), dataPoint, INTERVAL_MINUTES);
+
                                     // plugin.getLogger().info("Point d'historique ajouté pour " + shop.getId() + ":" + item.getId());
                                 }
                             }

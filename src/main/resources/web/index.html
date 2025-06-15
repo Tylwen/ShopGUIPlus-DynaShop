@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="fr">
+<!-- <html lang="fr"> -->
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DynaShop Market Dashboard</title>
+    <title data-i18n="title">DynaShop Market Dashboard</title>
     <link rel="stylesheet" href="assets/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -18,98 +19,129 @@
 <body>
     <div class="container">
         <header>
-            <h1>DynaShop Market Dashboard</h1>
+            <h1 data-i18n="title">DynaShop Market Dashboard</h1>
             <div class="select-group">
                 <!-- <label for="refresh-interval">Actualisation:</label> -->
                 <select id="refresh-interval">
-                    <option value="disabled">Désactivée</option>
+                    <option value="disabled" data-i18n="refresh.disabled">Désactivée</option>
                     <!-- <option value="1">1 minute</option> -->
-                    <option value="5">5 minutes</option>
-                    <option value="15">15 minutes</option>
-                    <option value="30">30 minutes</option>
-                    <option value="60">60 minutes</option>
+                    <option value="5" data-i18n="refresh.minutes">5 minutes</option>
+                    <option value="15" data-i18n="refresh.minutes">15 minutes</option>
+                    <option value="30" data-i18n="refresh.minutes">30 minutes</option>
+                    <option value="60" data-i18n="refresh.minutes">60 minutes</option>
                 </select>
             </div>
             <div class="server-info">
                 <span id="server-name">Satyria</span>
                 <span id="current-time"></span>
             </div>
-            <div class="theme-toggle">
-                <button id="theme-switch">
-                    <i class="fas fa-moon"></i>
-                    <span>Mode sombre</span>
-                </button>
+            <div class="controls-wrapper">
+                <!-- <div class="language-selector">
+                    <select id="language-select">
+                        <option value="fr" data-flag="fr">Français</option>
+                        <option value="en" data-flag="en">English</option>
+                    </select>
+                </div> -->
+                <div class="language-selector">
+                    <div class="custom-select-container">
+                        <div class="custom-select-selected fr">Français</div>
+                        <div class="custom-select-dropdown">
+                            <div class="custom-select-option fr" data-value="fr">Français</div>
+                            <div class="custom-select-option en" data-value="en">English</div>
+                            <div class="custom-select-option es" data-value="es">Español</div>
+                            <div class="custom-select-option hi" data-value="hi">हिन्दी</div>
+                            <div class="custom-select-option zh" data-value="zh">中文</div>
+                            <div class="custom-select-option ar" data-value="ar">العربية</div>
+                            <div class="custom-select-option pt" data-value="pt">Português</div>
+                        </div>
+                    </div>
+                    <select id="language-select" style="display: none;">
+                        <option value="fr">Français</option>
+                        <option value="en">English</option>
+                        <option value="es">Español</option>
+                        <option value="hi">हिन्दी</option>
+                        <option value="zh">中文</option>
+                        <option value="ar">العربية</option>
+                        <option value="pt">Português</option>
+                    </select>
+                </div>
+                <div class="theme-toggle">
+                    <button id="theme-switch">
+                        <i class="fas fa-moon"></i>
+                        <span data-i18n="theme.dark">Mode sombre</span>
+                    </button>
+                </div>
             </div>
         </header>
 
         <div class="selectors">
             <div class="select-group">
-                <label for="shop-select">Boutique:</label>
+                <label for="shop-select" data-i18n="selectors.shop">Boutique:</label>
                 <select id="shop-select">
-                    <option value="">Choisir une boutique</option>
+                    <option value="" data-i18n="selectors.chooseShop">Choisir une boutique</option>
                 </select>
             </div>
 
             <div class="select-group">
-                <label for="item-select">Item:</label>
+                <label for="item-select" data-i18n="selectors.item">Item:</label>
                 <select id="item-select" disabled>
-                    <option value="">Choisir un item</option>
+                    <option value="" data-i18n="selectors.chooseItem">Choisir un item</option>
                 </select>
             </div>
 
             <div class="select-group">
-                <label for="period-select">Période:</label>
+                <label for="period-select" data-i18n="selectors.period">Période:</label>
                 <select id="period-select">
-                    <option value="1h">1 heure</option>
-                    <option value="6h">6 heures</option>
-                    <option value="12h">12 heures</option>
-                    <option value="1d" selected>1 jour</option>
-                    <option value="1w">1 semaine</option>
-                    <option value="1m">1 mois</option>
+                    <option value="1h" data-i18n="periods.1h">1 heure</option>
+                    <option value="6h" data-i18n="periods.6h">6 heures</option>
+                    <option value="12h" data-i18n="periods.12h">12 heures</option>
+                    <option value="1d" selected data-i18n="periods.1d">1 jour</option>
+                    <option value="1w" data-i18n="periods.1w">1 semaine</option>
+                    <option value="1m" data-i18n="periods.1m">1 mois</option>
                 </select>
             </div>
         </div>
 
         <div class="charts-container">
             <div class="chart-wrapper" id="price-chart-wrapper">
-                <h2>Évolution des prix</h2>
+                <h2 data-i18n="charts.priceEvolution">Évolution des prix</h2>
                 <canvas id="price-chart"></canvas>
             </div>
 
             <div class="chart-wrapper" id="volume-chart-wrapper">
-                <h2>Volume des transactions</h2>
+                <h2 data-i18n="charts.volume">Volume des transactions</h2>
                 <canvas id="volume-chart"></canvas>
             </div>
         </div>
 
         <div class="stats-container">
             <div class="stat-box">
-                <h3>Prix actuel</h3>
+                <h3 data-i18n="stats.currentPrice">Prix actuel</h3>
                 <div class="stat-value" id="current-price">--</div>
             </div>
 
             <div class="stat-box">
-                <h3>Variation</h3>
+                <h3 data-i18n="stats.priceChange">Variation</h3>
                 <div class="stat-value" id="price-change">--</div>
             </div>
 
             <div class="stat-box">
-                <h3>Volume</h3>
+                <h3 data-i18n="stats.volume">Volume</h3>
                 <div class="stat-value" id="volume-24h">--</div>
             </div>
 
             <div class="stat-box">
-                <h3>Dernière transaction</h3>
+                <h3 data-i18n="stats.lastTransaction">Dernière transaction</h3>
                 <div class="stat-value" id="last-transaction">--</div>
             </div>
-            
+
             <div class="stat-box">
-                <h3>Type de DynaShop</h3>
+                <h3 data-i18n="stats.shopType">Type de DynaShop</h3>
                 <div class="stat-value" id="shop-type">--</div>
             </div>
 
             <div class="stat-box" id="stock-container" style="display: none;">
-                <h3>Stock</h3>
+                <h3 data-i18n="stats.stock">Stock</h3>
                 <div class="stat-value" id="stock-info">--/--</div>
             </div>
         </div>
@@ -120,7 +152,7 @@
         </div> -->
 
         <footer>
-            <p>DynaShop Market Dashboard - Plugin par Tylwen</p>
+            <p data-i18n="footer">DynaShop Market Dashboard - Plugin par Tylwen</p>
         </footer>
     </div>
 

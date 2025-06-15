@@ -1,0 +1,39 @@
+{
+  "title": "DynaShop Market Dashboard",
+  "theme": {
+    "dark": "Dark mode",
+    "light": "Light mode"
+  },
+  "refresh": {
+    "disabled": "Disabled",
+    "minutes": "{0} minutes"
+  },
+  "selectors": {
+    "shop": "Shop:",
+    "chooseShop": "Choose a shop",
+    "item": "Item:",
+    "chooseItem": "Choose an item",
+    "period": "Period:"
+  },
+  "periods": {
+    "1h": "1 hour",
+    "6h": "6 hours",
+    "12h": "12 hours",
+    "1d": "1 day",
+    "1w": "1 week",
+    "1m": "1 month"
+  },
+  "charts": {
+    "priceEvolution": "Price Evolution",
+    "transactionVolume": "Transaction Volume"
+  },
+  "stats": {
+    "currentPrice": "Current Price",
+    "variation": "Variation",
+    "volume": "Volume",
+    "lastTransaction": "Last Transaction",
+    "shopType": "DynaShop Type",
+    "stock": "Stock"
+  },
+  "footer": "DynaShop Market Dashboard - Plugin by Tylwen"
+}

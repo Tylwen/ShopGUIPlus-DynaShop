@@ -8,31 +8,161 @@ let currentPeriod = '1m';
 let currentTheme = localStorage.getItem('theme') || 'light';
 let autoRefreshInterval = localStorage.getItem('refreshInterval') || 'disabled';
 let refreshTimerId = null;
+let translations = {};
+let currentLanguage = 'fr';
+
+// // Initialisation de la page
+// document.addEventListener('DOMContentLoaded', function() {
+//     // Mettre à jour l'heure
+//     updateCurrentTime();
+//     // Mettre à jour toutes les 60 secondes
+//     // setInterval(updateCurrentTime, 60000); // Mettre à jour toutes les 60 secondes
+//     setInterval(updateCurrentTime, 1000); // Mettre à jour toutes les secondes
+
+//     // Charger les shops
+//     loadShops();
+    
+//     // Initialiser le thème
+//     initTheme();
+    
+//     // Configurer les événements
+//     document.getElementById('language-select').addEventListener('change', async (e) => {
+//         currentLanguage = e.target.value;
+//         await loadTranslations(currentLanguage);
+//         translateUI();
+        
+//         // Enregistrer la préférence de langue
+//         localStorage.setItem('preferredLanguage', currentLanguage);
+//     });
+//     document.getElementById('shop-select').addEventListener('change', onShopChange);
+//     document.getElementById('item-select').addEventListener('change', onItemChange);
+//     document.getElementById('period-select').addEventListener('change', onPeriodChange);
+//     document.getElementById('theme-switch').addEventListener('click', toggleTheme);
+//     window.addEventListener('beforeunload', () => {stopAutoRefresh();});
+
+//     // Charger les paramètres de l'URL si présents
+//     loadParamsFromUrl();
+
+//     // Configurer l'actualisation automatique
+//     const refreshSelect = document.getElementById('refresh-interval');
+//     if (refreshSelect) {
+//         refreshSelect.value = autoRefreshInterval;
+//         refreshSelect.addEventListener('change', (e) => {
+//             changeRefreshInterval(e.target.value);
+//         });
+//     }
+
+//     // Démarrer l'actualisation automatique
+//     startAutoRefresh();
+// });
 
 // Initialisation de la page
 document.addEventListener('DOMContentLoaded', function() {
-    // Mettre à jour l'heure
-    updateCurrentTime();
-    // Mettre à jour toutes les 60 secondes
-    // setInterval(updateCurrentTime, 60000); // Mettre à jour toutes les 60 secondes
-    setInterval(updateCurrentTime, 1000); // Mettre à jour toutes les secondes
+    // Remplacer tout ce bloc par un appel à initApp
+    initApp();
+});
 
-    // Charger les shops
-    loadShops();
+// Fonction principale pour initialiser l'application
+async function initApp() {
+    // Détecter la langue du navigateur
+    const savedLanguage = localStorage.getItem('preferredLanguage');
+    if (savedLanguage) {
+        currentLanguage = savedLanguage;
+    } else {
+        currentLanguage = detectBrowserLanguage();
+    }
     
-    // Initialiser le thème
+    // Charger les traductions
+    await loadTranslations(currentLanguage);
+    
+    // Traduire l'interface
+    translateUI();
+    
+    // Continuer avec l'initialisation normale
     initTheme();
+    updateCurrentTime();
+    loadShops();
+    setupEventListeners();
+    startAutoRefresh();
     
+    // Charger les paramètres de l'URL si présents
+    loadParamsFromUrl();
+    
+    // Mettre à jour l'heure toutes les secondes
+    setInterval(updateCurrentTime, 1000);
+}
+
+// Ajoutez ce code pour gérer le sélecteur personnalisé
+document.addEventListener('DOMContentLoaded', function() {
+    const customSelect = document.querySelector('.custom-select-container');
+    const selected = customSelect.querySelector('.custom-select-selected');
+    const dropdown = customSelect.querySelector('.custom-select-dropdown');
+    const realSelect = document.getElementById('language-select');
+    
+    // Afficher/masquer la liste déroulante
+    selected.addEventListener('click', function() {
+        dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+    });
+    
+    // Masquer la liste lors d'un clic en dehors
+    document.addEventListener('click', function(e) {
+        if (!customSelect.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+    
+    // Sélectionner une option
+    dropdown.querySelectorAll('.custom-select-option').forEach(option => {
+        option.addEventListener('click', function() {
+            const value = this.dataset.value;
+            const text = this.textContent;
+            
+            // Mettre à jour l'élément sélectionné
+            selected.textContent = text;
+            selected.className = 'custom-select-selected ' + value;
+            
+            // Mettre à jour le vrai select
+            realSelect.value = value;
+            
+            // Déclencher l'événement change
+            realSelect.dispatchEvent(new Event('change'));
+            
+            // Fermer la liste
+            dropdown.style.display = 'none';
+        });
+    });
+    
+    // Initialiser avec la valeur actuelle
+    function updateCustomSelectFromReal() {
+        const value = realSelect.value;
+        const option = realSelect.options[realSelect.selectedIndex];
+        selected.textContent = option.textContent;
+        selected.className = 'custom-select-selected ' + value;
+    }
+    
+    updateCustomSelectFromReal();
+    realSelect.addEventListener('change', updateCustomSelectFromReal);
+});
+
+// Fonction pour configurer tous les écouteurs d'événements
+function setupEventListeners() {
     // Configurer les événements
+    document.getElementById('language-select').addEventListener('change', async (e) => {
+        currentLanguage = e.target.value;
+        e.target.setAttribute('data-current', currentLanguage);
+        await loadTranslations(currentLanguage);
+        translateUI();
+        
+        // Enregistrer la préférence de langue
+        localStorage.setItem('preferredLanguage', currentLanguage);
+    });
+    
     document.getElementById('shop-select').addEventListener('change', onShopChange);
     document.getElementById('item-select').addEventListener('change', onItemChange);
     document.getElementById('period-select').addEventListener('change', onPeriodChange);
     document.getElementById('theme-switch').addEventListener('click', toggleTheme);
     window.addEventListener('beforeunload', () => {stopAutoRefresh();});
-
-    // Charger les paramètres de l'URL si présents
-    loadParamsFromUrl();
-
+    
     // Configurer l'actualisation automatique
     const refreshSelect = document.getElementById('refresh-interval');
     if (refreshSelect) {
@@ -41,10 +171,95 @@ document.addEventListener('DOMContentLoaded', function() {
             changeRefreshInterval(e.target.value);
         });
     }
+}
 
-    // Démarrer l'actualisation automatique
-    startAutoRefresh();
-});
+// Détecte la langue du navigateur
+function detectBrowserLanguage() {
+    const lang = navigator.language || navigator.userLanguage;
+    const shortLang = lang.split('-')[0]; // 'fr-FR' -> 'fr'
+    
+    // Vérifier si nous avons une traduction pour cette langue, sinon utiliser l'anglais
+    const supportedLanguages = ['en', 'fr', 'es', 'hi', 'zh', 'ar', 'pt'];
+    return supportedLanguages.includes(shortLang) ? shortLang : 'en';
+}
+
+// Charge les traductions pour une langue spécifique
+async function loadTranslations(lang) {
+    try {
+        const response = await fetch(`assets/locales/${lang}.json`);
+        translations = await response.json();
+    } catch (error) {
+        console.error(`Failed to load translations for ${lang}, falling back to English`, error);
+        // Fallback à l'anglais si la langue demandée n'est pas disponible
+        if (lang !== 'en') {
+            await loadTranslations('en');
+        }
+    }
+}
+
+// Fonction qui traduit l'interface utilisateur
+function translateUI() {
+    // Traduire tous les éléments avec un attribut data-i18n
+    document.querySelectorAll('[data-i18n]').forEach(element => {
+        const key = element.getAttribute('data-i18n');
+        const text = getTranslation(key);
+        if (text) element.textContent = text;
+    });
+    
+    // Traduire les options de sélection
+    translateSelectOptions();
+    
+    // Mettre à jour le sélecteur de langue
+    const langSelect = document.getElementById('language-select');
+    if (langSelect) {
+        langSelect.value = currentLanguage;
+        langSelect.setAttribute('data-current', currentLanguage);
+    }
+    
+    // Gérer les langues RTL comme l'arabe
+    if (currentLanguage === 'ar') {
+        document.documentElement.setAttribute('dir', 'rtl');
+        document.body.classList.add('rtl');
+    } else {
+        document.documentElement.setAttribute('dir', 'ltr');
+        document.body.classList.remove('rtl');
+    }
+}
+
+// Fonction qui traduit les options de sélection
+function translateSelectOptions() {
+    // Période
+    const periodSelect = document.getElementById('period-select');
+    if (periodSelect) {
+        Array.from(periodSelect.options).forEach(option => {
+            const value = option.value;
+            const text = getTranslation(`periods.${value}`);
+            if (text) option.textContent = text;
+        });
+    }
+    
+    // Actualisation
+    const refreshSelect = document.getElementById('refresh-interval');
+    if (refreshSelect) {
+        Array.from(refreshSelect.options).forEach(option => {
+            const value = option.value;
+            if (value === 'disabled') {
+                option.textContent = getTranslation('refresh.disabled');
+            } else {
+                option.textContent = getTranslation('refresh.minutes').replace('{0}', value);
+            }
+        });
+    }
+}
+
+// Fonction pour obtenir une traduction par sa clé
+function getTranslation(key) {
+    // Gestion des clés imbriquées: 'charts.priceEvolution' -> translations.charts.priceEvolution
+    return key.split('.').reduce((obj, i) => obj && obj[i], translations) || key;
+}
+
+// Remplacer window.onload par notre fonction initApp
+window.onload = initApp;
 
 // Mise à jour de l'heure
 function updateCurrentTime() {

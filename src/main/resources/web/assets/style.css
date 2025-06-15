@@ -23,11 +23,162 @@
     --chart-grid-color: rgba(255, 255, 255, 0.1);
 }
 
+/* Style pour regrouper les contrôles */
+.controls-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 10px;
+}
+
+/* Style pour le sélecteur de langue */
+.language-selector select {
+    font-size: 16px;
+    padding: 5px 10px 5px 35px; /* Padding à gauche pour l'icône */
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg-color);
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-repeat: no-repeat;
+    background-position: 10px center, right 10px center;
+    background-size: 20px auto, 12px auto;
+}
+
+.language-selector select[data-current="fr"] {
+    background-image: url('https://flagcdn.com/20x15/fr.png'), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+.language-selector select[data-current="en"] {
+    background-image: url('https://flagcdn.com/20x15/gb.png'), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+/* Style pour les drapeaux dans les options de sélection */
+.custom-select-container {
+    position: relative;
+    display: inline-block;
+}
+
+.custom-select-selected {
+    font-size: 16px;
+    padding: 5px 10px 5px 35px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg-color);
+    cursor: pointer;
+    background-repeat: no-repeat;
+    background-position: 10px center, right 10px center;
+    background-size: 20px auto, 12px auto;
+    display: block;
+}
+
+.custom-select-selected.fr {
+    background-image: url('https://flagcdn.com/20x15/fr.png'), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+.custom-select-selected.en {
+    background-image: url('https://flagcdn.com/20x15/gb.png'), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+.custom-select-selected.es {
+    background-image: url('https://flagcdn.com/20x15/es.png'), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+.custom-select-selected.hi {
+    background-image: url('https://flagcdn.com/20x15/in.png'), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+.custom-select-selected.zh {
+    background-image: url('https://flagcdn.com/20x15/cn.png'), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+.custom-select-selected.ar {
+    background-image: url('https://flagcdn.com/20x15/sa.png'), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+.custom-select-selected.pt {
+    background-image: url('https://flagcdn.com/20x15/pt.png'), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+.custom-select-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 100;
+    display: none;
+    background-color: var(--card-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 0 0 4px 4px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    width: 100%;
+}
+
+.custom-select-option {
+    padding: 5px 10px 5px 35px;
+    cursor: pointer;
+    background-repeat: no-repeat;
+    background-position: 10px center;
+    background-size: 20px auto;
+}
+
+.custom-select-option:hover {
+    background-color: var(--border-color);
+}
+
+.custom-select-option.fr {
+    background-image: url('https://flagcdn.com/20x15/fr.png');
+}
+
+.custom-select-option.en {
+    background-image: url('https://flagcdn.com/20x15/gb.png');
+}
+
+.custom-select-option.es {
+    background-image: url('https://flagcdn.com/20x15/es.png');
+}
+.custom-select-option.hi {
+    background-image: url('https://flagcdn.com/20x15/in.png');
+}
+.custom-select-option.zh {
+    background-image: url('https://flagcdn.com/20x15/cn.png');
+}
+.custom-select-option.ar {
+    background-image: url('https://flagcdn.com/20x15/sa.png');
+}
+.custom-select-option.pt {
+    background-image: url('https://flagcdn.com/20x15/pt.png');
+}
+
+/* Style pour les langues RTL comme l'arabe */
+.rtl {
+    direction: rtl;
+    text-align: right;
+}
+
+.rtl .custom-select-selected,
+.rtl .custom-select-option {
+    padding: 5px 35px 5px 10px;
+    background-position: right 10px center, left 10px center;
+}
+
+.rtl .controls-wrapper {
+    flex-direction: row-reverse;
+}
+
+.rtl .select-group label {
+    margin-right: 0;
+    margin-left: 10px;
+}
+
 /* Style du bouton de changement de thème */
 .theme-toggle {
-    position: absolute;
-    top: 20px;
-    right: 20px;
+    position: static;
+    /* top: 20px;
+    right: 20px; */
+}
+
+/* Ajustements pour les écrans étroits */
+@media (max-width: 950px) {
+    .controls-wrapper {
+        margin-left: auto;
+    }
 }
 
 .theme-toggle button {
@@ -87,6 +238,16 @@ h2 {
 
 .server-info {
     text-align: right;
+    margin: 10px;
+}
+.server-info::after {
+    content: "";
+    display: inline-block;
+    height: 24px;
+    width: 1px;
+    background-color: var(--border-color);
+    margin-left: 10px;
+    vertical-align: middle;
 }
 
 #server-name {
@@ -298,6 +459,20 @@ select {
     padding: 1px 0;
 }
 
+.candlestick-container {
+    background-color: var(--card-bg-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    /* height: 400px; */
+}
+
+/* #candlestick-chart {
+    width: 100%;
+    height: 100%;
+} */
+
 footer {
     text-align: center;
     padding: 20px 0;
@@ -349,6 +524,8 @@ footer {
 }
 
 #shop-type {
+    /* font-weight: bold; */
+    /* line-height: 1.3; */
     display: block;
 }
 
@@ -423,6 +600,16 @@ footer {
     transition: opacity 0.2s, transform 0.2s;
 }
 
+/* .searchable-select-option {
+    padding: 8px;
+    cursor: pointer;
+} */
+
+/* .searchable-select-option:hover {
+    background-color: var(--border-color);
+} */
+
+
 .searchable-select-dropdown[style*="block"] {
     opacity: 1;
     transform: translateY(0);
@@ -440,6 +627,7 @@ footer {
 }
 
 .searchable-select-option:hover {
+    /* background-color: rgba(76, 175, 80, 0.1); */
     background-color: var(--border-color);
 }
 

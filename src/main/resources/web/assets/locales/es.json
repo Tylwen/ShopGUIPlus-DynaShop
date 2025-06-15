@@ -1,0 +1,39 @@
+{
+  "title": "Panel de Control del Mercado DynaShop",
+  "theme": {
+    "dark": "Modo oscuro",
+    "light": "Modo claro"
+  },
+  "refresh": {
+    "disabled": "Desactivado",
+    "minutes": "{0} minutos"
+  },
+  "selectors": {
+    "shop": "Tienda:",
+    "chooseShop": "Elegir una tienda",
+    "item": "Artículo:",
+    "chooseItem": "Elegir un artículo",
+    "period": "Período:"
+  },
+  "periods": {
+    "1h": "1 hora",
+    "6h": "6 horas",
+    "12h": "12 horas",
+    "1d": "1 día",
+    "1w": "1 semana",
+    "1m": "1 mes"
+  },
+  "charts": {
+    "priceEvolution": "Evolución de precios",
+    "volume": "Volumen de transacciones"
+  },
+  "stats": {
+    "currentPrice": "Precio actual",
+    "variation": "Variación",
+    "volume": "Volumen",
+    "lastTransaction": "Última transacción",
+    "shopType": "Tipo de DynaShop",
+    "stock": "Inventario"
+  },
+  "footer": "DynaShop Market Dashboard - Plugin por Tylwen"
+}
