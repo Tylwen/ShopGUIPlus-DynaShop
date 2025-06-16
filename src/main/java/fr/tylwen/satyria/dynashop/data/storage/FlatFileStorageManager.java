@@ -829,7 +829,7 @@ public class FlatFileStorageManager implements StorageManager {
             }
         }
         
-        plugin.getLogger().info("loadAllPrices: Retourne " + result.size() + " prix depuis le stockage");
+        // plugin.getLogger().info("loadAllPrices: Retourne " + result.size() + " prix depuis le stockage");
         return result;
     }
     
@@ -864,7 +864,7 @@ public class FlatFileStorageManager implements StorageManager {
         // Important : sauvegarder les changements immédiatement sur disque
         try {
             limitManager.save();
-            plugin.getLogger().fine("Batch de " + transactions.size() + " transactions sauvegardé avec succès");
+            // plugin.getLogger().fine("Batch de " + transactions.size() + " transactions sauvegardé avec succès");
         } catch (Exception e) {
             plugin.getLogger().severe("Erreur lors de la sauvegarde des transactions: " + e.getMessage());
             e.printStackTrace();
