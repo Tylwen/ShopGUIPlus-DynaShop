@@ -407,9 +407,6 @@ public class DynaShopPlugin extends JavaPlugin {
         // //     getLogger().info("Dashboard web démarré sur le port " + webServerPort);
         // // }
         
-        // Initialiser le stockage et ATTENDRE qu'il soit complètement chargé
-        // initializeStorage();
-        
         // Le reste du code d'initialisation (après le chargement complet du stockage)
         this.batchDatabaseUpdater = new BatchDatabaseUpdater(this);
         this.transactionLimiter = new TransactionLimiter(this);
@@ -452,54 +449,6 @@ public class DynaShopPlugin extends JavaPlugin {
 
         getLogger().info("DynaShop activé avec succès !");
     }
-
-    // /**
-    //  * Initialise le système de stockage et garantit son chargement complet
-    //  */
-    // private void initializeStorage() {
-    //     // Créer le gestionnaire de stockage
-    //     if (dataConfig.getDatabaseType().equalsIgnoreCase("flatfile")) {
-    //         this.storageManager = new FlatFileStorageManager(this);
-    //     } else {
-    //         this.storageManager = new MySQLStorageManager(this);
-    //     }
-        
-    //     try {
-    //         // Initialisation directe au lieu d'utiliser un CompletableFuture
-    //         // Cela garantit que l'initialisation est terminée avant de continuer
-    //         getLogger().info("Initialisation du système de stockage...");
-    //         storageManager.initialize();
-    //         getLogger().info("Système de stockage initialisé avec succès!");
-            
-    //         // Charger les données depuis le stockage vers les caches
-    //         loadDataFromStorageToCache();
-            
-    //     } catch (Exception e) {
-    //         getLogger().severe("Erreur lors de l'initialisation du stockage: " + e.getMessage());
-    //         e.printStackTrace();
-            
-    //         // En cas d'erreur grave, essayer de récupérer en redémarrant le processus après un délai
-    //         getServer().getScheduler().runTaskLater(this, () -> {
-    //             getLogger().warning("Tentative de réinitialisation du stockage après erreur...");
-    //             try {
-    //                 storageManager.shutdown();
-                    
-    //                 // Recréer le gestionnaire et réinitialiser
-    //                 if (dataConfig.getDatabaseType().equalsIgnoreCase("flatfile")) {
-    //                     this.storageManager = new FlatFileStorageManager(this);
-    //                 } else {
-    //                     this.storageManager = new MySQLStorageManager(this);
-    //                 }
-                    
-    //                 storageManager.initialize();
-    //                 loadDataFromStorageToCache();
-    //                 getLogger().info("Récupération du stockage réussie!");
-    //             } catch (Exception ex) {
-    //                 getLogger().severe("Échec de la récupération du stockage: " + ex.getMessage());
-    //             }
-    //         }, 60); // Attendre 3 secondes avant de réessayer
-    //     }
-    // }
 
     private void init() {
         generateFiles();
@@ -631,88 +580,6 @@ public class DynaShopPlugin extends JavaPlugin {
         // Charger les données de stockage dans le cache
         // loadDataFromStorageToCache();
     }
-    
-    // /**
-    //  * Charge les données depuis le stockage vers le cache
-    //  */
-    // private void loadDataFromStorageToCache() {
-    //     // Charger les prix
-    //     Map<ShopItem, DynamicPrice> prices = storageManager.loadAllPrices();
-    //     if (prices != null) {
-    //         for (Map.Entry<ShopItem, DynamicPrice> entry : prices.entrySet()) {
-    //             if (entry.getKey() != null && entry.getValue() != null) {
-    //                 ShopItem item = entry.getKey();
-    //                 String key = item.getShop().getId() + ":" + item.getId();
-    //                 priceCache.put(key, entry.getValue());
-    //             }
-    //         }
-            
-    //         // Les stocks sont déjà inclus dans les prix
-    //         for (Map.Entry<ShopItem, DynamicPrice> entry : prices.entrySet()) {
-    //             if (entry.getKey() != null && entry.getValue() != null) {
-    //                 ShopItem item = entry.getKey();
-    //                 String key = item.getShop().getId() + ":" + item.getId();
-    //                 stockCache.put(key, entry.getValue().getStock());
-    //             }
-    //         }
-    //     }
-    //     // for (Map.Entry<ShopItem, DynamicPrice> entry : prices.entrySet()) {
-    //     //     ShopItem item = entry.getKey();
-    //     //     String key = item.getShop().getId() + ":" + item.getId();
-    //     //     priceCache.put(key, entry.getValue());
-    //     // }
-        
-    //     // // Les stocks sont déjà inclus dans les prix
-    //     // for (Map.Entry<ShopItem, DynamicPrice> entry : prices.entrySet()) {
-    //     //     ShopItem item = entry.getKey();
-    //     //     String key = item.getShop().getId() + ":" + item.getId();
-    //     //     stockCache.put(key, entry.getValue().getStock());
-    //     // }
-        
-    //     // Les limites sont gérées via le TransactionLimiter et se remplissent à la demande
-    // }
-
-    // /**
-    //  * Charge les données depuis le stockage vers le cache
-    //  */
-    // private void loadDataFromStorageToCache() {
-    //     getLogger().info("Chargement des données du stockage vers le cache...");
-        
-    //     // Charger les prix
-    //     Map<ShopItem, DynamicPrice> prices = storageManager.loadAllPrices();
-    //     if (prices != null) {
-    //         getLogger().info("Chargement de " + prices.size() + " prix vers le cache");
-    //         int loaded = 0;
-            
-    //         for (Map.Entry<ShopItem, DynamicPrice> entry : prices.entrySet()) {
-    //             if (entry.getKey() != null && entry.getValue() != null) {
-    //                 ShopItem item = entry.getKey();
-    //                 String key = item.getShop().getId() + ":" + item.getId();
-    //                 priceCache.put(key, entry.getValue());
-    //                 loaded++;
-    //             }
-    //         }
-            
-    //         getLogger().info(loaded + " prix chargés dans le cache");
-            
-    //         // Les stocks sont déjà inclus dans les prix
-    //         loaded = 0;
-    //         for (Map.Entry<ShopItem, DynamicPrice> entry : prices.entrySet()) {
-    //             if (entry.getKey() != null && entry.getValue() != null) {
-    //                 ShopItem item = entry.getKey();
-    //                 String key = item.getShop().getId() + ":" + item.getId();
-    //                 stockCache.put(key, entry.getValue().getStock());
-    //                 loaded++;
-    //             }
-    //         }
-            
-    //         getLogger().info(loaded + " stocks chargés dans le cache");
-    //     } else {
-    //         getLogger().warning("Aucun prix chargé depuis le stockage!");
-    //     }
-        
-    //     // Les limites sont gérées via le TransactionLimiter et se remplissent à la demande
-    // }
 
     // Getters pour les caches
     public CacheManager<String, DynamicPrice> getPriceCache() {
@@ -737,30 +604,6 @@ public class DynaShopPlugin extends JavaPlugin {
     
     public CacheManager<String, LimitCacheEntry> getLimitCache() {
         return limitCache;
-    }
-
-    public void setPriceCache(CacheManager<String, DynamicPrice> priceCache) {
-        this.priceCache = priceCache;
-    }
-
-    public void setRecipeCache(CacheManager<String, List<ItemStack>> recipeCache) {
-        this.recipeCache = recipeCache;
-    }
-
-    public void setCalculatedPriceCache(CacheManager<String, Double> calculatedPriceCache) {
-        this.calculatedPriceCache = calculatedPriceCache;
-    }
-
-    public void setStockCache(CacheManager<String, Integer> stockCache) {
-        this.stockCache = stockCache;
-    }
-
-    public void setDisplayPriceCache(CacheManager<String, Map<String, String>> displayPriceCache) {
-        this.displayPriceCache = displayPriceCache;
-    }
-
-    public void setLimitCache(CacheManager<String, LimitCacheEntry> limitCache) {
-        this.limitCache = limitCache;
     }
 
     // public CacheManager<String, TransactionLimit> getLimitCache() {

@@ -1,0 +1,143 @@
+{
+  "title": "DynaShop Market Dashboard",
+  "theme": {
+    "dark": "Modalità scura",
+    "light": "Modalità chiara"
+  },
+  "refresh": {
+    "disabled": "Disattivato",
+    "minutes": "{0} minuti"
+  },
+  "time": {
+    "hours": "ore",
+    "minutes": "minuti",
+    "seconds": "secondi"
+  },
+  "selectors": {
+    "shop": "Negozio:",
+    "chooseShop": "Cerca un negozio...",
+    "item": "Oggetto:",
+    "chooseItem": "Cerca un oggetto...",
+    "period": "Periodo:"
+  },
+  "periods": {
+    "1h": "1 ora",
+    "6h": "6 ore",
+    "12h": "12 ore",
+    "1d": "1 giorno",
+    "7d": "7 giorni",
+    "14d": "14 giorni",
+    "30d": "30 giorni",
+    "1w": "1 settimana",
+    "1m": "1 mese"
+  },
+  "charts": {
+    "priceEvolution": "Evoluzione dei prezzi",
+    "transactionVolume": "Volume delle transazioni"
+  },
+  "stats": {
+    "currentPrice": "Prezzo attuale",
+    "variation": "Variazione",
+    "volume": "Volume",
+    "lastTransaction": "Ultima transazione",
+    "shopType": {
+      "title": "Tipo di DynaShop",
+      "dynamic": "Dinamico",
+      "stock": "Stock (prezzo variabile)",
+      "static_stock": "Stock (prezzo fisso)",
+      "recipe": "Ricetta",
+      "linked": "Collegato",
+      "static": "Statico",
+      "unknown": "Sconosciuto"
+    },
+    "stock": "Magazzino",
+    "buyPrice": "Prezzo di acquisto",
+    "sellPrice": "Prezzo di vendita",
+    "buy": "Acquista",
+    "sell": "Vendi",
+    "price": "Prezzo"
+  },
+  "trend": {
+    "title": "Tendenza generale",
+    "analyzeTrends": "Analizza tendenze",
+    "selectItem": "Seleziona un oggetto e clicca su \"Analizza tendenze\" per vedere l'analisi",
+    "technicalIndicators": "Indicatori tecnici",
+    "strength": "Forza",
+    "volatility": "Volatilità",
+    "buyPrice": "Prezzo di acquisto",
+    "sellPrice": "Prezzo di vendita",
+    "volume": "Volume"
+  },
+  "SMAChart": {
+    "title": "Medie Mobili (Acquisti)",
+    "noData": "Dati insufficienti per mostrare le medie mobili"
+  },
+  "RSIChart": {
+    "title": "Indice di Forza Relativa (RSI)",
+    "noData": "Dati insufficienti per mostrare l'RSI"
+  },
+  "MACDChart": {
+    "title": "Convergenza/Divergenza delle Medie Mobili (MACD)",
+    "histogram": "Istogramma",
+    "signalLine": "Segnale",
+    "noData": "Dati insufficienti per mostrare il MACD"
+  },
+  "BollingerBandsChart": {
+    "title": "Bande di Bollinger",
+    "upperBand": "Banda superiore",
+    "middleBand": "Media mobile",
+    "lowerBand": "Banda inferiore",
+    "noData": "Dati insufficienti per mostrare le Bande di Bollinger"
+  },
+  "forecast": {
+    "title": "Previsioni dei prezzi",
+    "predicted": "Previsione",
+    "predictedBuyPrice": "Previsione acquisto",
+    "minBuyPrice": "Min acquisto",
+    "maxBuyPrice": "Max acquisto",
+    "predictedSellPrice": "Previsione vendita",
+    "minSellPrice": "Min vendita",
+    "maxSellPrice": "Max vendita",
+    "confidence": "Livello di confidenza",
+    "trend": "Tendenza",
+    "volatility": "Volatilità",
+    "priceRange": "Intervallo di prezzo",
+    "uptrend": "Rialzo",
+    "downtrend": "Ribasso",
+    "stable": "Stabile",
+    "high": "Alta",
+    "medium": "Media",
+    "low": "Bassa",
+    "volatile": "Volatile",
+    "spread_changing": "Spread variabile",
+    "nextDays": "Previsione per i prossimi {0} giorni",
+    "disclaimer": "Nota: Queste previsioni sono basate sull'analisi delle tendenze storiche e non costituiscono consigli di investimento.",
+    "noData": "Dati insufficienti per generare previsioni"
+  },
+  "signal": {
+    "bullish": "Incrocio rialzista",
+    "bearish": "Incrocio ribassista",
+    "overbought": "Ipercomprato",
+    "oversold": "Ipervenduto",
+    "price_above_upper_band": "Prezzo sopra la banda superiore",
+    "price_below_lower_band": "Prezzo sotto la banda inferiore",
+    "unknown_signal": "Segnale sconosciuto"
+  },
+  "TradingSignals": {
+    "title": "Segnali di trading",
+    "noData": "Nessun segnale di trading rilevato",
+    "signals": {
+      "buy": "Segnali per i prezzi di acquisto",
+      "sell": "Segnali per i prezzi di vendita"
+    }
+  },
+  "SupportResistance": {
+    "title": "Livelli di supporto e resistenza",
+    "buy": "Prezzo di acquisto",
+    "sell": "Prezzo di vendita",
+    "support": "Supporti",
+    "resistance": "Resistenze",
+    "noData": "Livelli di supporto e resistenza non disponibili"
+  },
+  "footer": "DynaShop Market Dashboard - Plugin di Tylwen"
+}

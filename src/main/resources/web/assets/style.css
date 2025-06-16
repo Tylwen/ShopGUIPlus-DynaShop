@@ -46,13 +46,13 @@
     background-size: 20px auto, 12px auto;
 }
 
-.language-selector select[data-current="fr"] {
+/* .language-selector select[data-current="fr"] {
     background-image: url('https://flagcdn.com/20x15/fr.png'), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 }
 
 .language-selector select[data-current="en"] {
     background-image: url('https://flagcdn.com/20x15/gb.png'), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-}
+} */
 
 /* Style pour les drapeaux dans les options de sélection */
 .custom-select-container {
@@ -95,6 +95,12 @@
 }
 .custom-select-selected.pt {
     background-image: url('https://flagcdn.com/20x15/pt.png'), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+.custom-select-selected.it {
+    background-image: url('https://flagcdn.com/20x15/it.png'), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+.custom-select-selected.de {
+    background-image: url('https://flagcdn.com/20x15/de.png'), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 }
 
 .custom-select-dropdown {
@@ -144,6 +150,12 @@
 }
 .custom-select-option.pt {
     background-image: url('https://flagcdn.com/20x15/pt.png');
+}
+.custom-select-option.it {
+    background-image: url('https://flagcdn.com/20x15/it.png');
+}
+.custom-select-option.de {
+    background-image: url('https://flagcdn.com/20x15/de.png');
 }
 
 /* Style pour les langues RTL comme l'arabe */

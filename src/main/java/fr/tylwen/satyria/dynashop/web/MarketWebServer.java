@@ -121,7 +121,18 @@ public class MarketWebServer {
                 // extractResourceFile("assets/date-fns.min.js", webDir);
                 // extractResourceFile("assets/chartjs-adapter-date-fns.min.js", webDir);
                 // extractResourceFile("assets/chart.min.js", webDir);
-                
+
+                // Extraire les langues
+                extractResourceFile("assets/locales/en.json", webDir);
+                extractResourceFile("assets/locales/fr.json", webDir);
+                extractResourceFile("assets/locales/de.json", webDir);
+                extractResourceFile("assets/locales/es.json", webDir);
+                extractResourceFile("assets/locales/it.json", webDir);
+                extractResourceFile("assets/locales/pt.json", webDir);
+                extractResourceFile("assets/locales/ar.json", webDir);
+                extractResourceFile("assets/locales/zh.json", webDir);
+                extractResourceFile("assets/locales/hi.json", webDir);
+
                 // plugin.getLogger().info("Fichiers web extraits avec succès");
                 plugin.getLogger().info("Web files extracted successfully");
             } catch (IOException e) {

@@ -279,7 +279,7 @@ function detectBrowserLanguage() {
     const shortLang = lang.split('-')[0]; // 'fr-FR' -> 'fr'
     
     // Vérifier si nous avons une traduction pour cette langue, sinon utiliser l'anglais
-    const supportedLanguages = ['en', 'fr', 'es', 'hi', 'zh', 'ar', 'pt'];
+    const supportedLanguages = ['en', 'fr', 'es', 'de', 'it', 'hi', 'zh', 'ar', 'pt'];
     return supportedLanguages.includes(shortLang) ? shortLang : 'en';
 }
 
@@ -2025,6 +2025,12 @@ function formatTimestamp(timestamp) {
             break;
         case 'pt':
             locale = 'pt';
+            break;
+        case 'de':
+            locale = 'de';
+            break;
+        case 'it':
+            locale = 'it';
             break;
         case 'zh':
             locale = 'zh';

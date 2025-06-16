@@ -97,9 +97,6 @@ public class WaitForShopsTask implements Runnable {
                 // Initialiser les prix à partir des configurations des shops
                 plugin.getShopConfigManager().initPricesFromShopConfigs();
                 plugin.getStorageManager().cleanupStockTable();
-
-                // Charger les données des fichiers FlatFile vers les caches
-                // loadDataFromStorageToCache();
                 
                 // Démarrer les tâches qui dépendent des shops
                 startDependentTasks();
@@ -193,49 +190,5 @@ public class WaitForShopsTask implements Runnable {
                 e.printStackTrace();
             }
         }, 20 * 60 * 5, 20 * 60 * 15); // Démarrer après 5 minutes, puis toutes les 15 minutes
-    }
-
-    /**
-     * Charge les données depuis le stockage vers le cache
-     */
-    private void loadDataFromStorageToCache() {
-        plugin.info("Chargement des données du stockage vers le cache...");
-        
-        // Charger les prix
-        Map<ShopItem, DynamicPrice> prices = plugin.getStorageManager().loadAllPrices();
-        if (prices != null) {
-            plugin.info("Chargement de " + prices.size() + " prix vers le cache");
-            int loaded = 0;
-
-            for (Map.Entry<ShopItem, DynamicPrice> entry : prices.entrySet()) {
-                plugin.info("Chargement du prix pour " + entry.getKey().getShop().getId() + ":" + entry.getKey().getId());
-                if (entry.getKey() != null && entry.getValue() != null) {
-                    ShopItem item = entry.getKey();
-                    String key = item.getShop().getId() + ":" + item.getId();
-                    plugin.getPriceCache().put(key, entry.getValue());
-                    // plugin.setPriceCache(prices);
-                    loaded++;
-                }
-            }
-
-            plugin.info(loaded + " prix chargés dans le cache");
-
-            // Les stocks sont déjà inclus dans les prix
-            loaded = 0;
-            for (Map.Entry<ShopItem, DynamicPrice> entry : prices.entrySet()) {
-                if (entry.getKey() != null && entry.getValue() != null) {
-                    ShopItem item = entry.getKey();
-                    String key = item.getShop().getId() + ":" + item.getId();
-                    plugin.getStockCache().put(key, entry.getValue().getStock());
-                    loaded++;
-                }
-            }
-
-            plugin.info(loaded + " stocks chargés dans le cache");
-        } else {
-            plugin.warning("Aucun prix chargé depuis le stockage!");
-        }
-        
-        // Les limites sont gérées via le TransactionLimiter et se remplissent à la demande
     }
 }
