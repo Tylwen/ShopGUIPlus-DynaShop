@@ -4,6 +4,8 @@ author: Tylwen
 main: fr.tylwen.satyria.dynashop.DynaShopPlugin
 version: ${dynashop.version}
 description: Plugin de gestion de boutique dynamique pour Minecraft
+website: https://github.com/Tylwen/ShopGUIPlus-DynaShop
+license: AGPL-3.0
 api-version: '1.13'
 depend: [ ShopGUIPlus, Vault, NBTAPI ]
 softdepend: [ PlaceholderAPI ]
