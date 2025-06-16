@@ -1,40 +1,37 @@
-config-version: 1.0 # Version of the configuration file
+config-version: 1.0  # Configuration file version - don't change this
 
 # Database Configuration
 database:
-  type: FLATFILE # MYSQL or FLATFILE
-  mysql:
+  type: FLATFILE  # Storage type: MYSQL or FLATFILE
+  mysql:          # MySQL settings (only used if type is MYSQL)
     host: "localhost"
     port: 3306
-    name: "dynashop"
-    table-prefix: "dynashop"
+    name: "dynashop"     # Database name
+    table-prefix: "dynashop"  # Prefix for all tables
     username: "root"
     password: ""
 
 web-dashboard:
-  enabled: false # Enable or disable the web interface
-  port: 7070 # Port for the web interface
+  enabled: false  # Enable or disable the web interface
+  port: 7070      # Port for the web interface
 
 history:
-  # Nombre de jours de conservation des données d'historique
-  retention-days: 90
-  # Activer la purge automatique
-  auto-purge: true
-  # Intervalle de sauvegarde automatique (en minutes)
-  save-interval: 15
+  retention-days: 90     # Number of days to keep historical data
+  auto-purge: true       # Enable automatic purging of old data
+  save-interval: 15      # Automatic save interval (minutes)
 
 limit:
   sound: "ENTITY_VILLAGER_NO"
-  # Type de référence temporelle pour le calcul des limites de transaction
-  # "first" = utiliser la première transaction (timestamp le plus ancien)
-  # "last" = utiliser la dernière transaction (timestamp le plus récent)
+  # Time reference type for transaction limit calculations
+  # "first" = use the first transaction (oldest timestamp)
+  # "last" = use the last transaction (most recent timestamp)
   time-reference: "first"
 
 # Dynamic store configuration
 actions:
-  shaped: 1.25
-  shapeless: 1.25
-  furnace: 0.75
+  shaped: 1.25      # Multiplier for shaped crafting recipes
+  shapeless: 1.25   # Multiplier for shapeless crafting recipes
+  furnace: 0.75     # Multiplier for furnace recipes
 
 time-period: 15 # Duration of dynamic pricing period (in minutes)
 
@@ -66,21 +63,21 @@ gui:
 
 # Cache settings
 cache:
-  mode: "full" # "full" or "realtime"
-  # List of items that should always have up-to-date prices
+  mode: "full"  # "full" (performance) or "realtime" (fresh data)
+  
+  # Items that should always have up-to-date prices
   critical-items:
-    # - "minerais:15"  # Example: gold is critical
-    - "shop2:item3"  # Another example
-
+    - "shop2:item3"  # Format: shopID:itemID
+  
   # Cache durations in seconds
   durations:
-    price: 30
-    display: 10
-    recipe: 300
-    stock: 20
-    calculated: 60
+    price: 30        # Price cache duration
+    display: 10      # Display elements cache duration
+    recipe: 300      # Recipe calculation cache duration
+    stock: 20        # Stock level cache duration
+    calculated: 60   # Calculated price cache duration
 
-# Configuration du système de taxes
+# Taxation system configuration
 tax:
   enabled: false
   # Destination mode for taxes: "player", "system" or "remove"
@@ -97,27 +94,27 @@ tax:
   # Log transactions in the console
   log-transactions: false
 
-# Configuration du système d'inflation
+# Inflation system configuration
 inflation:
-  enabled: false
-  base-rate: 0.5 # Taux d'inflation de base (% par jour)
-  transaction-multiplier: 0.001 # Facteur d'inflation basé sur les transactions (% par transaction)
-  money-threshold: 1000000 # Seuil de masse monétaire
-  money-rate: 0.1 # Taux d'inflation basé sur la masse monétaire (% par million au-delà du seuil)
-  deflation-rate: 0.05 # Taux de déflation automatique (% par jour)
-  update-interval: 24 # Intervalle de mise à jour de l'inflation (en heures)
-  max-factor: 5.0 # Facteur d'inflation maximum
-  
-  # Taux d'inflation spécifiques par catégorie
+  enabled: false                     # Enable or disable inflation
+  base-rate: 0.5                     # Base inflation rate (% per day)
+  transaction-multiplier: 0.001      # Inflation factor per transaction
+  money-threshold: 1000000           # Money supply threshold
+  money-rate: 0.1                    # Inflation rate based on money supply (% per million over the threshold)
+  deflation-rate: 0.05               # Automatic deflation rate (% per day)
+  update-interval: 24                # Inflation update interval (hours)
+  max-factor: 5.0                    # Maximum inflation factor
+
+  # Category-specific inflation rates
   categories:
-    food: 0.3 # Les aliments s'inflatent moins rapidement
-    minerals: 0.8 # Les minéraux s'inflatent plus rapidement
-    rare_items: 1.2 # Les objets rares s'inflatent encore plus rapidement
-  
-  # Taux d'inflation spécifiques par item (format: shopID:itemID)
+    food: 0.3                          # Food items inflate slower
+    minerals: 0.8                      # Minerals inflate faster
+    rare_items: 1.2                    # Rare items inflate even faster
+
+  # Item-specific inflation rates
   items:
-    resource:diamond: 1.5 # Les diamants s'inflatent très rapidement
-    farm:wheat: 0.2 # Le blé s'inflate très lentement
+    resource:diamond: 1.5               # Diamonds inflate very quickly
+    farm:wheat: 0.2                      # Wheat inflates very slowly
 
 # Enchants value multipliers, for every level (if the item has this enchant, its value will be multiplied by the specified multiplier)
 # Those values are cumulative if an item has multiples enchants ; they'll be applied after the value of the item stack was calculated ; they won't apply if the item value already has that enchantment
