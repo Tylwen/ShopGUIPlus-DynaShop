@@ -1,37 +1,21 @@
-// package fr.tylwen.satyria.dynashop.task;
+/*
+ * ShopGUI+ DynaShop - Dynamic Economy Addon for Minecraft
+ * Copyright (C) 2025 Tylwen
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 
-// import fr.tylwen.satyria.dynashop.DynaShopPlugin;
-
-// import net.brcdev.shopgui.ShopGuiPlusApi;
-// import net.brcdev.shopgui.exception.shop.ShopsNotLoadedException;
-// import net.brcdev.shopgui.shop.ShopManager;
-
-// public class WaitForShopsTask implements Runnable {
-//     private final DynaShopPlugin plugin;
-
-//     public WaitForShopsTask(DynaShopPlugin plugin) {
-//         this.plugin = plugin;
-//     }
-
-//     @Override
-//     public void run() {
-//         ShopManager manager = ShopGuiPlusApi.getPlugin().getShopManager();
-//         try {
-//             if (manager.getShops().isEmpty()) {
-//                 plugin.getLogger().info("Shops are not loaded yet. Try again in 5 seconds...");
-//                 return; // Les shops ne sont pas encore prêts
-//             }
-//         } catch (ShopsNotLoadedException e) {
-//             e.printStackTrace();
-//             plugin.getLogger().info("Shops are not loaded yet. Try again in 5 seconds...");
-//             return; // Les shops ne sont pas encore prêts
-//         }
-
-//         plugin.getShopConfigManager().initPricesFromShopConfigs();
-//         plugin.getLogger().info("Shops loaded successfully!");
-//         plugin.getServer().getScheduler().cancelTasks(plugin);
-//     }
-// }
 package fr.tylwen.satyria.dynashop.task;
 
 import java.time.LocalDateTime;

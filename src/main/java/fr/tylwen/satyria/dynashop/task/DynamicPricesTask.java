@@ -1,50 +1,20 @@
-// package fr.tylwen.satyria.dynashop.task;
-
-// import fr.tylwen.satyria.dynashop.DynaShopPlugin;
-// import fr.tylwen.satyria.dynashop.data.DynamicPrice;
-// import fr.tylwen.satyria.dynashop.database.BatchDatabaseUpdater;
-// import net.brcdev.shopgui.shop.item.ShopItem;
-
-// import java.util.Map;
-
-// public class SavePricesTask implements Runnable {
-//     private final DynaShopPlugin plugin;
-//     // private final BatchDatabaseUpdater batchDatabaseUpdater;
-
-//     public SavePricesTask(DynaShopPlugin plugin) {
-//         this.plugin = plugin;
-//         // this.batchDatabaseUpdater = new BatchDatabaseUpdater(plugin);
-//     }
-
-//     @Override
-//     public void run() {
-//         Map<ShopItem, DynamicPrice> priceMap = plugin.getDataManager().loadPricesFromDatabase();
-//         if (priceMap == null) {
-//             return;
-//         }
-
-//         for (Map.Entry<ShopItem, DynamicPrice> entry : priceMap.entrySet()) {
-//             ShopItem item = entry.getKey();
-//             DynamicPrice price = entry.getValue();
-
-//             String shopID = item.getShop().getId();
-//             String itemID = item.getId();
-
-//             if (plugin.getShopConfigManager().hasSection(shopID, itemID, "buyDynamic")) {
-//                 price.applyBuyPriceChanges();
-//                 item.setBuyPrice(price.getBuyPrice());
-//             }
-//             if (plugin.getShopConfigManager().hasSection(shopID, itemID, "sellDynamic")) {
-//                 price.applySellPriceChanges();
-//                 item.setSellPrice(price.getSellPrice());
-//             }
-//             // batchDatabaseUpdater.queueUpdate(shopID, itemID, price);
-//         }
-
-//         // plugin.getDataManager().savePricesToDatabase(priceMap);
-//         plugin.getDataManager().savePrice(
-//     }
-// }
+/*
+ * ShopGUI+ DynaShop - Dynamic Economy Addon for Minecraft
+ * Copyright (C) 2025 Tylwen
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package fr.tylwen.satyria.dynashop.task;
 
