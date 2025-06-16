@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -64,7 +65,7 @@ public class FlatFileStorageManager implements StorageManager {
         this.historyManager = new PriceHistoryDataManager(new File(baseFolder, "history"));
         this.metadataManager = new MetadataManager(new File(baseFolder, "metadata.json"));
     }
-    
+
     // @Override
     // public void initialize() {
     //     // Charger toutes les données
@@ -89,8 +90,72 @@ public class FlatFileStorageManager implements StorageManager {
     /**
      * Initialise le système de stockage avec une meilleure gestion des fichiers
      */
+    // @Override
+    // public void initialize() {
+    //     // Utiliser un verrou pour éviter les accès concurrents
+    //     File lockFile = new File(baseFolder, "storage.lock");
+        
+    //     try {
+    //         // Vérifier si un verrou existe déjà (arrêt anormal précédent)
+    //         if (lockFile.exists()) {
+    //             plugin.getLogger().warning("Détection d'un arrêt anormal précédent. Récupération des données...");
+    //             // Vérifier l'intégrité des fichiers et tenter une récupération
+    //             tryRecoverDataFiles();
+    //         }
+            
+    //         // Créer un fichier de verrou
+    //         lockFile.createNewFile();
+            
+    //         // Charger toutes les données avec un délai pour s'assurer que les fichiers sont disponibles
+    //         try {
+    //             plugin.getLogger().info("Chargement des données de prix...");
+    //             priceManager.load();
+    //             Thread.sleep(100); // Petit délai pour s'assurer que le système de fichiers a bien terminé
+                
+    //             plugin.getLogger().info("Chargement des données de stock...");
+    //             stockManager.load();
+    //             Thread.sleep(100);
+                
+    //             plugin.getLogger().info("Chargement des limites de transactions...");
+    //             limitManager.load();
+    //             Thread.sleep(100);
+                
+    //             plugin.getLogger().info("Chargement de l'historique des prix...");
+    //             historyManager.load();
+    //             Thread.sleep(100);
+                
+    //             plugin.getLogger().info("Chargement des métadonnées...");
+    //             metadataManager.load();
+    //         } catch (InterruptedException e) {
+    //             Thread.currentThread().interrupt();
+    //             plugin.getLogger().warning("Interruption pendant le chargement des données");
+    //         }
+            
+    //         // Valider que les données sont cohérentes
+    //         validateDataIntegrity();
+            
+    //         // Initialiser le planificateur pour les tâches d'arrière-plan
+    //         this.scheduler = Executors.newScheduledThreadPool(1);
+            
+    //         // Planifier les sauvegardes périodiques plus fréquentes (toutes les 2 minutes)
+    //         scheduler.scheduleWithFixedDelay(this::saveAll, 2, 2, TimeUnit.MINUTES);
+            
+    //         // Planifier le nettoyage des données périmées
+    //         scheduler.scheduleWithFixedDelay(this::cleanupExpiredTransactions, 6, 24, TimeUnit.HOURS);
+            
+    //         plugin.getLogger().info("Système de stockage FlatFile initialisé avec succès");
+    //     } catch (IOException e) {
+    //         plugin.getLogger().severe("Erreur lors de l'initialisation du stockage: " + e.getMessage());
+    //     }
+    // }
+
     @Override
     public void initialize() {
+        // Créer le dossier de stockage s'il n'existe pas
+        if (!baseFolder.exists()) {
+            baseFolder.mkdirs();
+        }
+        
         // Utiliser un verrou pour éviter les accès concurrents
         File lockFile = new File(baseFolder, "storage.lock");
         
@@ -105,29 +170,61 @@ public class FlatFileStorageManager implements StorageManager {
             // Créer un fichier de verrou
             lockFile.createNewFile();
             
-            // Charger toutes les données avec un délai pour s'assurer que les fichiers sont disponibles
+            // Créer une barrière de synchronisation
+            CountDownLatch initLatch = new CountDownLatch(5); // 5 = nombre de managers à initialiser
+            
+            // Charger toutes les données (méthode synchrone pour garantir le chargement)
+            plugin.getLogger().info("Chargement des données de prix...");
             try {
-                plugin.getLogger().info("Chargement des données de prix...");
                 priceManager.load();
-                Thread.sleep(100); // Petit délai pour s'assurer que le système de fichiers a bien terminé
-                
-                plugin.getLogger().info("Chargement des données de stock...");
+                plugin.getLogger().info("Données de prix chargées: " + priceManager.getAll().size() + " éléments");
+            } catch (Exception e) {
+                plugin.getLogger().severe("Erreur lors du chargement des prix: " + e.getMessage());
+            } finally {
+                initLatch.countDown();
+            }
+            
+            plugin.getLogger().info("Chargement des données de stock...");
+            try {
                 stockManager.load();
-                Thread.sleep(100);
-                
-                plugin.getLogger().info("Chargement des limites de transactions...");
+                plugin.getLogger().info("Données de stock chargées: " + stockManager.getAll().size() + " éléments");
+            } catch (Exception e) {
+                plugin.getLogger().severe("Erreur lors du chargement des stocks: " + e.getMessage());
+            } finally {
+                initLatch.countDown();
+            }
+            
+            plugin.getLogger().info("Chargement des limites de transactions...");
+            try {
                 limitManager.load();
-                Thread.sleep(100);
-                
-                plugin.getLogger().info("Chargement de l'historique des prix...");
+            } catch (Exception e) {
+                plugin.getLogger().severe("Erreur lors du chargement des limites: " + e.getMessage());
+            } finally {
+                initLatch.countDown();
+            }
+            
+            plugin.getLogger().info("Chargement de l'historique des prix...");
+            try {
                 historyManager.load();
-                Thread.sleep(100);
-                
-                plugin.getLogger().info("Chargement des métadonnées...");
+            } catch (Exception e) {
+                plugin.getLogger().severe("Erreur lors du chargement de l'historique: " + e.getMessage());
+            } finally {
+                initLatch.countDown();
+            }
+            
+            plugin.getLogger().info("Chargement des métadonnées...");
+            try {
                 metadataManager.load();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                plugin.getLogger().warning("Interruption pendant le chargement des données");
+            } catch (Exception e) {
+                plugin.getLogger().severe("Erreur lors du chargement des métadonnées: " + e.getMessage());
+            } finally {
+                initLatch.countDown();
+            }
+            
+            // Attendre que tous les chargements soient terminés (avec un timeout plus court)
+            boolean allLoaded = initLatch.await(15, TimeUnit.SECONDS);
+            if (!allLoaded) {
+                plugin.getLogger().warning("Délai d'attente dépassé lors du chargement des données. Continuons avec les données partiellement chargées.");
             }
             
             // Valider que les données sont cohérentes
@@ -136,15 +233,34 @@ public class FlatFileStorageManager implements StorageManager {
             // Initialiser le planificateur pour les tâches d'arrière-plan
             this.scheduler = Executors.newScheduledThreadPool(1);
             
-            // Planifier les sauvegardes périodiques plus fréquentes (toutes les 2 minutes)
+            // Planifier les sauvegardes périodiques
             scheduler.scheduleWithFixedDelay(this::saveAll, 2, 2, TimeUnit.MINUTES);
             
-            // Planifier le nettoyage des données périmées
-            scheduler.scheduleWithFixedDelay(this::cleanupExpiredTransactions, 6, 24, TimeUnit.HOURS);
-            
             plugin.getLogger().info("Système de stockage FlatFile initialisé avec succès");
-        } catch (IOException e) {
+        } catch (Exception e) {
             plugin.getLogger().severe("Erreur lors de l'initialisation du stockage: " + e.getMessage());
+            e.printStackTrace();
+            
+            // En cas d'erreur, tenter de charger au moins les données critiques
+            try {
+                if (priceManager.getAll().isEmpty()) {
+                    plugin.getLogger().warning("Tentative de récupération d'urgence des données de prix...");
+                    priceManager.load();
+                }
+                if (stockManager.getAll().isEmpty()) {
+                    plugin.getLogger().warning("Tentative de récupération d'urgence des données de stock...");
+                    stockManager.load();
+                }
+            } catch (Exception ex) {
+                plugin.getLogger().severe("Échec de la récupération d'urgence: " + ex.getMessage());
+            }
+        } finally {
+            // Supprimer le verrou de toute façon
+            try {
+                lockFile.delete();
+            } catch (Exception e) {
+                // Ignorer les erreurs lors de la suppression du verrou
+            }
         }
     }
 
@@ -153,7 +269,7 @@ public class FlatFileStorageManager implements StorageManager {
      */
     private void tryRecoverDataFiles() {
         try {
-            // Vérifier les fichiers de sauvegarde
+            // Vérifier si des fichiers de sauvegarde existent
             File pricesBackup = new File(baseFolder, "prices.json.bak");
             if (pricesBackup.exists() && pricesBackup.length() > 0) {
                 File pricesFile = new File(baseFolder, "prices.json");
@@ -167,13 +283,8 @@ public class FlatFileStorageManager implements StorageManager {
                 Files.copy(stocksBackup.toPath(), stocksFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
                 plugin.getLogger().info("Fichier de stocks restauré depuis la sauvegarde");
             }
-            
-            // Faire de même pour les autres fichiers importants
         } catch (IOException e) {
             plugin.getLogger().warning("Erreur lors de la récupération des fichiers: " + e.getMessage());
-        } finally {
-            // Supprimer le fichier de verrouillage précédent
-            new File(baseFolder, "storage.lock").delete();
         }
     }
 
@@ -182,15 +293,28 @@ public class FlatFileStorageManager implements StorageManager {
      */
     private void validateDataIntegrity() {
         // Vérifier que les données de prix et de stock sont cohérentes
-        int priceCount = priceManager.getAll().size();
-        int stockCount = stockManager.getAll().size();
+        Map<String, DynamicPrice> prices = priceManager.getAll();
+        Map<String, Integer> stocks = stockManager.getAll();
         
-        plugin.getLogger().info("Vérification des données: " + priceCount + " prix et " + stockCount + " stocks chargés");
+        plugin.getLogger().info("Vérification des données: " + prices.size() + " prix et " + stocks.size() + " stocks chargés");
         
-        // Si des incohérences sont détectées, les corriger
-        if (priceCount == 0 && stockCount > 0) {
-            plugin.getLogger().warning("Incohérence détectée: stocks présents mais pas de prix");
-            // Vous pourriez décider d'une stratégie de correction ici
+        // Si pas de prix mais des stocks, situation anormale
+        if (prices.isEmpty() && !stocks.isEmpty()) {
+            plugin.getLogger().warning("Anomalie détectée: des stocks existent mais aucun prix n'est chargé!");
+        }
+        
+        // Vérifier que le stock dans les prix correspond au stock stocké séparément
+        for (Map.Entry<String, DynamicPrice> entry : prices.entrySet()) {
+            String key = entry.getKey();
+            DynamicPrice price = entry.getValue();
+            Integer stock = stocks.get(key);
+            
+            // Si un stock existe pour cet élément mais ne correspond pas à celui du prix
+            if (stock != null && price.getStock() != stock) {
+                plugin.getLogger().warning("Incohérence détectée pour " + key + ": stock dans prix=" + price.getStock() + ", stock séparé=" + stock);
+                // Mettre à jour le stock dans le prix pour la cohérence
+                price.setStock(stock);
+            }
         }
     }
     
@@ -271,9 +395,9 @@ public class FlatFileStorageManager implements StorageManager {
     // }
 
     /**
-     * Amélioration de saveAll pour créer des sauvegardes
-     */
-    private void saveAll() {
+ * Sauvegarde toutes les données
+ */
+    public void saveAll() {
         try {
             // Créer des sauvegardes avant d'écrire les nouveaux fichiers
             File pricesFile = new File(baseFolder, "prices.json");
@@ -288,7 +412,7 @@ public class FlatFileStorageManager implements StorageManager {
                 Files.copy(stocksFile.toPath(), stocksBackup.toPath(), StandardCopyOption.REPLACE_EXISTING);
             }
             
-            // Sauvegarder les données normalement
+            // Sauvegarder les données
             priceManager.save();
             stockManager.save();
             limitManager.save();
@@ -591,12 +715,12 @@ public class FlatFileStorageManager implements StorageManager {
         String key = getItemKey(shopId, itemId);
         stockManager.remove(key);
         
-        // Si le stock est supprimé, on peut aussi supprimer le prix si nécessaire
-        DynamicPrice price = priceManager.get(key);
-        // if (price != null && price.getStock() == 0) {
-        if (price != null && price.getStock() <= 0) {
-            priceManager.remove(key);
-        }
+        // // Si le stock est supprimé, on peut aussi supprimer le prix si nécessaire
+        // DynamicPrice price = priceManager.get(key);
+        // // if (price != null && price.getStock() == 0) {
+        // if (price != null && price.getStock() <= 0) {
+        //     priceManager.remove(key);
+        // }
     }
 
     @Override
@@ -609,11 +733,11 @@ public class FlatFileStorageManager implements StorageManager {
             DynaShopType typeDynaShop =  plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId);
             if (typeDynaShop != DynaShopType.STOCK && typeDynaShop != DynaShopType.STATIC_STOCK) {
                 stockManager.remove(key);
-                // Si le stock est supprimé, on peut aussi supprimer le prix si nécessaire
-                DynamicPrice price = priceManager.get(key);
-                if (price != null) {
-                    priceManager.remove(key);
-                }
+                // // Si le stock est supprimé, on peut aussi supprimer le prix si nécessaire
+                // DynamicPrice price = priceManager.get(key);
+                // if (price != null) {
+                //     priceManager.remove(key);
+                // }
             }
         }
     }
@@ -631,43 +755,74 @@ public class FlatFileStorageManager implements StorageManager {
         return priceManager.get(key) != null || stockManager.get(key) != null;
     }
     
+    // @Override
+    // public Map<ShopItem, DynamicPrice> loadAllPrices() {
+    //     Map<ShopItem, DynamicPrice> result = new HashMap<>();
+    //     Map<String, DynamicPrice> allPrices = priceManager.getAll();
+    //     Map<String, Integer> allStocks = stockManager.getAll();
+        
+    //     // Fusionner les prix et les stocks
+    //     for (Map.Entry<String, DynamicPrice> entry : allPrices.entrySet()) {
+    //         String key = entry.getKey();
+    //         DynamicPrice price = entry.getValue();
+            
+    //         // Mettre à jour le stock si disponible
+    //         Integer stock = allStocks.get(key);
+    //         if (stock != null) {
+    //             price.setStock(stock);
+    //         }
+            
+    //         // Trouver le ShopItem correspondant
+    //         String[] parts = key.split(":");
+    //         if (parts.length != 2) continue;
+            
+    //         String shopId = parts[0];
+    //         String itemId = parts[1];
+            
+    //         Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
+    //         if (shop != null) {
+    //             ShopItem item = shop.getShopItems().stream()
+    //                     .filter(i -> i.getId().equals(itemId))
+    //                     .findFirst()
+    //                     .orElse(null);
+                
+    //             if (item != null) {
+    //                 result.put(item, price);
+    //             }
+    //         }
+    //     }
+        
+    //     return result;
+    // }
     @Override
     public Map<ShopItem, DynamicPrice> loadAllPrices() {
+        // Si les données sont déjà chargées en mémoire, les retourner directement
         Map<ShopItem, DynamicPrice> result = new HashMap<>();
-        Map<String, DynamicPrice> allPrices = priceManager.getAll();
-        Map<String, Integer> allStocks = stockManager.getAll();
         
-        // Fusionner les prix et les stocks
-        for (Map.Entry<String, DynamicPrice> entry : allPrices.entrySet()) {
-            String key = entry.getKey();
-            DynamicPrice price = entry.getValue();
-            
-            // Mettre à jour le stock si disponible
-            Integer stock = allStocks.get(key);
-            if (stock != null) {
-                price.setStock(stock);
-            }
-            
-            // Trouver le ShopItem correspondant
-            String[] parts = key.split(":");
-            if (parts.length != 2) continue;
-            
-            String shopId = parts[0];
-            String itemId = parts[1];
-            
-            Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
-            if (shop != null) {
-                ShopItem item = shop.getShopItems().stream()
-                        .filter(i -> i.getId().equals(itemId))
-                        .findFirst()
-                        .orElse(null);
-                
-                if (item != null) {
-                    result.put(item, price);
+        // Parcourir tous les prix stockés dans priceManager
+        for (Map.Entry<String, DynamicPrice> entry : priceManager.getAll().entrySet()) {
+            try {
+                String[] parts = entry.getKey().split(":");
+                if (parts.length == 2) {
+                    String shopId = parts[0];
+                    String itemId = parts[1];
+                    
+                    // Récupérer l'objet Shop via l'API ShopGUIPlus
+                    Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
+                    if (shop != null) {
+                        // Récupérer l'objet ShopItem
+                        ShopItem shopItem = shop.getShopItem(itemId);
+                        if (shopItem != null) {
+                            result.put(shopItem, entry.getValue());
+                        }
+                    }
                 }
+            } catch (Exception e) {
+                plugin.getLogger().warning("Erreur lors de la conversion de la clé " + entry.getKey() + " en ShopItem: " + e.getMessage());
             }
         }
         
+        plugin.getLogger().info("loadAllPrices: Retourne " + result.size() + " prix depuis le stockage");
         return result;
     }
     
