@@ -200,27 +200,146 @@ public class DynaShopListener implements Listener {
     /**
      * Vérifie les limites de stock pour les items en mode STOCK
      */
-    private boolean checkStockLimits(ShopPreTransactionEvent event, DynaShopType typeDynaShop, DynamicPrice price, String shopID, String itemID, int amount) {
-        if (typeDynaShop == DynaShopType.STOCK || typeDynaShop == DynaShopType.STATIC_STOCK) {
-            // Vérifier si l'achat est possible (stock suffisant)
-            if (event.getShopAction() == ShopAction.BUY && !plugin.getPriceStock().canBuy(shopID, itemID, amount)) {
-                event.setCancelled(true);
-                if (event.getPlayer() != null) {
-                    event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgOutOfStock()));
-                }
-                return true;
-            }
+    // private boolean checkStockLimits(ShopPreTransactionEvent event, DynaShopType typeDynaShop, DynamicPrice price, String shopID, String itemID, int amount) {
+    //     if (typeDynaShop == DynaShopType.STOCK || typeDynaShop == DynaShopType.STATIC_STOCK) {
+    //         // Vérifier si l'achat est possible (stock suffisant)
+    //         if (event.getShopAction() == ShopAction.BUY && !plugin.getPriceStock().canBuy(shopID, itemID, amount)) {
+    //             event.setCancelled(true);
+    //             if (event.getPlayer() != null) {
+    //                 event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgOutOfStock()));
+    //             }
+    //             return true;
+    //         }
             
-            // Vérifier si la vente est possible (stock pas plein)
-            if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && 
-                !plugin.getPriceStock().canSell(shopID, itemID, amount)) {
-                event.setCancelled(true);
-                if (event.getPlayer() != null) {
-                    event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgFullStock()));
+    //         // Vérifier si la vente est possible (stock pas plein)
+    //         if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && 
+    //             !plugin.getPriceStock().canSell(shopID, itemID, amount)) {
+    //             event.setCancelled(true);
+    //             if (event.getPlayer() != null) {
+    //                 event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgFullStock()));
+    //             }
+    //             return true;
+    //         }
+    //     }
+    //     return false;
+    // }
+
+    // private boolean checkStockLimits(ShopPreTransactionEvent event, DynaShopType typeDynaShop, DynamicPrice price, String shopID, String itemID, int amount) {
+    //     // Résoudre le type réel en tenant compte des LINK
+    //     DynaShopType realType = typeDynaShop;
+        
+    //     // Si c'est un LINK, résoudre le type de l'item cible
+    //     if (typeDynaShop == DynaShopType.LINK) {
+    //         String linkedItemRef = shopConfigManager.getItemValue(shopID, itemID, "link", String.class).orElse(null);
+    //         if (linkedItemRef != null && linkedItemRef.contains(":")) {
+    //             String[] parts = linkedItemRef.split(":");
+    //             if (parts.length == 2) {
+    //                 // Obtenir le type réel de l'item lié
+    //                 DynaShopType linkedType = shopConfigManager.getTypeDynaShop(parts[0], parts[1]);
+    //                 if (linkedType == DynaShopType.STOCK || linkedType == DynaShopType.STATIC_STOCK) {
+    //                     realType = linkedType;
+                        
+    //                     // Vérifier le stock pour l'item lié
+    //                     if (event.getShopAction() == ShopAction.BUY && !plugin.getPriceStock().canBuy(parts[0], parts[1], amount)) {
+    //                         event.setCancelled(true);
+    //                         if (event.getPlayer() != null) {
+    //                             event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgOutOfStock()));
+    //                         }
+    //                         return true;
+    //                     }
+                        
+    //                     // Vérifier si la vente est possible (stock pas plein)
+    //                     if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && 
+    //                         !plugin.getPriceStock().canSell(parts[0], parts[1], amount)) {
+    //                         event.setCancelled(true);
+    //                         if (event.getPlayer() != null) {
+    //                             event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgFullStock()));
+    //                         }
+    //                         return true;
+    //                     }
+                        
+    //                     // On a déjà vérifié, pas besoin de continuer
+    //                     return false;
+    //                 }
+    //             }
+    //         }
+    //     }
+        
+    //     // Comportement normal pour les types STOCK et STATIC_STOCK
+    //     if (realType == DynaShopType.STOCK || realType == DynaShopType.STATIC_STOCK) {
+    //         // Le code existant...
+    //         // Vérifier si l'achat est possible (stock suffisant)
+    //         if (event.getShopAction() == ShopAction.BUY && !plugin.getPriceStock().canBuy(shopID, itemID, amount)) {
+    //             event.setCancelled(true);
+    //             if (event.getPlayer() != null) {
+    //                 event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgOutOfStock()));
+    //             }
+    //             return true;
+    //         }
+            
+    //         // Vérifier si la vente est possible (stock pas plein)
+    //         if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && 
+    //             !plugin.getPriceStock().canSell(shopID, itemID, amount)) {
+    //             event.setCancelled(true);
+    //             if (event.getPlayer() != null) {
+    //                 event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgFullStock()));
+    //             }
+    //             return true;
+    //         }
+    //     }
+    //     return false;
+    // }
+
+    private boolean checkStockLimits(ShopPreTransactionEvent event, DynaShopType typeDynaShop, DynamicPrice price, String shopID, String itemID, int amount) {
+        ShopAction action = event.getShopAction();
+        boolean isBuy = action == ShopAction.BUY;
+        boolean isSell = action == ShopAction.SELL || action == ShopAction.SELL_ALL;
+        
+        // Déterminer le shopID:itemID effectif (original ou lié)
+        String effectiveShopID = shopID;
+        String effectiveItemID = itemID;
+        DynaShopType effectiveType = typeDynaShop;
+        
+        // Résoudre l'item lié si nécessaire
+        if (typeDynaShop == DynaShopType.LINK) {
+            String linkedItemRef = shopConfigManager.getItemValue(shopID, itemID, "link", String.class).orElse(null);
+            if (linkedItemRef != null && linkedItemRef.contains(":")) {
+                String[] parts = linkedItemRef.split(":");
+                if (parts.length == 2) {
+                    effectiveShopID = parts[0];
+                    effectiveItemID = parts[1];
+                    effectiveType = shopConfigManager.getTypeDynaShop(effectiveShopID, effectiveItemID);
                 }
-                return true;
             }
         }
+        
+        // Vérifier si le type effectif nécessite une vérification de stock
+        if (effectiveType != DynaShopType.STOCK && effectiveType != DynaShopType.STATIC_STOCK) {
+            return false; // Pas besoin de vérifier les limites de stock
+        }
+        
+        // Vérifier les limites selon le type d'action
+        boolean limitExceeded = false;
+        String message = null;
+        
+        if (isBuy && !plugin.getPriceStock().canBuy(effectiveShopID, effectiveItemID, amount)) {
+            limitExceeded = true;
+            message = plugin.getLangConfig().getMsgOutOfStock();
+        } else if (isSell && !plugin.getPriceStock().canSell(effectiveShopID, effectiveItemID, amount)) {
+            limitExceeded = true;
+            message = plugin.getLangConfig().getMsgFullStock();
+        }
+        
+        // Annuler la transaction si une limite est dépassée
+        if (limitExceeded) {
+            event.setCancelled(true);
+            Player player = event.getPlayer();
+            if (player != null && message != null) {
+                player.sendMessage(ChatColor.translateAlternateColorCodes('&', message));
+            }
+            return true;
+        }
+        
         return false;
     }
     
@@ -458,7 +577,6 @@ public class DynaShopListener implements Listener {
             DynaShopType sellTypeDynaShop = linkedPrice.getSellTypeDynaShop();
             
             if (buyTypeDynaShop == DynaShopType.NONE || buyTypeDynaShop == DynaShopType.UNKNOWN) buyTypeDynaShop = linkedType;
-
             if (sellTypeDynaShop == DynaShopType.NONE || sellTypeDynaShop == DynaShopType.UNKNOWN) sellTypeDynaShop = linkedType;
 
             // Traiter l'item lié selon son type
@@ -466,6 +584,12 @@ public class DynaShopListener implements Listener {
 
             // Copier les prix pour l'item principal
             copyLinkedPriceToMainItem(linkedShopID, linkedItemID, linkedPrice, originalShopID, originalItemID);
+            
+            // NOUVEAU: S'assurer que le stock est également mis à jour pour l'item principal
+            if (linkedType == DynaShopType.STOCK || linkedType == DynaShopType.STATIC_STOCK) {
+                // Copier explicitement le stock
+                plugin.getStorageManager().saveStock(originalShopID, originalItemID, linkedPrice.getStock());
+            }
         }
     }
     

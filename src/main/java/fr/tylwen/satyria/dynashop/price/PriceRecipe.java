@@ -341,17 +341,25 @@ public class PriceRecipe {
             if (minAvailableStock == 0) break;
         }
         
+        // Récupérer la quantité d'output configurée (par défaut 1)
+        int outputAmount = plugin.getShopConfigManager()
+            .getItemValue(shopID, itemID, "recipe.output", Integer.class)
+            .orElse(1);
+        
+        // S'assurer que outputAmount est toujours au moins 1
+        outputAmount = Math.max(1, outputAmount);
+        
         // Appliquer le modificateur de recette
         // double modifier = getRecipeModifier(item);
         double modifier = getRecipeModifier(shopID, itemID);
 
-        double finalBuyPrice = allBuyPricesNegative ? -1.0 : basePrice * modifier;
-        double finalSellPrice = allSellPricesNegative ? -1.0 : baseSellPrice * modifier;
-        double finalMinBuyPrice = allBuyPricesNegative ? -1.0 : baseMinBuyPrice * modifier;
-        double finalMaxBuyPrice = allBuyPricesNegative ? -1.0 : baseMaxBuyPrice * modifier;
-        double finalMinSellPrice = allSellPricesNegative ? -1.0 : baseMinSellPrice * modifier;
-        double finalMaxSellPrice = allSellPricesNegative ? -1.0 : baseMaxSellPrice * modifier;
-        
+        double finalBuyPrice = allBuyPricesNegative ? -1.0 : (basePrice * modifier) / outputAmount;
+        double finalSellPrice = allSellPricesNegative ? -1.0 : (baseSellPrice * modifier) / outputAmount;
+        double finalMinBuyPrice = allBuyPricesNegative ? -1.0 : (baseMinBuyPrice * modifier) / outputAmount;
+        double finalMaxBuyPrice = allBuyPricesNegative ? -1.0 : (baseMaxBuyPrice * modifier) / outputAmount;
+        double finalMinSellPrice = allSellPricesNegative ? -1.0 : (baseMinSellPrice * modifier) / outputAmount;
+        double finalMaxSellPrice = allSellPricesNegative ? -1.0 : (baseMaxSellPrice * modifier) / outputAmount;
+
         // Vérifier que le prix de vente n'est pas supérieur au prix d'achat
         if (finalBuyPrice >= 0 && finalSellPrice >= 0 && finalSellPrice > finalBuyPrice - DynamicPrice.MIN_MARGIN) {
             finalSellPrice = finalBuyPrice - DynamicPrice.MIN_MARGIN;
@@ -366,7 +374,20 @@ public class PriceRecipe {
         }
         
         // Ajuster le stock maximum et actuel
-        int finalStock = (minAvailableStock == Integer.MAX_VALUE) ? 0 : minAvailableStock;
+        int finalStock = (minAvailableStock == Integer.MAX_VALUE) ? 0 : minAvailableStock * outputAmount;
+        
+        // CORRECTION: S'assurer que totalMinStock et totalMaxStock sont valides
+        // Si minAvailableStock est égal à Integer.MAX_VALUE, cela signifie qu'aucun ingrédient
+        // n'a de stock valide, donc nous devrions définir des valeurs par défaut
+        if (minAvailableStock == Integer.MAX_VALUE) {
+            totalMinStock = 0;
+            totalMaxStock = 0;
+        }
+        
+        // CORRECTION: S'assurer que maxStock est toujours >= minStock
+        if (totalMaxStock < totalMinStock) {
+            totalMaxStock = totalMinStock;
+        }
         
         // // Mettre en cache tous les résultats
         // plugin.cacheRecipePrice(shopID, itemID, "buyPrice", finalBuyPrice);
@@ -652,6 +673,14 @@ public class PriceRecipe {
 
             basePrice += value * ingredient.getAmount(); // Multiplier par la quantité de l'ingrédient
         }
+        
+        // Récupérer la quantité d'output configurée (par défaut 1)
+        int outputAmount = plugin.getShopConfigManager()
+            .getItemValue(shopID, itemID, "recipe.output", Integer.class)
+            .orElse(1);
+        
+        // S'assurer que outputAmount est toujours au moins 1
+        outputAmount = Math.max(1, outputAmount);
 
         // Appliquer le modificateur en fonction du type de recette
         // double modifier = getRecipeModifier(item);
@@ -664,7 +693,7 @@ public class PriceRecipe {
         // }
         // return price;
 
-        return basePrice * modifier;
+        return (basePrice * modifier) / outputAmount;
     }
 
     // public int calculateStock(String shopID, String itemID, ItemStack item, List<String> visitedItems) {
@@ -1739,10 +1768,6 @@ public class PriceRecipe {
         //     }
         // }
         RecipeType recipeType = plugin.getShopConfigManager().getTypeRecipe(shopID, itemID);
-        if (recipeType == null) {
-            plugin.getLogger().warning("No recipe type found for " + shopID + ":" + itemID);
-            return 1.0; // Retourner un modificateur par défaut si aucune recette n'est trouvée
-        }
         if (recipeType == RecipeType.SHAPED) {
             return plugin.getDataConfig().getShapedValue();
         } else if (recipeType == RecipeType.SHAPELESS) {
@@ -1807,7 +1832,8 @@ public class PriceRecipe {
         
         // Ne récupérer le stock max que si l'item est en mode STOCK ou STATIC_STOCK
         if (ingredientType != DynaShopType.STOCK && ingredientType != DynaShopType.STATIC_STOCK) {
-            return -1; // Retourner -1 pour indiquer que l'item n'est pas en mode stock
+            // return -1; // Retourner -1 pour indiquer que l'item n'est pas en mode stock
+            return Integer.MAX_VALUE; // Indiquer un stock "illimité" au lieu de -1
         }
 
         // Vérifier si l'item a déjà été visité

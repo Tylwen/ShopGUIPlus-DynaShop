@@ -168,11 +168,30 @@ public class PriceStock {
     //     updatePricesInDatabase(shopID, itemID);
     // }
     public void decreaseStock(String shopID, String itemID, int amount) {
-        // Vérifier si l'item est en mode STOCK ou STATIC_STOCK
-        // DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID);
-        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID, "buy");
-        if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK) {
-            // Ne rien faire si l'item n'est pas en mode stock
+        // // Vérifier si l'item est en mode STOCK ou STATIC_STOCK
+        // // DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID);
+        // DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID, "buy");
+        // if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK) {
+        //     // Ne rien faire si l'item n'est pas en mode stock
+        //     return;
+        // }
+        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID);
+        
+        // Si c'est un LINK, propager au target
+        if (type == DynaShopType.LINK) {
+            String linkedItemRef = plugin.getShopConfigManager().getItemValue(shopID, itemID, "link", String.class).orElse(null);
+            if (linkedItemRef != null && linkedItemRef.contains(":")) {
+                String[] parts = linkedItemRef.split(":");
+                if (parts.length == 2) {
+                    decreaseStock(parts[0], parts[1], amount);
+                    return;
+                }
+            }
+        }
+        
+        // Vérifier si le type réel est STOCK ou STATIC_STOCK
+        DynaShopType realType = plugin.getShopConfigManager().getRealTypeDynaShop(shopID, itemID, "buy");
+        if (realType != DynaShopType.STOCK && realType != DynaShopType.STATIC_STOCK) {
             return;
         }
         
@@ -204,11 +223,28 @@ public class PriceStock {
     //     updatePricesInDatabase(shopID, itemID);
     // }
     public void increaseStock(String shopID, String itemID, int amount) {
-        // Vérifier si l'item est en mode STOCK ou STATIC_STOCK
-        // DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID);
-        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID, "sell");
-        if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK) {
-            // Ne rien faire si l'item n'est pas en mode stock
+        // // Vérifier si l'item est en mode STOCK ou STATIC_STOCK
+        // // DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID);
+        // DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID, "sell");
+        // if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK) {
+        //     // Ne rien faire si l'item n'est pas en mode stock
+        //     return;
+        // }
+        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID);
+        // Si c'est un LINK, propager au target
+        if (type == DynaShopType.LINK) {
+            String linkedItemRef = plugin.getShopConfigManager().getItemValue(shopID, itemID, "link", String.class).orElse(null);
+            if (linkedItemRef != null && linkedItemRef.contains(":")) {
+                String[] parts = linkedItemRef.split(":");
+                if (parts.length == 2) {
+                    increaseStock(parts[0], parts[1], amount);
+                    return;
+                }
+            }
+        }
+        // Vérifier si le type réel est STOCK ou STATIC_STOCK
+        DynaShopType realType = plugin.getShopConfigManager().getRealTypeDynaShop(shopID, itemID, "sell");
+        if (realType != DynaShopType.STOCK && realType != DynaShopType.STATIC_STOCK) {
             return;
         }
         
@@ -242,17 +278,41 @@ public class PriceStock {
     /**
      * Vérifie si un achat est possible (stock suffisant).
      */
+    // // public boolean canBuy(String shopID, String itemID, int amount) {
+    // //     Optional<Integer> stockOptional = plugin.getItemDataManager().getStock(shopID, itemID);
+    // //     return stockOptional.map(stock -> stock >= amount).orElse(true);
+    // // }
     // public boolean canBuy(String shopID, String itemID, int amount) {
-    //     Optional<Integer> stockOptional = plugin.getItemDataManager().getStock(shopID, itemID);
+    //     DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID, "buy");
+    //     if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK) {
+    //         // Si l'item n'est pas en mode stock, l'achat est toujours possible
+    //         return true;
+    //     }
+        
+    //     Optional<Integer> stockOptional = plugin.getStorageManager().getStock(shopID, itemID);
     //     return stockOptional.map(stock -> stock >= amount).orElse(true);
     // }
     public boolean canBuy(String shopID, String itemID, int amount) {
-        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID, "buy");
-        if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK) {
+        DynaShopType realType = plugin.getShopConfigManager().getRealTypeDynaShop(shopID, itemID, "buy");
+        if (realType != DynaShopType.STOCK && realType != DynaShopType.STATIC_STOCK) {
             // Si l'item n'est pas en mode stock, l'achat est toujours possible
             return true;
         }
-        
+
+        // Pour les items LINK, vérifier le stock de l'item cible
+        if (plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID) == DynaShopType.LINK) {
+            String linkedItemRef = plugin.getShopConfigManager().getItemValue(shopID, itemID, "link", String.class).orElse(null);
+            if (linkedItemRef != null && linkedItemRef.contains(":")) {
+                String[] parts = linkedItemRef.split(":");
+                if (parts.length == 2) {
+                    // return checkStockForBuy(parts[0], parts[1], amount);
+                    Optional<Integer> stockOptional = plugin.getStorageManager().getStock(parts[0], parts[1]);
+                    return stockOptional.map(stock -> stock >= amount).orElse(true);
+                }
+            }
+        }
+
+        // Pour les autres types, vérifier le stock de l'item actuel
         Optional<Integer> stockOptional = plugin.getStorageManager().getStock(shopID, itemID);
         return stockOptional.map(stock -> stock >= amount).orElse(true);
     }
@@ -260,8 +320,22 @@ public class PriceStock {
     /**
      * Vérifie si une vente est possible (stock pas plein).
      */
+    // // public boolean canSell(String shopID, String itemID, int amount) {
+    // //     Optional<Integer> stockOptional = plugin.getItemDataManager().getStock(shopID, itemID);
+    // //     int maxStock = plugin.getShopConfigManager()
+    // //         .getItemValue(shopID, itemID, "stock.max", Integer.class)
+    // //         .orElse(dataConfig.getStockMax());
+        
+    // //     return stockOptional.map(stock -> stock + amount <= maxStock).orElse(true);
+    // // }
     // public boolean canSell(String shopID, String itemID, int amount) {
-    //     Optional<Integer> stockOptional = plugin.getItemDataManager().getStock(shopID, itemID);
+    //     DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID, "sell");
+    //     if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK) {
+    //         // Si l'item n'est pas en mode stock, la vente est toujours possible
+    //         return true;
+    //     }
+        
+    //     Optional<Integer> stockOptional = plugin.getStorageManager().getStock(shopID, itemID);
     //     int maxStock = plugin.getShopConfigManager()
     //         .getItemValue(shopID, itemID, "stock.max", Integer.class)
     //         .orElse(dataConfig.getStockMax());
@@ -269,17 +343,33 @@ public class PriceStock {
     //     return stockOptional.map(stock -> stock + amount <= maxStock).orElse(true);
     // }
     public boolean canSell(String shopID, String itemID, int amount) {
-        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID, "sell");
-        if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK) {
-            // Si l'item n'est pas en mode stock, la vente est toujours possible
+        // Utiliser getRealTypeDynaShop qui suit les références pour les items LINK
+        DynaShopType realType = plugin.getShopConfigManager().getRealTypeDynaShop(shopID, itemID, "sell");
+        
+        if (realType != DynaShopType.STOCK && realType != DynaShopType.STATIC_STOCK) {
             return true;
         }
-        
+
+        // Pour les items LINK, vérifier le stock de l'item cible
+        if (plugin.getShopConfigManager().getTypeDynaShop(shopID, itemID) == DynaShopType.LINK) {
+            String linkedItemRef = plugin.getShopConfigManager().getItemValue(shopID, itemID, "link", String.class).orElse(null);
+            if (linkedItemRef != null && linkedItemRef.contains(":")) {
+                String[] parts = linkedItemRef.split(":");
+                if (parts.length == 2) {
+                    // return checkStockForSell(parts[0], parts[1], amount);
+                    Optional<Integer> stockOptional = plugin.getStorageManager().getStock(parts[0], parts[1]);
+                    return stockOptional.map(stock -> stock + amount <= plugin.getShopConfigManager()
+                        .getItemValue(parts[0], parts[1], "stock.max", Integer.class)
+                        .orElse(dataConfig.getStockMax())).orElse(true);
+                }
+            }
+        }
+
+        // Pour les autres types, vérifier le stock de l'item actuel
         Optional<Integer> stockOptional = plugin.getStorageManager().getStock(shopID, itemID);
         int maxStock = plugin.getShopConfigManager()
             .getItemValue(shopID, itemID, "stock.max", Integer.class)
             .orElse(dataConfig.getStockMax());
-        
         return stockOptional.map(stock -> stock + amount <= maxStock).orElse(true);
     }
     

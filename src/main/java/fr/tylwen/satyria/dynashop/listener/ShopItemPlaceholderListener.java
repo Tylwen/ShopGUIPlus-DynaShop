@@ -1032,23 +1032,51 @@ public class ShopItemPlaceholderListener implements Listener {
         // boolean isRecipeMode = buyType == DynaShopType.RECIPE || sellType == DynaShopType.RECIPE;
         // boolean isLinkMode = buyType == DynaShopType.LINK || sellType == DynaShopType.LINK;
 
-        prices.put("is_stock_mode", String.valueOf(isStockMode));
-        prices.put("is_static_stock_mode", String.valueOf(isStaticStockMode));
-        prices.put("is_recipe_mode", String.valueOf(isRecipeMode));
-        prices.put("is_link_mode", String.valueOf(isLinkMode));
+        // Vérifier si l'item LINK pointe vers un item STOCK/STATIC_STOCK
+        boolean linkedToStock = false;
+        boolean linkedToStaticStock = false; 
+        String linkedShopId = null;
+        String linkedItemId = null;
+        
+        if (isLinkMode) {
+            String linkedItemRef = plugin.getShopConfigManager().getItemValue(shopId, itemId, "link", String.class).orElse(null);
+            if (linkedItemRef != null && linkedItemRef.contains(":")) {
+                String[] parts = linkedItemRef.split(":");
+                if (parts.length == 2) {
+                    linkedShopId = parts[0];
+                    linkedItemId = parts[1];
+                    
+                    // Vérifier le type de l'item lié
+                    DynaShopType linkedType = plugin.getShopConfigManager().getTypeDynaShop(linkedShopId, linkedItemId);
+                    linkedToStock = linkedType == DynaShopType.STOCK;
+                    linkedToStaticStock = linkedType == DynaShopType.STATIC_STOCK;
+                }
+            }
+        }
 
         // Vérifier si un item en mode RECIPE a un stock maximum
         if (isRecipeMode) {
             boolean hasMaxStock = plugin.getPriceRecipe().calculateMaxStock(shopId, itemId, new ArrayList<>()) > 0;
             if (hasMaxStock) {
                 isStockMode = true;
-                prices.put("is_stock_mode", String.valueOf(isStockMode));
+                // prices.put("is_stock_mode", String.valueOf(isStockMode));
             }
         }
+        
+        prices.put("is_stock_mode", String.valueOf(isStockMode || linkedToStock));
+        prices.put("is_static_stock_mode", String.valueOf(isStaticStockMode || linkedToStaticStock));
+        prices.put("is_recipe_mode", String.valueOf(isRecipeMode));
+        prices.put("is_link_mode", String.valueOf(isLinkMode));
+
 
         // Gérer les informations de stock
-        if (isStockMode || isStaticStockMode) {
-            fillStockInfo(prices, price, shopId, itemId);
+        if (isStockMode || isStaticStockMode || linkedToStock || linkedToStaticStock) {
+            // Pour les LINK, utiliser l'ID de l'item lié
+            if ((linkedToStock || linkedToStaticStock) && linkedShopId != null && linkedItemId != null) {
+                fillStockInfo(prices, price, linkedShopId, linkedItemId);
+            } else {
+                fillStockInfo(prices, price, shopId, itemId);
+            }
         } else {
             prices.put("stock", "N/A");
             prices.put("stock_max", "N/A");
@@ -1113,6 +1141,20 @@ public class ShopItemPlaceholderListener implements Listener {
      */
     private void fillStockInfo(Map<String, String> prices, DynamicPrice price, String shopId, String itemId) {
         String currentStock, maxStock, fCurrentStock, fMaxStock;
+        
+        // Vérifier si c'est un item en mode LINK
+        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId);
+        if (type == DynaShopType.LINK) {
+            String linkedItemRef = plugin.getShopConfigManager().getItemValue(shopId, itemId, "link", String.class).orElse(null);
+            if (linkedItemRef != null && linkedItemRef.contains(":")) {
+                String[] parts = linkedItemRef.split(":");
+                if (parts.length == 2) {
+                    // Récursivement obtenir les stocks de l'item lié
+                    fillStockInfo(prices, null, parts[0], parts[1]);
+                    return;
+                }
+            }
+        }
         
         if (price != null) {
             if (price.getStock() < 0) {

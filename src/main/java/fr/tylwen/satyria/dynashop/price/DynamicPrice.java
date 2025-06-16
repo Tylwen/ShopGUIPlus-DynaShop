@@ -85,7 +85,7 @@ public class DynamicPrice implements Cloneable {
             throw new IllegalArgumentException("Les facteurs de croissance et de décroissance doivent être positifs");
         }
         if (minStock > maxStock) {
-            throw new IllegalArgumentException("minStock ne peut pas être supérieur à maxStock");
+            throw new IllegalArgumentException("minStock (" + minStock + ") ne peut pas être supérieur à maxStock (" + maxStock + ")");
         }
 
         // Conserver -1 comme valeur spéciale

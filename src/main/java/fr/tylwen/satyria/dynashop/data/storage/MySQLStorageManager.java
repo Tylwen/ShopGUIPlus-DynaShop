@@ -500,9 +500,17 @@ public class MySQLStorageManager implements StorageManager {
     public void savePrice(String shopId, String itemId, double buyPrice, double sellPrice, int stock) {
         String tablePrefix = dataConfig.getDatabaseTablePrefix();
         
-        // Toujours sauvegarder le stock
-        String stockSQL = "REPLACE INTO " + tablePrefix + "_stock (shopID, itemID, stock) VALUES (?, ?, ?)";
-        executeUpdate(stockSQL, shopId, itemId, stock);
+        // // Toujours sauvegarder le stock
+        // String stockSQL = "REPLACE INTO " + tablePrefix + "_stock (shopID, itemID, stock) VALUES (?, ?, ?)";
+        // executeUpdate(stockSQL, shopId, itemId, stock);
+        
+        if (stock >= 0) {
+            String sql = "REPLACE INTO " + tablePrefix + "_stock (shopID, itemID, stock) VALUES (?, ?, ?)";
+            executeUpdate(sql, shopId, itemId, stock);
+        } else {
+            String deleteSQL = "DELETE FROM " + tablePrefix + "_stock WHERE shopID = ? AND itemID = ?";
+            executeUpdate(deleteSQL, shopId, itemId);
+        }
         
         // Sauvegarder buyPrice uniquement s'il est positif
         if (buyPrice >= 0) {
