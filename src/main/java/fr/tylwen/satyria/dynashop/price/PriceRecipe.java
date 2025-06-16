@@ -1739,6 +1739,10 @@ public class PriceRecipe {
         //     }
         // }
         RecipeType recipeType = plugin.getShopConfigManager().getTypeRecipe(shopID, itemID);
+        if (recipeType == null) {
+            plugin.getLogger().warning("No recipe type found for " + shopID + ":" + itemID);
+            return 1.0; // Retourner un modificateur par défaut si aucune recette n'est trouvée
+        }
         if (recipeType == RecipeType.SHAPED) {
             return plugin.getDataConfig().getShapedValue();
         } else if (recipeType == RecipeType.SHAPELESS) {
