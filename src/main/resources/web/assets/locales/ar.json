@@ -8,11 +8,16 @@
     "disabled": "معطل",
     "minutes": "{0} دقائق"
   },
+  "time": {
+    "hours": "ساعات",
+    "minutes": "دقائق",
+    "seconds": "ثوان"
+  },
   "selectors": {
     "shop": "المتجر:",
-    "chooseShop": "اختر متجراً",
+    "chooseShop": "ابحث عن متجر...",
     "item": "عنصر:",
-    "chooseItem": "اختر عنصراً",
+    "chooseItem": "ابحث عن عنصر...",
     "period": "الفترة:"
   },
   "periods": {
@@ -20,20 +25,119 @@
     "6h": "6 ساعات",
     "12h": "12 ساعة",
     "1d": "يوم واحد",
+    "7d": "7 أيام",
+    "14d": "14 يوم",
+    "30d": "30 يوم",
     "1w": "أسبوع واحد",
     "1m": "شهر واحد"
   },
   "charts": {
     "priceEvolution": "تطور الأسعار",
-    "volume": "حجم المعاملات"
+    "transactionVolume": "حجم المعاملات"
   },
   "stats": {
     "currentPrice": "السعر الحالي",
     "variation": "التغير",
     "volume": "الحجم",
     "lastTransaction": "آخر معاملة",
-    "shopType": "نوع داينا شوب",
-    "stock": "المخزون"
+    "shopType": {
+      "title": "نوع داينا شوب",
+      "dynamic": "ديناميكي",
+      "stock": "مخزون (سعر متغير)",
+      "static_stock": "مخزون (سعر ثابت)",
+      "recipe": "وصفة",
+      "linked": "مرتبط",
+      "static": "ثابت",
+      "unknown": "غير معروف"
+    },
+    "stock": "المخزون",
+    "buyPrice": "سعر الشراء",
+    "sellPrice": "سعر البيع",
+    "buy": "شراء",
+    "sell": "بيع",
+    "price": "السعر"
+  },
+  "trend": {
+    "title": "الاتجاه العام",
+    "analyzeTrends": "تحليل الاتجاهات",
+    "selectItem": "اختر عنصرًا وانقر على \"تحليل الاتجاهات\" لرؤية التحليل",
+    "technicalIndicators": "المؤشرات الفنية",
+    "strength": "القوة",
+    "volatility": "التقلب",
+    "buyPrice": "سعر الشراء",
+    "sellPrice": "سعر البيع",
+    "volume": "الحجم"
+  },
+  "SMAChart": {
+    "title": "المتوسطات المتحركة (الشراء)",
+    "noData": "بيانات غير كافية لعرض المتوسطات المتحركة"
+  },
+  "RSIChart": {
+    "title": "مؤشر القوة النسبية (RSI)",
+    "noData": "بيانات غير كافية لعرض مؤشر RSI"
+  },
+  "MACDChart": {
+    "title": "تقارب وتباعد المتوسط المتحرك (MACD)",
+    "histogram": "الرسم البياني",
+    "signalLine": "خط الإشارة",
+    "noData": "بيانات غير كافية لعرض MACD"
+  },
+  "BollingerBandsChart": {
+    "title": "نطاقات بولينجر",
+    "upperBand": "النطاق العلوي",
+    "middleBand": "المتوسط المتحرك",
+    "lowerBand": "النطاق السفلي",
+    "noData": "بيانات غير كافية لعرض نطاقات بولينجر"
+  },
+  "forecast": {
+    "title": "توقعات الأسعار",
+    "predicted": "التوقع",
+    "predictedBuyPrice": "توقع الشراء",
+    "minBuyPrice": "الحد الأدنى للشراء",
+    "maxBuyPrice": "الحد الأقصى للشراء",
+    "predictedSellPrice": "توقع البيع",
+    "minSellPrice": "الحد الأدنى للبيع",
+    "maxSellPrice": "الحد الأقصى للبيع",
+    "confidence": "مستوى الثقة",
+    "trend": "الاتجاه",
+    "volatility": "التقلب",
+    "priceRange": "نطاق السعر",
+    "uptrend": "صعود",
+    "downtrend": "هبوط",
+    "stable": "مستقر",
+    "high": "مرتفع",
+    "medium": "متوسط",
+    "low": "منخفض",
+    "volatile": "متقلب",
+    "spread_changing": "تغير الفارق",
+    "nextDays": "توقعات لـ {0} أيام القادمة",
+    "disclaimer": "ملاحظة: هذه التوقعات مبنية على تحليل الاتجاهات التاريخية ولا تشكل نصائح استثمارية.",
+    "noData": "بيانات غير كافية لإنشاء توقعات"
+  },
+  "signal": {
+    "bullish": "تقاطع صعودي",
+    "bearish": "تقاطع هبوطي",
+    "overbought": "شراء مفرط",
+    "oversold": "بيع مفرط",
+    "price_above_upper_band": "السعر فوق النطاق العلوي",
+    "price_below_lower_band": "السعر تحت النطاق السفلي",
+    "unknown_signal": "إشارة غير معروفة"
+  },
+  "TradingSignals": {
+    "title": "إشارات التداول",
+    "noData": "لم يتم اكتشاف إشارات تداول",
+    "signals": {
+      "buy": "إشارات لأسعار الشراء",
+      "sell": "إشارات لأسعار البيع"
+    }
+  },
+  "SupportResistance": {
+    "title": "مستويات الدعم والمقاومة",
+    "buy": "سعر الشراء",
+    "sell": "سعر البيع",
+    "support": "الدعم",
+    "resistance": "المقاومة",
+    "noData": "مستويات الدعم والمقاومة غير متوفرة"
   },
   "footer": "لوحة أسواق داينا شوب - إضافة بواسطة تيلوين"
 }

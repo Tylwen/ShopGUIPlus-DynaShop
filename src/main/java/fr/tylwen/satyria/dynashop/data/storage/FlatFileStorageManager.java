@@ -13,8 +13,9 @@ import net.brcdev.shopgui.shop.item.ShopItem;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 // import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -64,36 +65,170 @@ public class FlatFileStorageManager implements StorageManager {
         this.metadataManager = new MetadataManager(new File(baseFolder, "metadata.json"));
     }
     
+    // @Override
+    // public void initialize() {
+    //     // Charger toutes les données
+    //     priceManager.load();
+    //     stockManager.load();
+    //     limitManager.load();
+    //     historyManager.load();
+    //     metadataManager.load();
+        
+    //     // Initialiser le planificateur pour les tâches d'arrière-plan
+    //     this.scheduler = Executors.newScheduledThreadPool(1);
+        
+    //     // Planifier les sauvegardes périodiques
+    //     scheduler.scheduleWithFixedDelay(this::saveAll, 5, 5, TimeUnit.MINUTES);
+        
+    //     // Planifier le nettoyage des données périmées
+    //     scheduler.scheduleWithFixedDelay(this::cleanupExpiredTransactions, 6, 24, TimeUnit.HOURS);
+        
+    //     plugin.getLogger().info("Système de stockage FlatFile initialisé avec succès");
+    // }
+
+    /**
+     * Initialise le système de stockage avec une meilleure gestion des fichiers
+     */
     @Override
     public void initialize() {
-        // Charger toutes les données
-        priceManager.load();
-        stockManager.load();
-        limitManager.load();
-        historyManager.load();
-        metadataManager.load();
+        // Utiliser un verrou pour éviter les accès concurrents
+        File lockFile = new File(baseFolder, "storage.lock");
         
-        // Initialiser le planificateur pour les tâches d'arrière-plan
-        this.scheduler = Executors.newScheduledThreadPool(1);
+        try {
+            // Vérifier si un verrou existe déjà (arrêt anormal précédent)
+            if (lockFile.exists()) {
+                plugin.getLogger().warning("Détection d'un arrêt anormal précédent. Récupération des données...");
+                // Vérifier l'intégrité des fichiers et tenter une récupération
+                tryRecoverDataFiles();
+            }
+            
+            // Créer un fichier de verrou
+            lockFile.createNewFile();
+            
+            // Charger toutes les données avec un délai pour s'assurer que les fichiers sont disponibles
+            try {
+                plugin.getLogger().info("Chargement des données de prix...");
+                priceManager.load();
+                Thread.sleep(100); // Petit délai pour s'assurer que le système de fichiers a bien terminé
+                
+                plugin.getLogger().info("Chargement des données de stock...");
+                stockManager.load();
+                Thread.sleep(100);
+                
+                plugin.getLogger().info("Chargement des limites de transactions...");
+                limitManager.load();
+                Thread.sleep(100);
+                
+                plugin.getLogger().info("Chargement de l'historique des prix...");
+                historyManager.load();
+                Thread.sleep(100);
+                
+                plugin.getLogger().info("Chargement des métadonnées...");
+                metadataManager.load();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                plugin.getLogger().warning("Interruption pendant le chargement des données");
+            }
+            
+            // Valider que les données sont cohérentes
+            validateDataIntegrity();
+            
+            // Initialiser le planificateur pour les tâches d'arrière-plan
+            this.scheduler = Executors.newScheduledThreadPool(1);
+            
+            // Planifier les sauvegardes périodiques plus fréquentes (toutes les 2 minutes)
+            scheduler.scheduleWithFixedDelay(this::saveAll, 2, 2, TimeUnit.MINUTES);
+            
+            // Planifier le nettoyage des données périmées
+            scheduler.scheduleWithFixedDelay(this::cleanupExpiredTransactions, 6, 24, TimeUnit.HOURS);
+            
+            plugin.getLogger().info("Système de stockage FlatFile initialisé avec succès");
+        } catch (IOException e) {
+            plugin.getLogger().severe("Erreur lors de l'initialisation du stockage: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Tente de récupérer les fichiers de données après un arrêt anormal
+     */
+    private void tryRecoverDataFiles() {
+        try {
+            // Vérifier les fichiers de sauvegarde
+            File pricesBackup = new File(baseFolder, "prices.json.bak");
+            if (pricesBackup.exists() && pricesBackup.length() > 0) {
+                File pricesFile = new File(baseFolder, "prices.json");
+                Files.copy(pricesBackup.toPath(), pricesFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                plugin.getLogger().info("Fichier de prix restauré depuis la sauvegarde");
+            }
+            
+            File stocksBackup = new File(baseFolder, "stocks.json.bak");
+            if (stocksBackup.exists() && stocksBackup.length() > 0) {
+                File stocksFile = new File(baseFolder, "stocks.json");
+                Files.copy(stocksBackup.toPath(), stocksFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                plugin.getLogger().info("Fichier de stocks restauré depuis la sauvegarde");
+            }
+            
+            // Faire de même pour les autres fichiers importants
+        } catch (IOException e) {
+            plugin.getLogger().warning("Erreur lors de la récupération des fichiers: " + e.getMessage());
+        } finally {
+            // Supprimer le fichier de verrouillage précédent
+            new File(baseFolder, "storage.lock").delete();
+        }
+    }
+
+    /**
+     * Vérifie l'intégrité des données chargées
+     */
+    private void validateDataIntegrity() {
+        // Vérifier que les données de prix et de stock sont cohérentes
+        int priceCount = priceManager.getAll().size();
+        int stockCount = stockManager.getAll().size();
         
-        // Planifier les sauvegardes périodiques
-        scheduler.scheduleWithFixedDelay(this::saveAll, 5, 5, TimeUnit.MINUTES);
+        plugin.getLogger().info("Vérification des données: " + priceCount + " prix et " + stockCount + " stocks chargés");
         
-        // Planifier le nettoyage des données périmées
-        scheduler.scheduleWithFixedDelay(this::cleanupExpiredTransactions, 6, 24, TimeUnit.HOURS);
-        
-        plugin.getLogger().info("Système de stockage FlatFile initialisé avec succès");
+        // Si des incohérences sont détectées, les corriger
+        if (priceCount == 0 && stockCount > 0) {
+            plugin.getLogger().warning("Incohérence détectée: stocks présents mais pas de prix");
+            // Vous pourriez décider d'une stratégie de correction ici
+        }
     }
     
+    // @Override
+    // public void shutdown() {
+    //     // Sauvegarder toutes les données avant de fermer
+    //     priceManager.save();
+    //     stockManager.save();
+    //     limitManager.save();
+    //     historyManager.save();
+    //     metadataManager.save();
+
+    //     // Arrêter le planificateur
+    //     if (scheduler != null && !scheduler.isShutdown()) {
+    //         scheduler.shutdown();
+    //         try {
+    //             if (!scheduler.awaitTermination(10, TimeUnit.SECONDS)) {
+    //                 scheduler.shutdownNow();
+    //             }
+    //         } catch (InterruptedException e) {
+    //             scheduler.shutdownNow();
+    //             Thread.currentThread().interrupt();
+    //         }
+    //     }
+        
+    //     // Sauvegarder toutes les données
+    //     saveAll();
+        
+    //     plugin.getLogger().info("Système de stockage FlatFile arrêté avec succès");
+    // }
+
+    /**
+     * Amélioration de shutdown pour garantir la sauvegarde complète
+     */
     @Override
     public void shutdown() {
-        // Sauvegarder toutes les données avant de fermer
-        priceManager.save();
-        stockManager.save();
-        limitManager.save();
-        historyManager.save();
-        metadataManager.save();
-
+        plugin.getLogger().info("Arrêt du système de stockage FlatFile...");
+        
         // Arrêter le planificateur
         if (scheduler != null && !scheduler.isShutdown()) {
             scheduler.shutdown();
@@ -110,15 +245,62 @@ public class FlatFileStorageManager implements StorageManager {
         // Sauvegarder toutes les données
         saveAll();
         
+        // Attendre un peu pour s'assurer que les écritures sont terminées
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
+        // Supprimer le fichier de verrouillage
+        try {
+            Files.deleteIfExists(new File(baseFolder, "storage.lock").toPath());
+        } catch (IOException e) {
+            plugin.getLogger().warning("Impossible de supprimer le fichier de verrouillage: " + e.getMessage());
+        }
+        
         plugin.getLogger().info("Système de stockage FlatFile arrêté avec succès");
     }
     
+    // private void saveAll() {
+    //     priceManager.save();
+    //     stockManager.save();
+    //     limitManager.save();
+    //     historyManager.save();
+    //     metadataManager.save();
+    // }
+
+    /**
+     * Amélioration de saveAll pour créer des sauvegardes
+     */
     private void saveAll() {
-        priceManager.save();
-        stockManager.save();
-        limitManager.save();
-        historyManager.save();
-        metadataManager.save();
+        try {
+            // Créer des sauvegardes avant d'écrire les nouveaux fichiers
+            File pricesFile = new File(baseFolder, "prices.json");
+            File pricesBackup = new File(baseFolder, "prices.json.bak");
+            if (pricesFile.exists()) {
+                Files.copy(pricesFile.toPath(), pricesBackup.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+            
+            File stocksFile = new File(baseFolder, "stocks.json");
+            File stocksBackup = new File(baseFolder, "stocks.json.bak");
+            if (stocksFile.exists()) {
+                Files.copy(stocksFile.toPath(), stocksBackup.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+            
+            // Sauvegarder les données normalement
+            priceManager.save();
+            stockManager.save();
+            limitManager.save();
+            historyManager.save();
+            metadataManager.save();
+            
+            // Mettre à jour la date de dernière sauvegarde
+            metadataManager.set("lastSave", System.currentTimeMillis());
+            metadataManager.save();
+        } catch (IOException e) {
+            plugin.getLogger().severe("Erreur lors de la sauvegarde des données: " + e.getMessage());
+        }
     }
     
     // ============ MÉTHODES DE GESTION DES PRIX ============
@@ -536,51 +718,6 @@ public class FlatFileStorageManager implements StorageManager {
     public Optional<LocalDateTime> getLastTransactionTime(UUID playerUuid, String shopId, String itemId, boolean isBuy) {
         return limitManager.getLastTransactionTime(playerUuid, shopId, itemId, isBuy);
     }
-
-    @Override
-    public List<TransactionRecord> getPlayerTransactions(String playerUuid, String shopId, LocalDateTime startDate, int limit) {
-        if (playerUuid == null) {
-            return List.of();
-        }
-        
-        try {
-            UUID uuid = UUID.fromString(playerUuid);
-            List<TransactionRecord> result = new ArrayList<>();
-            
-            // Utiliser une méthode dans LimitTrackingManager pour accéder aux données
-            result.addAll(limitManager.getPlayerTransactions(uuid, shopId, startDate, true));  // transactions d'achat
-            result.addAll(limitManager.getPlayerTransactions(uuid, shopId, startDate, false)); // transactions de vente
-            
-            // Trier par date décroissante
-            result.sort((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()));
-            
-            // Limiter le nombre de résultats
-            if (result.size() > limit) {
-                return result.subList(0, limit);
-            }
-            
-            return result;
-        } catch (IllegalArgumentException e) {
-            plugin.getLogger().warning("UUID invalide: " + playerUuid);
-            return List.of();
-        }
-    }
-
-    @Override
-    public List<TransactionRecord> getAllTransactions(String shopId, LocalDateTime startDate) {
-        List<TransactionRecord> result = new ArrayList<>();
-        
-        // Parcourir tous les joueurs en utilisant la méthode getAllPlayerIds()
-        for (UUID uuid : limitManager.getAllPlayerIds()) {
-            // Ajouter toutes les transactions de ce joueur qui correspondent aux critères
-            result.addAll(getPlayerTransactions(uuid.toString(), shopId, startDate, Integer.MAX_VALUE));
-        }
-        
-        // Trier par date décroissante
-        result.sort((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()));
-        
-        return result;
-    }
     
     @Override
     public boolean resetLimits(UUID playerUuid, String shopId, String itemId) {
@@ -867,6 +1004,10 @@ public class FlatFileStorageManager implements StorageManager {
             this.file = file;
         }
         
+        public void set(String string, long timeMillis) {
+            metadata.put(string, String.valueOf(timeMillis));
+        }
+
         public void load() {
             try {
                 metadata = JsonStorage.loadFromFile(file, 
@@ -998,71 +1139,6 @@ public class FlatFileStorageManager implements StorageManager {
             if (limits == null) return Optional.empty();
             
             return limits.getLastActivityTime(shopId, itemId, isBuy, timeReference);
-        }
-
-        /**
-         * Récupère les transactions d'un joueur
-         * @param playerId UUID du joueur
-         * @param shopId ID du shop (peut être null)
-         * @param startDate Date de début pour filtrer les transactions
-         * @param isBuy true pour les achats, false pour les ventes
-         * @return Liste des transactions
-         */
-        public List<TransactionRecord> getPlayerTransactions(UUID playerId, String shopId, LocalDateTime startDate, boolean isBuy) {
-            List<TransactionRecord> result = new ArrayList<>();
-            
-            // Obtenir directement les données sous-jacentes depuis playerLimits
-            PlayerLimits playerLimit = this.playerLimits.get(playerId);
-            if (playerLimit == null) {
-                return result;
-            }
-            
-            // Choisir la map à utiliser (buy ou sell)
-            Map<String, ?> limitsMap = isBuy ? playerLimit.buyLimits : playerLimit.sellLimits;
-            
-            // Parcourir les clés de la map directement
-            for (String key : limitsMap.keySet()) {
-                String[] parts = key.split(":");
-                if (parts.length != 2) continue;
-                
-                String itemShopId = parts[0];
-                String itemId = parts[1];
-                
-                // Filtrer par shop si nécessaire
-                if (shopId != null && !shopId.equals(itemShopId)) {
-                    continue;
-                }
-                
-                // Construire un TransactionRecord pour chaque limite
-                // Note: cela ne montrera qu'une seule transaction agrégée par item,
-                // mais c'est plus simple que d'essayer d'accéder aux transactions individuelles
-                
-                String itemName = DynaShopPlugin.getInstance().getShopConfigManager().getItemName(null, itemShopId, itemId);
-                String playerName = Bukkit.getOfflinePlayer(playerId).getName();
-                if (playerName == null) playerName = playerId.toString();
-                
-                // Obtenir la quantité utilisée après la date de début
-                int amount = getUsedAmount(playerId, itemShopId, itemId, isBuy, startDate);
-                if (amount <= 0) continue; // Ignorer les entrées sans transactions
-                
-                // Obtenir le timestamp de la dernière transaction
-                LocalDateTime timestamp = getLastTransactionTime(playerId, itemShopId, itemId, isBuy)
-                    .orElse(LocalDateTime.now());
-                
-                // Créer l'enregistrement
-                TransactionRecord record = new TransactionRecord(
-                    playerId, playerName, itemShopId, itemId, itemName,
-                    isBuy, amount, -1, timestamp
-                );
-                record.setId(timestamp.toEpochSecond(ZoneOffset.UTC));
-                result.add(record);
-            }
-            
-            return result;
-        }
-
-        public Set<UUID> getAllPlayerIds() {
-            return new HashSet<>(playerLimits.keySet());
         }
         
         public boolean resetLimits(UUID playerId, String shopId, String itemId) {
@@ -1262,13 +1338,6 @@ public class FlatFileStorageManager implements StorageManager {
                     this.totalAmount = 0;
                     this.lastUpdated = LocalDateTime.now();
                 }
-                
-                // Méthode d'accès aux transactions
-                public List<TransactionEntry.TransactionData> getTransactions() {
-                    return transactions.stream()
-                        .map(tx -> new TransactionEntry.TransactionData(tx.timestamp, tx.amount))
-                        .collect(Collectors.toList());
-                }
 
                 public void addAmount(int amount, LocalDateTime timestamp) {
                     this.totalAmount += amount;
@@ -1336,16 +1405,6 @@ public class FlatFileStorageManager implements StorageManager {
                     public TransactionEntry(LocalDateTime timestamp, int amount) {
                         this.timestamp = timestamp;
                         this.amount = amount;
-                    }
-                    
-                    public static class TransactionData {
-                        public final LocalDateTime timestamp;
-                        public final int amount;
-                        
-                        public TransactionData(LocalDateTime timestamp, int amount) {
-                            this.timestamp = timestamp;
-                            this.amount = amount;
-                        }
                     }
                 }
             }

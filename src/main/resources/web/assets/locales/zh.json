@@ -8,11 +8,16 @@
     "disabled": "已禁用",
     "minutes": "{0} 分钟"
   },
+  "time": {
+    "hours": "小时",
+    "minutes": "分钟",
+    "seconds": "秒"
+  },
   "selectors": {
     "shop": "商店:",
-    "chooseShop": "选择商店",
+    "chooseShop": "搜索商店...",
     "item": "物品:",
-    "chooseItem": "选择物品",
+    "chooseItem": "搜索物品...",
     "period": "时段:"
   },
   "periods": {
@@ -20,20 +25,119 @@
     "6h": "6 小时",
     "12h": "12 小时",
     "1d": "1 天",
+    "7d": "7 天",
+    "14d": "14 天",
+    "30d": "30 天",
     "1w": "1 周",
     "1m": "1 月"
   },
   "charts": {
     "priceEvolution": "价格走势",
-    "volume": "交易量"
+    "transactionVolume": "交易量"
   },
   "stats": {
     "currentPrice": "当前价格",
     "variation": "变化",
     "volume": "数量",
     "lastTransaction": "最近交易",
-    "shopType": "DynaShop 类型",
-    "stock": "库存"
+    "shopType": {
+      "title": "DynaShop 类型",
+      "dynamic": "动态",
+      "stock": "库存（动态价格）",
+      "static_stock": "库存（固定价格）",
+      "recipe": "配方",
+      "linked": "关联",
+      "static": "静态",
+      "unknown": "未知"
+    },
+    "stock": "库存",
+    "buyPrice": "买入价",
+    "sellPrice": "卖出价",
+    "buy": "买入",
+    "sell": "卖出",
+    "price": "价格"
+  },
+  "trend": {
+    "title": "总体趋势",
+    "analyzeTrends": "分析趋势",
+    "selectItem": "选择一个物品并点击\"分析趋势\"查看分析",
+    "technicalIndicators": "技术指标",
+    "strength": "强度",
+    "volatility": "波动性",
+    "buyPrice": "买入价",
+    "sellPrice": "卖出价",
+    "volume": "数量"
+  },
+  "SMAChart": {
+    "title": "移动平均线（买入）",
+    "noData": "数据不足，无法显示移动平均线"
+  },
+  "RSIChart": {
+    "title": "相对强弱指标 (RSI)",
+    "noData": "数据不足，无法显示 RSI"
+  },
+  "MACDChart": {
+    "title": "指数平滑异同移动平均线 (MACD)",
+    "histogram": "柱状图",
+    "signalLine": "信号线",
+    "noData": "数据不足，无法显示 MACD"
+  },
+  "BollingerBandsChart": {
+    "title": "布林带",
+    "upperBand": "上轨",
+    "middleBand": "移动平均线",
+    "lowerBand": "下轨",
+    "noData": "数据不足，无法显示布林带"
+  },
+  "forecast": {
+    "title": "价格预测",
+    "predicted": "预测",
+    "predictedBuyPrice": "买入预测",
+    "minBuyPrice": "最低买入",
+    "maxBuyPrice": "最高买入",
+    "predictedSellPrice": "卖出预测",
+    "minSellPrice": "最低卖出",
+    "maxSellPrice": "最高卖出",
+    "confidence": "置信水平",
+    "trend": "趋势",
+    "volatility": "波动性",
+    "priceRange": "价格区间",
+    "uptrend": "上涨",
+    "downtrend": "下跌",
+    "stable": "稳定",
+    "high": "高",
+    "medium": "中",
+    "low": "低",
+    "volatile": "不稳定",
+    "spread_changing": "价差变动",
+    "nextDays": "未来{0}天预测",
+    "disclaimer": "注意：这些预测基于历史趋势分析，不构成投资建议。",
+    "noData": "数据不足，无法生成预测"
+  },
+  "signal": {
+    "bullish": "多头交叉",
+    "bearish": "空头交叉",
+    "overbought": "超买",
+    "oversold": "超卖",
+    "price_above_upper_band": "价格高于上轨",
+    "price_below_lower_band": "价格低于下轨",
+    "unknown_signal": "未知信号"
+  },
+  "TradingSignals": {
+    "title": "交易信号",
+    "noData": "未检测到交易信号",
+    "signals": {
+      "buy": "买入价信号",
+      "sell": "卖出价信号"
+    }
+  },
+  "SupportResistance": {
+    "title": "支撑和阻力水平",
+    "buy": "买入价",
+    "sell": "卖出价",
+    "support": "支撑",
+    "resistance": "阻力",
+    "noData": "支撑和阻力水平不可用"
   },
   "footer": "DynaShop 市场仪表板 - 由 Tylwen 开发的插件"
 }

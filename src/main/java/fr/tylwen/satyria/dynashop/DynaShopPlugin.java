@@ -373,23 +373,44 @@ public class DynaShopPlugin extends JavaPlugin {
             return;
         }
         
-        // Initialiser le serveur web si activé
-        if (getConfig().getBoolean("web-dashboard.enabled", false)) {
-            webServerPort = getConfig().getInt("web-dashboard.port", 7070);
-            webServer = new MarketWebServer(this, webServerPort);
-            webServer.start();
+        // Initialiser le stockage
+        storageManager.initialize();
+        
+        // Attendre un peu que l'initialisation soit terminée avant d'utiliser les données
+        getServer().getScheduler().runTaskLater(this, () -> {
+            // Initialiser les autres composants qui dépendent des données
+            this.batchDatabaseUpdater = new BatchDatabaseUpdater(this);
+            this.transactionLimiter = new TransactionLimiter(this);
             
-            getLogger().info("Dashboard web démarré sur le port " + webServerPort);
-        }
+            // Maintenant que les données sont chargées, démarrer le serveur web
+            if (getConfig().getBoolean("web-dashboard.enabled", false)) {
+                webServerPort = getConfig().getInt("web-dashboard.port", 7070);
+                webServer = new MarketWebServer(this, webServerPort);
+                webServer.start();
+                getLogger().info("Dashboard web démarré sur le port " + webServerPort);
+            }
+            
+            // Enregistrer les écouteurs d'événements
+            getServer().getPluginManager().registerEvents(this.dynaShopListener, this);
+            getServer().getPluginManager().registerEvents(this.shopItemPlaceholderListener, this);
+            
+            getLogger().info("Chargement complet du plugin terminé avec succès");
+        }, 40); // Attendre 2 secondes (40 ticks)
+        
+        // // Initialiser le serveur web si activé
+        // if (getConfig().getBoolean("web-dashboard.enabled", false)) {
+        //     webServerPort = getConfig().getInt("web-dashboard.port", 7070);
+        //     webServer = new MarketWebServer(this, webServerPort);
+        //     webServer.start();
+            
+        //     getLogger().info("Dashboard web démarré sur le port " + webServerPort);
+        // }
 
         // getServer().getPluginManager().registerEvents(new DynaShopListener(this), this);
         getServer().getPluginManager().registerEvents(this.dynaShopListener, this);
         getServer().getPluginManager().registerEvents(this.shopItemPlaceholderListener, this);
 
         getCommand("dynashop").setExecutor(new DynaShopCommand(this));
-
-        // Initialiser le stockage
-        storageManager.initialize();
 
         // Utiliser un executor service commun avec un nombre limité de threads
         // ExecutorService sharedExecutor = Executors.newFixedThreadPool(3);
@@ -458,8 +479,8 @@ public class DynaShopPlugin extends JavaPlugin {
         }
 
         // this.itemDataManager = new ItemDataManager(this.dataManager);
-        this.batchDatabaseUpdater = new BatchDatabaseUpdater(this);
-        this.transactionLimiter = new TransactionLimiter(this);
+        // this.batchDatabaseUpdater = new BatchDatabaseUpdater(this);
+        // this.transactionLimiter = new TransactionLimiter(this);
         this.taxService = new TaxService(this);
         this.inflationManager = new InflationManager(this);
         // this.recipeCacheManager = new RecipeCacheManager(15 * 60 * 1000L); // 15 minutes en ms

@@ -8,11 +8,16 @@
     "disabled": "Disabled",
     "minutes": "{0} minutes"
   },
+  "time": {
+    "hours": "hours",
+    "minutes": "minutes",
+    "seconds": "seconds"
+  },
   "selectors": {
     "shop": "Shop:",
-    "chooseShop": "Choose a shop",
+    "chooseShop": "Search for a shop...",
     "item": "Item:",
-    "chooseItem": "Choose an item",
+    "chooseItem": "Search for an item...",
     "period": "Period:"
   },
   "periods": {
@@ -20,6 +25,9 @@
     "6h": "6 hours",
     "12h": "12 hours",
     "1d": "1 day",
+    "7d": "7 days",
+    "14d": "14 days",
+    "30d": "30 days",
     "1w": "1 week",
     "1m": "1 month"
   },
@@ -32,8 +40,104 @@
     "variation": "Variation",
     "volume": "Volume",
     "lastTransaction": "Last Transaction",
-    "shopType": "DynaShop Type",
-    "stock": "Stock"
+    "shopType": {
+      "title": "DynaShop Type",
+      "dynamic": "Dynamic",
+      "stock": "Stock (dynamic price)",
+      "static_stock": "Stock (fixed price)",
+      "recipe": "Recipe",
+      "linked": "Linked",
+      "static": "Static",
+      "unknown": "Unknown"
+    },
+    "stock": "Stock",
+    "buyPrice": "Buy Price",
+    "sellPrice": "Sell Price",
+    "buy": "Buy",
+    "sell": "Sell",
+    "price": "Price"
+  },
+  "trend": {
+    "title": "General Trend",
+    "analyzeTrends": "Analyze Trends",
+    "selectItem": "Select an item and click on \"Analyze Trends\" to see the analysis",
+    "technicalIndicators": "Technical Indicators",
+    "strength": "Strength",
+    "volatility": "Volatility",
+    "buyPrice": "Buy Price",
+    "sellPrice": "Sell Price",
+    "volume": "Volume"
+  },
+  "SMAChart": {
+    "title": "Moving Averages (Buy)",
+    "noData": "Insufficient data to display moving averages"
+  },
+  "RSIChart": {
+    "title": "Relative Strength Index (RSI)",
+    "noData": "Insufficient data to display RSI"
+  },
+  "MACDChart": {
+    "title": "Moving Average Convergence Divergence (MACD)",
+    "histogram": "Histogram",
+    "signalLine": "Signal",
+    "noData": "Insufficient data to display MACD"
+  },
+  "BollingerBandsChart": {
+    "title": "Bollinger Bands",
+    "upperBand": "Upper Band",
+    "middleBand": "Moving Average",
+    "lowerBand": "Lower Band",
+    "noData": "Insufficient data to display Bollinger Bands"
+  },
+  "forecast": {
+    "title": "Price Forecasts",
+    "predicted": "Forecast",
+    "predictedBuyPrice": "Buy Forecast",
+    "minBuyPrice": "Min Buy",
+    "maxBuyPrice": "Max Buy",
+    "predictedSellPrice": "Sell Forecast",
+    "minSellPrice": "Min Sell",
+    "maxSellPrice": "Max Sell",
+    "confidence": "Confidence Level",
+    "trend": "Trend",
+    "volatility": "Volatility",
+    "priceRange": "Price Range",
+    "uptrend": "Uptrend",
+    "downtrend": "Downtrend",
+    "stable": "Stable",
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low",
+    "volatile": "Volatile",
+    "spread_changing": "Changing Spread",
+    "nextDays": "Forecast for next {0} days",
+    "disclaimer": "Note: These forecasts are based on historical trend analysis and do not constitute investment advice.",
+    "noData": "Insufficient data to generate forecasts"
+  },
+  "signal" : {
+    "bullish": "Bullish Crossover",
+    "bearish": "Bearish Crossover",
+    "overbought": "Overbought",
+    "oversold": "Oversold",
+    "price_above_upper_band": "Price above upper band",
+    "price_below_lower_band": "Price below lower band",
+    "unknown_signal": "Unknown signal"
+  },
+  "TradingSignals": {
+    "title": "Trading Signals",
+    "noData": "No trading signals detected",
+    "signals": {
+      "buy": "Signals for buy prices",
+      "sell": "Signals for sell prices"
+    }
+  },
+  "SupportResistance": {
+    "title": "Support and Resistance Levels",
+    "buy": "Buy Price",
+    "sell": "Sell Price",
+    "support": "Support",
+    "resistance": "Resistance",
+    "noData": "Support and resistance levels not available"
   },
   "footer": "DynaShop Market Dashboard - Plugin by Tylwen"
 }

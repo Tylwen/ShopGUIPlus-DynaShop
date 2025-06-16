@@ -5,6 +5,9 @@ let candlestickChart = null;
 let currentShop = null;
 let currentItem = null;
 let currentPeriod = '1m';
+let currentChartData = null;
+let currentStats = null;
+let currentShopType = null;
 let currentTheme = localStorage.getItem('theme') || 'light';
 let autoRefreshInterval = localStorage.getItem('refreshInterval') || 'disabled';
 let refreshTimerId = null;
@@ -83,6 +86,10 @@ async function initApp() {
     updateCurrentTime();
     loadShops();
     setupEventListeners();
+    // Initialiser l'analyse de marché (NOUVEAU: après le chargement des traductions)
+    if (typeof MarketAnalytics === 'function') {
+        window.marketAnalytics = new MarketAnalytics();
+    }
     startAutoRefresh();
     
     // Charger les paramètres de l'URL si présents
@@ -153,8 +160,44 @@ function setupEventListeners() {
         await loadTranslations(currentLanguage);
         translateUI();
         
+        if (priceChart) {
+            // Mettre à jour les titres des axes
+            priceChart.options.scales.y.title.text = getTranslation("stats.price");
+            if (priceChart.data.datasets.length > 0) {
+                if (priceChart.data.datasets[0]) {
+                    priceChart.data.datasets[0].label = getTranslation("stats.buyPrice");
+                }
+                if (priceChart.data.datasets[1]) {
+                    priceChart.data.datasets[1].label = getTranslation("stats.sellPrice");
+                }
+            }
+            priceChart.update();
+        }
+        
+        if (volumeChart) {
+            // Mettre à jour les titres des axes et légendes
+            volumeChart.options.scales.y.title.text = getTranslation("stats.volume");
+            if (volumeChart.data.datasets.length > 0) {
+                volumeChart.data.datasets[0].label = getTranslation("stats.volume");
+            }
+            volumeChart.update();
+        }
+        
+        // Mettre à jour les statistiques
+        if (currentStats) {
+            updateStats(currentChartData, currentStats);
+        }
+        
+        // Mettre à jour les infos du shop
+        if (currentShopType) {
+            updateShopTypeDisplay(currentShopType);
+        }
+        
         // Enregistrer la préférence de langue
         localStorage.setItem('preferredLanguage', currentLanguage);
+
+        // Déclencher un événement personnalisé pour le changement de langue
+        document.dispatchEvent(new CustomEvent('language-changed'));
     });
     
     document.getElementById('shop-select').addEventListener('change', onShopChange);
@@ -162,6 +205,49 @@ function setupEventListeners() {
     document.getElementById('period-select').addEventListener('change', onPeriodChange);
     document.getElementById('theme-switch').addEventListener('click', toggleTheme);
     window.addEventListener('beforeunload', () => {stopAutoRefresh();});
+
+    // window.marketAnalytics = new MarketAnalytics();
+    
+    // // Ajouter un écouteur d'événements pour le bouton d'analyse
+    // document.getElementById('analyze-trends-btn').addEventListener('click', function() {
+    //     const shopId = document.getElementById('shop-select').value;
+    //     const itemId = document.getElementById('item-select').value;
+    //     const period = document.getElementById('period-select').value || '1m';
+        
+    //     window.marketAnalytics.displayMarketAnalysis(shopId, itemId, period);
+    // });
+
+    // S'assurer que MarketAnalytics est initialisé
+    if (typeof MarketAnalytics === 'function' && !window.marketAnalytics) {
+        window.marketAnalytics = new MarketAnalytics();
+    }
+    
+    // Ajouter un écouteur d'événements pour le bouton d'analyse
+    const analyzeBtn = document.getElementById('analyze-trends-btn');
+    if (analyzeBtn) {
+        analyzeBtn.addEventListener('click', function() {
+            const container = document.getElementById('market-analysis-container');
+            // Basculer l'affichage
+            if (container.style.display === 'block') {
+                container.style.display = 'none';
+            } else {
+                container.style.display = 'block';
+                const shopId = document.getElementById('shop-select').value;
+                const itemId = document.getElementById('item-select').value;
+                // const period = document.getElementById('period-select').value || '1d';
+                const trendPeriod = document.getElementById('trend-period-select').value;
+                
+                if (window.marketAnalytics) {
+                    // window.marketAnalytics.displayMarketAnalysis(shopId, itemId, period);
+                    window.marketAnalytics.displayMarketAnalysisWithDays(shopId, itemId, parseInt(trendPeriod));
+                }
+            }
+        });
+    }
+    // Ajouter des écouteurs pour les changements d'item et shop qui mettront à jour l'analyse si visible
+    document.getElementById('shop-select').addEventListener('change', refreshAnalysisIfVisible);
+    document.getElementById('item-select').addEventListener('change', refreshAnalysisIfVisible);
+    document.getElementById('trend-period-select').addEventListener('change', refreshAnalysisIfVisible);
     
     // Configurer l'actualisation automatique
     const refreshSelect = document.getElementById('refresh-interval');
@@ -170,6 +256,20 @@ function setupEventListeners() {
         refreshSelect.addEventListener('change', (e) => {
             changeRefreshInterval(e.target.value);
         });
+    }
+}
+
+// Fonction pour rafraîchir l'analyse si le conteneur est visible
+function refreshAnalysisIfVisible() {
+    const container = document.getElementById('market-analysis-container');
+    if (container && container.style.display === 'block' && window.marketAnalytics) {
+        const shopId = document.getElementById('shop-select').value;
+        const itemId = document.getElementById('item-select').value;
+        const trendPeriod = document.getElementById('trend-period-select').value;
+        
+        if (shopId && itemId) {
+            window.marketAnalytics.displayMarketAnalysisWithDays(shopId, itemId, parseInt(trendPeriod));
+        }
     }
 }
 
@@ -272,10 +372,10 @@ function initTheme() {
     // Appliquer le thème sauvegardé
     if (currentTheme === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
-        document.getElementById('theme-switch').innerHTML = '<i class="fas fa-sun"></i><span>Mode clair</span>';
+        document.getElementById('theme-switch').innerHTML = `<i class="fas fa-sun"></i><span>${getTranslation("theme.light")}</span>`;
     } else {
         document.documentElement.setAttribute('data-theme', 'light');
-        document.getElementById('theme-switch').innerHTML = '<i class="fas fa-moon"></i><span>Mode sombre</span>';
+        document.getElementById('theme-switch').innerHTML = `<i class="fas fa-moon"></i><span>${getTranslation("theme.dark")}</span>`;
     }
     
     // Mettre à jour les graphiques avec le thème actuel
@@ -287,11 +387,11 @@ function toggleTheme() {
     if (currentTheme === 'light') {
         currentTheme = 'dark';
         document.documentElement.setAttribute('data-theme', 'dark');
-        document.getElementById('theme-switch').innerHTML = '<i class="fas fa-sun"></i><span>Mode clair</span>';
+        document.getElementById('theme-switch').innerHTML = `<i class="fas fa-sun"></i><span>${getTranslation("theme.light")}</span>`;
     } else {
         currentTheme = 'light';
         document.documentElement.setAttribute('data-theme', 'light');
-        document.getElementById('theme-switch').innerHTML = '<i class="fas fa-moon"></i><span>Mode sombre</span>';
+        document.getElementById('theme-switch').innerHTML = `<i class="fas fa-moon"></i><span>${getTranslation("theme.dark")}</span>`;
     }
     
     // Sauvegarder la préférence
@@ -299,6 +399,9 @@ function toggleTheme() {
     
     // Mettre à jour les graphiques
     updateChartsTheme();
+    
+    // Déclencher un événement personnalisé pour notifier les autres composants
+    document.dispatchEvent(new CustomEvent('theme-changed'));
 }
 
 // Fonction pour indiquer visuellement qu'une actualisation est en cours
@@ -524,8 +627,9 @@ async function loadShops() {
             const shopSelect = document.getElementById('shop-select');
             
             // Vider la liste actuelle
-            shopSelect.innerHTML = '<option value="">Choisir une boutique</option>';
-            
+            // shopSelect.innerHTML = `<option value="">${getTranslation("selectors.chooseShop")}</option>`;
+            shopSelect.innerHTML = `<option value=""></option>`;
+
             // Trier les boutiques par nom
             shops.sort((a, b) => a.name.localeCompare(b.name));
             
@@ -538,7 +642,8 @@ async function loadShops() {
             });
             
             // Ajouter un champ de recherche pour le select
-            enhanceSelectWithSearch('shop-select', "Rechercher une boutique...");
+            // enhanceSelectWithSearch('shop-select', "Rechercher une boutique...");
+            enhanceSelectWithSearch('shop-select', `${getTranslation("selectors.chooseShop")}`);
             
             // Réactiver le select
             shopSelect.disabled = false;
@@ -567,7 +672,7 @@ async function loadItems(shopId) {
         const items = await response.json();
         
         const itemSelect = document.getElementById('item-select');
-        itemSelect.innerHTML = '<option value="">Choisir un item</option>';
+        itemSelect.innerHTML = '<option value=""></option>';
         itemSelect.disabled = false;
         
         items.forEach(item => {
@@ -578,8 +683,8 @@ async function loadItems(shopId) {
         });
         
         // Ajouter le champ de recherche pour ce select
-        enhanceSelectWithSearch('item-select', "Rechercher un item...");
-        
+        enhanceSelectWithSearch('item-select',`${getTranslation("selectors.chooseItem")}`);
+
         // Si un paramètre item est présent dans l'URL et correspond à ce shop
         const urlParams = new URLSearchParams(window.location.search);
         const itemParam = urlParams.get('item');
@@ -720,6 +825,7 @@ function enhanceSelectWithSearch(selectId, placeholder) {
 // Chargement des données de prix
 async function loadPriceData(shopId, itemId, period = '1d') {
     try {
+
         // 1. Charger d'abord les métadonnées
         const statsResponse = await fetch(`/api/price-stats?shop=${encodeURIComponent(shopId)}&item=${encodeURIComponent(itemId)}`);
         const stats = await statsResponse.json();
@@ -733,10 +839,7 @@ async function loadPriceData(shopId, itemId, period = '1d') {
         let maxPoints = 2000; // Limiter à 2000 points maximum pour les performances
         
         // 3. Charger les données réelles avec les paramètres adaptés
-        const dataResponse = await fetch(
-            `/api/prices?shop=${encodeURIComponent(shopId)}&item=${encodeURIComponent(itemId)}` +
-            `&period=${period}&granularity=${granularity}&maxPoints=${maxPoints}`
-        );
+        const dataResponse = await fetch(`/api/prices?shop=${encodeURIComponent(shopId)}&item=${encodeURIComponent(itemId)}` + `&period=${period}&granularity=${granularity}&maxPoints=${maxPoints}`);
         
         const chartData = await dataResponse.json();
         
@@ -759,17 +862,19 @@ function displayShopType(typeData) {
     
     // Fonction pour obtenir une description conviviale
     const getTypeDescription = (type) => {
+        currentShopType = type; // Sauvegarder le type actuel pour une utilisation ultérieure
         switch(type) {
-            case 'DYNAMIC': return 'Dynamique';
-            case 'STOCK': return 'Stock (prix évolutif)';
-            case 'STATIC_STOCK': return 'Stock (prix fixe)';
-            case 'RECIPE': return 'Recette';
-            case 'LINK': return 'Lié à un autre item';
-            case 'NONE': return 'Statique';
-            default: return type || 'Unknown';
+            case 'DYNAMIC': return `${getTranslation("stats.shopType.dynamic")}`;
+            case 'STOCK': return `${getTranslation("stats.shopType.stock")}`;
+            case 'STATIC_STOCK': return `${getTranslation("stats.shopType.static_stock")}`;
+            case 'RECIPE': return `${getTranslation("stats.shopType.recipe")}`;
+            case 'LINK': return `${getTranslation("stats.shopType.linked")}`;
+            case 'NONE': return `${getTranslation("stats.shopType.static")}`;
+            default: return type || `${getTranslation("stats.shopType.unknown")}`;
         }
     };
-    
+    // updateShopTypeDisplay(getTypeDescription(currentShopType)); // Mettre à jour l'affichage du type de shop
+
     // Déterminer si des liens sont présents
     const hasLinks = typeData.buy === 'LINK' || typeData.sell === 'LINK' || typeData.general === 'LINK';
     
@@ -778,15 +883,15 @@ function displayShopType(typeData) {
     
     // Affichage différent si les types d'achat et vente sont différents
     if (typeData.buy !== typeData.sell) {
-        html = `Achat: <span class="type-buy">${getTypeDescription(typeData.buy)}</span>`;
-        
+        html = `${getTranslation("stats.buy")}: <span class="type-buy">${getTypeDescription(typeData.buy)}</span>`;
+
         // Ajouter le type réel si différent et si c'est un LINK
         if (typeData.buy === 'LINK' && typeData.realBuy && typeData.realBuy !== 'LINK') {
             html += ` <small>(${getTypeDescription(typeData.realBuy)})</small>`;
         }
-        
-        html += `<br>Vente: <span class="type-sell">${getTypeDescription(typeData.sell)}</span>`;
-        
+
+        html += `<br>${getTranslation("stats.sell")}: <span class="type-sell">${getTypeDescription(typeData.sell)}</span>`;
+
         // Ajouter le type réel si différent et si c'est un LINK
         if (typeData.sell === 'LINK' && typeData.realSell && typeData.realSell !== 'LINK') {
             html += ` <small>(${getTypeDescription(typeData.realSell)})</small>`;
@@ -799,14 +904,21 @@ function displayShopType(typeData) {
             if (typeData.realBuy === typeData.realSell) {
                 html += ` <small>(${getTypeDescription(typeData.realBuy)})</small>`;
             } else {
-                html += `<br><small>(Achat: ${getTypeDescription(typeData.realBuy)}, 
-                       Vente: ${getTypeDescription(typeData.realSell)})</small>`;
+                html += `<br><small>(${getTranslation("stats.buy")}: ${getTypeDescription(typeData.realBuy)}, 
+                       ${getTranslation("stats.sell")}: ${getTypeDescription(typeData.realSell)})</small>`;
             }
         }
     }
     
     // Enlever l'indication générique pour les LINK puisque nous affichons maintenant le type réel
     shopTypeElement.innerHTML = html;
+}
+
+// Nouvelle fonction pour mettre à jour l'affichage du type de shop
+function updateShopTypeDisplay(type) {
+    // Traduire le type de shop
+    let displayType = getTranslation(`stats.shopType.${type.toLowerCase()}`) || type;
+    document.getElementById('shop-type').textContent = displayType;
 }
 
 // Filtrage des données selon la période
@@ -913,18 +1025,22 @@ function updatePriceChart(data) {
             datasets: [
                 // N'afficher la courbe que si on a des points valides
                 ...(buyData.length > 0 ? [{
-                    label: 'Prix d\'achat',
+                    label: getTranslation("stats.buyPrice"),
                     data: buyData,
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(244, 67, 54, 0.9)',
+                    backgroundColor: 'rgba(244, 67, 54, 0.2)',
+                    // borderColor: 'rgba(255, 99, 132, 1)',
+                    // backgroundColor: 'rgba(255, 99, 132, 0.2)',
                     borderWidth: 2,
                     tension: 0.1
                 }] : []),
                 ...(sellData.length > 0 ? [{
-                    label: 'Prix de vente',
+                    label: getTranslation("stats.sellPrice"),
                     data: sellData,
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(76, 175, 80, 0.9)',
+                    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                    // borderColor: 'rgba(54, 162, 235, 1)',
+                    // backgroundColor: 'rgba(54, 162, 235, 0.2)',
                     borderWidth: 2,
                     tension: 0.1
                 }] : [])
@@ -947,11 +1063,11 @@ function updatePriceChart(data) {
                             hour: 'HH:mm',
                             day: 'dd/MM'
                         }
-                    },
-                    title: {
-                        display: true,
-                        text: 'Date/Heure'
                     }
+                    // title: {
+                    //     display: true,
+                    //     text: 'Date/Heure'
+                    // }
                     // type: 'category',
                     // title: {
                     //     display: true,
@@ -961,7 +1077,7 @@ function updatePriceChart(data) {
                 y: {
                     title: {
                         display: true,
-                        text: 'Prix'
+                        text: getTranslation("stats.price")
                     },
                     beginAtZero: false
                 }
@@ -1108,7 +1224,7 @@ function updateVolumeChart(data) {
         data: {
             labels: aggregatedData.labels,
             datasets: [{
-                label: 'Volume',
+                label: getTranslation("stats.volume"),
                 data: aggregatedData.values,
                 backgroundColor: 'rgba(75, 192, 192, 0.6)',
                 borderColor: 'rgba(75, 192, 192, 1)',
@@ -1137,15 +1253,15 @@ function updateVolumeChart(data) {
                             day: 'dd/MM'
                         }
                     },
-                    title: {
-                        display: true,
-                        text: 'Date/Heure'
-                    }
+                    // title: {
+                    //     display: true,
+                    //     text: 'Date/Heure'
+                    // }
                 },
                 y: {
                     title: {
                         display: true,
-                        text: 'Volume'
+                        text: getTranslation("stats.volume")
                     },
                     beginAtZero: true
                 }
@@ -1739,6 +1855,10 @@ function determineTimeUnit(dataLength) {
 
 // Mise à jour des statistiques
 function updateStats(chartData, statsData) {
+    // Stocker les données pour pouvoir les mettre à jour lors d'un changement de langue
+    currentStats = statsData;
+    currentChartData = chartData;
+
     // Prix actuels (achat et vente)
     if (chartData && chartData.length > 0) {
         const latest = chartData[chartData.length - 1];
@@ -1755,13 +1875,13 @@ function updateStats(chartData, statsData) {
         if ((buyPrice === sellPrice && buyPrice !== '--') || rawSellPrice === 0 || rawSellPrice === -1) {
             document.getElementById('current-price').textContent = buyPrice;
         } else if (rawBuyPrice === -1 && rawSellPrice !== -1) {
-            document.getElementById('current-price').textContent = 'Vente: ' + sellPrice;
+            document.getElementById('current-price').textContent = `${getTranslation("stats.sell")}: ` + sellPrice;
         } else if (rawBuyPrice !== -1 && rawSellPrice === -1) {
-            document.getElementById('current-price').textContent = 'Achat: ' + buyPrice;
+            document.getElementById('current-price').textContent = `${getTranslation("stats.buy")}: ` + buyPrice;
         } else {
             document.getElementById('current-price').innerHTML = 
-                `Achat: <span class="buy-price">${buyPrice}</span><br />` +
-                `Vente: <span class="sell-price">${sellPrice}</span>`;
+                `${getTranslation("stats.buy")}: <span class="buy-price">${buyPrice}</span><br />` +
+                `${getTranslation("stats.sell")}: <span class="sell-price">${sellPrice}</span>`;
         }
         
         document.getElementById('last-transaction').textContent = formatTimestamp(latest.timestamp);
@@ -1776,13 +1896,13 @@ function updateStats(chartData, statsData) {
         if ((buyPrice === sellPrice && buyPrice !== '--') || !statsData.currentSellPrice || rawSellPrice === -1) {
             document.getElementById('current-price').textContent = buyPrice;
         } else if (rawBuyPrice === -1 && rawSellPrice !== -1) {
-            document.getElementById('current-price').textContent = 'Vente: ' + sellPrice;
+            document.getElementById('current-price').textContent = `${getTranslation("stats.sell")}: ` + sellPrice;
         } else if (rawBuyPrice !== -1 && rawSellPrice === -1) {
-            document.getElementById('current-price').textContent = 'Achat: ' + buyPrice;
+            document.getElementById('current-price').textContent = `${getTranslation("stats.buy")}: ` + buyPrice;
         } else {
             document.getElementById('current-price').innerHTML = 
-                `Achat: <span class="buy-price">${buyPrice}</span><br />` +
-                `Vente: <span class="sell-price">${sellPrice}</span>`;
+                `${getTranslation("stats.buy")}: <span class="buy-price">${buyPrice}</span><br />` +
+                `${getTranslation("stats.sell")}: <span class="sell-price">${sellPrice}</span>`;
         }
         
         document.getElementById('last-transaction').textContent = statsData.lastTimestamp ? 
@@ -1818,13 +1938,13 @@ function updateStats(chartData, statsData) {
         //     element.style.color = buyChange >= 0 && buyChange !== '--' ? 'green' : 'red';
         // } else if (buyChange === '--' && sellChange !== '--') {
         if (buyChange === '--' && sellChange !== '--') {
-            element.innerHTML = `Vente: <span style="color:${sellChange >= 0 ? 'red' : 'green'}">${sellChange}%</span>`;
+            element.innerHTML = `${getTranslation("stats.sell")}: <span style="color:${sellChange >= 0 ? 'red' : 'green'}">${sellChange}%</span>`;
         } else if (buyChange !== '--' && sellChange === '--') {
-            element.innerHTML = `Achat: <span style="color:${buyChange >= 0 ? 'green' : 'red'}">${buyChange}%</span>`;
+            element.innerHTML = `${getTranslation("stats.buy")}: <span style="color:${buyChange >= 0 ? 'green' : 'red'}">${buyChange}%</span>`;
         } else {
             element.innerHTML = 
-                `Achat: <span style="color:${buyChange >= 0 ? 'green' : 'red'}">${buyChange}%</span><br />` +
-                `Vente: <span style="color:${sellChange >= 0 ? 'red' : 'green'}">${sellChange}%</span>`;
+                `${getTranslation("stats.buy")}: <span style="color:${buyChange >= 0 ? 'green' : 'red'}">${buyChange}%</span><br />` +
+                `${getTranslation("stats.sell")}: <span style="color:${sellChange >= 0 ? 'red' : 'green'}">${sellChange}%</span>`;
         }
     } else {
         document.getElementById('price-change').textContent = '--';
@@ -1847,7 +1967,7 @@ function updateStats(chartData, statsData) {
         }
         if (document.getElementById('time-span')) {
             document.getElementById('time-span').textContent = 
-                statsData.timeSpanHours ? `${statsData.timeSpanHours} heures` : '--';
+                statsData.timeSpanHours ? `${statsData.timeSpanHours} ${getTranslation("time.hours")}` : '--';
         }
     }
     
@@ -1888,7 +2008,38 @@ function updateStats(chartData, statsData) {
 
 // Formatage de la date/heure
 function formatTimestamp(timestamp) {
-    return luxon.DateTime.fromISO(timestamp).toLocaleString(luxon.DateTime.DATETIME_MED);
+    if (!timestamp) return '--';
+    
+    // Créer un objet DateTime avec la langue actuelle
+    const dt = luxon.DateTime.fromISO(timestamp);
+    
+    // Déterminer la locale à utiliser en fonction de la langue sélectionnée
+    let locale = 'fr'; // Par défaut
+    
+    switch (currentLanguage) {
+        case 'en':
+            locale = 'en';
+            break;
+        case 'es':
+            locale = 'es';
+            break;
+        case 'pt':
+            locale = 'pt';
+            break;
+        case 'zh':
+            locale = 'zh';
+            break;
+        case 'ar':
+            locale = 'ar';
+            break;
+        case 'hi':
+            locale = 'hi';
+            break;
+        default:
+            locale = 'fr';
+    }
+
+    return luxon.DateTime.fromISO(timestamp).setLocale(locale).toLocaleString(luxon.DateTime.DATETIME_MED);
 }
 
 // Événement de changement de shop
@@ -1902,7 +2053,7 @@ function onShopChange(event) {
         updateUrlParams();
     } else {
         document.getElementById('item-select').disabled = true;
-        document.getElementById('item-select').innerHTML = '<option value="">Choisir un item</option>';
+        document.getElementById('item-select').innerHTML = '<option value=""></option>';
     }
 }
 
@@ -1912,6 +2063,11 @@ function onItemChange(event) {
     if (itemId && currentShop) {
         currentItem = itemId;
         loadPriceData(currentShop, itemId, currentPeriod);
+        
+        // Rafraîchir l'analyse de marché si elle est visible
+        if (document.getElementById('market-analysis-container').style.display === 'block' && window.marketAnalytics) {
+            window.marketAnalytics.displayMarketAnalysis(currentShop, itemId, currentPeriod);
+        }
         
         // Mettre à jour l'URL
         updateUrlParams();
@@ -1925,6 +2081,11 @@ function onPeriodChange(event) {
     
     if (currentShop && currentItem) {
         loadPriceData(currentShop, currentItem, period);
+        
+        // Rafraîchir l'analyse de marché si elle est visible
+        if (document.getElementById('market-analysis-container').style.display === 'block' && window.marketAnalytics) {
+            window.marketAnalytics.displayMarketAnalysis(currentShop, currentItem, currentPeriod);
+        }
     }
 }
 
@@ -1963,5 +2124,1145 @@ function loadParamsFromUrl() {
                 loadPriceData(shopId, itemId, currentPeriod);
             }
         });
+    }
+}
+
+
+
+
+
+/**
+ * Classe pour l'analyse avancée du marché
+ */
+class MarketAnalytics {
+    constructor() {
+        this.trendChart = null;
+        this.rsiChart = null;
+        this.macdChart = null;
+        this.bollingerChart = null;
+        this.forecaseChart = null;
+        
+        // Initialiser les couleurs en fonction du thème actuel
+        this.updateColors();
+        
+        // Ajouter un écouteur pour les changements de thème
+        document.addEventListener('theme-changed', () => {
+            this.updateColors();
+            this.refreshChartsIfVisible();
+        });
+
+        // Ajouter un écouteur pour les changements de langue
+        document.addEventListener('language-changed', () => {
+            // Rafraîchir l'analyse si elle est visible
+            this.refreshChartsIfVisible();
+        });
+    }
+    
+    /**
+     * Met à jour les couleurs en fonction du thème actuel
+     */
+    updateColors() {
+        const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+        
+        // Définir les couleurs en fonction du thème
+        this.colors = {
+            // Couleurs de tendance
+            rising: isDarkMode ? 'rgba(76, 175, 80, 0.9)' : 'rgba(76, 175, 80, 0.8)',
+            falling: isDarkMode ? 'rgba(244, 67, 54, 0.9)' : 'rgba(244, 67, 54, 0.8)',
+            stable: isDarkMode ? 'rgba(33, 150, 243, 0.9)' : 'rgba(33, 150, 243, 0.8)',
+            volatile: isDarkMode ? 'rgba(255, 152, 0, 0.9)' : 'rgba(255, 152, 0, 0.8)',
+            spread_changing: isDarkMode ? 'rgba(156, 39, 176, 0.9)' : 'rgba(156, 39, 176, 0.8)',
+            unknown: isDarkMode ? 'rgba(200, 200, 200, 0.9)' : 'rgba(158, 158, 158, 0.8)',
+            
+            // Couleurs pour les prévisions et les prix
+            forecast: isDarkMode ? 'rgba(156, 39, 176, 0.4)' : 'rgba(156, 39, 176, 0.3)',
+            buy: isDarkMode ? 'rgba(244, 67, 54, 0.9)' : 'rgba(244, 67, 54, 0.8)',
+            sell: isDarkMode ? 'rgba(76, 175, 80, 0.9)' : 'rgba(76, 175, 80, 0.8)',
+            
+            // Couleurs pour les indicateurs techniques
+            sma5: isDarkMode ? 'rgba(255, 193, 7, 1)' : 'rgba(255, 193, 7, 1)',
+            sma20: isDarkMode ? 'rgba(33, 150, 243, 1)' : 'rgba(33, 150, 243, 1)',
+            upper: isDarkMode ? 'rgba(76, 175, 80, 0.6)' : 'rgba(76, 175, 80, 0.5)',
+            lower: isDarkMode ? 'rgba(244, 67, 54, 0.6)' : 'rgba(244, 67, 54, 0.5)',
+            macd: isDarkMode ? 'rgba(33, 150, 243, 1)' : 'rgba(33, 150, 243, 1)',
+            signal: isDarkMode ? 'rgba(255, 193, 7, 1)' : 'rgba(255, 193, 7, 1)',
+            histogram_positive: isDarkMode ? 'rgba(76, 175, 80, 0.6)' : 'rgba(76, 175, 80, 0.5)',
+            histogram_negative: isDarkMode ? 'rgba(244, 67, 54, 0.6)' : 'rgba(244, 67, 54, 0.5)'
+        };
+        
+        // Définir les options Chart.js globales selon le thème
+        Chart.defaults.color = isDarkMode ? '#f0f0f0' : '#333333';
+        Chart.defaults.borderColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+        Chart.defaults.scale.grid.color = isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
+    }
+    
+    /**
+     * Rafraîchit les graphiques si l'analyse est visible
+     */
+    refreshChartsIfVisible() {
+        const container = document.getElementById('market-analysis-container');
+        if (container && container.style.display === 'block' && this.hasChartsInitialized()) {
+            const shopId = document.getElementById('shop-select').value;
+            const itemId = document.getElementById('item-select').value;
+            
+            // Déterminer quelle méthode utiliser en fonction de l'élément select présent
+            if (document.getElementById('trend-period-select')) {
+                const trendPeriod = document.getElementById('trend-period-select').value;
+                this.displayMarketAnalysisWithDays(shopId, itemId, parseInt(trendPeriod));
+            } else {
+                const period = document.getElementById('period-select').value || '1m';
+                this.displayMarketAnalysis(shopId, itemId, period);
+            }
+        }
+    }
+
+    // Méthode pour vérifier si les graphiques existent déjà
+    hasChartsInitialized() {
+        return this.trendChart || this.rsiChart || this.macdChart || 
+               this.bollingerChart || this.forecastChart;
+    }
+    
+    // Méthode pour nettoyer les graphiques si nécessaire
+    clearCharts() {
+        if (this.trendChart) {
+            this.trendChart.destroy();
+            this.trendChart = null;
+        }
+        if (this.rsiChart) {
+            this.rsiChart.destroy();
+            this.rsiChart = null;
+        }
+        if (this.macdChart) {
+            this.macdChart.destroy();
+            this.macdChart = null;
+        }
+        if (this.bollingerChart) {
+            this.bollingerChart.destroy();
+            this.bollingerChart = null;
+        }
+        if (this.forecastChart) {
+            this.forecastChart.destroy();
+            this.forecastChart = null;
+        }
+    }
+
+    /**
+     * Charge et affiche l'analyse technique
+     */
+    async displayMarketAnalysis(shopId, itemId, period = '1m') {
+        // Nettoyer les graphiques existants avant d'en créer de nouveaux
+        this.clearCharts();
+
+        try {
+            // console.log(`Chargement de l'analyse pour ${shopId}:${itemId} (période: ${period})`);
+            const response = await fetch(`/api/market-trends?shop=${encodeURIComponent(shopId)}&item=${encodeURIComponent(itemId)}&days=${this.getPeriodDays(period)}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // Afficher les sections d'analyse
+            document.getElementById('market-analysis-container').style.display = 'block';
+            
+            // Afficher les différentes analyses
+            this.displayTrendSummary(data);
+            this.displayTechnicalIndicators(data);
+            this.displayPriceForecast(data);
+            this.displayTradingSignals(data);
+            this.displaySupportResistance(data);
+            
+        } catch (error) {
+            console.error('Erreur lors du chargement de l\'analyse de marché:', error);
+            document.getElementById('market-analysis-container').innerHTML = 
+                `<div class="error-message">Impossible de charger l'analyse de marché: ${error.message}</div>`;
+        }
+    }
+
+    /**
+     * Charge et affiche l'analyse technique avec une période en jours directement
+     */
+    async displayMarketAnalysisWithDays(shopId, itemId, days = 7) {
+        // Nettoyer les graphiques existants avant d'en créer de nouveaux
+        this.clearCharts();
+        
+        try {
+            // console.log(`Chargement de l'analyse pour ${shopId}:${itemId} (${days} jours)`);
+            const response = await fetch(`/api/market-trends?shop=${encodeURIComponent(shopId)}&item=${encodeURIComponent(itemId)}&days=${days}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // Afficher les sections d'analyse
+            document.getElementById('market-analysis-container').style.display = 'block';
+            
+            // Afficher les différentes analyses
+            this.displayTrendSummary(data);
+            this.displayTechnicalIndicators(data);
+            this.displayPriceForecast(data);
+            this.displayTradingSignals(data);
+            this.displaySupportResistance(data);
+            
+        } catch (error) {
+            console.error('Erreur lors du chargement de l\'analyse de marché:', error);
+            document.getElementById('market-analysis-container').innerHTML = 
+                `<div class="error-message">Impossible de charger l'analyse de marché: ${error.message}</div>`;
+        }
+    }
+    
+    /**
+     * Affiche le résumé de la tendance
+     */
+    displayTrendSummary(data) {
+        const container = document.getElementById('trend-summary');
+        if (!container) return;
+        
+        const trendClass = data.trend.toLowerCase();
+        const trendLabel = this.getTrendLabel(data.trend);
+        
+        // Construire le HTML pour le résumé
+        let html = `
+            <div class="trend-header">
+                <h3>${getTranslation('trend.title')}</h3>
+                <div class="trend-badge ${trendClass}">${trendLabel}</div>
+            </div>
+            
+            <div class="trend-stats">
+                <div class="stat-item">
+                    <div class="stat-label">${getTranslation('trend.strength')}</div>
+                    <div class="stat-value">${Math.round(data.strength * 100)}%</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">${getTranslation('trend.volatility')}</div>
+                    <div class="stat-value">${Math.round(data.volatility * 100)}%</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">${getTranslation('trend.buyPrice')}</div>
+                    <div class="stat-value ${this.getChangeBuyClass(data.buyPriceChange)}">${this.formatChange(data.buyPriceChange)}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">${getTranslation('trend.sellPrice')}</div>
+                    <div class="stat-value ${this.getChangeSellClass(data.sellPriceChange)}">${this.formatChange(data.sellPriceChange)}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">${getTranslation('trend.volume')}</div>
+                    <div class="stat-value ${this.getChangeClass(data.volumeChange)}">${this.formatChange(data.volumeChange)}</div>
+                </div>
+            </div>
+        `;
+        
+        container.innerHTML = html;
+    }
+    
+    /**
+     * Affiche les indicateurs techniques
+     */
+    displayTechnicalIndicators(data) {
+        this.displaySMAChart(data);
+        this.displayRSIChart(data);
+        this.displayMACDChart(data);
+        this.displayBollingerBandsChart(data);
+    }
+    
+    /**
+     * Affiche le graphique des moyennes mobiles (SMA)
+     */
+    displaySMAChart(data) {
+        const container = document.getElementById('sma-chart-container');
+        if (!container) return;
+        
+        const buyAnalysis = data.buyAnalysis;
+        if (!buyAnalysis || !buyAnalysis.sma5 || !buyAnalysis.sma20) {
+            container.innerHTML = `<div class="no-data-message">${getTranslation('analytics.noData')}</div>`;
+            return;
+        }
+        
+        // Créer un canvas s'il n'existe pas
+        if (!document.getElementById('sma-chart')) {
+            container.innerHTML = '<canvas id="sma-chart"></canvas>';
+        }
+        
+        const ctx = document.getElementById('sma-chart').getContext('2d');
+        
+        // Préparer les données
+        const labels = Array.from({ length: buyAnalysis.sma20.length }, (_, i) => i);
+        
+        // Créer des datasets pour les prix récents et les SMAs
+        const datasets = [];
+        
+        // Déterminer les données de prix récentes (mêmes nombres de points que SMA20)
+        const startIndex = buyAnalysis.sma5.length - buyAnalysis.sma20.length;
+        
+        // Destruction du graphique existant si présent
+        if (this.smaChart) {
+            this.smaChart.destroy();
+        }
+        
+        // Création du graphique
+        this.smaChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'SMA 5',
+                        data: buyAnalysis.sma5.slice(startIndex),
+                        borderColor: this.colors.sma5,
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: false
+                    },
+                    {
+                        label: 'SMA 20',
+                        data: buyAnalysis.sma20,
+                        borderColor: this.colors.sma20,
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    title: {
+                        display: true,
+                        text: `${getTranslation('SMAChart.title')}`
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false
+                    }
+                }
+            }
+        });
+    }
+    
+    /**
+     * Affiche le graphique RSI
+     */
+    displayRSIChart(data) {
+        const container = document.getElementById('rsi-chart-container');
+        if (!container) return;
+        
+        const buyAnalysis = data.buyAnalysis;
+        if (!buyAnalysis || !buyAnalysis.rsi || buyAnalysis.rsi.length === 0) {
+            container.innerHTML = `<div class="no-data-message">${getTranslation('RSIChart.noData')}</div>`;
+            return;
+        }
+        
+        // Créer un canvas s'il n'existe pas
+        if (!document.getElementById('rsi-chart')) {
+            container.innerHTML = '<canvas id="rsi-chart"></canvas>';
+        }
+        
+        const ctx = document.getElementById('rsi-chart').getContext('2d');
+        
+        // Préparer les données
+        const labels = Array.from({ length: buyAnalysis.rsi.length }, (_, i) => i);
+        
+        // Destruction du graphique existant si présent
+        if (this.rsiChart) {
+            this.rsiChart.destroy();
+        }
+        
+        // Création du graphique
+        this.rsiChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'RSI',
+                        data: buyAnalysis.rsi,
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    title: {
+                        display: true,
+                        text: `${getTranslation('RSIChart.title')}`
+                    }
+                },
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 100,
+                        grid: {
+                            drawOnChartArea: true,
+                            color: (context) => {
+                                if (context.tick.value === 30 || context.tick.value === 70) {
+                                    return 'rgba(255, 0, 0, 0.3)';
+                                }
+                                return 'rgba(0, 0, 0, 0.1)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    /**
+     * Affiche le graphique MACD
+     */
+    displayMACDChart(data) {
+        const container = document.getElementById('macd-chart-container');
+        if (!container) return;
+        
+        const buyAnalysis = data.buyAnalysis;
+        if (!buyAnalysis || !buyAnalysis.macd || !buyAnalysis.macd.macd) {
+            container.innerHTML = `<div class="no-data-message">${getTranslation('MACDChart.noData')}</div>`;
+            return;
+        }
+        
+        // Créer un canvas s'il n'existe pas
+        if (!document.getElementById('macd-chart')) {
+            container.innerHTML = '<canvas id="macd-chart"></canvas>';
+        }
+        
+        const ctx = document.getElementById('macd-chart').getContext('2d');
+        
+        // Préparer les données
+        const macdData = buyAnalysis.macd;
+        const labels = Array.from({ length: macdData.macd.length }, (_, i) => i);
+        
+        // Préparer les données d'histogramme avec couleurs
+        const histogramColors = macdData.histogram.map(val => 
+            val >= 0 ? this.colors.histogram_positive : this.colors.histogram_negative
+        );
+        
+        // Destruction du graphique existant si présent
+        if (this.macdChart) {
+            this.macdChart.destroy();
+        }
+        
+        // Création du graphique
+        this.macdChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: `${getTranslation('MACDChart.histogram')}`,
+                        data: macdData.histogram,
+                        backgroundColor: histogramColors,
+                        barPercentage: 0.8,
+                        categoryPercentage: 0.9,
+                        order: 3
+                    },
+                    {
+                        label: 'MACD',
+                        data: macdData.macd,
+                        borderColor: this.colors.macd,
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: false,
+                        type: 'line',
+                        order: 1
+                    },
+                    {
+                        label: `${getTranslation('MACDChart.signalLine')}`,
+                        data: macdData.signal,
+                        borderColor: this.colors.signal,
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: false,
+                        type: 'line',
+                        order: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    title: {
+                        display: true,
+                        text: `${getTranslation('MACDChart.title')}`
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+    
+    /**
+     * Affiche le graphique des bandes de Bollinger
+     */
+    displayBollingerBandsChart(data) {
+        const container = document.getElementById('bollinger-chart-container');
+        if (!container) return;
+        
+        const buyAnalysis = data.buyAnalysis;
+        if (!buyAnalysis || !buyAnalysis.bollingerBands || !buyAnalysis.bollingerBands.middle) {
+            container.innerHTML = `<div class="no-data-message">${getTranslation('BollingerBandsChart.noData')}</div>`;
+            return;
+        }
+        
+        // Créer un canvas s'il n'existe pas
+        if (!document.getElementById('bollinger-chart')) {
+            container.innerHTML = '<canvas id="bollinger-chart"></canvas>';
+        }
+        
+        const ctx = document.getElementById('bollinger-chart').getContext('2d');
+        
+        // Préparer les données
+        const bands = buyAnalysis.bollingerBands;
+        const labels = Array.from({ length: bands.middle.length }, (_, i) => i);
+        
+        // Destruction du graphique existant si présent
+        if (this.bollingerChart) {
+            this.bollingerChart.destroy();
+        }
+        
+        // Création du graphique
+        this.bollingerChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: `${getTranslation('BollingerBandsChart.upperBand')}`,
+                        data: bands.upper,
+                        borderColor: this.colors.upper,
+                        borderWidth: 1,
+                        tension: 0.1,
+                        fill: false
+                    },
+                    {
+                        label: `${getTranslation('BollingerBandsChart.middleBand')}`,
+                        data: bands.middle,
+                        borderColor: this.colors.sma20,
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: false
+                    },
+                    {
+                        label: `${getTranslation('BollingerBandsChart.lowerBand')}`,
+                        data: bands.lower,
+                        borderColor: this.colors.lower,
+                        borderWidth: 1,
+                        tension: 0.1,
+                        fill: '-1',
+                        backgroundColor: 'rgba(200, 200, 200, 0.1)'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    title: {
+                        display: true,
+                        text: `${getTranslation('BollingerBandsChart.title')}`
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false
+                    }
+                }
+            }
+        });
+    }
+    
+    /**
+     * Affiche les prévisions de prix
+     */
+    displayPriceForecast(data) {
+        const container = document.getElementById('forecast-container');
+        if (!container) return;
+        
+        const buyForecast = data.buyForecast;
+        const sellForecast = data.sellForecast;
+        
+        if ((!buyForecast || buyForecast.length === 0) && (!sellForecast || sellForecast.length === 0)) {
+            container.innerHTML = `<div class="no-data-message">${getTranslation("forecast.noData")}</div>`;
+            return;
+        }
+        
+        // Créer un canvas s'il n'existe pas
+        // if (!document.getElementById('forecast-chart')) {
+            container.innerHTML = `
+                <div class="forecast-header">
+                    <h3>${getTranslation("forecast.title")}</h3>
+                    <div class="forecast-confidence">
+                        ${getTranslation("forecast.confidence")}: <span id="forecast-confidence-value">--</span>
+                    </div>
+                </div>
+                <canvas id="forecast-chart"></canvas>
+                <div class="forecast-disclaimer">
+                    ${getTranslation("forecast.disclaimer")}
+                </div>
+            `;
+        // }
+        
+        const ctx = document.getElementById('forecast-chart').getContext('2d');
+        
+        // Préparer les données
+        const labels = [];
+        const buyPrices = [];
+        const buyLow = [];
+        const buyHigh = [];
+        const sellPrices = [];
+        const sellLow = [];
+        const sellHigh = [];
+        
+        let confidenceSum = 0;
+        let confidenceCount = 0;
+        
+        // Traiter les prévisions d'achat
+        if (buyForecast && buyForecast.length > 0) {
+            buyForecast.forEach(point => {
+                if (!labels.includes(point.date)) {
+                    labels.push(point.date);
+                }
+                buyPrices.push(point.price);
+                buyLow.push(point.lowEstimate);
+                buyHigh.push(point.highEstimate);
+                
+                if (point.confidence) {
+                    confidenceSum += point.confidence;
+                    confidenceCount++;
+                }
+            });
+        }
+        
+        // Traiter les prévisions de vente
+        if (sellForecast && sellForecast.length > 0) {
+            sellForecast.forEach((point, i) => {
+                if (i >= labels.length) {
+                    labels.push(point.date);
+                }
+                sellPrices.push(point.price);
+                sellLow.push(point.lowEstimate);
+                sellHigh.push(point.highEstimate);
+                
+                if (point.confidence) {
+                    confidenceSum += point.confidence;
+                    confidenceCount++;
+                }
+            });
+        }
+        
+        // Mettre à jour la valeur de confiance
+        const avgConfidence = confidenceCount > 0 ? (confidenceSum / confidenceCount) : 0;
+        document.getElementById('forecast-confidence-value').textContent = `${Math.round(avgConfidence * 100)}%`;
+        
+        // Destruction du graphique existant si présent
+        if (this.forecastChart) {
+            this.forecastChart.destroy();
+        }
+
+        // // Créer un plugin pour synchroniser la visibilité des datasets
+        // const synchronizeVisibility = {
+        //     id: 'synchronizeVisibility',
+        //     beforeDraw: (chart) => {
+        //         const datasets = chart.data.datasets;
+                
+        //         // Pour les datasets d'achat
+        //         if (datasets.length > 2) {
+        //             const meta0 = chart.getDatasetMeta(0); // Prévision achat
+        //             const meta1 = chart.getDatasetMeta(1); // Max achat
+        //             const meta2 = chart.getDatasetMeta(2); // Min achat
+                    
+        //             // Si la ligne principale est cachée, cacher les zones
+        //             if (meta0.hidden) {
+        //                 meta1.hidden = true;
+        //                 meta2.hidden = true;
+        //             } 
+        //             // Si la ligne principale est visible, montrer les zones
+        //             else {
+        //                 meta1.hidden = false;
+        //                 meta2.hidden = false;
+        //             }
+        //         }
+                
+        //         // Pour les datasets de vente
+        //         if (datasets.length > 5) {
+        //             const meta3 = chart.getDatasetMeta(3); // Prévision vente
+        //             const meta4 = chart.getDatasetMeta(4); // Max vente
+        //             const meta5 = chart.getDatasetMeta(5); // Min vente
+                    
+        //             // Si la ligne principale est cachée, cacher les zones
+        //             if (meta3.hidden) {
+        //                 meta4.hidden = true;
+        //                 meta5.hidden = true;
+        //             } 
+        //             // Si la ligne principale est visible, montrer les zones
+        //             else {
+        //                 meta4.hidden = false;
+        //                 meta5.hidden = false;
+        //             }
+        //         }
+        //     }
+        // };
+        
+        // Au lieu d'utiliser un plugin, utilisez l'API d'événements de Chart.js
+        const legendClickHandler = {
+            id: 'legendClickHandler',
+            beforeInit(chart) {
+                // Stocker le gestionnaire d'événements original
+                const originalClick = chart.options.plugins.legend.onClick;
+                
+                // Remplacer par notre gestionnaire personnalisé
+                chart.options.plugins.legend.onClick = function(e, legendItem, legend) {
+                    // Appeler le gestionnaire d'origine pour basculer la visibilité
+                    originalClick.call(this, e, legendItem, legend);
+                    
+                    // Déterminer quel groupe de datasets est affecté
+                    const index = legendItem.datasetIndex;
+                    const isPurchaseGroup = index === 0; // Prévision achat
+                    const isSellGroup = index === 3; // Prévision vente (si présent)
+                    
+                    // Obtenir l'état de visibilité actuel après le clic
+                    const meta = chart.getDatasetMeta(index);
+                    const isVisible = !meta.hidden;
+                    
+                    // Synchroniser la visibilité des zones Min/Max
+                    if (isPurchaseGroup) {
+                        chart.getDatasetMeta(1).hidden = !isVisible; // Max achat
+                        chart.getDatasetMeta(2).hidden = !isVisible; // Min achat
+                    } else if (isSellGroup && chart.getDatasetMeta(4)) {
+                        chart.getDatasetMeta(4).hidden = !isVisible; // Max vente
+                        chart.getDatasetMeta(5).hidden = !isVisible; // Min vente
+                    }
+                    
+                    // Forcer la mise à jour du graphique
+                    chart.update();
+                };
+            }
+        };
+        
+        // Création du graphique
+        this.forecastChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels.map(date => luxon.DateTime.fromISO(date).toFormat('dd/MM')),
+                datasets: [
+                    // Données d'achat
+                    ...(buyPrices.length > 0 ? [
+                        {
+                            label: `${getTranslation("forecast.predictedBuyPrice")}`,
+                            data: buyPrices,
+                            borderColor: this.colors.buy,
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            tension: 0.1,
+                            pointStyle: 'circle',
+                            pointRadius: 4
+                        },
+                        {
+                            label: `${getTranslation("forecast.maxBuyPrice")}`,
+                            data: buyHigh,
+                            borderColor: 'transparent',
+                            backgroundColor: 'rgba(244, 67, 54, 0.2)',
+                            borderWidth: 0,
+                            tension: 0.1,
+                            pointStyle: 'circle',
+                            pointRadius: 0,
+                            fill: '+1'
+                        },
+                        {
+                            label: `${getTranslation("forecast.minBuyPrice")}`,
+                            data: buyLow,
+                            borderColor: 'transparent',
+                            backgroundColor: 'transparent',
+                            borderWidth: 0,
+                            tension: 0.1,
+                            pointStyle: 'circle',
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ] : []),
+                    
+                    // Données de vente
+                    ...(sellPrices.length > 0 ? [
+                        {
+                            label: `${getTranslation("forecast.predictedSellPrice")}`,
+                            data: sellPrices,
+                            borderColor: this.colors.sell,
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            tension: 0.1,
+                            pointStyle: 'triangle',
+                            pointRadius: 4
+                        },
+                        {
+                            label: `${getTranslation("forecast.maxSellPrice")}`,
+                            data: sellHigh,
+                            borderColor: 'transparent',
+                            backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                            borderWidth: 0,
+                            tension: 0.1,
+                            pointStyle: 'circle',
+                            pointRadius: 0,
+                            fill: '+1'
+                        },
+                        {
+                            label: `${getTranslation("forecast.minSellPrice")}`,
+                            data: sellLow,
+                            borderColor: 'transparent',
+                            backgroundColor: 'transparent',
+                            borderWidth: 0,
+                            tension: 0.1,
+                            pointStyle: 'circle',
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ] : [])
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            filter: item => {
+                                // N'afficher que les lignes principales dans la légende
+                                return item.text.includes(`${getTranslation("forecast.predicted")}`);
+                            }
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false
+                    }
+                }
+            },
+            plugins: [legendClickHandler]
+        });
+    }
+    
+    /**
+     * Affiche les signaux de trading
+     */
+    displayTradingSignals(data) {
+        const container = document.getElementById('signals-container');
+        if (!container) return;
+        
+        const buyAnalysis = data.buyAnalysis;
+        const sellAnalysis = data.sellAnalysis;
+        
+        // Vérifier si nous avons des signaux
+        const buySignals = buyAnalysis && buyAnalysis.signals ? buyAnalysis.signals : [];
+        const sellSignals = sellAnalysis && sellAnalysis.signals ? sellAnalysis.signals : [];
+        
+        if (buySignals.length === 0 && sellSignals.length === 0) {
+            container.innerHTML = `<div class="no-data-message">${getTranslation("TradingSignals.noData")}</div>`;
+            return;
+        }
+        
+        // Construire le HTML pour les signaux
+        let html = `<h3>${getTranslation("TradingSignals.title")}</h3>`;
+
+        // Signaux d'achat
+        if (buySignals.length > 0) {
+            html += `<div class="signals-section buy-signals">`;
+            html += `<h4>${getTranslation("TradingSignals.signals.buy")}</h4>`;
+            html += `<ul class="signals-list">`;
+
+            buySignals.forEach(signal => {
+                const signalClass = this.getSignalClass(signal.type);
+                html += `
+                    <li class="signal-item ${signalClass}">
+                        <div class="signal-icon"><i class="${this.getSignalIcon(signal.type)}"></i></div>
+                        <div class="signal-content">
+                            <div class="signal-title">${this.getSignalTitle(signal.type)}</div>
+                            <div class="signal-description">${signal.description}</div>
+                            <div class="signal-time">${luxon.DateTime.fromISO(signal.timestamp).toFormat('dd/MM/yyyy HH:mm')}</div>
+                        </div>
+                    </li>
+                `;
+            });
+            
+            html += '</ul></div>';
+        }
+        
+        // Signaux de vente
+        if (sellSignals.length > 0) {
+            html += '<div class="signals-section sell-signals">';
+            html += `<h4>${getTranslation("TradingSignals.signals.sell")}</h4>`;
+            html += '<ul class="signals-list">';
+            
+            sellSignals.forEach(signal => {
+                const signalClass = this.getSignalClass(signal.type);
+                html += `
+                    <li class="signal-item ${signalClass}">
+                        <div class="signal-icon"><i class="${this.getSignalIcon(signal.type)}"></i></div>
+                        <div class="signal-content">
+                            <div class="signal-title">${this.getSignalTitle(signal.type)}</div>
+                            <div class="signal-description">${signal.description}</div>
+                            <div class="signal-time">${luxon.DateTime.fromISO(signal.timestamp).toFormat('dd/MM/yyyy HH:mm')}</div>
+                        </div>
+                    </li>
+                `;
+            });
+            
+            html += '</ul></div>';
+        }
+        
+        container.innerHTML = html;
+    }
+    
+    /**
+     * Affiche les niveaux de support et résistance
+     */
+    displaySupportResistance(data) {
+        const container = document.getElementById('support-resistance-container');
+        if (!container) return;
+        
+        const buySupportLevels = data.buySupportLevels || [];
+        const buyResistanceLevels = data.buyResistanceLevels || [];
+        const sellSupportLevels = data.sellSupportLevels || [];
+        const sellResistanceLevels = data.sellResistanceLevels || [];
+        
+        if (buySupportLevels.length === 0 && buyResistanceLevels.length === 0 && 
+            sellSupportLevels.length === 0 && sellResistanceLevels.length === 0) {
+            container.innerHTML = `<div class="no-data-message">${getTranslation("SupportResistance.noData")}</div>`;
+            return;
+        }
+        
+        // Construire le HTML pour les niveaux
+        let html = `<h3>${getTranslation("SupportResistance.title")}</h3>`;
+        
+        // Niveaux pour les prix d'achat
+        if (buySupportLevels.length > 0 || buyResistanceLevels.length > 0) {
+            html += `<div class="levels-section buy-levels">`;
+            html += `<h4>${getTranslation("SupportResistance.buy")}</h4>`;
+            
+            html += '<div class="levels-container">';
+            
+            // Résistances
+            if (buyResistanceLevels.length > 0) {
+                html += '<div class="resistance-levels">';
+                html += `<h5>${getTranslation("SupportResistance.resistance")}</h5>`;
+                html += '<ul>';
+                
+                buyResistanceLevels
+                    .sort((a, b) => b - a) // Trier du plus haut au plus bas
+                    .forEach(level => {
+                        html += `<li>${level.toFixed(2)}</li>`;
+                    });
+                
+                html += '</ul></div>';
+            }
+            
+            // Supports
+            if (buySupportLevels.length > 0) {
+                html += '<div class="support-levels">';
+                html += `<h5>${getTranslation("SupportResistance.support")}</h5>`;
+                html += '<ul>';
+                
+                buySupportLevels
+                    .sort((a, b) => b - a) // Trier du plus haut au plus bas
+                    .forEach(level => {
+                        html += `<li>${level.toFixed(2)}</li>`;
+                    });
+                
+                html += '</ul></div>';
+            }
+            
+            html += '</div></div>';
+        }
+        
+        // Niveaux pour les prix de vente
+        if (sellSupportLevels.length > 0 || sellResistanceLevels.length > 0) {
+            html += '<div class="levels-section sell-levels">';
+            html += `<h4>${getTranslation("SupportResistance.sell")}</h4>`;
+            
+            html += '<div class="levels-container">';
+            
+            // Résistances
+            if (sellResistanceLevels.length > 0) {
+                html += '<div class="resistance-levels">';
+                html += `<h5>${getTranslation("SupportResistance.resistance")}</h5>`;
+                html += '<ul>';
+                
+                sellResistanceLevels
+                    .sort((a, b) => b - a) // Trier du plus haut au plus bas
+                    .forEach(level => {
+                        html += `<li>${level.toFixed(2)}</li>`;
+                    });
+                
+                html += '</ul></div>';
+            }
+            
+            // Supports
+            if (sellSupportLevels.length > 0) {
+                html += '<div class="support-levels">';
+                html += `<h5>${getTranslation("SupportResistance.support")}</h5>`;
+                html += '<ul>';
+                
+                sellSupportLevels
+                    .sort((a, b) => b - a) // Trier du plus haut au plus bas
+                    .forEach(level => {
+                        html += `<li>${level.toFixed(2)}</li>`;
+                    });
+                
+                html += '</ul></div>';
+            }
+            
+            html += '</div></div>';
+        }
+        
+        container.innerHTML = html;
+    }
+    
+    // Méthodes utilitaires
+    
+    /**
+     * Convertit une période en nombre de jours
+     */
+    getPeriodDays(period) {
+        switch (period) {
+            case '1h': return 1;
+            case '6h': return 1;
+            case '12h': return 1;
+            case '1d': return 1;
+            case '1w': return 7;
+            case '1m': return 30;
+            default: return 7;
+        }
+    }
+    
+    /**
+     * Retourne une classe CSS pour un changement de valeur
+     */
+    getChangeClass(change) {
+        if (change > 0) return 'positive';
+        if (change < 0) return 'negative';
+        return 'neutral';
+    }
+    getChangeBuyClass(change) {
+        if (change > 0) return 'positive';
+        if (change < 0) return 'negative';
+        return 'neutral';
+    }
+    getChangeSellClass(change) {
+        if (change > 0) return 'negative';
+        if (change < 0) return 'positive';
+        return 'neutral';
+    }
+    
+    /**
+     * Formate un pourcentage de changement
+     */
+    formatChange(change) {
+        if (change === undefined || change === null) return '--';
+        return `${change > 0 ? '+' : ''}${change.toFixed(2)}%`;
+    }
+    
+    /**
+     * Retourne le libellé d'une tendance
+     */
+    getTrendLabel(trend) {
+        switch (trend) {
+            case 'RISING': return getTranslation('forecast.uptrend');
+            case 'FALLING': return getTranslation('forecast.downtrend');
+            case 'STABLE': return getTranslation('forecast.stable');
+            case 'VOLATILE': return getTranslation('forecast.volatile');
+            case 'SPREAD_CHANGING': return getTranslation('forecast.spread_changing');
+            default: return 'Unknown';
+        }
+    }
+    
+    /**
+     * Retourne une classe CSS pour un type de signal
+     */
+    getSignalClass(signalType) {
+        switch (signalType) {
+            case 'GOLDEN_CROSS': return 'bullish strong';
+            case 'DEATH_CROSS': return 'bearish strong';
+            case 'OVERBOUGHT': return 'bearish';
+            case 'OVERSOLD': return 'bullish';
+            case 'MACD_BULLISH_CROSS': return 'bullish';
+            case 'MACD_BEARISH_CROSS': return 'bearish';
+            case 'PRICE_ABOVE_UPPER_BAND': return 'bearish';
+            case 'PRICE_BELOW_LOWER_BAND': return 'bullish';
+            default: return 'neutral';
+        }
+    }
+    
+    /**
+     * Retourne une icône pour un type de signal
+     */
+    getSignalIcon(signalType) {
+        switch (signalType) {
+            case 'GOLDEN_CROSS': return 'fas fa-arrow-trend-up';
+            case 'DEATH_CROSS': return 'fas fa-arrow-trend-down';
+            case 'OVERBOUGHT': return 'fas fa-temperature-high';
+            case 'OVERSOLD': return 'fas fa-temperature-low';
+            case 'MACD_BULLISH_CROSS': return 'fas fa-chart-line';
+            case 'MACD_BEARISH_CROSS': return 'fas fa-chart-line fa-flip-vertical';
+            case 'PRICE_ABOVE_UPPER_BAND': return 'fas fa-arrow-up';
+            case 'PRICE_BELOW_LOWER_BAND': return 'fas fa-arrow-down';
+            default: return 'fas fa-question';
+        }
+    }
+    
+    /**
+     * Retourne un titre pour un type de signal
+     */
+    getSignalTitle(signalType) {
+        switch (signalType) {
+            case 'GOLDEN_CROSS': return `${getTranslation('signal.bullish')} (Golden Cross)`;
+            case 'DEATH_CROSS': return `${getTranslation('signal.bearish')} (Death Cross)`;
+            case 'OVERBOUGHT': return `${getTranslation('signal.overbought')} (RSI > 70)`;
+            case 'OVERSOLD': return `${getTranslation('signal.oversold')} (RSI < 30)`;
+            case 'MACD_BULLISH_CROSS': return `${getTranslation('signal.bullish')} (MACD)`;
+            case 'MACD_BEARISH_CROSS': return `${getTranslation('signal.bearish')} (MACD)`;
+            case 'PRICE_ABOVE_UPPER_BAND': return `${getTranslation('signal.price_above_upper_band')}`;
+            case 'PRICE_BELOW_LOWER_BAND': return `${getTranslation('signal.price_below_lower_band')}`;
+            default: return `${getTranslation('signal.unknown_signal')}`;
+        }
     }
 }

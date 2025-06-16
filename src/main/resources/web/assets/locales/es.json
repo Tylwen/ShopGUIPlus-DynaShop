@@ -1,5 +1,5 @@
 {
-  "title": "Panel de Control del Mercado DynaShop",
+  "title": "Panel del Mercado DynaShop",
   "theme": {
     "dark": "Modo oscuro",
     "light": "Modo claro"
@@ -8,11 +8,16 @@
     "disabled": "Desactivado",
     "minutes": "{0} minutos"
   },
+  "time": {
+    "hours": "horas",
+    "minutes": "minutos",
+    "seconds": "segundos"
+  },
   "selectors": {
     "shop": "Tienda:",
-    "chooseShop": "Elegir una tienda",
+    "chooseShop": "Buscar una tienda...",
     "item": "Artículo:",
-    "chooseItem": "Elegir un artículo",
+    "chooseItem": "Buscar un artículo...",
     "period": "Período:"
   },
   "periods": {
@@ -20,20 +25,119 @@
     "6h": "6 horas",
     "12h": "12 horas",
     "1d": "1 día",
+    "7d": "7 días",
+    "14d": "14 días",
+    "30d": "30 días",
     "1w": "1 semana",
     "1m": "1 mes"
   },
   "charts": {
     "priceEvolution": "Evolución de precios",
-    "volume": "Volumen de transacciones"
+    "transactionVolume": "Volumen de transacciones"
   },
   "stats": {
     "currentPrice": "Precio actual",
     "variation": "Variación",
     "volume": "Volumen",
     "lastTransaction": "Última transacción",
-    "shopType": "Tipo de DynaShop",
-    "stock": "Inventario"
+    "shopType": {
+      "title": "Tipo de DynaShop",
+      "dynamic": "Dinámico",
+      "stock": "Stock (precio variable)",
+      "static_stock": "Stock (precio fijo)",
+      "recipe": "Receta",
+      "linked": "Vinculado",
+      "static": "Estático",
+      "unknown": "Desconocido"
+    },
+    "stock": "Inventario",
+    "buyPrice": "Precio de compra",
+    "sellPrice": "Precio de venta",
+    "buy": "Compra",
+    "sell": "Venta",
+    "price": "Precio"
   },
-  "footer": "DynaShop Market Dashboard - Plugin por Tylwen"
+  "trend": {
+    "title": "Tendencia general",
+    "analyzeTrends": "Analizar tendencias",
+    "selectItem": "Seleccione un artículo y haga clic en \"Analizar tendencias\" para ver el análisis",
+    "technicalIndicators": "Indicadores técnicos",
+    "strength": "Fuerza",
+    "volatility": "Volatilidad",
+    "buyPrice": "Precio de compra",
+    "sellPrice": "Precio de venta",
+    "volume": "Volumen"
+  },
+  "SMAChart": {
+    "title": "Medias Móviles (Compras)",
+    "noData": "Datos insuficientes para mostrar las medias móviles"
+  },
+  "RSIChart": {
+    "title": "Índice de Fuerza Relativa (RSI)",
+    "noData": "Datos insuficientes para mostrar el RSI"
+  },
+  "MACDChart": {
+    "title": "Convergencia/Divergencia de Medias Móviles (MACD)",
+    "histogram": "Histograma",
+    "signalLine": "Señal",
+    "noData": "Datos insuficientes para mostrar el MACD"
+  },
+  "BollingerBandsChart": {
+    "title": "Bandas de Bollinger",
+    "upperBand": "Banda superior",
+    "middleBand": "Media móvil",
+    "lowerBand": "Banda inferior",
+    "noData": "Datos insuficientes para mostrar las bandas de Bollinger"
+  },
+  "forecast": {
+    "title": "Previsiones de precios",
+    "predicted": "Previsión",
+    "predictedBuyPrice": "Previsión de compra",
+    "minBuyPrice": "Mín. compra",
+    "maxBuyPrice": "Máx. compra",
+    "predictedSellPrice": "Previsión de venta",
+    "minSellPrice": "Mín. venta",
+    "maxSellPrice": "Máx. venta",
+    "confidence": "Nivel de confianza",
+    "trend": "Tendencia",
+    "volatility": "Volatilidad",
+    "priceRange": "Rango de precios",
+    "uptrend": "Al alza",
+    "downtrend": "A la baja",
+    "stable": "Estable",
+    "high": "Alta",
+    "medium": "Media",
+    "low": "Baja",
+    "volatile": "Volátil",
+    "spread_changing": "Cambio de diferencial",
+    "nextDays": "Previsión para los próximos {0} días",
+    "disclaimer": "Nota: Estas previsiones se basan en el análisis de tendencias históricas y no constituyen consejos de inversión.",
+    "noData": "Datos insuficientes para generar previsiones"
+  },
+  "signal": {
+    "bullish": "Cruce alcista",
+    "bearish": "Cruce bajista",
+    "overbought": "Sobrecompra",
+    "oversold": "Sobreventa",
+    "price_above_upper_band": "Precio por encima de la banda superior",
+    "price_below_lower_band": "Precio por debajo de la banda inferior",
+    "unknown_signal": "Señal desconocida"
+  },
+  "TradingSignals": {
+    "title": "Señales de trading",
+    "noData": "No se detectaron señales de trading",
+    "signals": {
+      "buy": "Señales para precios de compra",
+      "sell": "Señales para precios de venta"
+    }
+  },
+  "SupportResistance": {
+    "title": "Niveles de soporte y resistencia",
+    "buy": "Precio de compra",
+    "sell": "Precio de venta",
+    "support": "Soporte",
+    "resistance": "Resistencia",
+    "noData": "Niveles de soporte y resistencia no disponibles"
+  },
+  "footer": "Panel de Control del Mercado DynaShop - Plugin por Tylwen"
 }

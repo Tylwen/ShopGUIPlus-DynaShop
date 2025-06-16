@@ -6,6 +6,8 @@ import com.sun.net.httpserver.HttpExchange;
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
 import fr.tylwen.satyria.dynashop.data.model.TransactionRecord;
+import fr.tylwen.satyria.dynashop.system.MarketTrendAnalyzer;
+import fr.tylwen.satyria.dynashop.system.MarketTrendAnalyzer.MarketTrend;
 import fr.tylwen.satyria.dynashop.system.chart.PriceHistory;
 import fr.tylwen.satyria.dynashop.system.chart.PriceHistory.PriceDataPoint;
 import net.brcdev.shopgui.ShopGuiPlusApi;
@@ -73,10 +75,7 @@ public class MarketWebServer {
             server.createContext("/api/price-stats", this::handlePriceStats);
             server.createContext("/api/shop-type", this::handleShopType);
             
-            server.createContext("/api/price-forecast", this::handlePriceForecast);
-            server.createContext("/api/item-correlations", this::handleItemCorrelations);
-            server.createContext("/api/player-transactions", this::handlePlayerTransactions);
-            server.createContext("/api/heatmap-data", this::handleHeatmapData);
+            server.createContext("/api/market-trends", this::handleMarketTrends);
             
             // Création d'un pool de threads pour gérer les requêtes
             ThreadPoolExecutor threadPoolExecutor = (ThreadPoolExecutor) Executors.newFixedThreadPool(10);
@@ -877,9 +876,9 @@ public class MarketWebServer {
     // }
 
     /**
-     * Gère les prévisions de prix basées sur l'historique
+     * Gère les requêtes d'analyse de tendances du marché
      */
-    private void handlePriceForecast(HttpExchange exchange) throws IOException {
+    private void handleMarketTrends(HttpExchange exchange) throws IOException {
         if (!exchange.getRequestMethod().equals("GET")) {
             exchange.sendResponseHeaders(405, 0);
             exchange.getResponseBody().close();
@@ -889,8 +888,7 @@ public class MarketWebServer {
         Map<String, String[]> queryParams = parseQueryParams(exchange.getRequestURI().getQuery());
         String shopId = queryParams.containsKey("shop") ? queryParams.get("shop")[0] : null;
         String itemId = queryParams.containsKey("item") ? queryParams.get("item")[0] : null;
-        String periodStr = queryParams.containsKey("period") ? queryParams.get("period")[0] : "1w";
-        int forecastDays = queryParams.containsKey("days") ? Integer.parseInt(queryParams.get("days")[0]) : 7;
+        int days = queryParams.containsKey("days") ? Integer.parseInt(queryParams.get("days")[0]) : 7;
         
         if (shopId == null || itemId == null) {
             exchange.sendResponseHeaders(400, 0);
@@ -899,29 +897,46 @@ public class MarketWebServer {
         }
         
         try {
-            // Récupérer l'historique des prix
-            PriceHistory history = plugin.getStorageManager().getPriceHistory(shopId, itemId);
-            List<PriceDataPoint> dataPoints = history.getDataPoints();
+            // Analyser les tendances du marché
+            MarketTrendAnalyzer analyzer = new MarketTrendAnalyzer(plugin);
+            MarketTrend trend = analyzer.analyzeTrend(shopId, itemId, days);
             
-            // Filtrer par période
-            List<PriceDataPoint> filteredPoints = filterByPeriod(dataPoints, periodStr);
-            
-            // Calculer les prévisions
-            List<Map<String, Object>> forecastData = generatePriceForecast(filteredPoints, forecastDays);
-            
-            // Réponse
+            // Créer la réponse
             Map<String, Object> response = new HashMap<>();
-            response.put("historicalData", filteredPoints.stream()
-                .map(this::convertDataPointToMap)
-                .collect(Collectors.toList()));
-            response.put("forecastData", forecastData);
+            response.put("shopId", shopId);
+            response.put("itemId", itemId);
+            response.put("itemName", plugin.getShopConfigManager().getItemName(null, shopId, itemId));
+            response.put("period", days + "d");
+            response.put("trend", trend.getTrendType().name());
+            response.put("strength", trend.getStrength());
+            response.put("volatility", trend.getVolatility());
+            
+            // Nouvelles données séparées pour prix d'achat et de vente
+            response.put("buyPriceChange", trend.getBuyPriceChangePercent());
+            response.put("sellPriceChange", trend.getSellPriceChangePercent());
+            response.put("priceChange", trend.getPriceChangePercent()); // Valeur combinée pour rétrocompatibilité
+            response.put("volumeChange", trend.getVolumeChangePercent());
+            
+            // Ajouter les données d'analyse technique
+            response.put("buyAnalysis", trend.buyAnalysis != null ? trend.buyAnalysis.toMap() : null);
+            response.put("sellAnalysis", trend.sellAnalysis != null ? trend.sellAnalysis.toMap() : null);
+            
+            // Ajouter les prévisions
+            response.put("buyForecast", trend.getBuyForecastData());
+            response.put("sellForecast", trend.getSellForecastData());
+            
+            // Ajouter les niveaux de support et résistance
+            response.put("buySupportLevels", trend.getBuySupportLevels());
+            response.put("buyResistanceLevels", trend.getBuyResistanceLevels());
+            response.put("sellSupportLevels", trend.getSellSupportLevels());
+            response.put("sellResistanceLevels", trend.getSellResistanceLevels());
             
             String jsonResponse = gson.toJson(response);
             sendJsonResponse(exchange, jsonResponse);
         } catch (Exception e) {
-            plugin.getLogger().severe("Error generating price forecast: " + e.getMessage());
+            plugin.getLogger().severe("Erreur lors de l'analyse des tendances: " + e.getMessage());
             e.printStackTrace();
-            String errorJson = "{\"error\": \"Failed to generate price forecast\"}";
+            String errorJson = "{\"error\": \"Failed to analyze market trends: " + e.getMessage() + "\"}";
             exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(500, errorJson.length());
             exchange.getResponseBody().write(errorJson.getBytes());
@@ -929,633 +944,4 @@ public class MarketWebServer {
         }
     }
 
-    /**
-     * Génère des prévisions de prix basées sur l'historique
-     */
-    private List<Map<String, Object>> generatePriceForecast(List<PriceDataPoint> historyPoints, int daysToForecast) {
-        // Si pas assez de données historiques pour faire une prévision
-        if (historyPoints.size() < 5) {
-            return List.of();
-        }
-        
-        List<Map<String, Object>> forecastPoints = new ArrayList<>();
-        
-        // 1. Calculer la tendance (moyenne mobile simple)
-        double[] buyPrices = historyPoints.stream()
-            .mapToDouble(PriceDataPoint::getCloseBuyPrice)
-            .filter(price -> price > 0)
-            .toArray();
-        
-        double[] sellPrices = historyPoints.stream()
-            .mapToDouble(PriceDataPoint::getCloseSellPrice)
-            .filter(price -> price > 0)
-            .toArray();
-        
-        if (buyPrices.length == 0 && sellPrices.length == 0) {
-            return List.of();
-        }
-        
-        // 2. Calculer les coefficients de tendance linéaire (y = ax + b)
-        double buyTrendCoef = 0;
-        double buyYIntercept = 0;
-        double sellTrendCoef = 0;
-        double sellYIntercept = 0;
-        
-        if (buyPrices.length > 1) {
-            double[] buyTrend = calculateLinearTrend(buyPrices);
-            buyTrendCoef = buyTrend[0];
-            buyYIntercept = buyTrend[1];
-        }
-        
-        if (sellPrices.length > 1) {
-            double[] sellTrend = calculateLinearTrend(sellPrices);
-            sellTrendCoef = sellTrend[0];
-            sellYIntercept = sellTrend[1];
-        }
-        
-        // 3. Générer les points de prévision
-        LocalDateTime lastTimestamp = historyPoints.get(historyPoints.size() - 1).getTimestamp();
-        double lastBuyPrice = buyPrices.length > 0 ? buyPrices[buyPrices.length - 1] : -1;
-        double lastSellPrice = sellPrices.length > 0 ? sellPrices[sellPrices.length - 1] : -1;
-        
-        // Générer un point par jour
-        for (int i = 1; i <= daysToForecast; i++) {
-            LocalDateTime forecastTime = lastTimestamp.plusDays(i);
-            
-            double forecastBuyPrice = -1;
-            double forecastSellPrice = -1;
-            
-            // Appliquer la tendance linéaire
-            if (buyPrices.length > 0) {
-                forecastBuyPrice = buyYIntercept + buyTrendCoef * (buyPrices.length + i);
-                // Assurer que le prix ne descend pas en dessous de 0
-                forecastBuyPrice = Math.max(0.01, forecastBuyPrice);
-            }
-            
-            if (sellPrices.length > 0) {
-                forecastSellPrice = sellYIntercept + sellTrendCoef * (sellPrices.length + i);
-                // Assurer que le prix ne descend pas en dessous de 0
-                forecastSellPrice = Math.max(0.01, forecastSellPrice);
-            }
-            
-            Map<String, Object> point = new HashMap<>();
-            point.put("timestamp", forecastTime.toString());
-            point.put("openBuy", forecastBuyPrice);
-            point.put("closeBuy", forecastBuyPrice);
-            point.put("highBuy", forecastBuyPrice * 1.05); // Ajouter un peu de variabilité
-            point.put("lowBuy", forecastBuyPrice * 0.95);  // Ajouter un peu de variabilité
-            point.put("openSell", forecastSellPrice);
-            point.put("closeSell", forecastSellPrice);
-            point.put("highSell", forecastSellPrice * 1.05);
-            point.put("lowSell", forecastSellPrice * 0.95);
-            point.put("volume", 0); // Pas de volume pour les prévisions
-            point.put("forecast", true); // Indicateur de prévision
-            
-            forecastPoints.add(point);
-        }
-        
-        return forecastPoints;
-    }
-
-    /**
-     * Calcule la tendance linéaire d'une série de données
-     * @return double[] avec [0] = coefficient directeur, [1] = ordonnée à l'origine
-     */
-    private double[] calculateLinearTrend(double[] prices) {
-        int n = prices.length;
-        
-        // Calcul des sommes nécessaires
-        double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-        for (int i = 0; i < n; i++) {
-            sumX += i;
-            sumY += prices[i];
-            sumXY += i * prices[i];
-            sumX2 += i * i;
-        }
-        
-        // Calcul des coefficients de régression (y = ax + b)
-        double a = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-        double b = (sumY - a * sumX) / n;
-        
-        return new double[] { a, b };
-    }
-
-    /**
-     * Gère les données de corrélation entre items
-     */
-    private void handleItemCorrelations(HttpExchange exchange) throws IOException {
-        if (!exchange.getRequestMethod().equals("GET")) {
-            exchange.sendResponseHeaders(405, 0);
-            exchange.getResponseBody().close();
-            return;
-        }
-        
-        Map<String, String[]> queryParams = parseQueryParams(exchange.getRequestURI().getQuery());
-        String shopId = queryParams.containsKey("shop") ? queryParams.get("shop")[0] : null;
-        String itemId = queryParams.containsKey("item") ? queryParams.get("item")[0] : null;
-        int maxItems = queryParams.containsKey("max") ? Integer.parseInt(queryParams.get("max")[0]) : 10;
-        
-        if (shopId == null || itemId == null) {
-            exchange.sendResponseHeaders(400, 0);
-            exchange.getResponseBody().close();
-            return;
-        }
-        
-        try {
-            // Récupérer l'historique des prix pour l'item de référence
-            PriceHistory targetHistory = plugin.getStorageManager().getPriceHistory(shopId, itemId);
-            List<PriceDataPoint> targetPoints = targetHistory.getDataPoints();
-            
-            if (targetPoints.isEmpty()) {
-                String errorJson = "{\"error\": \"No price history found for the item\"}";
-                exchange.getResponseHeaders().set("Content-Type", "application/json");
-                exchange.sendResponseHeaders(404, errorJson.length());
-                exchange.getResponseBody().write(errorJson.getBytes());
-                exchange.getResponseBody().close();
-                return;
-            }
-            
-            // Obtenir tous les items du même shop
-            Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
-            if (shop == null) {
-                exchange.sendResponseHeaders(404, 0);
-                exchange.getResponseBody().close();
-                return;
-            }
-            
-            // Liste pour stocker les corrélations
-            List<Map<String, Object>> correlations = new ArrayList<>();
-            
-            // Extraire les timestamps et prix de l'item cible
-            Map<LocalDateTime, Double> targetPrices = new HashMap<>();
-            for (PriceDataPoint point : targetPoints) {
-                if (point.getCloseBuyPrice() > 0) {
-                    targetPrices.put(point.getTimestamp(), point.getCloseBuyPrice());
-                }
-            }
-            
-            // Comparer avec d'autres items du même shop
-            for (ShopItem shopItem : shop.getShopItems()) {
-                String compareItemId = shopItem.getId();
-                
-                // Ne pas comparer l'item avec lui-même
-                if (compareItemId.equals(itemId)) {
-                    continue;
-                }
-                
-                PriceHistory compareHistory = plugin.getStorageManager().getPriceHistory(shopId, compareItemId);
-                List<PriceDataPoint> comparePoints = compareHistory.getDataPoints();
-                
-                if (comparePoints.isEmpty()) {
-                    continue;
-                }
-                
-                // Extraire les timestamps et prix de l'item comparé
-                Map<LocalDateTime, Double> comparePrices = new HashMap<>();
-                for (PriceDataPoint point : comparePoints) {
-                    if (point.getCloseBuyPrice() > 0) {
-                        comparePrices.put(point.getTimestamp(), point.getCloseBuyPrice());
-                    }
-                }
-                
-                // Calculer la corrélation entre les deux séries temporelles
-                double correlationCoefficient = calculateCorrelationCoefficient(targetPrices, comparePrices);
-                
-                // Ne garder que les corrélations significatives (positives ou négatives)
-                if (!Double.isNaN(correlationCoefficient) && Math.abs(correlationCoefficient) > 0.3) {
-                    Map<String, Object> correlationData = new HashMap<>();
-                    correlationData.put("itemId", compareItemId);
-                    correlationData.put("itemName", plugin.getShopConfigManager().getItemName(null, shopId, compareItemId));
-                    correlationData.put("correlation", correlationCoefficient);
-                    correlationData.put("correlationType", correlationCoefficient > 0 ? "positive" : "negative");
-                    correlationData.put("strength", Math.abs(correlationCoefficient));
-                    
-                    correlations.add(correlationData);
-                }
-            }
-            
-            // Trier par force de corrélation décroissante
-            correlations.sort((a, b) -> Double.compare((double) b.get("strength"), (double) a.get("strength")));
-            
-            // Limiter au nombre maximum demandé
-            if (correlations.size() > maxItems) {
-                correlations = correlations.subList(0, maxItems);
-            }
-            
-            // Préparer la réponse
-            Map<String, Object> response = new HashMap<>();
-            response.put("targetItem", plugin.getShopConfigManager().getItemName(null, shopId, itemId));
-            response.put("correlations", correlations);
-            
-            String jsonResponse = gson.toJson(response);
-            sendJsonResponse(exchange, jsonResponse);
-        } catch (Exception e) {
-            plugin.getLogger().severe("Error calculating item correlations: " + e.getMessage());
-            e.printStackTrace();
-            String errorJson = "{\"error\": \"Failed to calculate item correlations\"}";
-            exchange.getResponseHeaders().set("Content-Type", "application/json");
-            exchange.sendResponseHeaders(500, errorJson.length());
-            exchange.getResponseBody().write(errorJson.getBytes());
-            exchange.getResponseBody().close();
-        }
-    }
-
-    /**
-     * Calcule le coefficient de corrélation entre deux séries temporelles de prix
-     */
-    private double calculateCorrelationCoefficient(Map<LocalDateTime, Double> series1, Map<LocalDateTime, Double> series2) {
-        // Identifier les timestamps communs aux deux séries
-        Set<LocalDateTime> commonTimestamps = new HashSet<>(series1.keySet());
-        commonTimestamps.retainAll(series2.keySet());
-        
-        // S'il y a moins de 5 points communs, la corrélation n'est pas fiable
-        if (commonTimestamps.size() < 5) {
-            return Double.NaN;
-        }
-        
-        // Extraire les valeurs communes aux deux séries
-        List<Double> values1 = new ArrayList<>();
-        List<Double> values2 = new ArrayList<>();
-        
-        for (LocalDateTime timestamp : commonTimestamps) {
-            values1.add(series1.get(timestamp));
-            values2.add(series2.get(timestamp));
-        }
-        
-        // Calculer les moyennes
-        double mean1 = values1.stream().mapToDouble(Double::doubleValue).average().orElse(0);
-        double mean2 = values2.stream().mapToDouble(Double::doubleValue).average().orElse(0);
-        
-        // Calculer la covariance et les écarts-types
-        double covariance = 0;
-        double variance1 = 0;
-        double variance2 = 0;
-        
-        for (int i = 0; i < values1.size(); i++) {
-            double diff1 = values1.get(i) - mean1;
-            double diff2 = values2.get(i) - mean2;
-            
-            covariance += diff1 * diff2;
-            variance1 += diff1 * diff1;
-            variance2 += diff2 * diff2;
-        }
-        
-        // Calculer le coefficient de corrélation de Pearson
-        if (variance1 == 0 || variance2 == 0) {
-            return 0; // Pas de corrélation si l'une des séries est constante
-        }
-        
-        return covariance / Math.sqrt(variance1 * variance2);
-    }
-
-    /**
-     * Gère les requêtes d'historique de transactions par joueur
-     */
-    private void handlePlayerTransactions(HttpExchange exchange) throws IOException {
-        if (!exchange.getRequestMethod().equals("GET")) {
-            exchange.sendResponseHeaders(405, 0);
-            exchange.getResponseBody().close();
-            return;
-        }
-        
-        Map<String, String[]> queryParams = parseQueryParams(exchange.getRequestURI().getQuery());
-        String playerUuid = queryParams.containsKey("player") ? queryParams.get("player")[0] : null;
-        String shopId = queryParams.containsKey("shop") ? queryParams.get("shop")[0] : null;
-        String period = queryParams.containsKey("period") ? queryParams.get("period")[0] : "7d";
-        int limit = queryParams.containsKey("limit") ? Integer.parseInt(queryParams.get("limit")[0]) : 100;
-        
-        // Le paramètre player est obligatoire
-        if (playerUuid == null) {
-            exchange.sendResponseHeaders(400, 0);
-            exchange.getResponseBody().close();
-            return;
-        }
-        
-        try {
-            // Déterminer la date de début en fonction de la période
-            LocalDateTime startDate = null;
-            switch (period) {
-                case "1d":
-                    startDate = LocalDateTime.now().minusDays(1);
-                    break;
-                case "7d":
-                    startDate = LocalDateTime.now().minusDays(7);
-                    break;
-                case "30d":
-                    startDate = LocalDateTime.now().minusDays(30);
-                    break;
-                case "all":
-                default:
-                    startDate = LocalDateTime.now().minusYears(10); // Pratiquement illimité
-                    break;
-            }
-            
-            // Récupérer les transactions du joueur
-            List<TransactionRecord> transactions = plugin.getStorageManager().getPlayerTransactions(playerUuid, shopId, startDate, limit);
-            
-            // Convertir les transactions en format approprié pour le JSON
-            List<Map<String, Object>> transactionsData = new ArrayList<>();
-            
-            for (TransactionRecord transaction : transactions) {
-                Map<String, Object> transactionMap = new HashMap<>();
-                transactionMap.put("id", transaction.getId());
-                transactionMap.put("timestamp", transaction.getTimestamp().toString());
-                transactionMap.put("playerName", transaction.getPlayerName());
-                transactionMap.put("playerUuid", transaction.getPlayerUuid().toString());
-                transactionMap.put("shopId", transaction.getShopId());
-                transactionMap.put("itemId", transaction.getItemId());
-                transactionMap.put("itemName", transaction.getItemName());
-                transactionMap.put("quantity", transaction.getQuantity());
-                transactionMap.put("unitPrice", transaction.getUnitPrice());
-                transactionMap.put("totalPrice", transaction.getTotalPrice());
-                transactionMap.put("transactionType", transaction.isBuy() ? "BUY" : "SELL");
-                
-                transactionsData.add(transactionMap);
-            }
-            
-            // Préparer des statistiques agrégées
-            Map<String, Object> stats = new HashMap<>();
-            
-            // Nombre total de transactions
-            stats.put("totalTransactions", transactions.size());
-            
-            // Montant total dépensé (achats)
-            double totalSpent = transactions.stream()
-                .filter(TransactionRecord::isBuy)
-                .mapToDouble(TransactionRecord::getTotalPrice)
-                .sum();
-            stats.put("totalSpent", totalSpent);
-            
-            // Montant total gagné (ventes)
-            double totalEarned = transactions.stream()
-                .filter(t -> !t.isBuy())
-                .mapToDouble(TransactionRecord::getTotalPrice)
-                .sum();
-            stats.put("totalEarned", totalEarned);
-            
-            // Items les plus achetés
-            Map<String, Integer> topBoughtItems = transactions.stream()
-                .filter(TransactionRecord::isBuy)
-                .collect(Collectors.groupingBy(TransactionRecord::getItemId, Collectors.summingInt(TransactionRecord::getQuantity)));
-            
-            // Convertir en liste triée pour le JSON
-            List<Map<String, Object>> topBoughtList = topBoughtItems.entrySet().stream()
-                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
-                .limit(5)
-                .map(entry -> {
-                    Map<String, Object> item = new HashMap<>();
-                    item.put("itemId", entry.getKey());
-                    item.put("quantity", entry.getValue());
-                    // Trouver le nom de l'item à partir des transactions
-                    String itemName = transactions.stream()
-                        .filter(t -> t.getItemId().equals(entry.getKey()))
-                        .map(TransactionRecord::getItemName)
-                        .findFirst()
-                        .orElse(entry.getKey());
-                    item.put("itemName", itemName);
-                    return item;
-                })
-                .collect(Collectors.toList());
-            stats.put("topBoughtItems", topBoughtList);
-            
-            // Items les plus vendus (même approche)
-            Map<String, Integer> topSoldItems = transactions.stream()
-                .filter(t -> !t.isBuy())
-                .collect(Collectors.groupingBy(TransactionRecord::getItemId, Collectors.summingInt(TransactionRecord::getQuantity)));
-            
-            List<Map<String, Object>> topSoldList = topSoldItems.entrySet().stream()
-                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
-                .limit(5)
-                .map(entry -> {
-                    Map<String, Object> item = new HashMap<>();
-                    item.put("itemId", entry.getKey());
-                    item.put("quantity", entry.getValue());
-                    String itemName = transactions.stream()
-                        .filter(t -> t.getItemId().equals(entry.getKey()))
-                        .map(TransactionRecord::getItemName)
-                        .findFirst()
-                        .orElse(entry.getKey());
-                    item.put("itemName", itemName);
-                    return item;
-                })
-                .collect(Collectors.toList());
-            stats.put("topSoldItems", topSoldList);
-            
-            // Créer la réponse finale
-            Map<String, Object> response = new HashMap<>();
-            response.put("transactions", transactionsData);
-            response.put("stats", stats);
-            
-            String jsonResponse = gson.toJson(response);
-            sendJsonResponse(exchange, jsonResponse);
-        } catch (Exception e) {
-            plugin.getLogger().severe("Error retrieving player transactions: " + e.getMessage());
-            e.printStackTrace();
-            String errorJson = "{\"error\": \"Failed to retrieve player transactions\"}";
-            exchange.getResponseHeaders().set("Content-Type", "application/json");
-            exchange.sendResponseHeaders(500, errorJson.length());
-            exchange.getResponseBody().write(errorJson.getBytes());
-            exchange.getResponseBody().close();
-        }
-    }
-
-    /**
-     * Gère les requêtes de données pour la carte thermique des produits
-     */
-    private void handleHeatmapData(HttpExchange exchange) throws IOException {
-        if (!exchange.getRequestMethod().equals("GET")) {
-            exchange.sendResponseHeaders(405, 0);
-            exchange.getResponseBody().close();
-            return;
-        }
-        
-        Map<String, String[]> queryParams = parseQueryParams(exchange.getRequestURI().getQuery());
-        String shopId = queryParams.containsKey("shop") ? queryParams.get("shop")[0] : null;
-        String period = queryParams.containsKey("period") ? queryParams.get("period")[0] : "7d";
-        String type = queryParams.containsKey("type") ? queryParams.get("type")[0] : "volume"; // volume, price, variation
-        
-        try {
-            // Déterminer la date de début en fonction de la période
-            LocalDateTime startDate = LocalDateTime.now();
-            switch (period) {
-                case "1d":
-                    startDate = startDate.minusDays(1);
-                    break;
-                case "7d":
-                    startDate = startDate.minusDays(7);
-                    break;
-                case "30d":
-                    startDate = startDate.minusDays(30);
-                    break;
-                case "all":
-                    startDate = startDate.minusYears(10); // Pratiquement illimité
-                    break;
-            }
-            
-            // Récupérer toutes les transactions de la période
-            List<TransactionRecord> allTransactions = plugin.getStorageManager().getAllTransactions(shopId, startDate);
-            
-            // Si aucun shop spécifié, regrouper par shop et par item
-            Map<String, Map<String, HeatmapItemData>> shopItemsData = new HashMap<>();
-            
-            for (TransactionRecord transaction : allTransactions) {
-                String currentShopId = transaction.getShopId();
-                String itemId = transaction.getItemId();
-                
-                // Initialiser les maps si nécessaire
-                shopItemsData.putIfAbsent(currentShopId, new HashMap<>());
-                
-                Map<String, HeatmapItemData> itemsData = shopItemsData.get(currentShopId);
-                itemsData.putIfAbsent(itemId, new HeatmapItemData(itemId, transaction.getItemName()));
-                
-                HeatmapItemData itemData = itemsData.get(itemId);
-                
-                // Mettre à jour les statistiques
-                if (transaction.isBuy()) {
-                    itemData.addBuyTransaction(transaction.getQuantity(), transaction.getTotalPrice());
-                } else {
-                    itemData.addSellTransaction(transaction.getQuantity(), transaction.getTotalPrice());
-                }
-            }
-            
-            // Convertir les données pour le heatmap
-            List<Map<String, Object>> heatmapData = new ArrayList<>();
-            
-            for (Map.Entry<String, Map<String, HeatmapItemData>> shopEntry : shopItemsData.entrySet()) {
-                String currentShopId = shopEntry.getKey();
-                
-                // Obtenir le nom du shop
-                String shopName = "Unknown Shop";
-                Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(currentShopId);
-                if (shop != null) {
-                    shopName = shop.getName();
-                }
-                
-                // Traiter tous les items du shop
-                for (HeatmapItemData itemData : shopEntry.getValue().values()) {
-                    Map<String, Object> dataPoint = new HashMap<>();
-                    dataPoint.put("shopId", currentShopId);
-                    dataPoint.put("shopName", shopName);
-                    dataPoint.put("itemId", itemData.getItemId());
-                    dataPoint.put("itemName", itemData.getItemName());
-                    
-                    // Sélectionner la valeur à utiliser pour la carte thermique selon le type demandé
-                    switch (type) {
-                        case "volume":
-                            dataPoint.put("value", itemData.getTotalVolume());
-                            dataPoint.put("buyVolume", itemData.getBuyVolume());
-                            dataPoint.put("sellVolume", itemData.getSellVolume());
-                            break;
-                        case "price":
-                            dataPoint.put("value", itemData.getAveragePrice());
-                            dataPoint.put("buyPrice", itemData.getAverageBuyPrice());
-                            dataPoint.put("sellPrice", itemData.getAverageSellPrice());
-                            break;
-                        case "variation":
-                            // Récupérer l'historique des prix pour calculer la variation
-                            PriceHistory history = plugin.getStorageManager().getPriceHistory(currentShopId, itemData.getItemId());
-                            List<PriceDataPoint> points = history.getDataPoints();
-                            
-                            double variation = 0;
-                            if (points.size() >= 2) {
-                                PriceDataPoint first = points.get(0);
-                                PriceDataPoint last = points.get(points.size() - 1);
-                                
-                                double firstPrice = first.getCloseBuyPrice();
-                                double lastPrice = last.getCloseBuyPrice();
-                                
-                                if (firstPrice > 0) {
-                                    variation = ((lastPrice - firstPrice) / firstPrice) * 100;
-                                }
-                            }
-                            
-                            dataPoint.put("value", variation);
-                            break;
-                        default:
-                            dataPoint.put("value", itemData.getTotalVolume());
-                            break;
-                    }
-                    
-                    heatmapData.add(dataPoint);
-                }
-            }
-            
-            // Trier les données selon la valeur (décroissante)
-            heatmapData.sort((a, b) -> Double.compare((double) b.get("value"), (double) a.get("value")));
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("period", period);
-            response.put("type", type);
-            response.put("data", heatmapData);
-            
-            String jsonResponse = gson.toJson(response);
-            sendJsonResponse(exchange, jsonResponse);
-        } catch (Exception e) {
-            plugin.getLogger().severe("Error generating heatmap data: " + e.getMessage());
-            e.printStackTrace();
-            String errorJson = "{\"error\": \"Failed to generate heatmap data\"}";
-            exchange.getResponseHeaders().set("Content-Type", "application/json");
-            exchange.sendResponseHeaders(500, errorJson.length());
-            exchange.getResponseBody().write(errorJson.getBytes());
-            exchange.getResponseBody().close();
-        }
-    }
-
-    // Classe auxiliaire pour les données de heatmap
-    private static class HeatmapItemData {
-        private final String itemId;
-        private final String itemName;
-        private int buyVolume = 0;
-        private int sellVolume = 0;
-        private double buyValue = 0;
-        private double sellValue = 0;
-        
-        public HeatmapItemData(String itemId, String itemName) {
-            this.itemId = itemId;
-            this.itemName = itemName;
-        }
-        
-        public void addBuyTransaction(int quantity, double value) {
-            buyVolume += quantity;
-            buyValue += value;
-        }
-        
-        public void addSellTransaction(int quantity, double value) {
-            sellVolume += quantity;
-            sellValue += value;
-        }
-        
-        public String getItemId() {
-            return itemId;
-        }
-        
-        public String getItemName() {
-            return itemName;
-        }
-        
-        public int getBuyVolume() {
-            return buyVolume;
-        }
-        
-        public int getSellVolume() {
-            return sellVolume;
-        }
-        
-        public int getTotalVolume() {
-            return buyVolume + sellVolume;
-        }
-        
-        public double getAverageBuyPrice() {
-            return buyVolume > 0 ? buyValue / buyVolume : 0;
-        }
-        
-        public double getAverageSellPrice() {
-            return sellVolume > 0 ? sellValue / sellVolume : 0;
-        }
-        
-        public double getAveragePrice() {
-            int totalVolume = getTotalVolume();
-            return totalVolume > 0 ? (buyValue + sellValue) / totalVolume : 0;
-        }
-    }
 }

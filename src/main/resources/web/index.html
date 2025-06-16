@@ -109,7 +109,7 @@
             </div>
 
             <div class="chart-wrapper" id="volume-chart-wrapper">
-                <h2 data-i18n="charts.volume">Volume des transactions</h2>
+                <h2 data-i18n="charts.transactionVolume">Volume des transactions</h2>
                 <canvas id="volume-chart"></canvas>
             </div>
         </div>
@@ -136,7 +136,7 @@
             </div>
 
             <div class="stat-box">
-                <h3 data-i18n="stats.shopType">Type de DynaShop</h3>
+                <h3 data-i18n="stats.shopType.title">Type de DynaShop</h3>
                 <div class="stat-value" id="shop-type">--</div>
             </div>
 
@@ -151,11 +151,52 @@
             <canvas id="candlestick-chart"></canvas>
         </div> -->
 
+        <div class="container">
+            <div class="controls">
+                <select id="trend-period-select">
+                    <option value="7" data-i18n="periods.7d">7 jours</option>
+                    <option value="14" data-i18n="periods.14d">14 jours</option>
+                    <option value="30" data-i18n="periods.30d">30 jours</option>
+                </select>
+                <button id="analyze-trends-btn" class="analyze-btn">
+                    <i class="fas fa-chart-line"></i>
+                    <span data-i18n="trend.analyzeTrends">Analyser les tendances</span>
+                </button>
+            </div>
+            
+            <div id="trend-container" class="trend-container">
+                <div class="placeholder-message">
+                    <span data-i18n="trend.selectItem">Sélectionnez un item et cliquez sur "Analyser les tendances" pour voir l'analyse</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="market-analysis-container" class="market-analysis-container">
+            <div id="trend-summary" class="market-analysis-section"></div>
+            
+            <div class="market-analysis-section">
+                <h3 data-i18n="trend.technicalIndicators">Indicateurs techniques</h3>
+                <div class="indicators-container">
+                    <div id="sma-chart-container" class="indicator-section"></div>
+                    <div id="rsi-chart-container" class="indicator-section"></div>
+                    <div id="macd-chart-container" class="indicator-section"></div>
+                    <div id="bollinger-chart-container" class="indicator-section"></div>
+                </div>
+            </div>
+            
+            <div id="forecast-container" class="market-analysis-section"></div>
+            
+            <div id="signals-container" class="market-analysis-section"></div>
+            
+            <div id="support-resistance-container" class="market-analysis-section"></div>
+        </div>
+
         <footer>
             <p data-i18n="footer">DynaShop Market Dashboard - Plugin par Tylwen</p>
         </footer>
     </div>
 
     <script src="assets/script.js"></script>
+    <!-- <script src="/assets/market-trends.js"></script> -->
 </body>
 </html>
