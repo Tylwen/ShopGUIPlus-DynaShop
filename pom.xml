@@ -110,7 +110,7 @@
                                 <filter>
                                     <artifact>*:*</artifact>
                                     <excludes>
-                                        <exclude>**/*.java</exclude>
+                                        <!-- <exclude>**/*.java</exclude> -->
                                         <!-- <exclude>META-INF/*.SF</exclude>
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
