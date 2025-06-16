@@ -24,7 +24,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
+// import java.util.stream.Collectors;
 
 import org.bukkit.Bukkit;
 import org.bukkit.inventory.ItemStack;
@@ -168,7 +168,10 @@ public class FlatFileStorageManager implements StorageManager {
             }
             
             // Créer un fichier de verrou
-            lockFile.createNewFile();
+            boolean lockCreated = lockFile.createNewFile();
+            if (!lockCreated) {
+                plugin.getLogger().warning("Impossible de créer le fichier de verrouillage. Un autre processus utilise peut-être le stockage.");
+            }
             
             // Créer une barrière de synchronisation
             CountDownLatch initLatch = new CountDownLatch(5); // 5 = nombre de managers à initialiser
@@ -257,7 +260,11 @@ public class FlatFileStorageManager implements StorageManager {
         } finally {
             // Supprimer le verrou de toute façon
             try {
-                lockFile.delete();
+                try {
+                    Files.deleteIfExists(lockFile.toPath());
+                } catch (IOException e) {
+                    plugin.getLogger().warning("Failed to delete lock file: " + e.getMessage());
+                }
             } catch (Exception e) {
                 // Ignorer les erreurs lors de la suppression du verrou
             }
@@ -569,12 +576,12 @@ public class FlatFileStorageManager implements StorageManager {
                     DynaShopType buyType = plugin.getShopConfigManager().resolveTypeDynaShop(shopId, itemId, true);
                     DynaShopType sellType = plugin.getShopConfigManager().resolveTypeDynaShop(shopId, itemId, false);
                     
-                    // Si c'est un LINK, on récupère aussi l'item lié
-                    String linkedItemRef = null;
-                    if (type == DynaShopType.LINK) {
-                        linkedItemRef = plugin.getShopConfigManager().getItemValue(shopId, itemId, "link", String.class).orElse(null);
-                        // plugin.getLogger().info("Lien détecté pour " + shopId + ":" + itemId + " -> " + linkedItemRef);
-                    }
+                    // // Si c'est un LINK, on récupère aussi l'item lié
+                    // String linkedItemRef = null;
+                    // if (type == DynaShopType.LINK) {
+                    //     linkedItemRef = plugin.getShopConfigManager().getItemValue(shopId, itemId, "link", String.class).orElse(null);
+                    //     // plugin.getLogger().info("Lien détecté pour " + shopId + ":" + itemId + " -> " + linkedItemRef);
+                    // }
                     
                     // Utiliser getOrLoadPrice pour initialiser correctement
                     newPrice = plugin.getDynaShopListener().getOrLoadPrice(null, shopId, itemId, itemStack, new HashSet<>(), new HashMap<>());
@@ -847,8 +854,8 @@ public class FlatFileStorageManager implements StorageManager {
         
         // Incrémenter les compteurs pour les statistiques
         metrics.merge("total_records", transactions.size(), (oldValue, newValue) -> {
-            if (oldValue instanceof Integer && newValue instanceof Integer) {
-                return (Integer) oldValue + (Integer) newValue;
+            if (oldValue instanceof Integer oldInt && newValue instanceof Integer newInt) {
+                return oldInt + newInt;
             }
             return newValue;
         });
@@ -931,9 +938,12 @@ public class FlatFileStorageManager implements StorageManager {
         
         // 1. Filtrer par date de début si spécifiée
         if (startTime != null) {
+            // points = points.stream()
+            //     .filter(p -> p.getTimestamp().isAfter(startTime))
+            //     .collect(Collectors.toList());
             points = points.stream()
                 .filter(p -> p.getTimestamp().isAfter(startTime))
-                .collect(Collectors.toList());
+                .toList();
         }
         
         // 2. Regrouper par intervalle de temps
@@ -943,10 +953,11 @@ public class FlatFileStorageManager implements StorageManager {
             LocalDateTime truncatedTime = truncateToInterval(point.getTimestamp(), interval);
             String key = truncatedTime.toString();
             
-            if (!groupedPoints.containsKey(key)) {
-                groupedPoints.put(key, new ArrayList<>());
-            }
-            groupedPoints.get(key).add(point);
+            // if (!groupedPoints.containsKey(key)) {
+            //     groupedPoints.put(key, new ArrayList<>());
+            // }
+            // groupedPoints.get(key).add(point);
+            groupedPoints.computeIfAbsent(key, k -> new ArrayList<>()).add(point);
         }
         
         // 3. Calculer les valeurs agrégées pour chaque intervalle

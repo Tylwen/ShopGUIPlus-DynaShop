@@ -23,7 +23,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
 
-import org.bukkit.Bukkit;
+// import org.bukkit.Bukkit;
 
 /**
  * Implémentation MySQL/MariaDB du gestionnaire de stockage
@@ -209,11 +209,12 @@ public class MySQLStorageManager implements StorageManager {
         
         // Créer une vue pour les transactions
         try {
-            String viewSQL = "CREATE OR REPLACE VIEW " + tablePrefix + "_transactions_view AS ";
+            StringBuilder viewSQLBuilder = new StringBuilder("CREATE OR REPLACE VIEW " + tablePrefix + "_transactions_view AS ");
             for (int i = 0; i < transactionTables.length; i++) {
-                if (i > 0) viewSQL += " UNION ALL ";
-                viewSQL += "SELECT * FROM " + transactionTables[i];
+                if (i > 0) viewSQLBuilder.append(" UNION ALL ");
+                viewSQLBuilder.append("SELECT * FROM ").append(transactionTables[i]);
             }
+            String viewSQL = viewSQLBuilder.toString();
             executeUpdate(viewSQL);
         } catch (Exception e) {
             plugin.getLogger().warning("Note: Unable to create transactions view: " + e.getMessage());

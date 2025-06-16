@@ -1219,7 +1219,7 @@ public class PriceRecipe {
             // Charger les ingrédients selon le type de recette
             RecipeType typeRecipe = RecipeType.fromString(recipeSection.getString("type", "NONE").toUpperCase());
             // ingredients = loadIngredientsByType(shopID, itemID, recipeSection, typeRecipe);
-            return loadIngredientsByType(shopID, itemID, recipeSection, typeRecipe);
+            return loadIngredientsByType(recipeSection, typeRecipe);
         });
         
         // // Mettre en cache
@@ -1249,7 +1249,7 @@ public class PriceRecipe {
     /**
      * Charge les ingrédients selon le type de recette
      */
-    private List<ItemStack> loadIngredientsByType(String shopID, String itemID, ConfigurationSection recipeSection, RecipeType typeRecipe) {
+    private List<ItemStack> loadIngredientsByType(ConfigurationSection recipeSection, RecipeType typeRecipe) {
         switch (typeRecipe) {
             case SHAPED:
                 return loadShapedIngredients(recipeSection);

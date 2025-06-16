@@ -149,10 +149,10 @@ public class InflationManager {
             // Extraire et convertir la valeur, en gérant le fait que c'est un Object
             if (stats.containsKey("total_records")) {
                 Object value = stats.get("total_records");
-                if (value instanceof Integer) {
-                    transactionCount = (Integer) value;
-                } else if (value instanceof Number) {
-                    transactionCount = ((Number) value).intValue();
+                if (value instanceof Integer intValue) {
+                    transactionCount = intValue;
+                } else if (value instanceof Number numberValue) {
+                    transactionCount = numberValue.intValue();
                 } else if (value != null) {
                     transactionCount = Integer.parseInt(value.toString());
                 }
