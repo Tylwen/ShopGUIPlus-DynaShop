@@ -28,10 +28,12 @@ limit:
   time-reference: "first"
 
 # Dynamic store configuration
-actions:
+recipe:
   shaped: 1.25      # Multiplier for shaped crafting recipes
   shapeless: 1.25   # Multiplier for shapeless crafting recipes
-  furnace: 0.75     # Multiplier for furnace recipes
+  furnace: 1.1      # Multiplier for furnace recipes
+  stonecutter: 1.5  # Multiplier for stonecutter recipes
+  smithing: 1.5     # Multiplier for smithing table recipes
 
 time-period: 15 # Duration of dynamic pricing period (in minutes)
 

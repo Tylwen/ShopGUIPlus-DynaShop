@@ -25,6 +25,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 // import org.bukkit.inventory.BlastingRecipe;
 // import org.bukkit.inventory.FurnaceRecipe;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 // import org.bukkit.inventory.Recipe;
 // import org.bukkit.inventory.ShapedRecipe;
 // import org.bukkit.inventory.ShapelessRecipe;
@@ -45,6 +46,7 @@ import net.brcdev.shopgui.shop.Shop;
 import net.brcdev.shopgui.shop.item.ShopItem;
 
 import java.util.ArrayList;
+import java.util.Collections;
 // import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -212,6 +214,8 @@ public class PriceRecipe {
         // for (ItemStack ingredient : ingredients) {
         //     plugin.getLogger().info("Ingrédient: " + ingredient);
         // }
+
+        // plugin.info("Calculating recipe values for " + shopID + ":" + itemID + " with ingredients: " + ingredients);
         
         // Variables pour le calcul
         double basePrice = 0.0;
@@ -230,7 +234,10 @@ public class PriceRecipe {
         
         // Parcourir les ingrédients une seule fois
         for (ItemStack ingredient : ingredients) {
+            // plugin.info(shopID + ":" + itemID + " - Processing ingredient: " + ingredient);
+
             if (ingredient == null || ingredient.getType() == Material.AIR) {
+                plugin.getLogger().warning("Ingrédient null ou vide : " + ingredient);
                 continue;
             }
             
@@ -274,7 +281,7 @@ public class PriceRecipe {
                     ingredientPrice = plugin.getDynaShopListener().getOrLoadPriceInternal(null, ingredientShopID, ingredientID, ingredient, visitedItems, lastResults, false);
                     if (ingredientPrice == null) {
 
-                        // plugin.getLogger().warning("Price not found for ingredient " + ingredientID + " in shop " + ingredientShopID);
+                        plugin.getLogger().warning("Price not found for ingredient " + ingredientID + " in shop " + ingredientShopID);
                         continue; // Passer à l'ingrédient suivant si le prix n'est pas trouvé
                     // } else {
                     //     // Mettre à jour les résultats précédents avec le prix récupéré
@@ -305,7 +312,19 @@ public class PriceRecipe {
             int ingredientStock = ingredientPrice.getStock();
             int ingredientMinStock = ingredientPrice.getMinStock();
             int ingredientMaxStock = ingredientPrice.getMaxStock();
-            
+
+            // plugin.getLogger().info(shopID + ":" + itemID + " | Ingredient " + ingredientID + " (" + ingredientShopID + ") prices: " + 
+            //     " Buy: " + ingredientBuyPrice + 
+            //     " Sell: " + ingredientSellPrice + 
+            //     " MinBuy: " + ingredientMinBuyPrice + 
+            //     " MaxBuy: " + ingredientMaxBuyPrice + 
+            //     " MinSell: " + ingredientMinSellPrice + 
+            //     " MaxSell: " + ingredientMaxSellPrice
+            //     // " Stock: " + ingredientStock +
+            //     // " MinStock: " + ingredientMinStock +
+            //     // " MaxStock: " + ingredientMaxStock
+            // );
+
             // Calculer la contribution de cet ingrédient aux différentes valeurs
             int amount = ingredient.getAmount();
             
@@ -342,12 +361,7 @@ public class PriceRecipe {
         }
         
         // Récupérer la quantité d'output configurée (par défaut 1)
-        int outputAmount = plugin.getShopConfigManager()
-            .getItemValue(shopID, itemID, "recipe.output", Integer.class)
-            .orElse(1);
-        
-        // S'assurer que outputAmount est toujours au moins 1
-        outputAmount = Math.max(1, outputAmount);
+        int outputAmount = getRecipeOutputAmount(shopID, itemID);
         
         // Appliquer le modificateur de recette
         // double modifier = getRecipeModifier(item);
@@ -435,7 +449,18 @@ public class PriceRecipe {
         stockCache.put(shopID + ":" + itemID + ":minstock", totalMinStock);
         stockCache.put(shopID + ":" + itemID + ":maxstock", totalMaxStock);
 
-        
+        // plugin.getLogger().info("Calculated recipe values for " + shopID + ":" + itemID + ": " +
+        //     " BuyPrice: " + finalBuyPrice +
+        //     " SellPrice: " + finalSellPrice +
+        //     " MinBuyPrice: " + finalMinBuyPrice +
+        //     " MaxBuyPrice: " + finalMaxBuyPrice +
+        //     " MinSellPrice: " + finalMinSellPrice +
+        //     " MaxSellPrice: " + finalMaxSellPrice +
+        //     " Stock: " + finalStock +
+        //     " MinStock: " + totalMinStock +
+        //     " MaxStock: " + totalMaxStock
+        // );
+
         return new RecipeCalculationResult(
             finalBuyPrice, finalSellPrice,
             finalMinBuyPrice, finalMaxBuyPrice,
@@ -675,12 +700,7 @@ public class PriceRecipe {
         }
         
         // Récupérer la quantité d'output configurée (par défaut 1)
-        int outputAmount = plugin.getShopConfigManager()
-            .getItemValue(shopID, itemID, "recipe.output", Integer.class)
-            .orElse(1);
-        
-        // S'assurer que outputAmount est toujours au moins 1
-        outputAmount = Math.max(1, outputAmount);
+        int outputAmount = getRecipeOutputAmount(shopID, itemID);
 
         // Appliquer le modificateur en fonction du type de recette
         // double modifier = getRecipeModifier(item);
@@ -1237,41 +1257,87 @@ public class PriceRecipe {
     /**
      * Récupère les ingrédients d'une recette à partir de la configuration
      */
+    // public List<ItemStack> getIngredients(String shopID, String itemID) {
+    // // public List<ItemStack> getIngredients(String shopID, String itemID, ItemStack item) {
+    //     String cacheKey = shopID + ":" + itemID;
+
+    //     // // Vérifier le cache
+    //     // if (isInCache(cacheKey)) {
+    //     //     return new ArrayList<>(ingredientsCache.get(cacheKey));
+    //     // }
+        
+    //     // // On clone la liste et chaque ItemStack pour éviter les effets de bord
+    //     // List<ItemStack> cached = recipeCache.get(cacheKey, () -> null);
+    //     // if (cached != null) {
+    //     //     List<ItemStack> clones = new ArrayList<>(cached.size());
+    //     //     for (ItemStack item : cached) {
+    //     //         clones.add(item == null ? null : item.clone());
+    //     //     }
+    //     //     return clones;
+    //     // }
+
+    //     // Utiliser le CacheManager pour récupérer/calculer les ingrédients
+    //     // return recipeCache.get(cacheKey, () -> {
+    //         List<ItemStack> ingredients = new ArrayList<>();
+
+    //         // // Vérifier si la recette est définie
+    //         // if (!plugin.getShopConfigManager().hasRecipePattern(shopID, itemID)) {
+    //         //     plugin.getLogger().warning("No recipe defined in configuration for " + shopID + ":" + itemID);
+    //         //     return ingredients;
+    //         // }
+
+    //         // Récupérer la configuration de la recette
+    //         ConfigurationSection recipeSection = plugin.getShopConfigManager().getSection(shopID, itemID, "recipe");
+    //         // ConfigurationSection recipeSection = plugin.getShopConfigManager().getCachedSection(shopID, itemID, "recipe");
+    //         if (recipeSection == null) {
+    //             return ingredients;
+    //         }
+
+    //         // Charger les ingrédients selon le type de recette
+    //         RecipeType typeRecipe = RecipeType.fromString(recipeSection.getString("type", "NONE").toUpperCase());
+    //         // ingredients = loadIngredientsByType(shopID, itemID, recipeSection, typeRecipe);
+    //         return loadIngredientsByType(recipeSection, typeRecipe);
+    //     // });
+        
+    //     // // Mettre en cache
+    //     // updateCache(cacheKey, ingredients);
+        
+    //     // return ingredients;
+    // }
     public List<ItemStack> getIngredients(String shopID, String itemID) {
-    // public List<ItemStack> getIngredients(String shopID, String itemID, ItemStack item) {
         String cacheKey = shopID + ":" + itemID;
-
-        // // Vérifier le cache
-        // if (isInCache(cacheKey)) {
-        //     return new ArrayList<>(ingredientsCache.get(cacheKey));
-        // }
-
-        // Utiliser le CacheManager pour récupérer/calculer les ingrédients
-        return recipeCache.get(cacheKey, () -> {
-            List<ItemStack> ingredients = new ArrayList<>();
-
-            // // Vérifier si la recette est définie
-            // if (!plugin.getShopConfigManager().hasRecipePattern(shopID, itemID)) {
-            //     plugin.getLogger().warning("No recipe defined in configuration for " + shopID + ":" + itemID);
-            //     return ingredients;
-            // }
-
-            // Récupérer la configuration de la recette
-            ConfigurationSection recipeSection = plugin.getShopConfigManager().getSection(shopID, itemID, "recipe");
-            if (recipeSection == null) {
-                return ingredients;
+        List<ItemStack> cached = recipeCache.get(cacheKey, () -> null);
+        if (cached != null) {
+            // Toujours retourner des clones pour éviter les effets de bord
+            List<ItemStack> clones = new ArrayList<>(cached.size());
+            for (ItemStack item : cached) {
+                clones.add(item == null ? null : item.clone());
             }
+            return clones;
+        }
 
-            // Charger les ingrédients selon le type de recette
-            RecipeType typeRecipe = RecipeType.fromString(recipeSection.getString("type", "NONE").toUpperCase());
-            // ingredients = loadIngredientsByType(shopID, itemID, recipeSection, typeRecipe);
-            return loadIngredientsByType(recipeSection, typeRecipe);
-        });
-        
-        // // Mettre en cache
-        // updateCache(cacheKey, ingredients);
-        
-        // return ingredients;
+        // Construction des ingrédients depuis la config
+        List<ItemStack> ingredients = new ArrayList<>();
+        ConfigurationSection recipeSection = plugin.getShopConfigManager().getSection(shopID, itemID, "recipe");
+        if (recipeSection == null) {
+            return ingredients;
+        }
+        RecipeType typeRecipe = RecipeType.fromString(recipeSection.getString("type", "NONE").toUpperCase());
+        ingredients = loadIngredientsByType(recipeSection, typeRecipe);
+
+        // Stocker des clones dans le cache pour éviter toute modification ultérieure
+        List<ItemStack> cacheCopy = new ArrayList<>(ingredients.size());
+        for (ItemStack item : ingredients) {
+            cacheCopy.add(item == null ? null : item.clone());
+        }
+        recipeCache.put(cacheKey, cacheCopy);
+
+        // Retourner aussi des clones à l'appelant
+        List<ItemStack> result = new ArrayList<>(ingredients.size());
+        for (ItemStack item : ingredients) {
+            result.add(item == null ? null : item.clone());
+        }
+        return result;
     }
 
     // /**
@@ -1303,6 +1369,10 @@ public class PriceRecipe {
                 return loadShapelessIngredients(recipeSection);
             case FURNACE:
                 return loadFurnaceIngredients(recipeSection);
+            case STONECUTTER:
+                return loadStonecutterIngredients(recipeSection);
+            case SMITHING:
+                return loadSmithingIngredients(recipeSection);
             default:
                 plugin.getLogger().warning("Unsupported recipe type: " + typeRecipe);
                 return new ArrayList<>();
@@ -1318,10 +1388,29 @@ public class PriceRecipe {
         // Compter les occurrences de chaque symbole dans le pattern
         Map<Character, Integer> symbolCounts = countSymbolsInPattern(recipeSection.getStringList("pattern"));
         
+        // Vérifier que tous les caractères du pattern ont un ingrédient défini
+        List<String> pattern = recipeSection.getStringList("pattern");
+        Set<Character> patternChars = new HashSet<>();
+        for (String row : pattern) {
+            for (char c : row.toCharArray()) {
+                if (c != ' ') {
+                    patternChars.add(c);
+                }
+            }
+        }
+        
         // Charger les ingrédients
         ConfigurationSection ingredientsSection = recipeSection.getConfigurationSection("ingredients");
         if (ingredientsSection == null) {
             return ingredients;
+        }
+        
+        // Vérifier que tous les caractères ont un ingrédient correspondant
+        for (Character c : patternChars) {
+            if (!ingredientsSection.contains(String.valueOf(c))) {
+                plugin.getLogger().warning("Caractère manquant dans les ingrédients: " + c);
+                // Si vous voulez échouer rapidement, vous pouvez retourner une liste vide ici
+            }
         }
         
         for (String key : ingredientsSection.getKeys(false)) {
@@ -1372,12 +1461,61 @@ public class PriceRecipe {
     private List<ItemStack> loadShapelessIngredients(ConfigurationSection recipeSection) {
         List<ItemStack> ingredients = new ArrayList<>();
         
+        // Support du format liste simple (ingredients: [redstone, stick])
+        if (recipeSection.isList("ingredients")) {
+            List<?> list = recipeSection.getList("ingredients");
+            for(Object item : list) {
+                if (item instanceof String) {
+                    String itemRef = (String) item;
+                    if (itemRef.contains(":")) {
+                        ItemStack ingredient = loadShopItem(itemRef);
+                        if (ingredient != null) {
+                            ingredients.add(ingredient);
+                        }
+                    } else {
+                        // Fallback sur le type simple
+                        Material material = Material.matchMaterial(itemRef);
+                        if (material != null && material != Material.AIR) {
+                            ingredients.add(new ItemStack(material, 1));
+                        }
+                    }
+                // } else if (item instanceof ItemStack) {
+                //     ingredients.add((ItemStack) item);
+                // } else if (item instanceof Map) {
+                //     Map<String, Object> itemMap = (Map<String, Object>) item;
+                //     String itemRef = (String) itemMap.get("item");
+                //     int quantity = itemMap.containsKey("quantity") ? (int) itemMap.get("quantity") : 1;
+
+                //     if (itemRef != null && itemRef.contains(":")) {
+                //         ItemStack ingredient = loadShopItem(itemRef);
+                //         if (ingredient != null) {
+                //             ingredient.setAmount(quantity);
+                //             ingredients.add(ingredient);
+                //         }
+                //     } else {
+                //         // Fallback sur le type simple
+                //         Material material = Material.matchMaterial(itemRef);
+                //         if (material != null && material != Material.AIR) {
+                //             ingredients.add(new ItemStack(material, quantity));
+                //         }
+                //     }
+                }
+            }
+            return ingredients;
+        }
+
+        // Support du format section (a: ..., b: ...)
         ConfigurationSection ingredientsSection = recipeSection.getConfigurationSection("ingredients");
         if (ingredientsSection == null) {
             return ingredients;
         }
         
         for (String key : ingredientsSection.getKeys(false)) {
+            if (key.length() != 1) {
+                plugin.getLogger().warning("Invalid ingredient key: " + key);
+                continue;
+            }
+
             ItemStack ingredient = loadIngredientFromSection(ingredientsSection, key);
             if (ingredient != null) {
                 ingredients.add(ingredient);
@@ -1434,6 +1572,72 @@ public class PriceRecipe {
         
     //     return ingredients;
     // }
+
+    /**
+     * Charge les ingrédients d'une recette STONECUTTER
+     */
+    private List<ItemStack> loadStonecutterIngredients(ConfigurationSection recipeSection) {
+        List<ItemStack> ingredients = new ArrayList<>();
+        
+        // Vérifier si l'entrée est spécifiée comme une chaîne directe
+        if (recipeSection.isString("input")) {
+            String itemRef = recipeSection.getString("input");
+            if (itemRef != null && itemRef.contains(":")) {
+                ItemStack ingredient = loadShopItem(itemRef);
+                if (ingredient != null) {
+                    ingredients.add(ingredient);
+                }
+            }
+            return ingredients;
+        }
+        
+        // Sinon, traiter comme une section de configuration
+        ConfigurationSection inputSection = recipeSection.getConfigurationSection("input");
+        if (inputSection == null) {
+            return ingredients;
+        }
+        
+        // Utiliser l'ancienne méthode pour la compatibilité
+        ItemStack ingredient = loadIngredientFromSection(inputSection);
+        if (ingredient != null) {
+            ingredients.add(ingredient);
+        }
+        
+        return ingredients;
+    }
+
+    /**
+     * Charge les ingrédients d'une recette SMITHING
+     */
+    private List<ItemStack> loadSmithingIngredients(ConfigurationSection recipeSection) {
+        List<ItemStack> ingredients = new ArrayList<>();
+        // Format attendu :
+        // recipe:
+        //   type: SMITHING
+        //   base: outils:diamond_sword
+        //   addition: backend:netherite_upgrade_smithing_template
+        //   material: minerais:netherite_ingot
+
+        String[] keys = {"base", "addition", "material"};
+        for (String key : keys) {
+            if (recipeSection.isString(key)) {
+                String itemRef = recipeSection.getString(key);
+                if (itemRef != null && itemRef.contains(":")) {
+                    ItemStack ingredient = loadShopItem(itemRef);
+                    if (ingredient != null) {
+                        ingredients.add(ingredient);
+                    }
+                }
+            } else if (recipeSection.isConfigurationSection(key)) {
+                ConfigurationSection section = recipeSection.getConfigurationSection(key);
+                ItemStack ingredient = loadIngredientFromSection(section);
+                if (ingredient != null) {
+                    ingredients.add(ingredient);
+                }
+            }
+        }
+        return ingredients;
+    }
 
     /**
      * Charge un ingrédient à partir d'une section de configuration ou d'une valeur directe
@@ -1495,18 +1699,34 @@ public class PriceRecipe {
     // private ItemStack loadShopItem(String itemRef, int quantity) {
     private ItemStack loadShopItem(String itemRef) {
         String[] parts = itemRef.split(":");
-        if (parts.length != 2) {
+        String shopID, itemID;
+        int amount = 1; // Valeur par défaut
+        if (parts.length == 3) {
+            shopID = parts[0];
+            itemID = parts[1];
+            try {
+                amount = Integer.parseInt(parts[2]);
+            } catch (NumberFormatException e) {
+                amount = 1; // Valeur par défaut si la quantité n'est pas valide
+            }
+            // plugin.getLogger().info("Chargement de l'item depuis le shop: " + shopID + ":" + itemID + " (quantité: " + amount + ")");
+        } else if (parts.length == 2) {
+            // plugin.getLogger().info("Chargement de l'item depuis le shop: " + parts[0] + ":" + parts[1]);
+            shopID = parts[0];
+            itemID = parts[1];
+        } else {
+            plugin.getLogger().warning("Invalid item reference format: " + itemRef);
             return null;
         }
-        
-        String shopID = parts[0];
-        String itemID = parts[1];
+
+        // shopID = parts[0];
+        // itemID = parts[1];
         
         try {
             ItemStack item = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem();
             if (item != null) {
                 // item.setAmount(quantity);
-                item.setAmount(1); // Pour éviter les problèmes de quantité, on fixe à 1
+                item.setAmount(amount); // Pour éviter les problèmes de quantité, on fixe à 1
                 // plugin.getLogger().info("Ingrédient trouvé: " + item);
                 return item;
             }
@@ -1721,13 +1941,14 @@ public class PriceRecipe {
     private String createItemKey(ItemStack item) {
         StringBuilder key = new StringBuilder(item.getType().toString());
         
+        // Ajout du shopID et itemID si trouvés
+        FoundItem found = findItemInShops(null, item);
+        if (found != null && found.isFound()) key.append(":").append(found.getShopID()).append(":").append(found.getItemID());
+        
         if (item.hasItemMeta()) {
-            if (item.getItemMeta().hasDisplayName()) {
-                key.append(":").append(item.getItemMeta().getDisplayName());
-            }
-            if (item.getItemMeta().hasCustomModelData()) {
-                key.append(":").append(item.getItemMeta().getCustomModelData());
-            }
+            ItemMeta meta = item.getItemMeta();
+            if (meta.hasDisplayName()) key.append(":").append(meta.getDisplayName());
+            if (meta.hasCustomModelData()) key.append(":").append(meta.getCustomModelData());
         }
         
         return key.toString();
@@ -1767,6 +1988,14 @@ public class PriceRecipe {
         //         return plugin.getDataConfig().getFurnaceValue();
         //     }
         // }
+
+        // Vérifier d'abord si un modificateur personnalisé est défini pour cet item spécifique
+        Optional<Double> customModifier = plugin.getShopConfigManager().getItemValue(shopID, itemID, "recipe.modifier", Double.class);
+        
+        if (customModifier.isPresent()) {
+            return customModifier.get(); // Utiliser le modificateur personnalisé s'il existe
+        }
+
         RecipeType recipeType = plugin.getShopConfigManager().getTypeRecipe(shopID, itemID);
         if (recipeType == RecipeType.SHAPED) {
             return plugin.getDataConfig().getShapedValue();
@@ -1774,10 +2003,36 @@ public class PriceRecipe {
             return plugin.getDataConfig().getShapelessValue();
         } else if (recipeType == RecipeType.FURNACE) {
             return plugin.getDataConfig().getFurnaceValue();
+        } else if (recipeType == RecipeType.STONECUTTER) {
+            return plugin.getDataConfig().getStonecutterValue();
+        } else if (recipeType == RecipeType.SMITHING) {
+            return plugin.getDataConfig().getSmithingValue();
         }
 
         // Retourner un modificateur par défaut si aucune recette n'est trouvée
         return 1.0;
+    }
+
+    // Dans calculateRecipeValues et calculatePrice, utiliser une méthode commune:
+    private int getRecipeOutputAmount(String shopID, String itemID) {
+        // Vérifier d'abord recipe.output (format courant)
+        Optional<Integer> output = plugin.getShopConfigManager()
+            .getItemValue(shopID, itemID, "recipe.output", Integer.class);
+        
+        if (output.isPresent()) {
+            return Math.max(1, output.get());
+        }
+        
+        // Vérifier recipe.outputAmount (format alternatif)
+        Optional<Integer> outputAmount = plugin.getShopConfigManager()
+            .getItemValue(shopID, itemID, "recipe.outputAmount", Integer.class);
+        
+        if (outputAmount.isPresent()) {
+            return Math.max(1, outputAmount.get());
+        }
+        
+        // Valeur par défaut
+        return 1;
     }
 
     public int getIngredientStock(String shopID, ItemStack ingredient, List<String> visitedItems) {
@@ -1973,6 +2228,7 @@ public class PriceRecipe {
             if (shop != null) {
                 for (ShopItem shopItem : shop.getShopItems()) {
                     if (customCompare(ingredient, shopItem.getItem())) {
+                    // if (ShopGuiPlusApi.getPlugin().getItemManager().compare(ingredient, shopItem.getItem())) {
                         itemID = shopItem.getId();
                         shopID = preferredShopID;
                         break;
@@ -1986,6 +2242,7 @@ public class PriceRecipe {
                     if (!otherShop.getId().equals(preferredShopID)) {
                         for (ShopItem item : otherShop.getShopItems()) {
                             if (customCompare(ingredient, item.getItem())) {
+                            // if (ShopGuiPlusApi.getPlugin().getItemManager().compare(ingredient, item.getItem())) {
                                 itemID = item.getId();
                                 shopID = otherShop.getId();
                                 break;

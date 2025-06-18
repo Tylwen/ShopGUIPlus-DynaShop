@@ -850,7 +850,7 @@ public class DynaShopPlugin extends JavaPlugin {
         this.transactionLimiter = new TransactionLimiter(this);
 
         // Réinitialiser les caches
-        // initCache();
+        initCache();
 
         // Initialiser le stockage
         storageManager.initialize();

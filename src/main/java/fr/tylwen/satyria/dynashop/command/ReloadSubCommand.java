@@ -38,6 +38,11 @@ public class ReloadSubCommand implements SubCommand {
         plugin.getShopConfigManager().reloadCache(); // Recharger les shops de DynaShop
         plugin.reloadData();
         
+        // Vider les caches de recettes et de prix calculés
+        plugin.getRecipeCache().clear();
+        plugin.getCalculatedPriceCache().clear();
+        plugin.getStockCache().clear();
+        
         sender.sendMessage("§aConfiguration DynaShop rechargée avec succès!");
         return true;
     }

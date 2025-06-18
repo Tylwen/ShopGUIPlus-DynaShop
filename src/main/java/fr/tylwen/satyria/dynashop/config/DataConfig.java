@@ -20,6 +20,8 @@ package fr.tylwen.satyria.dynashop.config;
 import org.bukkit.configuration.file.FileConfiguration;
 
 public class DataConfig {
+    private final FileConfiguration config;
+
     // Variables pour la configuration de la base de données
     private final String databaseType;
     private final String databaseHost;
@@ -55,8 +57,18 @@ public class DataConfig {
     private final double shapedValue;
     private final double shapelessValue;
     private final double furnaceValue;
+    // private final double brewingValue; // Si vous avez besoin de gérer les recettes de brassage
+    // private final double smithingValue; // Si vous avez besoin de gérer les recettes de forge
+    // private final double campfireValue; // Si vous avez besoin de gérer les recettes de feu de camp
+    private final double stonecutterValue; // Si vous avez besoin de gérer les recettes de tailleur de pierre
+    // private final double grindstoneValue; // Si vous avez besoin de gérer les recettes de meule
+    // private final double loomValue; // Si vous avez besoin de gérer les recettes de métier à tisser
+    // private final double smithingTableValue; // Si vous avez besoin de gérer les recettes de table de forge
+    // private final double cartographyTableValue; // Si vous avez besoin de gérer les recettes de table de cartographie
+    // private final double anvilValue; // Si vous avez besoin de gérer les recettes d'enclume
 
     public DataConfig(FileConfiguration config) {
+        this.config = config;
         // Charger la configuration de la base de données
         this.databaseType = config.getString("database.type", "flatfile").toLowerCase();
         this.databaseHost = config.getString("database.mysql.host", "localhost");
@@ -95,7 +107,7 @@ public class DataConfig {
         this.shapedValue = config.getDouble("recipe.shaped", 1.0);
         this.shapelessValue = config.getDouble("recipe.shapeless", 1.0);
         this.furnaceValue = config.getDouble("recipe.furnace", 1.0);
-
+        this.stonecutterValue = config.getDouble("recipe.stonecutter", 1.0);
         
         this.guiRefreshDefaultItems = config.getLong("gui.refresh.default-items", 1000); // 1 seconde en ms
         this.guiRefreshCriticalItems = config.getLong("gui.refresh.critical-items", 300); // 0.3 seconde en ms
@@ -211,6 +223,18 @@ public class DataConfig {
 
     public double getFurnaceValue() {
         return furnaceValue;
+    }
+
+    /**
+     * Obtient le modificateur pour les recettes de tailleur de pierre
+     * @return Le modificateur pour les recettes de tailleur de pierre
+     */
+    public double getStonecutterValue() {
+        return config.getDouble("recipe.stonecutter", 1.0); // Valeur par défaut de 1.0
+    }
+
+    public double getSmithingValue() {
+        return config.getDouble("recipe.smithing", 1.0); // Valeur par défaut de 1.0
     }
 
     // Getters pour les valeurs de rafraîchissement de l'interface graphique

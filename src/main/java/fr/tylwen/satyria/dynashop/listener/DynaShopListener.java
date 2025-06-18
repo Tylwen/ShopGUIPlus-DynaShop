@@ -686,7 +686,7 @@ public class DynaShopListener implements Listener {
      */
     private void applyGrowthOrDecayToIngredients(String shopID, String itemID, int amount, boolean isGrowth, Set<String> visitedItems, Map<String, DynamicPrice> lastResults, int depth) {
         // Limiter la profondeur de récursion
-        if (depth > 5) return;
+        if (depth > 10) return;
 
         // Éviter les boucles infinies
         String itemKey = shopID + ":" + itemID;

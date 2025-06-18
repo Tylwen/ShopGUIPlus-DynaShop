@@ -25,7 +25,8 @@ public enum RecipeType {
     BLAST_FURNACE,  // Recette de haut fourneau
     SMOKER,         // Recette de fumoir
     BREWING,        // Recette d'alchimie
-    STONECUTTER     // Recette de tailleur de pierre
+    STONECUTTER,    // Recette de tailleur de pierre
+    SMITHING        // Recette de forgeron
 ;
 
     public static RecipeType fromString(String upperCase) {
@@ -46,6 +47,8 @@ public enum RecipeType {
                 return BREWING;
             case "STONECUTTER":
                 return STONECUTTER;
+            case "SMITHING":
+                return SMITHING;
             default:
                 throw new IllegalArgumentException("Type de recette inconnu: " + upperCase);
         }

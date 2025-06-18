@@ -472,14 +472,14 @@ public class ShopItemPlaceholderListener implements Listener {
         // Vérifier les placeholders de prix d'achat
         if ((line.contains("%dynashop_current_buyPrice%") || line.contains("%dynashop_current_buy%")) &&
             hideBuyPriceForUnbuyable &&
-            (prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0") || prices.get("buy").equals("-1"))) {
+            (prices.get("real_buy").equals("-1") || prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0") || prices.get("buy").equals("-1"))) {
             return true;
         }
         
         // Vérifier les placeholders de prix de vente
         if ((line.contains("%dynashop_current_sellPrice%") || line.contains("%dynashop_current_sell%")) && 
             hideSellPriceForUnsellable &&
-            (prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0") || prices.get("sell").equals("-1"))) {
+            (prices.get("real_sell").equals("-1") || prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0") || prices.get("sell").equals("-1"))) {
             return true;
         }
         
@@ -997,6 +997,19 @@ public class ShopItemPlaceholderListener implements Listener {
         if (buyType == DynaShopType.NONE || buyType == DynaShopType.UNKNOWN) { buyType = generalType; }
         if (sellType == DynaShopType.NONE || sellType == DynaShopType.UNKNOWN) { sellType = generalType; }
 
+        // Real price
+        if (plugin.getShopConfigManager().getItemValue(shopId, itemId, "buyPrice", Double.class).orElse(-1.0) < 0) {
+            prices.put("real_buy", "-1");
+        } else {
+            prices.put("real_buy", String.valueOf(plugin.getShopConfigManager().getItemValue(shopId, itemId, "buyPrice", Double.class).orElse(0.0)));
+        }
+        
+        if (plugin.getShopConfigManager().getItemValue(shopId, itemId, "sellPrice", Double.class).orElse(-1.0) < 0) {
+            prices.put("real_sell", "-1");
+        } else {
+            prices.put("real_sell", String.valueOf(plugin.getShopConfigManager().getItemValue(shopId, itemId, "sellPrice", Double.class).orElse(0.0)));
+        }
+
         // Obtenir le prix dynamique
         DynamicPrice price = plugin.getDynaShopListener().getOrLoadPrice(player, shopId, itemId, itemStack, visited, lastResults);
 
@@ -1416,8 +1429,32 @@ public class ShopItemPlaceholderListener implements Listener {
             // Valeurs par défaut
         }
         
-        // Format pour le prix d'achat avec min-max
-        if (!prices.get("buy").equals("N/A") && !prices.get("buy_min").equals("N/A") && !prices.get("buy_max").equals("N/A") &&
+        // // Format pour le prix d'achat avec min-max
+        // if (!prices.get("buy").equals("N/A") && !prices.get("buy_min").equals("N/A") && !prices.get("buy_max").equals("N/A") &&
+        //     (!prices.get("buy_min").equals(prices.get("buy")) || !prices.get("buy_max").equals(prices.get("buy")))) {
+        //     prices.put("base_buy", String.format(
+        //         currencyPrefix + "%s" + currencySuffix + " §7(%s - %s) ", 
+        //         prices.get("buy"), prices.get("buy_min"), prices.get("buy_max")
+        //     ));
+        // } else {
+        //     prices.put("base_buy", currencyPrefix + prices.get("buy") + currencySuffix);
+        // }
+
+        // // Format pour le prix de vente avec min-max
+        // if (!prices.get("sell").equals("N/A") && !prices.get("sell_min").equals("N/A") && !prices.get("sell_max").equals("N/A") &&
+        //     (!prices.get("sell_min").equals(prices.get("sell")) || !prices.get("sell_max").equals(prices.get("sell")))) {
+        //     prices.put("base_sell", String.format(
+        //         currencyPrefix + "%s" + currencySuffix + " §7(%s - %s) ", 
+        //         prices.get("sell"), prices.get("sell_min"), prices.get("sell_max")
+        //     ));
+        // } else {
+        //     prices.put("base_sell", currencyPrefix + prices.get("sell") + currencySuffix);
+        // }
+
+        // Prix d'achat
+        if (prices.get("buy") == null || prices.get("buy").equals("N/A") || prices.get("buy").equals("0.0") || prices.get("buy").equals("-1")) {
+            prices.put("base_buy", "N/A");
+        } else if (!prices.get("buy_min").equals("N/A") && !prices.get("buy_max").equals("N/A") &&
             (!prices.get("buy_min").equals(prices.get("buy")) || !prices.get("buy_max").equals(prices.get("buy")))) {
             prices.put("base_buy", String.format(
                 currencyPrefix + "%s" + currencySuffix + " §7(%s - %s) ", 
@@ -1427,8 +1464,10 @@ public class ShopItemPlaceholderListener implements Listener {
             prices.put("base_buy", currencyPrefix + prices.get("buy") + currencySuffix);
         }
 
-        // Format pour le prix de vente avec min-max
-        if (!prices.get("sell").equals("N/A") && !prices.get("sell_min").equals("N/A") && !prices.get("sell_max").equals("N/A") &&
+        // Prix de vente
+        if (prices.get("sell") == null || prices.get("sell").equals("N/A") || prices.get("sell").equals("0.0") || prices.get("sell").equals("-1")) {
+            prices.put("base_sell", "N/A");
+        } else if (!prices.get("sell_min").equals("N/A") && !prices.get("sell_max").equals("N/A") &&
             (!prices.get("sell_min").equals(prices.get("sell")) || !prices.get("sell_max").equals(prices.get("sell")))) {
             prices.put("base_sell", String.format(
                 currencyPrefix + "%s" + currencySuffix + " §7(%s - %s) ", 
