@@ -60,6 +60,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ShopItemPlaceholderListener implements Listener {
 
@@ -666,23 +668,64 @@ public class ShopItemPlaceholderListener implements Listener {
     private String findShopIdFromTitle(String title) {
         try {
             for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
-                String shopNameTemplate = shop.getName().replace("%page%", "");
-                if (title.contains(shopNameTemplate)) {
-                    // Extraire le numéro de page
-                    int page = 1;
-                    if (shop.getName().contains("%page%")) {
-                        page = extractPageNumber(title, shop.getName());
+                String shopNameTemplate = ChatColor.stripColor(ChatColor.translateAlternateColorCodes('&', shop.getName())).trim();
+
+                // Découper sur %page% pour construire la regex
+                String[] parts = shopNameTemplate.split("%page%", -1);
+                StringBuilder regexBuilder = new StringBuilder();
+                regexBuilder.append(".*"); // Permet du texte avant
+
+                for (int i = 0; i < parts.length; i++) {
+                    regexBuilder.append(Pattern.quote(parts[i]));
+                    if (i < parts.length - 1) {
+                        regexBuilder.append("(\\d+)");
+                    }
+                }
+                regexBuilder.append(".*"); // Permet du texte après
+
+                Pattern pattern = Pattern.compile(regexBuilder.toString(), Pattern.CASE_INSENSITIVE);
+                String cleanTitle = ChatColor.stripColor(title).trim();
+                Matcher matcher = pattern.matcher(cleanTitle);
+
+                if (matcher.matches()) {
+                    // Si %page% est présent, extraire la page
+                    if (shop.getName().contains("%page%") && matcher.groupCount() >= 1) {
+                        int page = 1;
+                        try {
+                            page = Integer.parseInt(matcher.group(1));
+                        } catch (NumberFormatException ignored) {}
+                        // plugin.info("Shop found: " + shop.getId() + " on page " + page);
                         return shop.getId() + "#" + page;
                     }
+                    // plugin.info("Shop found: " + shop.getId());
                     return shop.getId();
                 }
             }
         } catch (Exception e) {
             plugin.getLogger().warning("Error retrieving shop via API: " + e.getMessage());
         }
-        
         return null;
     }
+    // private String findShopIdFromTitle(String title) {
+    //     try {
+    //         for (Shop shop : ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
+    //             String shopNameTemplate = shop.getName().replace("%page%", "");
+    //             if (title.contains(shopNameTemplate)) {
+    //                 // Extraire le numéro de page
+    //                 int page = 1;
+    //                 if (shop.getName().contains("%page%")) {
+    //                     page = extractPageNumber(title, shop.getName());
+    //                     return shop.getId() + "#" + page;
+    //                 }
+    //                 return shop.getId();
+    //             }
+    //         }
+    //     } catch (Exception e) {
+    //         plugin.getLogger().warning("Error retrieving shop via API: " + e.getMessage());
+    //     }
+        
+    //     return null;
+    // }
     
     /**
      * Extrait le numéro de page à partir du titre
