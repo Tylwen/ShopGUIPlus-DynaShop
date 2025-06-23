@@ -727,24 +727,24 @@ public class ShopItemPlaceholderListener implements Listener {
     //     return null;
     // }
     
-    /**
-     * Extrait le numéro de page à partir du titre
-     */
-    private int extractPageNumber(String title, String nameTemplate) {
-        String before = nameTemplate.split("%page%")[0];
-        String after = nameTemplate.split("%page%").length > 1 ? nameTemplate.split("%page%")[1] : "";
+    // /**
+    //  * Extrait le numéro de page à partir du titre
+    //  */
+    // private int extractPageNumber(String title, String nameTemplate) {
+    //     String before = nameTemplate.split("%page%")[0];
+    //     String after = nameTemplate.split("%page%").length > 1 ? nameTemplate.split("%page%")[1] : "";
         
-        if (title.startsWith(before) && (after.isEmpty() || title.endsWith(after))) {
-            String pageStr = title.substring(before.length(), after.isEmpty() ? title.length() : title.length() - after.length());
-            try {
-                return Integer.parseInt(pageStr);
-            } catch (NumberFormatException e) {
-                return 1;
-            }
-        }
+    //     if (title.startsWith(before) && (after.isEmpty() || title.endsWith(after))) {
+    //         String pageStr = title.substring(before.length(), after.isEmpty() ? title.length() : title.length() - after.length());
+    //         try {
+    //             return Integer.parseInt(pageStr);
+    //         } catch (NumberFormatException e) {
+    //             return 1;
+    //         }
+    //     }
         
-        return 1;
-    }
+    //     return 1;
+    // }
     
     /**
      * Vérifie si un slot correspond à un bouton de quantité
