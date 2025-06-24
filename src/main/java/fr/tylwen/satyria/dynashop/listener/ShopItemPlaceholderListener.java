@@ -1246,28 +1246,36 @@ public class ShopItemPlaceholderListener implements Listener {
             prices.put("base_stock", ChatColor.translateAlternateColorCodes('&', plugin.getLangConfig().getPlaceholderOutOfStock()));
             prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', plugin.getLangConfig().getPlaceholderOutOfStock()));
         } else {
-            prices.put("base_stock", String.format("%s/%s", fCurrentStock, fMaxStock));
+            // prices.put("base_stock", String.format("%s/%s", fCurrentStock, fMaxStock));
 
             try {
                 int current = Integer.parseInt(currentStock);
                 int max = Integer.parseInt(maxStock);
                 
-                if (max <= 0) {
-                    prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', String.format("&7%s", fCurrentStock)));
+                // Vérifier si le stock est plein
+                if (max > 0 && current >= max) {
+                    prices.put("base_stock", ChatColor.translateAlternateColorCodes('&', plugin.getLangConfig().getPlaceholderStockFull()));
+                    prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', plugin.getLangConfig().getPlaceholderStockFull()));
                 } else {
-                    String colorCode;
-                    
-                    if (current < max * 0.10) {
-                        colorCode = "&4"; // Rouge foncé pour stock critique
-                    } else if (current < max * 0.25) {
-                        colorCode = "&c"; // Rouge pour stock faible
-                    } else if (current < max * 0.5) {
-                        colorCode = "&e"; // Jaune pour stock moyen
+                    prices.put("base_stock", String.format("%s/%s", fCurrentStock, fMaxStock));
+                
+                    if (max <= 0) {
+                        prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', String.format("&7%s", fCurrentStock)));
                     } else {
-                        colorCode = "&a"; // Vert pour stock élevé
+                        String colorCode;
+                        
+                        if (current < max * 0.10) {
+                            colorCode = "&4"; // Rouge foncé pour stock critique
+                        } else if (current < max * 0.25) {
+                            colorCode = "&c"; // Rouge pour stock faible
+                        } else if (current < max * 0.5) {
+                            colorCode = "&e"; // Jaune pour stock moyen
+                        } else {
+                            colorCode = "&a"; // Vert pour stock élevé
+                        }
+                        prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 
+                            String.format("%s%s&7/%s", colorCode, fCurrentStock, fMaxStock)));
                     }
-                    prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 
-                        String.format("%s%s&7/%s", colorCode, fCurrentStock, fMaxStock)));
                 }
             } catch (NumberFormatException e) {
                 prices.put("colored_stock_ratio", ChatColor.translateAlternateColorCodes('&', 

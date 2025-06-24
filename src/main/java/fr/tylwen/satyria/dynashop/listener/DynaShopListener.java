@@ -1109,8 +1109,42 @@ public class DynaShopListener implements Listener {
         ItemPriceData priceData = shopConfigManager.getItemAllValues(shopID, itemID);
         
         params.buyPrice = priceFromDatabase.map(DynamicPrice::getBuyPrice).orElse(priceData.buyPrice.orElse(-1.0));
-        params.minBuy = priceData.minBuy.orElse(params.buyPrice);
-        params.maxBuy = priceData.maxBuy.orElse(params.buyPrice);
+        // params.minBuy = priceData.minBuy.orElse(params.buyPrice);
+        // params.maxBuy = priceData.maxBuy.orElse(params.buyPrice);
+
+        params.minBuy = priceData.minBuy.orElseGet(() -> {
+            boolean hasBuyDynamic = shopConfigManager.hasSection(shopID, itemID, "buyDynamic");
+            boolean isDefault = priceData.defaultBuy.orElse(false);
+            // return hasBuyDynamic ? plugin.getDataConfig().getPriceMin() : 0;
+            // return hasBuyDynamic ? plugin.getDataConfig().getPriceMin() : params.buyPrice;
+            // return hasBuyDynamic ? plugin.getDataConfig().getPriceMin() : (isDefault ? 0 : params.buyPrice);
+            // return hasBuyDynamic ? plugin.getDataConfig().getPriceMin() : (isDefault ? params.buyPrice * plugin.getDataConfig().getPriceMinMultiply() : params.buyPrice);
+            double result;
+            if (hasBuyDynamic) {
+                result = plugin.getDataConfig().getPriceMin();
+            } else if (isDefault) {
+                result = params.buyPrice * plugin.getDataConfig().getPriceMinMultiply();
+            } else {
+                result = params.buyPrice;
+            }
+            return result;
+        });
+
+        params.maxBuy = priceData.maxBuy.orElseGet(() -> {
+            boolean hasBuyDynamic = shopConfigManager.hasSection(shopID, itemID, "buyDynamic");
+            boolean isDefault = priceData.defaultBuy.orElse(false);
+            // return hasBuyDynamic ? plugin.getDataConfig().getPriceMax() : Integer.MAX_VALUE;
+            // return hasBuyDynamic ? plugin.getDataConfig().getPriceMax() : params.buyPrice;
+            double result;
+            if (hasBuyDynamic) {
+                result = plugin.getDataConfig().getPriceMax();
+            } else if (isDefault) {
+                result = params.buyPrice * plugin.getDataConfig().getPriceMaxMultiply();
+            } else {
+                result = params.buyPrice;
+            }
+            return result;
+        });
         
         // Gérer les min/max liés
         handleLinkedMinMaxBuy(player, shopID, priceData, visited, lastResults, params);
@@ -1156,8 +1190,40 @@ public class DynaShopListener implements Listener {
         ItemPriceData priceData = shopConfigManager.getItemAllValues(shopID, itemID);
 
         params.sellPrice = priceFromDatabase.map(DynamicPrice::getSellPrice).orElse(priceData.sellPrice.orElse(-1.0));
-        params.minSell = priceData.minSell.orElse(params.sellPrice);
-        params.maxSell = priceData.maxSell.orElse(params.sellPrice);
+        // params.minSell = priceData.minSell.orElse(params.sellPrice);
+        // params.maxSell = priceData.maxSell.orElse(params.sellPrice);
+
+        params.minSell = priceData.minSell.orElseGet(() -> {
+            boolean hasSellDynamic = shopConfigManager.hasSection(shopID, itemID, "sellDynamic");
+            boolean isDefault = priceData.defaultSell.orElse(false);
+            // return hasSellDynamic ? plugin.getDataConfig().getPriceMin() : 0;
+            // return hasSellDynamic ? plugin.getDataConfig().getPriceMin() : params.sellPrice;
+            double result;
+            if (hasSellDynamic) {
+                result = plugin.getDataConfig().getPriceMin();
+            } else if (isDefault) {
+                result = params.sellPrice * plugin.getDataConfig().getPriceMinMultiply();
+            } else {
+                result = params.sellPrice;
+            }
+            return result;
+        });
+
+        params.maxSell = priceData.maxSell.orElseGet(() -> {
+            boolean hasSellDynamic = shopConfigManager.hasSection(shopID, itemID, "sellDynamic");
+            boolean isDefault = priceData.defaultSell.orElse(false);
+            // return hasSellDynamic ? plugin.getDataConfig().getPriceMax() : Integer.MAX_VALUE;
+            // return hasSellDynamic ? plugin.getDataConfig().getPriceMax() : params.sellPrice;
+            double result;
+            if (hasSellDynamic) {
+                result = plugin.getDataConfig().getPriceMax();
+            } else if (isDefault) {
+                result = params.sellPrice * plugin.getDataConfig().getPriceMaxMultiply();
+            } else {
+                result = params.sellPrice;
+            }
+            return result;
+        });
 
         // Gérer les min/max liés
         handleLinkedMinMaxSell(player, shopID, priceData, visited, lastResults, params);

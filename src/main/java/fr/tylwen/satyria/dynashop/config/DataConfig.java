@@ -87,7 +87,7 @@ public class DataConfig {
         this.priceMaxMultiply = config.getDouble("default.price-max-multiply", 2.0);
 
         this.priceMin = config.getDouble("default.price-min", 0.01);
-        this.priceMax = config.getDouble("default.price-max", 1000.0);
+        this.priceMax = config.getDouble("default.price-max", Integer.MAX_VALUE);
         this.priceMargin = config.getDouble("default.price-margin", 0.1);
 
         this.buyGrowthRate = config.getDouble("default.buy-growth-rate", 1.00005);

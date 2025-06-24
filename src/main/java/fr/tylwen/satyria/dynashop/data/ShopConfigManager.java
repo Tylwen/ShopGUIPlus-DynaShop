@@ -861,6 +861,7 @@ public class ShopConfigManager {
         // Section buyDynamic
         ConfigurationSection buyDynamic = findSectionIgnoreCase(itemSection, "buyDynamic");
         if (buyDynamic != null) {
+            itemPriceData.defaultBuy = getOptionalBoolean(buyDynamic, "default");
             itemPriceData.minBuy = getOptionalDouble(buyDynamic, "min");
             itemPriceData.maxBuy = getOptionalDouble(buyDynamic, "max");
             itemPriceData.growthBuy = getOptionalDouble(buyDynamic, "growth");
@@ -872,6 +873,7 @@ public class ShopConfigManager {
         // Section sellDynamic
         ConfigurationSection sellDynamic = findSectionIgnoreCase(itemSection, "sellDynamic");
         if (sellDynamic != null) {
+            itemPriceData.defaultSell = getOptionalBoolean(sellDynamic, "default");
             itemPriceData.minSell = getOptionalDouble(sellDynamic, "min");
             itemPriceData.maxSell = getOptionalDouble(sellDynamic, "max");
             itemPriceData.growthSell = getOptionalDouble(sellDynamic, "growth");
@@ -950,6 +952,21 @@ public class ShopConfigManager {
         
         String value = section.getString(actualKey);
         return value != null && !value.isEmpty() ? Optional.of(value) : Optional.empty();
+    }
+
+    private Optional<Boolean> getOptionalBoolean(ConfigurationSection section, String key) {
+        if (section == null) return Optional.empty();
+        
+        String actualKey = findKeyIgnoreCase(section, key);
+        if (actualKey == null) return Optional.empty();
+        
+        // Vérifier si la clé existe réellement dans la section
+        if (!section.contains(actualKey)) {
+            return Optional.empty();
+        }
+        
+        boolean value = section.getBoolean(actualKey);
+        return Optional.of(value);
     }
 
     // public ItemStack getItemStack(String shopID, String itemID) {

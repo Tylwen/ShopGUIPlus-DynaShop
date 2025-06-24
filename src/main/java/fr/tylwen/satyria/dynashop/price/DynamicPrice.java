@@ -392,7 +392,7 @@ public class DynamicPrice implements Cloneable {
     // }
 
 
-    public void adjustPricesBasedOnStock() {
+    private void adjustPricesBasedOnStock() {
         // Calculer le ratio de stock (entre 0 et 1)
         double stockRatio = Math.max(0.0, Math.min(1.0, (double)(stock - minStock) / (maxStock - minStock)));
         
@@ -400,11 +400,13 @@ public class DynamicPrice implements Cloneable {
         if (buyPrice > 0) {
             // Formule inversée : prix élevés quand stock proche de 0, prix bas quand stock proche du max
             buyPrice = maxBuy - (maxBuy - minBuy) * stockRatio * stockBuyModifier;
+            // buyPrice = maxBuy - (maxBuy - minBuy) / (1.0 + Math.exp(-0.0005 * (stockRatio))) * stockBuyModifier;
         }
         
         if (sellPrice > 0) {
             // Formule inversée : prix élevés quand stock proche de 0, prix bas quand stock proche du max
             sellPrice = maxSell - (maxSell - minSell) * stockRatio * stockSellModifier;
+            // sellPrice = maxSell - (maxSell - minSell) / (1.0 + Math.exp(-0.0005 * (stockRatio))) * stockSellModifier;
         }
         
         // Vérifier les marges uniquement si les deux prix sont positifs

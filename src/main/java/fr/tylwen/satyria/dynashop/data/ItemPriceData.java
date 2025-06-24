@@ -23,6 +23,9 @@ public class ItemPriceData {
     public Optional<Double> buyPrice = Optional.empty();
     public Optional<Double> sellPrice = Optional.empty();
 
+    public Optional<Boolean> defaultBuy = Optional.empty();
+    public Optional<Boolean> defaultSell = Optional.empty();
+
     public Optional<Double> minBuy = Optional.empty();
     public Optional<Double> maxBuy = Optional.empty();
     public Optional<String> minBuyLink = Optional.empty();
