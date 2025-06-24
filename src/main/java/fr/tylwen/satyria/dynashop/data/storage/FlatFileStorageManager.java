@@ -628,7 +628,7 @@ public class FlatFileStorageManager implements StorageManager {
                     existingPrice.getGrowthBuy(), existingPrice.getDecayBuy(),
                     existingPrice.getGrowthSell(), existingPrice.getDecaySell(),
                     stock, existingPrice.getMinStock(), existingPrice.getMaxStock(),
-                    existingPrice.getStockBuyModifier(), existingPrice.getStockSellModifier()
+                    existingPrice.getStockModifier()
                 );
                 
                 // Préserver les informations de type

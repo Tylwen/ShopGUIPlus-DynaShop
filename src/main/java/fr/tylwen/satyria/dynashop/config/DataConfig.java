@@ -50,6 +50,7 @@ public class DataConfig {
     private final double priceDecrease;
     private final int stockMin;
     private final int stockMax;
+    private final double stockModifier;
     private final double stockBuyModifier;
     private final double stockSellModifier;
 
@@ -100,6 +101,7 @@ public class DataConfig {
 
         this.stockMin = config.getInt("default.stock-min", 0);
         this.stockMax = config.getInt("default.stock-max", Integer.MAX_VALUE);
+        this.stockModifier = config.getDouble("default.stock-modifier", 1.0);
         this.stockBuyModifier = config.getDouble("default.stock-buy-modifier", 0.5);
         this.stockSellModifier = config.getDouble("default.stock-sell-modifier", 2.0);
 
@@ -202,6 +204,10 @@ public class DataConfig {
 
     public int getStockMax() {
         return stockMax;
+    }
+
+    public double getStockModifier() {
+        return stockModifier;
     }
 
     public double getStockBuyModifier() {

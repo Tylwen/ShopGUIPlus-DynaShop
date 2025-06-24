@@ -519,7 +519,7 @@ public class PriceRecipe {
             result.getMinSellPrice(), result.getMaxSellPrice(),
             1.0, 1.0, 1.0, 1.0,
             result.getStock(), result.getMinStock(), result.getMaxStock(),
-            1.0, 1.0
+            1.0
         );
         
         recipePrice.setDynaShopType(DynaShopType.RECIPE);

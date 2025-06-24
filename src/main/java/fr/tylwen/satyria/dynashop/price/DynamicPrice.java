@@ -40,8 +40,9 @@ public class DynamicPrice implements Cloneable {
     private int stock; // Stock actuel
     private final int minStock; // Stock minimum
     private final int maxStock; // Stock maximum
-    private final double stockBuyModifier; // Coefficient pour ajuster le prix d'achat en fonction du stock
-    private final double stockSellModifier; // Coefficient pour ajuster le prix de vente en fonction du stock
+    private final double stockModifier; // Coefficient pour ajuster le prix d'achat en fonction du stock
+    // private final double stockBuyModifier; // Coefficient pour ajuster le prix d'achat en fonction du stock
+    // private final double stockSellModifier; // Coefficient pour ajuster le prix de vente en fonction du stock
     // private boolean isFromStock; // Indique si le prix provient du stock
     // private boolean isFromRecipeStock; // Indique si le prix provient du stock d'une recette
 
@@ -73,8 +74,8 @@ public class DynamicPrice implements Cloneable {
         double minBuy, double maxBuy, double minSell, double maxSell,
         double growthBuy, double decayBuy,
         double growthSell, double decaySell,
-        int stock, int minStock, int maxStock,
-        double stockBuyModifier, double stockSellModifier) {
+        int stock, int minStock, int maxStock, double stockModifier) {
+        // double stockBuyModifier, double stockSellModifier) {
         if (minBuy > 0 && maxBuy > 0 && minBuy > maxBuy) {
             throw new IllegalArgumentException("minBuy ne peut pas être supérieur à maxBuy");
         }
@@ -121,11 +122,13 @@ public class DynamicPrice implements Cloneable {
         this.decayBuy = decayBuy;
         this.growthSell = growthSell;
         this.decaySell = decaySell;
+
         this.stock = stock;
         this.minStock = minStock;
         this.maxStock = maxStock;
-        this.stockBuyModifier = stockBuyModifier;
-        this.stockSellModifier = stockSellModifier;
+        this.stockModifier = stockModifier;
+        // this.stockBuyModifier = stockBuyModifier;
+        // this.stockSellModifier = stockSellModifier;
 
         // this.typeDynaShop = DynaShopType.NONE;
         this.typeDynaShop = DynaShopType.UNKNOWN;
@@ -139,12 +142,12 @@ public class DynamicPrice implements Cloneable {
     public DynamicPrice(double buyPrice, double sellPrice) {
         // this(buyPrice, sellPrice, 0.0, Double.MAX_VALUE, 0.0, Double.MAX_VALUE, 1.0, 1.0, 1.0, 1.0);
         this(buyPrice, sellPrice, 0.0, Double.MAX_VALUE, 0.0, Double.MAX_VALUE, 1.0, 1.0, 1.0, 1.0,
-            0, 0, Integer.MAX_VALUE, 1.0, 1.0);
+            0, 0, Integer.MAX_VALUE, 1.0);
     }
 
     public DynamicPrice(double buyPrice, double sellPrice, int stock) {
         this(buyPrice, sellPrice, 0.0, Double.MAX_VALUE, 0.0, Double.MAX_VALUE, 1.0, 1.0, 1.0, 1.0,
-            stock, 0, Integer.MAX_VALUE, 1.0, 1.0);
+            stock, 0, Integer.MAX_VALUE, 1.0);
     }
     
     public DynamicPrice clone() {
@@ -375,13 +378,17 @@ public class DynamicPrice implements Cloneable {
         return maxStock;
     }
 
-    public double getStockBuyModifier() {
-        return stockBuyModifier;
+    public double getStockModifier() {
+        return stockModifier;
     }
 
-    public double getStockSellModifier() {
-        return stockSellModifier;
-    }
+    // public double getStockBuyModifier() {
+    //     return stockBuyModifier;
+    // }
+
+    // public double getStockSellModifier() {
+    //     return stockSellModifier;
+    // }
 
     // public boolean isFromStock() {
     //     return isFromStock;
@@ -392,43 +399,45 @@ public class DynamicPrice implements Cloneable {
     // }
 
 
-    private void adjustPricesBasedOnStock() {
-        // Calculer le ratio de stock (entre 0 et 1)
-        double stockRatio = Math.max(0.0, Math.min(1.0, (double)(stock - minStock) / (maxStock - minStock)));
+    // private void adjustPricesBasedOnStock() {
+    //     // Calculer le ratio de stock (entre 0 et 1)
+    //     double stockRatio = Math.max(0.0, Math.min(1.0, (double)(stock - minStock) / (maxStock - minStock)));
         
-        // Ajuster seulement les prix positifs
-        if (buyPrice > 0) {
-            // Formule inversée : prix élevés quand stock proche de 0, prix bas quand stock proche du max
-            buyPrice = maxBuy - (maxBuy - minBuy) * stockRatio * stockBuyModifier;
-            // buyPrice = maxBuy - (maxBuy - minBuy) / (1.0 + Math.exp(-0.0005 * (stockRatio))) * stockBuyModifier;
-        }
+    //     // Ajuster seulement les prix positifs
+    //     if (buyPrice > 0) {
+    //         // Formule inversée : prix élevés quand stock proche de 0, prix bas quand stock proche du max
+    //         buyPrice = maxBuy - (maxBuy - minBuy) * stockRatio;
+    //         // buyPrice = maxBuy - (maxBuy - minBuy) * stockRatio * stockBuyModifier;
+    //         // buyPrice = maxBuy - (maxBuy - minBuy) / (1.0 + Math.exp(-0.0005 * (stockRatio))) * stockBuyModifier;
+    //     }
         
-        if (sellPrice > 0) {
-            // Formule inversée : prix élevés quand stock proche de 0, prix bas quand stock proche du max
-            sellPrice = maxSell - (maxSell - minSell) * stockRatio * stockSellModifier;
-            // sellPrice = maxSell - (maxSell - minSell) / (1.0 + Math.exp(-0.0005 * (stockRatio))) * stockSellModifier;
-        }
+    //     if (sellPrice > 0) {
+    //         // Formule inversée : prix élevés quand stock proche de 0, prix bas quand stock proche du max
+    //         sellPrice = maxSell - (maxSell - minSell) * stockRatio;
+    //         // sellPrice = maxSell - (maxSell - minSell) * stockRatio * stockSellModifier;
+    //         // sellPrice = maxSell - (maxSell - minSell) / (1.0 + Math.exp(-0.0005 * (stockRatio))) * stockSellModifier;
+    //     }
         
-        // Vérifier les marges uniquement si les deux prix sont positifs
-        if (buyPrice > 0 && sellPrice > 0) {
-            if (buyPrice < sellPrice + MIN_MARGIN) {
-                buyPrice = sellPrice + MIN_MARGIN;
-            }
-            if (sellPrice > buyPrice - MIN_MARGIN) {
-                sellPrice = buyPrice - MIN_MARGIN;
-            }
-        }
-    }
+    //     // Vérifier les marges uniquement si les deux prix sont positifs
+    //     if (buyPrice > 0 && sellPrice > 0) {
+    //         if (buyPrice < sellPrice + MIN_MARGIN) {
+    //             buyPrice = sellPrice + MIN_MARGIN;
+    //         }
+    //         if (sellPrice > buyPrice - MIN_MARGIN) {
+    //             sellPrice = buyPrice - MIN_MARGIN;
+    //         }
+    //     }
+    // }
     
-    public void increaseStock(int amount) {
-        incrementStock(amount);
-        adjustPricesBasedOnStock();
-    }
+    // public void increaseStock(int amount) {
+    //     incrementStock(amount);
+    //     adjustPricesBasedOnStock();
+    // }
     
-    public void decreaseStock(int amount) {
-        decrementStock(amount);
-        adjustPricesBasedOnStock();
-    }
+    // public void decreaseStock(int amount) {
+    //     decrementStock(amount);
+    //     adjustPricesBasedOnStock();
+    // }
 
     /**
      * Applique les modificateurs de prix à cet objet DynamicPrice

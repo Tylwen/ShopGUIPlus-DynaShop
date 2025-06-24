@@ -42,7 +42,7 @@ default:
   price-max-multiply: 2.0 # Maximum multiplier for dynamic pricing
 
   price-min: 0.01 # Minimum price for dynamic pricing
-  price-max: 1000.0 # Maximum price for dynamic pricing
+  price-max: 1000000.0 # Maximum price for dynamic pricing
   price-margin: 0.1 # Price margin for dynamic pricing
 
   buy-growth-rate: 1.00005 # Growth rate for dynamic pricing
@@ -55,8 +55,8 @@ default:
 
   stock-min: 0 # Minimum stock for dynamic pricing
   stock-max: 1000000 # Maximum stock for dynamic pricing
-  stock-buy-modifier: 0.5 # Stock modifier for dynamic pricing
-  stock-sell-modifier: 2.0 # Stock modifier for dynamic pricing
+  # stock-buy-modifier: 0.5 # Stock modifier for dynamic pricing # REMOVED
+  # stock-sell-modifier: 2.0 # Stock modifier for dynamic pricing # REMOVED
 
 gui:
   refresh:

@@ -430,15 +430,14 @@ public class ShopConfigManager {
         }
 
         int stock = 0, minStock = 0, maxStock = Integer.MAX_VALUE;
-        double buyModifier = 1.0, sellModifier = 1.0;
+        double stockModifier = 1.0;
 
         if (itemSec.isConfigurationSection("stock")) {
             ConfigurationSection stockSec = itemSec.getConfigurationSection("stock");
             stock = stockSec.getInt("base", 0);
             minStock = stockSec.getInt("min", 0);
             maxStock = stockSec.getInt("max", Integer.MAX_VALUE);
-            buyModifier = stockSec.getDouble("buyModifier", 0.5);
-            sellModifier = stockSec.getDouble("sellModifier", 2.0);
+            stockModifier = stockSec.getDouble("modifier", 0.5);
         }
 
         // plugin.getLogger().info("Creating DynamicPrice for item: " + itemSec.getCurrentPath() +
@@ -448,7 +447,7 @@ public class ShopConfigManager {
         //     ") | BuyModifier: " + buyModifier + ", SellModifier: " + sellModifier);
     
         // return new DynamicPrice(baseBuy, baseSell, minBuy, maxBuy, minSell, maxSell, growthBuy, decayBuy, growthSell, decaySell);
-        return new DynamicPrice(baseBuy, baseSell, minBuy, maxBuy, minSell, maxSell, growthBuy, decayBuy, growthSell, decaySell, stock, minStock, maxStock, buyModifier, sellModifier);
+        return new DynamicPrice(baseBuy, baseSell, minBuy, maxBuy, minSell, maxSell, growthBuy, decayBuy, growthSell, decaySell, stock, minStock, maxStock, stockModifier);
     }
 
     /**

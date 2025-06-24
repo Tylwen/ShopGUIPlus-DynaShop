@@ -90,8 +90,7 @@ public class DynaShopListener implements Listener {
         public int stock = -1;
         public int minStock = 0;
         public int maxStock = Integer.MAX_VALUE;
-        public double stockBuyModifier = 1;
-        public double stockSellModifier = 1;
+        public double stockModifier = 1;
     }
     
     // ============= ÉVÉNEMENTS =============
@@ -640,7 +639,8 @@ public class DynaShopListener implements Listener {
             linkedPrice.getGrowthBuy(), linkedPrice.getDecayBuy(),
             linkedPrice.getGrowthSell(), linkedPrice.getDecaySell(),
             linkedPrice.getStock(), linkedPrice.getMinStock(), linkedPrice.getMaxStock(),
-            linkedPrice.getStockBuyModifier(), linkedPrice.getStockSellModifier()
+            // linkedPrice.getStockBuyModifier(), linkedPrice.getStockSellModifier()
+            linkedPrice.getStockModifier()
         );
         
         // Conserver les flags spéciaux
@@ -899,7 +899,7 @@ public class DynaShopListener implements Listener {
             params.buyPrice, params.sellPrice, params.minBuy, params.maxBuy, params.minSell, params.maxSell,
             params.growthBuy, params.decayBuy, params.growthSell, params.decaySell,
             params.stock, params.minStock, params.maxStock,
-            params.stockBuyModifier, params.stockSellModifier
+            params.stockModifier
         );
         
         // Stocker les types dans l'objet
@@ -1173,10 +1173,14 @@ public class DynaShopListener implements Listener {
         });
         
         // Charger le modificateur de stock
-        params.stockBuyModifier = priceData.stockBuyModifier.orElseGet(() -> {
+        params.stockModifier = priceData.stockBuyModifier.orElseGet(() -> {
             boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
             return hasStock ? plugin.getDataConfig().getStockBuyModifier() : 1.0;
         });
+        // params.stockBuyModifier = priceData.stockBuyModifier.orElseGet(() -> {
+        //     boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
+        //     return hasStock ? plugin.getDataConfig().getStockBuyModifier() : 1.0;
+        // });
     }
     
     /**
@@ -1242,11 +1246,11 @@ public class DynaShopListener implements Listener {
         
         // Stock déjà chargé par loadBuyPrices
         
-        // Charger le modificateur de stock
-        params.stockSellModifier = priceData.stockSellModifier.orElseGet(() -> {
-            boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
-            return hasStock ? plugin.getDataConfig().getStockSellModifier() : 1.0;
-        });
+        // // Charger le modificateur de stock
+        // params.stockSellModifier = priceData.stockSellModifier.orElseGet(() -> {
+        //     boolean hasStock = shopConfigManager.hasSection(shopID, itemID, "stock");
+        //     return hasStock ? plugin.getDataConfig().getStockSellModifier() : 1.0;
+        // });
     }
     
     /**

@@ -74,25 +74,64 @@ public class PriceStock {
             return 0.0;
         }
         
-        // Récupérer les bornes de prix
-        double minPrice = plugin.getShopConfigManager()
-            .getItemValue(shopID, itemID, typePrice.replace("Price", "Dynamic.min"), Double.class)
-            .orElse(basePrice.get() * 0.5);
+        // // Récupérer les bornes de prix
+        // double minPrice = plugin.getShopConfigManager()
+        //     .getItemValue(shopID, itemID, typePrice.replace("Price", "Dynamic.min"), Double.class)
+        //     .orElse(basePrice.get() * 0.5);
         
-        double maxPrice = plugin.getShopConfigManager()
-            .getItemValue(shopID, itemID, typePrice.replace("Price", "Dynamic.max"), Double.class)
-            .orElse(basePrice.get() * 2.0);
+        // double maxPrice = plugin.getShopConfigManager()
+        //     .getItemValue(shopID, itemID, typePrice.replace("Price", "Dynamic.max"), Double.class)
+        //     .orElse(basePrice.get() * 2.0);
         
-        // Récupérer le modificateur
-        double modifier = plugin.getShopConfigManager()
-            .getItemValue(shopID, itemID, "stock." + (typePrice.equals("buyPrice") ? "buyModifier" : "sellModifier"), Double.class)
-            .orElse(typePrice.equals("buyPrice") ? dataConfig.getStockBuyModifier() : dataConfig.getStockSellModifier());
+        // // Récupérer le modificateur
+        // double modifier = plugin.getShopConfigManager()
+        //     .getItemValue(shopID, itemID, "stock." + (typePrice.equals("buyPrice") ? "buyModifier" : "sellModifier"), Double.class)
+        //     .orElse(typePrice.equals("buyPrice") ? dataConfig.getStockBuyModifier() : dataConfig.getStockSellModifier());
+        
+        // // Calculer le ratio de stock (entre 0 et 1)
+        // double stockRatio = Math.max(0.0, Math.min(1.0, (double)(stock - minStock) / (maxStock - minStock)));
+        
+        // // Formule : prix élevés quand stock proche de 0, prix bas quand stock proche du max
+        // double price = maxPrice - (maxPrice - minPrice) * stockRatio * modifier;
+        
+        // Récupérer les bornes de prix ou les calculer avec les modificateurs
+        double minPrice, maxPrice;
+        String minKey = typePrice.replace("Price", "Dynamic.min");
+        String maxKey = typePrice.replace("Price", "Dynamic.max");
+        
+        Optional<Double> minPriceConfig = plugin.getShopConfigManager()
+            .getItemValue(shopID, itemID, minKey, Double.class);
+        Optional<Double> maxPriceConfig = plugin.getShopConfigManager()
+            .getItemValue(shopID, itemID, maxKey, Double.class);
+        
+        if (minPriceConfig.isPresent() && maxPriceConfig.isPresent()) {
+            // Utiliser les bornes définies explicitement
+            minPrice = minPriceConfig.get();
+            maxPrice = maxPriceConfig.get();
+        } else {
+            // // Utiliser les modificateurs pour calculer les bornes
+            // boolean isBuy = typePrice.equals("buyPrice");
+            // double modifier = plugin.getShopConfigManager()
+            //     .getItemValue(shopID, itemID, "stock." + (isBuy ? "buyModifier" : "sellModifier"), Double.class)
+            //     .orElse(isBuy ? dataConfig.getStockBuyModifier() : dataConfig.getStockSellModifier());
+
+            double trueBasePrice = getTrueBasePrice(shopID, itemID, typePrice)
+                .orElse(basePrice.get());
+
+            // Utiliser UN SEUL modificateur pour calculer les bornes
+            double modifier = plugin.getShopConfigManager()
+                .getItemValue(shopID, itemID, "stock.modifier", Double.class)
+                .orElse(dataConfig.getStockModifier()); // Nouvelle méthode unifiée
+
+            minPrice = trueBasePrice * (1.0 - modifier);
+            maxPrice = trueBasePrice * (1.0 + modifier);
+        }
         
         // Calculer le ratio de stock (entre 0 et 1)
         double stockRatio = Math.max(0.0, Math.min(1.0, (double)(stock - minStock) / (maxStock - minStock)));
         
         // Formule : prix élevés quand stock proche de 0, prix bas quand stock proche du max
-        double price = maxPrice - (maxPrice - minPrice) * stockRatio * modifier;
+        double price = maxPrice - (maxPrice - minPrice) * stockRatio;
         
         // Mettre en cache
         cachePrice(cacheKey, price, typePrice);
@@ -124,6 +163,14 @@ public class PriceStock {
             if (price.isPresent()) {
                 return price;
             }
+            return plugin.getShopConfigManager().getItemValue(shopID, itemID, "sellPrice", Double.class);
+        }
+    }
+
+    private Optional<Double> getTrueBasePrice(String shopID, String itemID, String typePrice) {
+        if (typePrice.equals("buyPrice")) {
+            return plugin.getShopConfigManager().getItemValue(shopID, itemID, "buyPrice", Double.class);
+        } else {
             return plugin.getShopConfigManager().getItemValue(shopID, itemID, "sellPrice", Double.class);
         }
     }
@@ -390,37 +437,41 @@ public class PriceStock {
         int maxStock = plugin.getShopConfigManager()
             .getItemValue(shopID, itemID, "stock.max", Integer.class)
             .orElse(dataConfig.getStockMax());
+            
+        double stockModifier = plugin.getShopConfigManager()
+            .getItemValue(shopID, itemID, "stock.modifier", Double.class)
+            .orElse(dataConfig.getStockModifier());
         
         double minBuy = plugin.getShopConfigManager()
             .getItemValue(shopID, itemID, "buyDynamic.min", Double.class)
-            .orElse(buyPrice * 0.5);
+            .orElse(buyPrice * (1.0 - stockModifier));
         
         double maxBuy = plugin.getShopConfigManager()
             .getItemValue(shopID, itemID, "buyDynamic.max", Double.class)
-            .orElse(buyPrice * 2.0);
+            .orElse(buyPrice * (1.0 + stockModifier));
         
         double minSell = plugin.getShopConfigManager()
             .getItemValue(shopID, itemID, "sellDynamic.min", Double.class)
-            .orElse(sellPrice * 0.5);
-        
+            .orElse(sellPrice * (1.0 - stockModifier));
+
         double maxSell = plugin.getShopConfigManager()
             .getItemValue(shopID, itemID, "sellDynamic.max", Double.class)
-            .orElse(sellPrice * 2.0);
+            .orElse(sellPrice * (1.0 + stockModifier));
+
+        // double stockBuyModifier = plugin.getShopConfigManager()
+        //     .getItemValue(shopID, itemID, "stock.buyModifier", Double.class)
+        //     .orElse(dataConfig.getStockBuyModifier());
         
-        double stockBuyModifier = plugin.getShopConfigManager()
-            .getItemValue(shopID, itemID, "stock.buyModifier", Double.class)
-            .orElse(dataConfig.getStockBuyModifier());
-        
-        double stockSellModifier = plugin.getShopConfigManager()
-            .getItemValue(shopID, itemID, "stock.sellModifier", Double.class)
-            .orElse(dataConfig.getStockSellModifier());
+        // double stockSellModifier = plugin.getShopConfigManager()
+        //     .getItemValue(shopID, itemID, "stock.sellModifier", Double.class)
+        //     .orElse(dataConfig.getStockSellModifier());
         
         DynamicPrice price = new DynamicPrice(
             buyPrice, sellPrice, 
             minBuy, maxBuy, minSell, maxSell,
             1.0, 1.0, 1.0, 1.0,  // Growth/decay factors sont 1.0 pour STOCK
             stock, minStock, maxStock, 
-            stockBuyModifier, stockSellModifier
+            stockModifier
         );
         
         price.setDynaShopType(DynaShopType.STOCK);
@@ -453,7 +504,7 @@ public class PriceStock {
             sellPrice, sellPrice,
             1.0, 1.0, 1.0, 1.0,
             stock, minStock, maxStock,
-            dataConfig.getStockBuyModifier(), dataConfig.getStockSellModifier()
+            dataConfig.getStockModifier()
         );
         
         price.setDynaShopType(DynaShopType.STATIC_STOCK);
