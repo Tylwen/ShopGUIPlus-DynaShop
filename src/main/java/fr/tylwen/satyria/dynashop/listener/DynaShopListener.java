@@ -87,9 +87,9 @@ public class DynaShopListener implements Listener {
         public double decayBuy = 1;
         public double growthSell = 1;
         public double decaySell = 1;
-        public int stock = 0;
+        public int stock = -1;
         public int minStock = 0;
-        public int maxStock = 0;
+        public int maxStock = Integer.MAX_VALUE;
         public double stockBuyModifier = 1;
         public double stockSellModifier = 1;
     }
