@@ -1158,13 +1158,19 @@ public class ShopItemPlaceholderListener implements Listener {
         if (price.getBuyPrice() < 0) {
             prices.put("buy", "N/A");
         } else {
-            prices.put("buy", plugin.getPriceFormatter().formatPrice(price.getBuyPrice() * quantity));
+            // prices.put("buy", plugin.getPriceFormatter().formatPrice(price.getBuyPrice() * quantity));
+            double averageBuyPrice = price.calculateProgressiveAveragePrice(quantity, price.getGrowthBuy(), true);
+            double totalBuyPrice = averageBuyPrice * quantity;
+            prices.put("buy", plugin.getPriceFormatter().formatPrice(totalBuyPrice));
         }
         
         if (price.getSellPrice() < 0) {
             prices.put("sell", "N/A");
         } else {
-            prices.put("sell", plugin.getPriceFormatter().formatPrice(price.getSellPrice() * quantity));
+            // prices.put("sell", plugin.getPriceFormatter().formatPrice(price.getSellPrice() * quantity));
+            double averageSellPrice = price.calculateProgressiveAveragePrice(quantity, price.getDecaySell(), false);
+            double totalSellPrice = averageSellPrice * quantity;
+            prices.put("sell", plugin.getPriceFormatter().formatPrice(totalSellPrice));
         }
         
         if (price.getMinBuyPrice() < 0) {

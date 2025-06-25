@@ -276,16 +276,16 @@ public class MarketTrendAnalyzer {
      */
     private double calculateVolatility(List<PriceDataPoint> points, boolean isBuy) {
         double[] prices = isBuy ?
-            points.stream().mapToDouble(PriceDataPoint::getCloseBuyPrice).filter(price -> price > 0).toArray() :
-            points.stream().mapToDouble(PriceDataPoint::getCloseSellPrice).filter(price -> price > 0).toArray();
-        
+            points.parallelStream().mapToDouble(PriceDataPoint::getCloseBuyPrice).filter(price -> price > 0).toArray() :
+            points.parallelStream().mapToDouble(PriceDataPoint::getCloseSellPrice).filter(price -> price > 0).toArray();
+
         if (prices.length < 3) {
             return 0;
         }
         
         // Calculer l'écart-type
-        double mean = Arrays.stream(prices).average().orElse(0);
-        double variance = Arrays.stream(prices)
+        double mean = Arrays.stream(prices).parallel().average().orElse(0);
+        double variance = Arrays.stream(prices).parallel()
             .map(p -> Math.pow(p - mean, 2))
             .sum() / prices.length;
         double stdDev = Math.sqrt(variance);

@@ -17,6 +17,9 @@
  */
 package fr.tylwen.satyria.dynashop.price;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.bukkit.entity.Player;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
@@ -156,6 +159,107 @@ public class DynamicPrice implements Cloneable {
         } catch (CloneNotSupportedException e) {
             // Cette exception ne devrait jamais se produire car nous implémentons Cloneable
             throw new RuntimeException("Erreur lors du clonage de DynamicPrice", e);
+        }
+    }
+
+    /**
+     * Calcule le prix moyen pour un achat de quantité k avec growth/decay progressif
+     * @param quantity la quantité à acheter/vendre
+     * @param growthFactor le facteur de croissance (growth pour achat, decay pour vente)
+     * @return le prix moyen par unité
+     */
+    public double calculateProgressiveAveragePrice(int quantity, double growthFactor, boolean isBuy) {
+        double initialPrice = isBuy ? this.buyPrice : this.sellPrice;
+        
+        if (initialPrice <= 0 || quantity <= 0) {
+            return initialPrice;
+        }
+        
+        if (Math.abs(growthFactor - 1.0) < 0.00001) {
+            // Si g ≈ 1, pas de changement progressif
+            return initialPrice;
+        }
+        
+        // DynaShopPlugin.getInstance().getLogger().info(String.format(
+        //     "Calcul prix progressif: %s, quantité=%d, facteur=%.4f, prix initial=%.2f",
+        //     isBuy ? "achat" : "vente", quantity, growthFactor, initialPrice
+        // ));
+
+        // Utiliser le cache centralisé du plugin
+        String cacheKey = String.format("progressive_%s_%d_%.6f_%.2f", isBuy ? "buy" : "sell", quantity, growthFactor, initialPrice);
+        return DynaShopPlugin.getInstance().getCalculatedPriceCache().get(cacheKey, () -> {
+            // P_avg = P_before × (g^k - 1) / (k × (g - 1))
+            double gPowK = Math.pow(growthFactor, quantity);
+            double averagePrice = initialPrice * (gPowK - 1) / (quantity * (growthFactor - 1));
+
+            // DynaShopPlugin.getInstance().getLogger().info(String.format("Résultat prix progressif: %.2f", averagePrice));
+            
+            return averagePrice;
+        });
+    }
+
+    /**
+     * Calcule le prix final après un achat/vente progressif
+     * @param quantity la quantité achetée/vendue
+     * @param growthFactor le facteur de croissance
+     * @return le nouveau prix de base
+     */
+    public double calculateProgressiveFinalPrice(int quantity, double growthFactor, boolean isBuy) {
+        double initialPrice = isBuy ? this.buyPrice : this.sellPrice;
+        
+        if (initialPrice <= 0) {
+            return initialPrice;
+        }
+        
+        // P_after = P_before × g^k
+        return initialPrice * Math.pow(growthFactor, quantity);
+    }
+
+    /**
+     * Applique un growth/decay progressif pendant l'achat
+     */
+    public void applyProgressiveGrowth(int amount) {
+        if (buyPrice > 0) {
+            double finalBuyPrice = calculateProgressiveFinalPrice(amount, growthBuy, true);
+            this.buyPrice = Math.min(maxBuy, Math.max(finalBuyPrice, minBuy));
+        }
+        if (sellPrice > 0) {
+            double finalSellPrice = calculateProgressiveFinalPrice(amount, growthSell, true);
+            this.sellPrice = Math.max(minSell, Math.min(finalSellPrice, maxSell));
+        }
+        
+        // Vérifier les marges
+        if (buyPrice > 0 && sellPrice > 0) {
+            if (buyPrice < sellPrice + MIN_MARGIN) {
+                buyPrice = sellPrice + MIN_MARGIN;
+            }
+            if (sellPrice > buyPrice - MIN_MARGIN) {
+                sellPrice = buyPrice - MIN_MARGIN;
+            }
+        }
+    }
+
+    /**
+     * Applique un decay progressif pendant la vente
+     */
+    public void applyProgressiveDecay(int amount) {
+        if (buyPrice > 0) {
+            double finalBuyPrice = calculateProgressiveFinalPrice(amount, decayBuy, false);
+            this.buyPrice = Math.max(minBuy, Math.min(finalBuyPrice, maxBuy));
+        }
+        if (sellPrice > 0) {
+            double finalSellPrice = calculateProgressiveFinalPrice(amount, decaySell, false);
+            this.sellPrice = Math.min(maxSell, Math.max(finalSellPrice, minSell));
+        }
+        
+        // Vérifier les marges
+        if (buyPrice > 0 && sellPrice > 0) {
+            if (sellPrice > buyPrice - MIN_MARGIN) {
+                sellPrice = buyPrice - MIN_MARGIN;
+            }
+            if (buyPrice < sellPrice + MIN_MARGIN) {
+                buyPrice = sellPrice + MIN_MARGIN;
+            }
         }
     }
     

@@ -654,6 +654,8 @@ public class DynaShopPlugin extends JavaPlugin {
         limitCache.invalidateWithPrefix(baseKey);
         stockCache.invalidateWithPrefix(baseKey);
         
+        calculatedPriceCache.invalidateWithPrefix("progressive_");
+        
         // Si c'est une recette, invalider le cache des ingrédients aussi
         if (getShopConfigManager().getTypeDynaShop(shopId, itemId) == DynaShopType.RECIPE) {
             recipeCache.invalidate(baseKey);

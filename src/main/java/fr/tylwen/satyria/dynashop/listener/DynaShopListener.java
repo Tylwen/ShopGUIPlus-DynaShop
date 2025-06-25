@@ -87,9 +87,9 @@ public class DynaShopListener implements Listener {
         public double decayBuy = 1;
         public double growthSell = 1;
         public double decaySell = 1;
-        public int stock = -1;
+        public int stock = 0;
         public int minStock = 0;
-        public int maxStock = Integer.MAX_VALUE;
+        public int maxStock = 0;
         public double stockModifier = 1;
     }
     
@@ -487,17 +487,37 @@ public class DynaShopListener implements Listener {
      * Applique les modificateurs de prix à une transaction
      */
     private void applyPriceModifiers(ShopPreTransactionEvent event, DynamicPrice price, Player player, ShopItem item) throws PlayerDataNotLoadedException {
-        double basePrice;
+        int amount = event.getAmount();
+        
         if (event.getShopAction() == ShopAction.BUY) {
-            basePrice = price.getBuyPriceForAmount(event.getAmount());
+            // Calculer le prix moyen progressif pour l'achat
+            double averagePrice = price.calculateProgressiveAveragePrice(amount, price.getGrowthBuy(), true);
+            double totalPrice = averagePrice * amount;
+            
             double playerBuyModifier = ShopGuiPlusApi.getPriceModifier(player, item, PriceModifierActionType.BUY).getModifier();
-            event.setPrice(basePrice * playerBuyModifier);
+            event.setPrice(totalPrice * playerBuyModifier);
+            
         } else if (event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) {
-            basePrice = price.getSellPriceForAmount(event.getAmount());
+            // Calculer le prix moyen progressif pour la vente
+            double averagePrice = price.calculateProgressiveAveragePrice(amount, price.getDecaySell(), false);
+            double totalPrice = averagePrice * amount;
+            
             double playerSellModifier = ShopGuiPlusApi.getPriceModifier(player, item, PriceModifierActionType.SELL).getModifier();
-            event.setPrice(basePrice * playerSellModifier);
+            event.setPrice(totalPrice * playerSellModifier);
         }
     }
+    // private void applyPriceModifiers(ShopPreTransactionEvent event, DynamicPrice price, Player player, ShopItem item) throws PlayerDataNotLoadedException {
+    //     double basePrice;
+    //     if (event.getShopAction() == ShopAction.BUY) {
+    //         basePrice = price.getBuyPriceForAmount(event.getAmount());
+    //         double playerBuyModifier = ShopGuiPlusApi.getPriceModifier(player, item, PriceModifierActionType.BUY).getModifier();
+    //         event.setPrice(basePrice * playerBuyModifier);
+    //     } else if (event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) {
+    //         basePrice = price.getSellPriceForAmount(event.getAmount());
+    //         double playerSellModifier = ShopGuiPlusApi.getPriceModifier(player, item, PriceModifierActionType.SELL).getModifier();
+    //         event.setPrice(basePrice * playerSellModifier);
+    //     }
+    // }
     
     // ============= GESTIONNAIRES DE PRIX PAR TYPE =============
     
@@ -506,11 +526,18 @@ public class DynaShopListener implements Listener {
      */
     private void handleDynamicPrice(DynamicPrice price, ShopAction action, int amount) {
         if (action == ShopAction.BUY) {
-            price.applyGrowth(amount);
+            price.applyProgressiveGrowth(amount);
         } else if (action == ShopAction.SELL || action == ShopAction.SELL_ALL) {
-            price.applyDecay(amount);
+            price.applyProgressiveDecay(amount);
         }
     }
+    // private void handleDynamicPrice(DynamicPrice price, ShopAction action, int amount) {
+    //     if (action == ShopAction.BUY) {
+    //         price.applyGrowth(amount);
+    //     } else if (action == ShopAction.SELL || action == ShopAction.SELL_ALL) {
+    //         price.applyDecay(amount);
+    //     }
+    // }
 
     /**
      * Gère les prix basés sur des recettes
