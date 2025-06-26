@@ -29,7 +29,7 @@ public class MaterialTranslationGenerator {
                 writer.write(mat.name() + ": \"" + formatMaterialName(mat.name()) + "\"\n");
             }
         }
-        System.out.println("Fichier translations_fr.yml généré !");
+        // System.out.println("Fichier translations_fr.yml généré !");
     }
 
     private static String formatMaterialName(String materialName) {

@@ -588,11 +588,19 @@ public class MySQLStorageManager implements StorageManager {
 
         executeQuery(sql, rs -> {
             while (rs.next()) {
+                plugin.info("Checking stock for shop: " + rs.getString("shopID") + ", item: " + rs.getString("itemID"));
                 String shopId = rs.getString("shopID");
                 String itemId = rs.getString("itemID");
                 
-                DynaShopType typeDynaShop = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId);
-                if (typeDynaShop != DynaShopType.STOCK && typeDynaShop != DynaShopType.STATIC_STOCK) {
+                Map<String, DynaShopType> typeDynaShop = plugin.getShopConfigManager().getAllRealTypeDynaShop(shopId, itemId);
+                DynaShopType typeBuy = typeDynaShop.get("buy");
+                DynaShopType typeSell = typeDynaShop.get("sell");
+
+                // plugin.info("Shop ID: " + shopId + ", Item ID: " + itemId + 
+                //         ", Buy Type: " + typeBuy + ", Sell Type: " + typeSell);
+
+                // Si le type de la boutique n'est pas STOCK, STATIC_STOCK, on supprime le stock
+                if (typeBuy != DynaShopType.STOCK && typeBuy != DynaShopType.STATIC_STOCK && typeSell != DynaShopType.STOCK && typeSell != DynaShopType.STATIC_STOCK) {
                     deleteStock(shopId, itemId);
                 }
             }
@@ -640,6 +648,9 @@ public class MySQLStorageManager implements StorageManager {
                 double buyPrice = rs.getDouble("buyPrice");
                 double sellPrice = rs.getDouble("sellPrice");
                 int stock = rs.getInt("stock");
+
+                // plugin.info("Loading price for shop: " + shopId + ", item: " + itemId + 
+                //         ", buyPrice: " + buyPrice + ", sellPrice: " + sellPrice + ", stock: " + stock);
                 
                 Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
                 if (shop != null) {

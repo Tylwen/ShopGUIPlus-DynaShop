@@ -1,3 +1,10 @@
+prices:
+  placeholder:
+    trend:
+      increase: "&a↑"
+      decrease: "&c↓"
+      stable: "&7→"
+
 stock:
   out-of-stock: "This item is out of stock!"
   full-stock: "This item is in full stock, we cannot sell more!"
@@ -15,3 +22,4 @@ limit:
     buy_reached: "&cLimit reached! Next buy in %time%"
     sell_reached: "&cLimit reached! Next sell in %time%"
     remaining: "&aRemaining: %limit%"
+    dateTimeFormatter: "dd/MM/yyyy HH:mm:ss"

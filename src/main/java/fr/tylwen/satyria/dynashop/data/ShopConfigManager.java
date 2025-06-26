@@ -362,7 +362,7 @@ public class ShopConfigManager {
         DynaShopType typeGeneral = getTypeDynaShop(shop.getId(), item.getId());
 
         // if ((!itemSec.isConfigurationSection("buyDynamic") || !itemSec.isConfigurationSection("sellDynamic")) && getTypeDynaShop(shop.getId(), item.getId()) != DynaShopType.STATIC_STOCK) {
-        if ((!itemSec.isConfigurationSection("buyDynamic") && !itemSec.isConfigurationSection("sellDynamic")) && typeGeneral != DynaShopType.STATIC_STOCK) {
+        if ((!itemSec.isConfigurationSection("buyDynamic") && !itemSec.isConfigurationSection("sellDynamic")) && typeGeneral != DynaShopType.STATIC_STOCK && typeGeneral != DynaShopType.STOCK) {
             if (plugin.getStorageManager().itemExists(shop.getId(), item.getId())) {
                 plugin.getStorageManager().deleteItem(shop.getId(), item.getId());
             }
@@ -633,6 +633,13 @@ public class ShopConfigManager {
         
         // Retourner le type réel trouvé
         return type;
+    }
+
+    public Map<String, DynaShopType> getAllRealTypeDynaShop(String shopID, String itemID) {
+        Map<String, DynaShopType> types = new HashMap<>();
+        types.put("buy", getRealTypeDynaShop(shopID, itemID, "buy"));
+        types.put("sell", getRealTypeDynaShop(shopID, itemID, "sell"));
+        return types;
     }
 
     public Map<String, DynaShopType> getAllTypeDynaShop(String shopID, String itemID) {

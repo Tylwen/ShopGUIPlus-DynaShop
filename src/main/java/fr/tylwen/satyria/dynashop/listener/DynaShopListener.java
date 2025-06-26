@@ -441,12 +441,43 @@ public class DynaShopListener implements Listener {
         if (buyTypeDynaShop == DynaShopType.NONE || buyTypeDynaShop == DynaShopType.UNKNOWN) buyTypeDynaShop = typeDynaShop;
         if (sellTypeDynaShop == DynaShopType.NONE || sellTypeDynaShop == DynaShopType.UNKNOWN) sellTypeDynaShop = typeDynaShop;
 
-        // Traiter les prix selon le type de transaction
-        handlePriceChanges(action, shopID, itemID, price, typeDynaShop, buyTypeDynaShop, sellTypeDynaShop, amount, itemStack);
+        // // Traiter les prix selon le type de transaction
+        // handlePriceChanges(action, shopID, itemID, price, typeDynaShop, buyTypeDynaShop, sellTypeDynaShop, amount, itemStack);
         
-        // Sauvegarder les modifications si nécessaire
-        if (sellTypeDynaShop != DynaShopType.RECIPE || buyTypeDynaShop != DynaShopType.RECIPE) {
-            plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
+        // // Sauvegarder les modifications si nécessaire
+        // if (sellTypeDynaShop != DynaShopType.RECIPE || buyTypeDynaShop != DynaShopType.RECIPE) {
+        //     plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
+        // }
+        
+        // ✅ CORRECTION : Traiter selon le type spécifique de l'action
+        if (action == ShopAction.BUY) {
+            // Pour l'achat, utiliser seulement buyTypeDynaShop
+            handlePriceChangesByType(action, shopID, itemID, price, buyTypeDynaShop, amount, itemStack);
+            
+            // Sauvegarder seulement si ce n'est pas une recette
+            if (buyTypeDynaShop != DynaShopType.RECIPE) {
+                plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
+            }
+        } else if (action == ShopAction.SELL || action == ShopAction.SELL_ALL) {
+            // Pour la vente, utiliser seulement sellTypeDynaShop
+            handlePriceChangesByType(action, shopID, itemID, price, sellTypeDynaShop, amount, itemStack);
+            
+            // Sauvegarder seulement si ce n'est pas une recette
+            if (sellTypeDynaShop != DynaShopType.RECIPE) {
+                plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
+            }
+        }
+    }
+
+    /**
+     * Gère les changements de prix selon un type spécifique
+     */
+    private void handlePriceChangesByType(ShopAction action, String shopID, String itemID, DynamicPrice price, DynaShopType type, int amount, ItemStack itemStack) {
+        switch (type) {
+            case DYNAMIC -> handleDynamicPrice(price, action, amount);
+            case RECIPE -> handleRecipePrice(shopID, itemID, amount, action);
+            case LINK -> handleLinkedPrice(shopID, itemID, itemStack, action, amount);
+            case STOCK, STATIC_STOCK -> handleStockPrice(price, shopID, itemID, action, amount);
         }
     }
     
@@ -544,6 +575,8 @@ public class DynaShopListener implements Listener {
      */
     private void handleRecipePrice(String shopID, String itemID, int amount, ShopAction action) {
         boolean isGrowth = action == ShopAction.BUY;
+        
+        // plugin.getLogger().info("DEBUG: handleRecipePrice - " + shopID + ":" + itemID + " amount=" + amount + " action=" + action + " isGrowth=" + isGrowth);
 
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             applyGrowthOrDecayToIngredients(shopID, itemID, amount, isGrowth, new HashSet<>(), new HashMap<>(), 0);
@@ -646,8 +679,20 @@ public class DynaShopListener implements Listener {
         //     handleStockPrice(linkedPrice, linkedShopID, linkedItemID, action, amount);
         // }
 
-        handlePriceChanges(action, linkedShopID, linkedItemID, linkedPrice, linkedType, buyTypeDynaShop, sellTypeDynaShop, amount, itemStack);
+        // handlePriceChanges(action, linkedShopID, linkedItemID, linkedPrice, linkedType, buyTypeDynaShop, sellTypeDynaShop, amount, itemStack);
 
+        // // Sauvegarder les modifications sur l'item lié
+        // if (linkedType != DynaShopType.RECIPE) {
+        //     plugin.getBatchDatabaseUpdater().queueUpdate(linkedShopID, linkedItemID, linkedPrice, true);
+        // }
+
+        if (action == ShopAction.BUY) {
+            // Pour l'achat, utiliser seulement buyTypeDynaShop
+            handlePriceChangesByType(action, linkedShopID, linkedItemID, linkedPrice, buyTypeDynaShop, amount, itemStack);
+        } else if (action == ShopAction.SELL || action == ShopAction.SELL_ALL) {
+            // Pour la vente, utiliser seulement sellTypeDynaShop
+            handlePriceChangesByType(action, linkedShopID, linkedItemID, linkedPrice, sellTypeDynaShop, amount, itemStack);
+        }
         // Sauvegarder les modifications sur l'item lié
         if (linkedType != DynaShopType.RECIPE) {
             plugin.getBatchDatabaseUpdater().queueUpdate(linkedShopID, linkedItemID, linkedPrice, true);
@@ -724,19 +769,30 @@ public class DynaShopListener implements Listener {
             return;
         }
         visitedItems.add(itemKey);
+        
+        // plugin.getLogger().info("DEBUG: applyGrowthOrDecayToIngredients - " + shopID + ":" + itemID + " amount=" + amount + " isGrowth=" + isGrowth + " depth=" + depth);
 
         // Récupérer les ingrédients
         List<ItemStack> ingredients = plugin.getPriceRecipe().getIngredients(shopID, itemID);
+        
+        // plugin.getLogger().info("DEBUG: Found " + ingredients.size() + " ingredients for " + shopID + ":" + itemID);
         
         if (ingredients.isEmpty()) return;
 
         // Traiter chaque ingrédient
         for (ItemStack ingredient : ingredients) {
             if (ingredient == null || ingredient.getType() == Material.AIR) continue;
+            
+            // plugin.getLogger().info("DEBUG: Processing ingredient: " + ingredient.getType() + " amount=" + ingredient.getAmount());
 
             // Rechercher l'ingrédient dans les shops
             FoundItem foundItem = plugin.getPriceRecipe().findItemInShops(shopID, ingredient);
-            if (!foundItem.isFound()) continue;
+            if (!foundItem.isFound()) {
+                // plugin.getLogger().info("DEBUG: Ingredient not found in shops: " + ingredient.getType());
+                continue;
+            }
+            
+            // plugin.getLogger().info("DEBUG: Found ingredient in shop: " + foundItem.getShopID() + ":" + foundItem.getItemID());
 
             processRecipeIngredient(foundItem.getShopID(), foundItem.getItemID(), ingredient, ingredient.getAmount() * amount, isGrowth, visitedItems, lastResults, depth);
         }
@@ -775,12 +831,21 @@ public class DynaShopListener implements Listener {
             case LINK -> 
                 handleLinkedPrice(shopID, itemID, itemStack, ShopAction.BUY, quantity);
             case STOCK, STATIC_STOCK -> {
-                processIngredient(shopID, itemID, price, ingredientType, quantity, true);
+                // processIngredient(shopID, itemID, price, ingredientType, quantity, true);
+                processIngredient(shopID, itemID, price, buyType, quantity, true);
                 plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
             }
             default -> {
-                processIngredient(shopID, itemID, price, ingredientType, quantity, true);
+                // processIngredient(shopID, itemID, price, ingredientType, quantity, true);
+                processIngredient(shopID, itemID, price, buyType, quantity, true);
                 plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
+                
+                // ✅ NOUVEAU : Vérifier si l'ingrédient a une configuration buyType spéciale
+                DynaShopType configuredBuyType = shopConfigManager.getTypeDynaShop(shopID, itemID, "sell");
+                if (configuredBuyType == DynaShopType.RECIPE && configuredBuyType != buyType) {
+                    // plugin.getLogger().info("DEBUG: Item " + shopID + ":" + itemID + " has special buyType RECIPE, continuing chain");
+                    applyGrowthOrDecayToIngredients(shopID, itemID, quantity, true, visitedItems, lastResults, depth + 1);
+                }
             }
         }
     }
@@ -795,12 +860,21 @@ public class DynaShopListener implements Listener {
             case LINK ->
                 handleLinkedPrice(shopID, itemID, itemStack, ShopAction.SELL, quantity);
             case STOCK, STATIC_STOCK -> {
-                processIngredient(shopID, itemID, price, ingredientType, quantity, false);
+                // processIngredient(shopID, itemID, price, ingredientType, quantity, false);
+                processIngredient(shopID, itemID, price, sellType, quantity, false);
                 plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
             }
             default -> {
-                processIngredient(shopID, itemID, price, ingredientType, quantity, false);
+                // processIngredient(shopID, itemID, price, ingredientType, quantity, false);
+                processIngredient(shopID, itemID, price, sellType, quantity, false);
                 plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
+                
+                // ✅ NOUVEAU : Vérifier si l'ingrédient a une configuration sellType spéciale
+                DynaShopType configuredSellType = shopConfigManager.getTypeDynaShop(shopID, itemID, "buy");
+                if (configuredSellType == DynaShopType.RECIPE && configuredSellType != sellType) {
+                    // plugin.getLogger().info("DEBUG: Item " + shopID + ":" + itemID + " has special sellType RECIPE, continuing chain");
+                    applyGrowthOrDecayToIngredients(shopID, itemID, quantity, false, visitedItems, lastResults, depth + 1);
+                }
             }
         }
     }
@@ -809,6 +883,7 @@ public class DynaShopListener implements Listener {
      * Traite un ingrédient selon son type
      */
     private void processIngredient(String shopID, String itemID, DynamicPrice price, DynaShopType type, int quantity, boolean isGrowth) {
+        // plugin.getLogger().info("DEBUG: processIngredient - " + shopID + ":" + itemID + " type=" + type + " quantity=" + quantity + " isGrowth=" + isGrowth);
         if (type == DynaShopType.STOCK || type == DynaShopType.STATIC_STOCK) {
             if (isGrowth) {
                 // Achat: diminuer le stock des ingrédients
@@ -821,12 +896,20 @@ public class DynaShopListener implements Listener {
             // Mettre à jour l'objet price
             updatePriceFromStock(shopID, itemID, price);
         } else {
+            // plugin.getLogger().info("DEBUG: Applying progressive changes to " + shopID + ":" + itemID + " before: buy=" + price.getBuyPrice() + " sell=" + price.getSellPrice());
             // Pour les types non-stock, appliquer growth/decay directement
             if (isGrowth) {
-                price.applyGrowth(quantity);
+                // price.applyGrowth(quantity);
+                price.applyProgressiveGrowth(quantity);
             } else {
-                price.applyDecay(quantity);
+                // price.applyDecay(quantity);
+                price.applyProgressiveDecay(quantity);
             }
+            
+            // plugin.getLogger().info("DEBUG: After progressive changes: buy=" + price.getBuyPrice() + " sell=" + price.getSellPrice());
+            // ✅ Sauvegarder les changements pour les types non-stock
+            plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
+            // plugin.getLogger().info("DEBUG: Queued update for " + shopID + ":" + itemID);
         }
     }
     

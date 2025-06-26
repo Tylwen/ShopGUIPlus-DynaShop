@@ -175,7 +175,7 @@ public class DynamicPrice implements Cloneable {
             return initialPrice;
         }
         
-        if (Math.abs(growthFactor - 1.0) < 0.00001) {
+        if (Math.abs(growthFactor - 1.0) < 0.000001) {
             // Si g ≈ 1, pas de changement progressif
             return initialPrice;
         }
@@ -198,21 +198,37 @@ public class DynamicPrice implements Cloneable {
         });
     }
 
-    /**
-     * Calcule le prix final après un achat/vente progressif
-     * @param quantity la quantité achetée/vendue
-     * @param growthFactor le facteur de croissance
-     * @return le nouveau prix de base
-     */
+    // /**
+    //  * Calcule le prix final après un achat/vente progressif
+    //  * @param quantity la quantité achetée/vendue
+    //  * @param growthFactor le facteur de croissance
+    //  * @return le nouveau prix de base
+    //  */
+    // public double calculateProgressiveFinalPrice(int quantity, double growthFactor, boolean isBuy) {
+    //     double initialPrice = isBuy ? this.buyPrice : this.sellPrice;
+        
+    //     if (initialPrice <= 0) {
+    //         return initialPrice;
+    //     }
+        
+    //     // P_after = P_before × g^k
+    //     return initialPrice * Math.pow(growthFactor, quantity);
+    // }
     public double calculateProgressiveFinalPrice(int quantity, double growthFactor, boolean isBuy) {
         double initialPrice = isBuy ? this.buyPrice : this.sellPrice;
         
+        // DynaShopPlugin.getInstance().getLogger().info("DEBUG: calculateProgressiveFinalPrice - isBuy=" + isBuy + 
+        //     ", initialPrice=" + initialPrice + ", quantity=" + quantity + ", growthFactor=" + growthFactor);
+        
         if (initialPrice <= 0) {
+            // DynaShopPlugin.getInstance().getLogger().info("DEBUG: Price <= 0, returning: " + initialPrice);
             return initialPrice;
         }
         
         // P_after = P_before × g^k
-        return initialPrice * Math.pow(growthFactor, quantity);
+        double result = initialPrice * Math.pow(growthFactor, quantity);
+        // DynaShopPlugin.getInstance().getLogger().info("DEBUG: Final result: " + result);
+        return result;
     }
 
     /**
@@ -224,7 +240,7 @@ public class DynamicPrice implements Cloneable {
             this.buyPrice = Math.min(maxBuy, Math.max(finalBuyPrice, minBuy));
         }
         if (sellPrice > 0) {
-            double finalSellPrice = calculateProgressiveFinalPrice(amount, growthSell, true);
+            double finalSellPrice = calculateProgressiveFinalPrice(amount, growthSell, false);
             this.sellPrice = Math.max(minSell, Math.min(finalSellPrice, maxSell));
         }
         
@@ -244,12 +260,13 @@ public class DynamicPrice implements Cloneable {
      */
     public void applyProgressiveDecay(int amount) {
         if (buyPrice > 0) {
-            double finalBuyPrice = calculateProgressiveFinalPrice(amount, decayBuy, false);
+            double finalBuyPrice = calculateProgressiveFinalPrice(amount, decayBuy, true);
             this.buyPrice = Math.max(minBuy, Math.min(finalBuyPrice, maxBuy));
         }
         if (sellPrice > 0) {
             double finalSellPrice = calculateProgressiveFinalPrice(amount, decaySell, false);
             this.sellPrice = Math.min(maxSell, Math.max(finalSellPrice, minSell));
+            // this.sellPrice = Math.min(minSell, Math.max(finalSellPrice, maxSell));
         }
         
         // Vérifier les marges
@@ -263,45 +280,45 @@ public class DynamicPrice implements Cloneable {
         }
     }
     
-    public void applyDecay(int amount) {
-        // Ne pas modifier les prix désactivés (-1)
-        if (buyPrice > 0) {
-            buyPrice = Math.max(minBuy, Math.min(buyPrice * Math.pow(decayBuy, amount), maxBuy));
-        }
-        if (sellPrice > 0) {
-            sellPrice = Math.min(maxSell, Math.max(sellPrice * Math.pow(decaySell, amount), minSell));
-        }
+    // public void applyGrowth(int amount) {
+    //     // Ne pas modifier les prix désactivés (-1)
+    //     if (buyPrice > 0) {
+    //         buyPrice = Math.min(maxBuy, Math.max(buyPrice * Math.pow(growthBuy, amount), minBuy));
+    //     }
+    //     if (sellPrice > 0) {
+    //         sellPrice = Math.max(minSell, Math.min(sellPrice * Math.pow(growthSell, amount), maxSell));
+    //     }
 
-        // Vérifier les marges uniquement si les deux prix sont positifs
-        if (buyPrice > 0 && sellPrice > 0) {
-            if (sellPrice > buyPrice - MIN_MARGIN) {
-                sellPrice = buyPrice - MIN_MARGIN;
-            }
-            if (buyPrice < sellPrice + MIN_MARGIN) {
-                buyPrice = sellPrice + MIN_MARGIN;
-            }
-        }
-    }
+    //     // Vérifier les marges uniquement si les deux prix sont positifs
+    //     if (buyPrice > 0 && sellPrice > 0) {
+    //         if (buyPrice < sellPrice + MIN_MARGIN) {
+    //             buyPrice = sellPrice + MIN_MARGIN;
+    //         }
+    //         if (sellPrice > buyPrice - MIN_MARGIN) {
+    //             sellPrice = buyPrice - MIN_MARGIN;
+    //         }
+    //     }
+    // }
     
-    public void applyGrowth(int amount) {
-        // Ne pas modifier les prix désactivés (-1)
-        if (buyPrice > 0) {
-            buyPrice = Math.min(maxBuy, Math.max(buyPrice * Math.pow(growthBuy, amount), minBuy));
-        }
-        if (sellPrice > 0) {
-            sellPrice = Math.max(minSell, Math.min(sellPrice * Math.pow(growthSell, amount), maxSell));
-        }
+    // public void applyDecay(int amount) {
+    //     // Ne pas modifier les prix désactivés (-1)
+    //     if (buyPrice > 0) {
+    //         buyPrice = Math.max(minBuy, Math.min(buyPrice * Math.pow(decayBuy, amount), maxBuy));
+    //     }
+    //     if (sellPrice > 0) {
+    //         sellPrice = Math.min(maxSell, Math.max(sellPrice * Math.pow(decaySell, amount), minSell));
+    //     }
 
-        // Vérifier les marges uniquement si les deux prix sont positifs
-        if (buyPrice > 0 && sellPrice > 0) {
-            if (buyPrice < sellPrice + MIN_MARGIN) {
-                buyPrice = sellPrice + MIN_MARGIN;
-            }
-            if (sellPrice > buyPrice - MIN_MARGIN) {
-                sellPrice = buyPrice - MIN_MARGIN;
-            }
-        }
-    }
+    //     // Vérifier les marges uniquement si les deux prix sont positifs
+    //     if (buyPrice > 0 && sellPrice > 0) {
+    //         if (sellPrice > buyPrice - MIN_MARGIN) {
+    //             sellPrice = buyPrice - MIN_MARGIN;
+    //         }
+    //         if (buyPrice < sellPrice + MIN_MARGIN) {
+    //             buyPrice = sellPrice + MIN_MARGIN;
+    //         }
+    //     }
+    // }
     
     /**
      * Applique les changements de prix d'achat seulement si le prix est positif

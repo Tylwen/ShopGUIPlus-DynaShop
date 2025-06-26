@@ -39,6 +39,10 @@ public class LangConfig {
     // private final String messageNoShopItemPriceMinMultiply;
     // private final String messageNoShopItemPriceMaxMultiply;
 
+    private final String placeholderPricesIncrease;
+    private final String placeholderPricesDecrease;
+    private final String placeholderPricesStable;
+
     private final String msgOutOfStock;
     private final String msgFullStock;
     private final String placeholderOutOfStock;
@@ -53,6 +57,7 @@ public class LangConfig {
     private final String placeholderLimitBuyReached;
     private final String placeholderLimitSellReached;
     private final String placeholderLimitRemaining;
+    private final String placeholderLimitDateTimeFormatter;
 
     // private final String msgTaxBuy;
     // private final String msgTaxSell;
@@ -61,6 +66,10 @@ public class LangConfig {
         // // Load the language configuration
         // this.lang = config.getString("lang", "en");
         // this.langFile = config.getString("lang-file", "en.yml");
+
+        this.placeholderPricesIncrease = config.getString("prices.placeholder.trend.increase", "&a↑");
+        this.placeholderPricesDecrease = config.getString("prices.placeholder.trend.decrease", "&c↓");
+        this.placeholderPricesStable = config.getString("prices.placeholder.trend.stable", "&7→");
 
         // Load the messages from the configuration file
         // this.messagePrefix = config.getString("messages.prefix", "&7[&6Dynashop&7] ");
@@ -90,6 +99,7 @@ public class LangConfig {
         this.placeholderLimitBuyReached = config.getString("limit.placeholder.buy_reached", "&cLimit reached! Next buy in %time%");
         this.placeholderLimitSellReached = config.getString("limit.placeholder.sell_reached", "&cLimit reached! Next sell in %time%");
         this.placeholderLimitRemaining = config.getString("limit.placeholder.remaining", "&aRemaining: %limit%");
+        this.placeholderLimitDateTimeFormatter = config.getString("limit.placeholder.dateTimeFormatter", "dd/MM/yyyy HH:mm:ss");
 
         // this.msgTaxBuy = config.getString("tax.buy", "&aYou paid &e%tax% &afor the tax on this purchase.");
         // // this.msgTaxSell = config.getString("tax.sell", "&aYou paid &e%tax% &afor the tax on this sale.");
@@ -122,6 +132,16 @@ public class LangConfig {
     // public String getLangFile() {
     //     return langFile;
     // }
+
+    public String getPlaceholderPricesIncrease() {
+        return placeholderPricesIncrease;
+    }
+    public String getPlaceholderPricesDecrease() {
+        return placeholderPricesDecrease;
+    }
+    public String getPlaceholderPricesStable() {
+        return placeholderPricesStable;
+    }
 
     public String getMsgOutOfStock() {
         return msgOutOfStock;
@@ -160,6 +180,9 @@ public class LangConfig {
     }
     public String getPlaceholderLimitRemaining() {
         return this.placeholderLimitRemaining;
+    }
+    public String getPlaceholderLimitDateTimeFormatter() {
+        return this.placeholderLimitDateTimeFormatter;
     }
 
     // public String getMsgTaxBuy() {

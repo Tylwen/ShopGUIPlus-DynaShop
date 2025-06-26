@@ -511,12 +511,58 @@ public class ShopItemPlaceholderListener implements Listener {
         }
 
         // Vérifier les placeholders de modificateurs
-        if (line.contains("%dynashop_current_buy_modifier%") && prices.get("buy_modifier").equals("100%") ||
-            (line.contains("%dynashop_current_sell_modifier%") && prices.get("sell_modifier").equals("100%"))) {
-            return true;
+        if (line.contains("%dynashop_current_buy_modifier%") && prices.get("buy_modifier").equals("100%")) {
+            return !hasOtherPlaceholders(line, "%dynashop_current_buy_modifier%");
         }
 
+        if (line.contains("%dynashop_current_sell_modifier%") && prices.get("sell_modifier").equals("100%")) {
+            return !hasOtherPlaceholders(line, "%dynashop_current_sell_modifier%");
+        }
+        // if (line.contains("%dynashop_current_buy_modifier%") && prices.get("buy_modifier").equals("100%") ||
+        //     (line.contains("%dynashop_current_sell_modifier%") && prices.get("sell_modifier").equals("100%"))) {
+        //     return true;
+        // }
+        
+        // Vérifier les placeholders de tendance (masquer si vide)
+        if (line.contains("%dynashop_current_buy_trend%") && prices.get("buy_trend").isEmpty()) {
+            return !hasOtherPlaceholders(line, "%dynashop_current_buy_trend%");
+        }
+        
+        if (line.contains("%dynashop_current_sell_trend%") && prices.get("sell_trend").isEmpty()) {
+            return !hasOtherPlaceholders(line, "%dynashop_current_sell_trend%");
+        }
+        
+        if (line.contains("%dynashop_current_buy_variation%") && prices.get("buy_variation").isEmpty()) {
+            return !hasOtherPlaceholders(line, "%dynashop_current_buy_variation%");
+        }
+        
+        if (line.contains("%dynashop_current_sell_variation%") && prices.get("sell_variation").isEmpty()) {
+            return !hasOtherPlaceholders(line, "%dynashop_current_sell_variation%");
+        }
+        // if ((line.contains("%dynashop_current_buy_trend%") && prices.get("buy_trend").isEmpty()) ||
+        //     (line.contains("%dynashop_current_sell_trend%") && prices.get("sell_trend").isEmpty()) ||
+        //     (line.contains("%dynashop_current_buy_variation%") && prices.get("buy_variation").isEmpty()) ||
+        //     (line.contains("%dynashop_current_sell_variation%") && prices.get("sell_variation").isEmpty())) {
+        //     return true;
+        // }
+
         return false;
+    }
+
+    /**
+     * Vérifie s'il y a d'autres placeholders sur la ligne après suppression du placeholder donné
+     */
+    private boolean hasOtherPlaceholders(String line, String placeholderToRemove) {
+        // Supprimer le placeholder vide
+        String lineWithoutEmptyPlaceholder = line.replace(placeholderToRemove, "");
+        
+        // Supprimer les codes couleur
+        String cleanLine = lineWithoutEmptyPlaceholder
+            .replaceAll("&[0-9a-fk-or]", "")
+            .replaceAll("§[0-9a-fk-or]", "");
+        
+        // Vérifier s'il reste d'autres placeholders avec la regex
+        return cleanLine.matches(".*%[\\w]+%.*");
     }
 
     /**
@@ -541,7 +587,11 @@ public class ShopItemPlaceholderListener implements Listener {
                   .replace("%dynashop_current_buy_reset_time%", prices.get("buy_reset_time"))
                   .replace("%dynashop_current_sell_reset_time%", prices.get("sell_reset_time"))
                   .replace("%dynashop_current_buy_modifier%", prices.getOrDefault("buy_modifier", "100%"))
-                  .replace("%dynashop_current_sell_modifier%", prices.getOrDefault("sell_modifier", "100%"));
+                  .replace("%dynashop_current_sell_modifier%", prices.getOrDefault("sell_modifier", "100%"))
+                  .replace("%dynashop_current_buy_trend%", prices.getOrDefault("buy_trend", ""))
+                  .replace("%dynashop_current_sell_trend%", prices.getOrDefault("sell_trend", ""))
+                  .replace("%dynashop_current_buy_variation%", prices.getOrDefault("buy_variation", "N/A"))
+                  .replace("%dynashop_current_sell_variation%", prices.getOrDefault("sell_variation", "N/A"));
         
         // Remplacements conditionnels pour les statuts de limite
         if (line.contains("%dynashop_current_buy_limit_status%")) {
@@ -610,7 +660,11 @@ public class ShopItemPlaceholderListener implements Listener {
                     .replace("%dynashop_current_buy_limit_status%", "Loading...")
                     .replace("%dynashop_current_sell_limit_status%", "Loading...")
                     .replace("%dynashop_current_buy_modifier%", "Loading...")
-                    .replace("%dynashop_current_sell_modifier%", "Loading...");
+                    .replace("%dynashop_current_sell_modifier%", "Loading...")
+                    .replace("%dynashop_current_buy_trend%", "Loading...")
+                    .replace("%dynashop_current_sell_trend%", "Loading...")
+                    .replace("%dynashop_current_buy_variation%", "Loading...")
+                    .replace("%dynashop_current_sell_variation%", "Loading...");
                 processed.add(tempLine);
             } else {
                 processed.add(line);
@@ -1075,6 +1129,7 @@ public class ShopItemPlaceholderListener implements Listener {
         // Remplir les prix de base
         if (price != null) {
             fillBasicPrices(prices, price, quantity);
+            fillPriceTrends(prices, price, shopId, itemId);
         }
         fillModifierInfo(prices, player, shopId, itemId);
 
@@ -1195,6 +1250,59 @@ public class ShopItemPlaceholderListener implements Listener {
             prices.put("sell_max", "N/A");
         } else {
             prices.put("sell_max", plugin.getPriceFormatter().formatPrice(price.getMaxSellPrice() * quantity));
+        }
+    }
+
+    /**
+     * Remplit les informations de tendance de prix
+     */
+    private void fillPriceTrends(Map<String, String> prices, DynamicPrice price, String shopId, String itemId) {
+        // // Récupérer les prix de base depuis la configuration
+        // double baseBuyPrice = plugin.getShopConfigManager()
+        //     .getItemValue(shopId, itemId, "buyPrice", Double.class)
+        //     .orElse(-1.0);
+        // double baseSellPrice = plugin.getShopConfigManager()
+        //     .getItemValue(shopId, itemId, "sellPrice", Double.class)
+        //     .orElse(-1.0);
+        
+        // Calculer les tendances pour l'achat
+        if (price.getMinBuyPrice() >= 0 && price.getMaxBuyPrice() >= 0 && price.getBuyPrice() > 0) {
+        // if (baseBuyPrice >= 0 && price.getBuyPrice() > 0) {
+            double midBuyPrice = (price.getMinBuyPrice() + price.getMaxBuyPrice()) / 2.0;
+            if (price.getBuyPrice() > midBuyPrice) {
+                prices.put("buy_trend", ChatColor.translateAlternateColorCodes('&',plugin.getLangConfig().getPlaceholderPricesIncrease())); // Rouge pour prix élevé
+            } else if (price.getBuyPrice() < midBuyPrice) {
+                prices.put("buy_trend", ChatColor.translateAlternateColorCodes('&',plugin.getLangConfig().getPlaceholderPricesDecrease())); // Vert pour prix bas
+            } else {
+                prices.put("buy_trend", ChatColor.translateAlternateColorCodes('&',plugin.getLangConfig().getPlaceholderPricesStable())); // Gris pour prix égal
+            }
+            
+            // Calculer le pourcentage de variation
+            double buyVariation = ((price.getBuyPrice() - midBuyPrice) / midBuyPrice) * 100;
+            prices.put("buy_variation", String.format("%.1f%%", buyVariation));
+        } else {
+            prices.put("buy_trend", "");
+            prices.put("buy_variation", "");
+        }
+        
+        // Calculer les tendances pour la vente
+        if (price.getMinSellPrice() >= 0 && price.getMaxSellPrice() >= 0 && price.getSellPrice() > 0) {
+        // if (baseSellPrice >= 0 && price.getSellPrice() > 0) {
+            double midSellPrice = (price.getMinSellPrice() + price.getMaxSellPrice()) / 2.0;
+            if (price.getSellPrice() > midSellPrice) {
+                prices.put("sell_trend", ChatColor.translateAlternateColorCodes('&',plugin.getLangConfig().getPlaceholderPricesIncrease())); // Vert pour prix élevé (bon pour vendre)
+            } else if (price.getSellPrice() < midSellPrice) {
+                prices.put("sell_trend", ChatColor.translateAlternateColorCodes('&',plugin.getLangConfig().getPlaceholderPricesDecrease())); // Rouge pour prix bas
+            } else {
+                prices.put("sell_trend", ChatColor.translateAlternateColorCodes('&',plugin.getLangConfig().getPlaceholderPricesStable())); // Gris pour prix égal
+            }
+            
+            // Calculer le pourcentage de variation
+            double sellVariation = ((price.getSellPrice() - midSellPrice) / midSellPrice) * 100;
+            prices.put("sell_variation", String.format("%.1f%%", sellVariation));
+        } else {
+            prices.put("sell_trend", "");
+            prices.put("sell_variation", "");
         }
     }
     
@@ -1862,7 +1970,8 @@ public class ShopItemPlaceholderListener implements Listener {
         LimitPeriod period = limit.getPeriodEquivalent();
         if (period != LimitPeriod.NONE) {
             LocalDateTime resetTime = LocalDateTime.now().plus(millisRemaining, ChronoUnit.MILLIS);
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
+            // DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern(plugin.getLangConfig().getPlaceholderLimitDateTimeFormatter());
             return resetTime.format(formatter);
         }
         

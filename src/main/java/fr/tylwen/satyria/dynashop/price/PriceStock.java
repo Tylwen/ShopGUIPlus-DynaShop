@@ -116,7 +116,8 @@ public class PriceStock {
             //     .orElse(isBuy ? dataConfig.getStockBuyModifier() : dataConfig.getStockSellModifier());
 
             double trueBasePrice = getTrueBasePrice(shopID, itemID, typePrice)
-                .orElse(basePrice.get());
+                // .orElse(basePrice.get());
+                .orElse(-1.0);
 
             // Utiliser UN SEUL modificateur pour calculer les bornes
             double modifier = plugin.getShopConfigManager()
@@ -426,6 +427,11 @@ public class PriceStock {
     public DynamicPrice createStockPrice(String shopID, String itemID) {
         double buyPrice = calculatePrice(shopID, itemID, "buyPrice");
         double sellPrice = calculatePrice(shopID, itemID, "sellPrice");
+
+        double trueBaseBuyPrice = getTrueBasePrice(shopID, itemID, "buyPrice")
+            .orElse(-1.0);
+        double trueBaseSellPrice = getTrueBasePrice(shopID, itemID, "sellPrice")
+            .orElse(-1.0);
         
         Optional<Integer> stockOptional = plugin.getStorageManager().getStock(shopID, itemID);
         int stock = stockOptional.orElse(0);
@@ -444,19 +450,19 @@ public class PriceStock {
         
         double minBuy = plugin.getShopConfigManager()
             .getItemValue(shopID, itemID, "buyDynamic.min", Double.class)
-            .orElse(buyPrice * (1.0 - stockModifier));
+            .orElse(trueBaseBuyPrice * (1.0 - stockModifier));
         
         double maxBuy = plugin.getShopConfigManager()
             .getItemValue(shopID, itemID, "buyDynamic.max", Double.class)
-            .orElse(buyPrice * (1.0 + stockModifier));
+            .orElse(trueBaseBuyPrice * (1.0 + stockModifier));
         
         double minSell = plugin.getShopConfigManager()
             .getItemValue(shopID, itemID, "sellDynamic.min", Double.class)
-            .orElse(sellPrice * (1.0 - stockModifier));
+            .orElse(trueBaseSellPrice * (1.0 - stockModifier));
 
         double maxSell = plugin.getShopConfigManager()
             .getItemValue(shopID, itemID, "sellDynamic.max", Double.class)
-            .orElse(sellPrice * (1.0 + stockModifier));
+            .orElse(trueBaseSellPrice * (1.0 + stockModifier));
 
         // double stockBuyModifier = plugin.getShopConfigManager()
         //     .getItemValue(shopID, itemID, "stock.buyModifier", Double.class)
