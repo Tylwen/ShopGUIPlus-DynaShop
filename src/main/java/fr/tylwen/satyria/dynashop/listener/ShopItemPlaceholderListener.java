@@ -1969,8 +1969,9 @@ public class ShopItemPlaceholderListener implements Listener {
         // Si c'est une période prédéfinie (DAILY, WEEKLY, etc.), afficher la date complète
         LimitPeriod period = limit.getPeriodEquivalent();
         if (period != LimitPeriod.NONE) {
-            LocalDateTime resetTime = LocalDateTime.now().plus(millisRemaining, ChronoUnit.MILLIS);
+            // LocalDateTime resetTime = LocalDateTime.now().plus(millisRemaining, ChronoUnit.MILLIS);
             // DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
+            LocalDateTime resetTime = period.getNextReset();
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern(plugin.getLangConfig().getPlaceholderLimitDateTimeFormatter());
             return resetTime.format(formatter);
         }

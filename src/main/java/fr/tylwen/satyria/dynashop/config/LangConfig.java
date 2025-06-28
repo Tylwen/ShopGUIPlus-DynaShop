@@ -87,8 +87,8 @@ public class LangConfig {
         // this.messageNoShopItemPriceMaxMultiply = config.getString("messages.no-shop-item-price-max-multiply", "&cThe maximum price multiply for the shop item must be greater than 0.");
         this.msgOutOfStock = config.getString("stock.out-of-stock", "&cThis item is out of stock.");
         this.msgFullStock = config.getString("stock.full-stock", "&cThis item is full stock we cannot sell more.");
-        this.placeholderOutOfStock = config.getString("placeholder.out-of-stock", "&cOut of stock"); // "&cÉpuisé"
-        this.placeholderStockFull = config.getString("placeholder.full-stock", "&cFull stock"); // "&cStock plein"
+        this.placeholderOutOfStock = config.getString("stock.placeholder.out-of-stock", "&cOut of stock"); // "&cÉpuisé"
+        this.placeholderStockFull = config.getString("stock.placeholder.full-stock", "&cFull stock"); // "&cStock plein"
 
         this.msgLimitReached = config.getString("limit.reached", "&cYou have reached your limit. Try again in %time%");
         this.msgLimit = config.getString("limit.limit", "&cYou have reached your limit for this item.");

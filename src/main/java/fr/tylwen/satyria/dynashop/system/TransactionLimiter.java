@@ -94,8 +94,25 @@ public class TransactionLimiter {
             }
         }
 
+        // public LocalDateTime getStartDate() {
+        //     return LocalDateTime.now().with(TemporalAdjusters.firstDayOfMonth()).withHour(0).withMinute(0).withSecond(0);
+        // }
         public LocalDateTime getStartDate() {
-            return LocalDateTime.now().with(TemporalAdjusters.firstDayOfMonth()).withHour(0).withMinute(0).withSecond(0);
+            switch (this) {
+                case DAILY:
+                    return LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
+                case WEEKLY:
+                    return LocalDateTime.now().with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+                                            .withHour(0).withMinute(0).withSecond(0).withNano(0);
+                case MONTHLY:
+                    return LocalDateTime.now().with(TemporalAdjusters.firstDayOfMonth())
+                                            .withHour(0).withMinute(0).withSecond(0).withNano(0);
+                case YEARLY:
+                    return LocalDateTime.now().withMonth(1).withDayOfMonth(1)
+                                            .withHour(0).withMinute(0).withSecond(0).withNano(0);
+                default:
+                    return LocalDateTime.now(); // Pour NONE et FOREVER
+            }
         }
 
         public LocalDateTime getNextReset() {
