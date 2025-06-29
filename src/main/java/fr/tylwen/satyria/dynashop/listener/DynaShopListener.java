@@ -337,6 +337,7 @@ public class DynaShopListener implements Listener {
             // Vérifier les limites selon le type d'action
             boolean limitExceeded = false;
             String message = null;
+            int stockAmount = plugin.getStorageManager().getStock(effectiveShopID, effectiveItemID).orElse(0);
             
             // if (isBuy && !plugin.getPriceStock().canBuy(effectiveShopID, effectiveItemID, amount)) {
             //     limitExceeded = true;
@@ -347,26 +348,33 @@ public class DynaShopListener implements Listener {
             // }
             if (isBuy) {
                 // Vérifier le stock actuel pour l'achat
-                int currentStock = plugin.getStorageManager().getStock(effectiveShopID, effectiveItemID).orElse(0);
+                // int currentStock = plugin.getStorageManager().getStock(effectiveShopID, effectiveItemID).orElse(0);
                 // int currentStock = currentStockOpt.orElse(0);
                 
-                if (currentStock < amount) {
-                    limitExceeded = true;
-                    message = plugin.getLangConfig().getMsgOutOfStock();
-                } else {
-                    event.setAmount(currentStock);
-                    message = plugin.getLangConfig().getMsgStockLimited()
-                            .replace("%available%", String.valueOf(currentStock))
-                            .replace("%requested%", String.valueOf(amount));
+                if (stockAmount < amount) {
+                    if (stockAmount <= 0) {
+                        limitExceeded = true;
+                        message = plugin.getLangConfig().getMsgOutOfStock();
+                    } else {
+                        event.setAmount(stockAmount);
+                        if (!plugin.getLangConfig().getMsgStockLimited().isEmpty()) {
+                            message = plugin.getLangConfig().getMsgStockLimited()
+                                    .replace("%available%", String.valueOf(stockAmount))
+                                    .replace("%requested%", String.valueOf(amount));
+                            if (event.getPlayer() != null && message != null) {
+                                event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', message));
+                            }
+                        }
+                    }
                 }
             } else if (isSell) {
                 // Vérifier le stock maximal pour la vente
-                int currentStock = plugin.getStorageManager().getStock(effectiveShopID, effectiveItemID).orElse(0);
+                // int currentStock = plugin.getStorageManager().getStock(effectiveShopID, effectiveItemID).orElse(0);
                 // int currentStock = currentStockOpt.orElse(0);
                 int maxStock = shopConfigManager.getItemValue(effectiveShopID, effectiveItemID, "stock.max", Integer.class)
                     .orElse(plugin.getDataConfig().getStockMax());
-                    
-                int availableSpace = maxStock - currentStock;
+
+                int availableSpace = maxStock - stockAmount;
                 
                 if (availableSpace < amount) {
                     if (availableSpace <= 0) {
@@ -374,9 +382,15 @@ public class DynaShopListener implements Listener {
                         message = plugin.getLangConfig().getMsgFullStock();
                     } else {
                         event.setAmount(availableSpace); // Limiter la quantité à vendre
-                        message = plugin.getLangConfig().getMsgStockLimited()
-                                .replace("%available%", String.valueOf(availableSpace))
-                                .replace("%requested%", String.valueOf(amount));
+                        if (!plugin.getLangConfig().getMsgStockLimited().isEmpty()) {
+                            message = plugin.getLangConfig().getMsgStockLimited()
+                                    .replace("%available%", String.valueOf(availableSpace))
+                                    .replace("%requested%", String.valueOf(amount));
+                            Player player = event.getPlayer();
+                            if (player != null && message != null) {
+                                player.sendMessage(ChatColor.translateAlternateColorCodes('&', message));
+                            }
+                        }
                     }
                 }
                 // if (currentStock + amount > maxStock) {
@@ -404,26 +418,64 @@ public class DynaShopListener implements Listener {
      */
     private boolean checkRecipeStockLimits(ShopPreTransactionEvent event, DynaShopType typeDynaShop, String shopID, String itemID, int amount) {
         if (typeDynaShop == DynaShopType.RECIPE) {
+            ShopAction action = event.getShopAction();
+            boolean isBuy = action == ShopAction.BUY;
+            boolean isSell = action == ShopAction.SELL || action == ShopAction.SELL_ALL;
+            
             int stockAmount = priceRecipe.calculateStock(shopID, itemID, new ArrayList<>());
             int maxStock = priceRecipe.calculateMaxStock(shopID, itemID, new ArrayList<>());
             
             if (maxStock > 0) {
                 // Vérifier si le stock est suffisant pour l'achat
-                if (event.getShopAction() == ShopAction.BUY && stockAmount < amount) {
-                    event.setCancelled(true);
-                    if (event.getPlayer() != null) {
-                        event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgOutOfStock()));
+                if (isBuy) {
+                    if (stockAmount < amount) {
+                        if (stockAmount <= 0) {
+                            event.setCancelled(true);
+                            if (event.getPlayer() != null) {
+                                event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgOutOfStock()));
+                            }
+                            return true;
+                        } else {
+                            event.setAmount(stockAmount); // Limiter la quantité à acheter
+                            if (!plugin.getLangConfig().getMsgStockLimited().isEmpty()) {
+                                String message = plugin.getLangConfig().getMsgStockLimited()
+                                        .replace("%available%", String.valueOf(stockAmount))
+                                        .replace("%requested%", String.valueOf(amount));
+                                if (event.getPlayer() != null && message != null) {
+                                    event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', message));
+                                }
+                            }
+                        }
                     }
-                    return true;
-                }
-                
-                // Vérifier si le stock est suffisant pour la vente
-                if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && stockAmount >= maxStock) {
-                    event.setCancelled(true);
-                    if (event.getPlayer() != null) {
-                        event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgFullStock()));
+                } else if (isSell) {
+                    // Vérifier si le stock permet la vente
+                    int availableSpace = maxStock - stockAmount;
+
+                    if (availableSpace < amount) {
+                        if (availableSpace <= 0) {
+                            event.setCancelled(true);
+                            String message = plugin.getLangConfig().getMsgFullStock();
+                            if (event.getPlayer() != null && message != null) {
+                                event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', message));
+                            }
+                        } else {
+                            event.setAmount(availableSpace); // Limiter la quantité à vendre
+                            if (!plugin.getLangConfig().getMsgStockLimited().isEmpty()) {
+                                String message = plugin.getLangConfig().getMsgStockLimited()
+                                        .replace("%available%", String.valueOf(availableSpace))
+                                        .replace("%requested%", String.valueOf(amount));
+                                if (event.getPlayer() != null && message != null) {
+                                    event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', message));
+                                }
+                            }
+                        }
                     }
-                    return true;
+
+                    // event.setCancelled(true);
+                    // if (event.getPlayer() != null) {
+                    //     event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgFullStock()));
+                    // }
+                    // return true;
                 }
             }
         }
