@@ -8,6 +8,7 @@ prices:
 stock:
   out-of-stock: "This item is out of stock!"
   full-stock: "This item is in full stock, we cannot sell more!"
+  limited: "You were only able to sell %available% on %requested%."
   placeholder:
     out-of-stock: "&cOut of stock"
     full-stock: "&cFull stock"

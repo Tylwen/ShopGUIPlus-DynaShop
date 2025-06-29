@@ -49,6 +49,7 @@ import org.bukkit.inventory.ItemStack;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Gère tous les événements liés aux boutiques dynamiques
@@ -61,6 +62,7 @@ public class DynaShopListener implements Listener {
     private final PriceRecipe priceRecipe;
     private final DataConfig dataConfig;
     private final ShopConfigManager shopConfigManager;
+    private final Map<String, Object> stockLocks = new ConcurrentHashMap<>();
     
     // ============= CONSTRUCTEUR =============
     
@@ -311,35 +313,90 @@ public class DynaShopListener implements Listener {
                 }
             }
         }
+
+        DynaShopType buyType = shopConfigManager.getTypeDynaShop(effectiveShopID, effectiveItemID, "buy");
+        DynaShopType sellType = shopConfigManager.getTypeDynaShop(effectiveShopID, effectiveItemID, "sell");
+
+        // Utiliser le type spécifique si défini, sinon le type général
+        if (isBuy && (buyType == DynaShopType.STOCK || buyType == DynaShopType.STATIC_STOCK)) {
+            effectiveType = buyType;
+        } else if (isSell && (sellType == DynaShopType.STOCK || sellType == DynaShopType.STATIC_STOCK)) {
+            effectiveType = sellType;
+        }
         
         // Vérifier si le type effectif nécessite une vérification de stock
         if (effectiveType != DynaShopType.STOCK && effectiveType != DynaShopType.STATIC_STOCK) {
             return false; // Pas besoin de vérifier les limites de stock
         }
         
-        // Vérifier les limites selon le type d'action
-        boolean limitExceeded = false;
-        String message = null;
+        // Verrou pour éviter les transactions simultanées sur le même item
+        String lockKey = effectiveShopID + ":" + effectiveItemID;
+        Object lock = stockLocks.computeIfAbsent(lockKey, k -> new Object());
         
-        if (isBuy && !plugin.getPriceStock().canBuy(effectiveShopID, effectiveItemID, amount)) {
-            limitExceeded = true;
-            message = plugin.getLangConfig().getMsgOutOfStock();
-        } else if (isSell && !plugin.getPriceStock().canSell(effectiveShopID, effectiveItemID, amount)) {
-            limitExceeded = true;
-            message = plugin.getLangConfig().getMsgFullStock();
-        }
-        
-        // Annuler la transaction si une limite est dépassée
-        if (limitExceeded) {
-            event.setCancelled(true);
-            Player player = event.getPlayer();
-            if (player != null && message != null) {
-                player.sendMessage(ChatColor.translateAlternateColorCodes('&', message));
+        synchronized (lock) {
+            // Vérifier les limites selon le type d'action
+            boolean limitExceeded = false;
+            String message = null;
+            
+            // if (isBuy && !plugin.getPriceStock().canBuy(effectiveShopID, effectiveItemID, amount)) {
+            //     limitExceeded = true;
+            //     message = plugin.getLangConfig().getMsgOutOfStock();
+            // } else if (isSell && !plugin.getPriceStock().canSell(effectiveShopID, effectiveItemID, amount)) {
+            //     limitExceeded = true;
+            //     message = plugin.getLangConfig().getMsgFullStock();
+            // }
+            if (isBuy) {
+                // Vérifier le stock actuel pour l'achat
+                int currentStock = plugin.getStorageManager().getStock(effectiveShopID, effectiveItemID).orElse(0);
+                // int currentStock = currentStockOpt.orElse(0);
+                
+                if (currentStock < amount) {
+                    limitExceeded = true;
+                    message = plugin.getLangConfig().getMsgOutOfStock();
+                } else {
+                    event.setAmount(currentStock);
+                    message = plugin.getLangConfig().getMsgStockLimited()
+                            .replace("%available%", String.valueOf(currentStock))
+                            .replace("%requested%", String.valueOf(amount));
+                }
+            } else if (isSell) {
+                // Vérifier le stock maximal pour la vente
+                int currentStock = plugin.getStorageManager().getStock(effectiveShopID, effectiveItemID).orElse(0);
+                // int currentStock = currentStockOpt.orElse(0);
+                int maxStock = shopConfigManager.getItemValue(effectiveShopID, effectiveItemID, "stock.max", Integer.class)
+                    .orElse(plugin.getDataConfig().getStockMax());
+                    
+                int availableSpace = maxStock - currentStock;
+                
+                if (availableSpace < amount) {
+                    if (availableSpace <= 0) {
+                        limitExceeded = true;
+                        message = plugin.getLangConfig().getMsgFullStock();
+                    } else {
+                        event.setAmount(availableSpace); // Limiter la quantité à vendre
+                        message = plugin.getLangConfig().getMsgStockLimited()
+                                .replace("%available%", String.valueOf(availableSpace))
+                                .replace("%requested%", String.valueOf(amount));
+                    }
+                }
+                // if (currentStock + amount > maxStock) {
+                //     limitExceeded = true;
+                //     message = plugin.getLangConfig().getMsgFullStock();
+                // }
             }
-            return true;
-        }
         
-        return false;
+            // Annuler la transaction si une limite est dépassée
+            if (limitExceeded) {
+                event.setCancelled(true);
+                Player player = event.getPlayer();
+                if (player != null && message != null) {
+                    player.sendMessage(ChatColor.translateAlternateColorCodes('&', message));
+                }
+                return true;
+            }
+            
+            return false;
+        }
     }
     
     /**
@@ -403,16 +460,42 @@ public class DynaShopListener implements Listener {
      * Mets à jour les données dans le stockage après une transaction
      */
     private void updateStorageData(Player player, String shopID, String itemID, boolean isBuy, int amount) {
-        // Mise à jour des prix
+        // Mise à jour immédiate du stock pour éviter les surventes
+        DynaShopType buyType = shopConfigManager.getTypeDynaShop(shopID, itemID, "buy");
+        DynaShopType sellType = shopConfigManager.getTypeDynaShop(shopID, itemID, "sell");
+        
+        boolean isStockType = (isBuy && (buyType == DynaShopType.STOCK || buyType == DynaShopType.STATIC_STOCK)) ||
+                            (!isBuy && (sellType == DynaShopType.STOCK || sellType == DynaShopType.STATIC_STOCK));
+        
+        if (isStockType) {
+            // Mettre à jour le stock immédiatement et de manière synchrone
+            Optional<Integer> currentStockOpt = plugin.getStorageManager().getStock(shopID, itemID);
+            int currentStock = currentStockOpt.orElse(0);
+            
+            int newStock;
+            if (isBuy) {
+                // Achat : diminuer le stock
+                int minStock = shopConfigManager.getItemValue(shopID, itemID, "stock.min", Integer.class)
+                    .orElse(plugin.getDataConfig().getStockMin());
+                newStock = Math.max(currentStock - amount, minStock);
+            } else {
+                // Vente : augmenter le stock
+                int maxStock = shopConfigManager.getItemValue(shopID, itemID, "stock.max", Integer.class)
+                    .orElse(plugin.getDataConfig().getStockMax());
+                newStock = Math.min(currentStock + amount, maxStock);
+            }
+            
+            // Sauvegarder immédiatement le nouveau stock
+            plugin.getStorageManager().saveStock(shopID, itemID, newStock);
+            
+            // Mettre à jour le cache stock également
+            plugin.getStockCache().put(shopID + ":" + itemID, newStock);
+        }
+        
+        // Mise à jour des prix (asynchrone, pas critique)
         DynamicPrice updatedPrice = plugin.getPriceCache().getIfPresent(shopID + ":" + itemID);
         if (updatedPrice != null) {
             plugin.getStorageManager().savePrice(shopID, itemID, updatedPrice.getBuyPrice(), updatedPrice.getSellPrice(), updatedPrice.getStock());
-        }
-        
-        // Mise à jour du stock
-        Integer stock = plugin.getStockCache().getIfPresent(shopID + ":" + itemID);
-        if (stock != null && stock >= 0) {
-            plugin.getStorageManager().saveStock(shopID, itemID, stock);
         }
         
         // Enregistrer la transaction si l'item a des limites
@@ -420,6 +503,24 @@ public class DynaShopListener implements Listener {
             plugin.getTransactionLimiter().queueTransaction(player, shopID, itemID, isBuy, amount);
         }
     }
+    // private void updateStorageData(Player player, String shopID, String itemID, boolean isBuy, int amount) {
+    //     // Mise à jour des prix
+    //     DynamicPrice updatedPrice = plugin.getPriceCache().getIfPresent(shopID + ":" + itemID);
+    //     if (updatedPrice != null) {
+    //         plugin.getStorageManager().savePrice(shopID, itemID, updatedPrice.getBuyPrice(), updatedPrice.getSellPrice(), updatedPrice.getStock());
+    //     }
+        
+    //     // Mise à jour du stock
+    //     Integer stock = plugin.getStockCache().getIfPresent(shopID + ":" + itemID);
+    //     if (stock != null && stock >= 0) {
+    //         plugin.getStorageManager().saveStock(shopID, itemID, stock);
+    //     }
+        
+    //     // Enregistrer la transaction si l'item a des limites
+    //     if (plugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
+    //         plugin.getTransactionLimiter().queueTransaction(player, shopID, itemID, isBuy, amount);
+    //     }
+    // }
     
     /**
      * Traite la transaction de manière asynchrone

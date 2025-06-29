@@ -45,6 +45,7 @@ public class LangConfig {
 
     private final String msgOutOfStock;
     private final String msgFullStock;
+    private final String msgStockLimited;
     private final String placeholderOutOfStock;
     private final String placeholderStockFull; // Not used, but kept for future use
 
@@ -87,6 +88,7 @@ public class LangConfig {
         // this.messageNoShopItemPriceMaxMultiply = config.getString("messages.no-shop-item-price-max-multiply", "&cThe maximum price multiply for the shop item must be greater than 0.");
         this.msgOutOfStock = config.getString("stock.out-of-stock", "&cThis item is out of stock.");
         this.msgFullStock = config.getString("stock.full-stock", "&cThis item is full stock we cannot sell more.");
+        this.msgStockLimited = config.getString("stock.limited", "&cYou were only able to sell %available% on %requested%."); // "&cVous n'avez pu vendre que %available% sur %limited%."
         this.placeholderOutOfStock = config.getString("stock.placeholder.out-of-stock", "&cOut of stock"); // "&cÉpuisé"
         this.placeholderStockFull = config.getString("stock.placeholder.full-stock", "&cFull stock"); // "&cStock plein"
 
@@ -154,6 +156,9 @@ public class LangConfig {
     }
     public String getPlaceholderStockFull() {
         return placeholderStockFull;
+    }
+    public String getMsgStockLimited() {
+        return msgStockLimited;
     }
 
     public String getMsgLimit() {
