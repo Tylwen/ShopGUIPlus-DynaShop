@@ -76,6 +76,6 @@ public class MaterialTranslationMerger {
                 writer.println(entry.getKey() + ": \"" + entry.getValue().replace("\"", "\\\"") + "\"");
             }
         }
-        System.out.println("Fichier translations_fr_merged.yml généré !");
+        // System.out.println("Fichier translations_fr_merged.yml généré !");
     }
 }
