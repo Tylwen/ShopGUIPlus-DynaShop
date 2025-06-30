@@ -388,8 +388,13 @@ public class DynaShopPlugin extends JavaPlugin {
             this.placeholderExpansion.register();
             getLogger().info("Placeholders enregistrés avec PlaceholderAPI !");
         }
-        if (!NBT.preloadApi()) {
-            getLogger().warning("NBT-API wasn't initialized properly, disabling the plugin");
+        // if (!NBT.preloadApi()) {
+        //     getLogger().warning("NBT-API wasn't initialized properly, disabling the plugin");
+        //     getPluginLoader().disablePlugin(this);
+        //     return;
+        // }
+        if (getServer().getPluginManager().getPlugin("NBTAPI") == null) {
+            getLogger().warning("NBT-API n'est pas installé ou n'est pas chargé. Le plugin DynaShop ne peut pas fonctionner sans NBT-API.");
             getPluginLoader().disablePlugin(this);
             return;
         }

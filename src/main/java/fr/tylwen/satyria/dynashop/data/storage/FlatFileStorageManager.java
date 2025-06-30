@@ -1299,7 +1299,6 @@ public class FlatFileStorageManager implements StorageManager {
                     }
                 } catch (IOException e) {
                     // Logguer l'erreur mais continuer pour les autres joueurs
-                    // System.err.println("Erreur lors de la sauvegarde des limites pour le joueur " + entry.getKey() + ": " + e.getMessage());
                     DynaShopPlugin.getInstance().severe("Erreur lors de la sauvegarde des limites pour le joueur " + entry.getKey() + ": " + e.getMessage());
                 }
             }
