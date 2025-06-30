@@ -512,37 +512,37 @@ public class DynaShopListener implements Listener {
      * Mets à jour les données dans le stockage après une transaction
      */
     private void updateStorageData(Player player, String shopID, String itemID, boolean isBuy, int amount) {
-        // Mise à jour immédiate du stock pour éviter les surventes
-        DynaShopType buyType = shopConfigManager.getTypeDynaShop(shopID, itemID, "buy");
-        DynaShopType sellType = shopConfigManager.getTypeDynaShop(shopID, itemID, "sell");
+        // // Mise à jour immédiate du stock pour éviter les surventes
+        // DynaShopType buyType = shopConfigManager.getTypeDynaShop(shopID, itemID, "buy");
+        // DynaShopType sellType = shopConfigManager.getTypeDynaShop(shopID, itemID, "sell");
         
-        boolean isStockType = (isBuy && (buyType == DynaShopType.STOCK || buyType == DynaShopType.STATIC_STOCK)) ||
-                            (!isBuy && (sellType == DynaShopType.STOCK || sellType == DynaShopType.STATIC_STOCK));
+        // boolean isStockType = (isBuy && (buyType == DynaShopType.STOCK || buyType == DynaShopType.STATIC_STOCK)) ||
+        //                     (!isBuy && (sellType == DynaShopType.STOCK || sellType == DynaShopType.STATIC_STOCK));
         
-        if (isStockType) {
-            // Mettre à jour le stock immédiatement et de manière synchrone
-            Optional<Integer> currentStockOpt = plugin.getStorageManager().getStock(shopID, itemID);
-            int currentStock = currentStockOpt.orElse(0);
+        // if (isStockType) {
+        //     // Mettre à jour le stock immédiatement et de manière synchrone
+        //     Optional<Integer> currentStockOpt = plugin.getStorageManager().getStock(shopID, itemID);
+        //     int currentStock = currentStockOpt.orElse(0);
             
-            int newStock;
-            if (isBuy) {
-                // Achat : diminuer le stock
-                int minStock = shopConfigManager.getItemValue(shopID, itemID, "stock.min", Integer.class)
-                    .orElse(plugin.getDataConfig().getStockMin());
-                newStock = Math.max(currentStock - amount, minStock);
-            } else {
-                // Vente : augmenter le stock
-                int maxStock = shopConfigManager.getItemValue(shopID, itemID, "stock.max", Integer.class)
-                    .orElse(plugin.getDataConfig().getStockMax());
-                newStock = Math.min(currentStock + amount, maxStock);
-            }
+        //     int newStock;
+        //     if (isBuy) {
+        //         // Achat : diminuer le stock
+        //         int minStock = shopConfigManager.getItemValue(shopID, itemID, "stock.min", Integer.class)
+        //             .orElse(plugin.getDataConfig().getStockMin());
+        //         newStock = Math.max(currentStock - amount, minStock);
+        //     } else {
+        //         // Vente : augmenter le stock
+        //         int maxStock = shopConfigManager.getItemValue(shopID, itemID, "stock.max", Integer.class)
+        //             .orElse(plugin.getDataConfig().getStockMax());
+        //         newStock = Math.min(currentStock + amount, maxStock);
+        //     }
             
-            // Sauvegarder immédiatement le nouveau stock
-            plugin.getStorageManager().saveStock(shopID, itemID, newStock);
+        //     // Sauvegarder immédiatement le nouveau stock
+        //     plugin.getStorageManager().saveStock(shopID, itemID, newStock);
             
-            // Mettre à jour le cache stock également
-            plugin.getStockCache().put(shopID + ":" + itemID, newStock);
-        }
+        //     // Mettre à jour le cache stock également
+        //     plugin.getStockCache().put(shopID + ":" + itemID, newStock);
+        // }
         
         // Mise à jour des prix (asynchrone, pas critique)
         DynamicPrice updatedPrice = plugin.getPriceCache().getIfPresent(shopID + ":" + itemID);
@@ -634,38 +634,38 @@ public class DynaShopListener implements Listener {
         }
     }
     
-    /**
-     * Gère les changements de prix selon le type d'action et le type de boutique
-     */
-    private void handlePriceChanges(ShopAction action, String shopID, String itemID, DynamicPrice price, DynaShopType typeDynaShop, DynaShopType buyTypeDynaShop, DynaShopType sellTypeDynaShop, int amount, ItemStack itemStack) {
-        // Traiter les stocks pour l'achat et la vente
-        if (action == ShopAction.BUY) {
-            if (buyTypeDynaShop == DynaShopType.STOCK || buyTypeDynaShop == DynaShopType.STATIC_STOCK) {
-                handleStockPrice(price, shopID, itemID, action, amount);
-            }
-        } else if (action == ShopAction.SELL || action == ShopAction.SELL_ALL) {
-            if (sellTypeDynaShop == DynaShopType.STOCK || sellTypeDynaShop == DynaShopType.STATIC_STOCK) {
-                handleStockPrice(price, shopID, itemID, action, amount);
-            }
-        }
+    // /**
+    //  * Gère les changements de prix selon le type d'action et le type de boutique
+    //  */
+    // private void handlePriceChanges(ShopAction action, String shopID, String itemID, DynamicPrice price, DynaShopType typeDynaShop, DynaShopType buyTypeDynaShop, DynaShopType sellTypeDynaShop, int amount, ItemStack itemStack) {
+    //     // Traiter les stocks pour l'achat et la vente
+    //     if (action == ShopAction.BUY) {
+    //         if (buyTypeDynaShop == DynaShopType.STOCK || buyTypeDynaShop == DynaShopType.STATIC_STOCK) {
+    //             handleStockPrice(price, shopID, itemID, action, amount);
+    //         }
+    //     } else if (action == ShopAction.SELL || action == ShopAction.SELL_ALL) {
+    //         if (sellTypeDynaShop == DynaShopType.STOCK || sellTypeDynaShop == DynaShopType.STATIC_STOCK) {
+    //             handleStockPrice(price, shopID, itemID, action, amount);
+    //         }
+    //     }
         
-        // Traiter les prix dynamiques
-        if (buyTypeDynaShop == DynaShopType.DYNAMIC) {
-            handleDynamicPrice(price, action, amount);
-        } else if (buyTypeDynaShop == DynaShopType.RECIPE) {
-            handleRecipePrice(shopID, itemID, amount, action);
-        } else if (buyTypeDynaShop == DynaShopType.LINK) {
-            handleLinkedPrice(shopID, itemID, itemStack, action, amount);
-        }
+    //     // Traiter les prix dynamiques
+    //     if (buyTypeDynaShop == DynaShopType.DYNAMIC) {
+    //         handleDynamicPrice(price, action, amount);
+    //     } else if (buyTypeDynaShop == DynaShopType.RECIPE) {
+    //         handleRecipePrice(shopID, itemID, amount, action);
+    //     } else if (buyTypeDynaShop == DynaShopType.LINK) {
+    //         handleLinkedPrice(shopID, itemID, itemStack, action, amount);
+    //     }
 
-        if (sellTypeDynaShop == DynaShopType.DYNAMIC) {
-            handleDynamicPrice(price, action, amount);
-        } else if (sellTypeDynaShop == DynaShopType.RECIPE) {
-            handleRecipePrice(shopID, itemID, amount, action);
-        } else if (sellTypeDynaShop == DynaShopType.LINK) {
-            handleLinkedPrice(shopID, itemID, itemStack, action, amount);
-        }
-    }
+    //     if (sellTypeDynaShop == DynaShopType.DYNAMIC) {
+    //         handleDynamicPrice(price, action, amount);
+    //     } else if (sellTypeDynaShop == DynaShopType.RECIPE) {
+    //         handleRecipePrice(shopID, itemID, amount, action);
+    //     } else if (sellTypeDynaShop == DynaShopType.LINK) {
+    //         handleLinkedPrice(shopID, itemID, itemStack, action, amount);
+    //     }
+    // }
     
     /**
      * Applique les modificateurs de prix à une transaction
