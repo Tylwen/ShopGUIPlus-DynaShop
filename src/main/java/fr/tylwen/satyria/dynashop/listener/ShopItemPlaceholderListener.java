@@ -49,6 +49,7 @@ import net.brcdev.shopgui.modifier.PriceModifierActionType;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+// import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 // import java.util.Collections;
@@ -510,6 +511,14 @@ public class ShopItemPlaceholderListener implements Listener {
             return true;
         }
 
+        // Vérifier les placeholders de countdown
+        if (line.contains("%dynashop_current_buy_countdown%") && (prices.get("buy_countdown").equals("N/A") || prices.get("buy_countdown").equals("∞"))) {
+            return !hasOtherPlaceholders(line, "%dynashop_current_buy_countdown%");
+        }
+        if (line.contains("%dynashop_current_sell_countdown%") && (prices.get("sell_countdown").equals("N/A") || prices.get("sell_countdown").equals("∞"))) {
+            return !hasOtherPlaceholders(line, "%dynashop_current_sell_countdown%");
+        }
+
         // Vérifier les placeholders de modificateurs
         if (line.contains("%dynashop_current_buy_modifier%") && prices.get("buy_modifier").equals("100%")) {
             return !hasOtherPlaceholders(line, "%dynashop_current_buy_modifier%");
@@ -571,27 +580,29 @@ public class ShopItemPlaceholderListener implements Listener {
     private String replaceDynaShopPlaceholders(String line, Map<String, String> prices) {
         // Remplacements basiques
         line = line.replace("%dynashop_current_buyPrice%", prices.get("buy"))
-                  .replace("%dynashop_current_sellPrice%", prices.get("sell"))
-                  .replace("%dynashop_current_buyMinPrice%", prices.get("buy_min"))
-                  .replace("%dynashop_current_buyMaxPrice%", prices.get("buy_max"))
-                  .replace("%dynashop_current_sellMinPrice%", prices.get("sell_min"))
-                  .replace("%dynashop_current_sellMaxPrice%", prices.get("sell_max"))
-                  .replace("%dynashop_current_buy%", prices.get("base_buy"))
-                  .replace("%dynashop_current_sell%", prices.get("base_sell"))
-                  .replace("%dynashop_current_stock%", prices.get("stock"))
-                  .replace("%dynashop_current_maxstock%", prices.get("stock_max"))
-                  .replace("%dynashop_current_stock_ratio%", prices.get("base_stock"))
-                  .replace("%dynashop_current_colored_stock_ratio%", prices.get("colored_stock_ratio"))
-                  .replace("%dynashop_current_buy_limit%", prices.get("buy_limit"))
-                  .replace("%dynashop_current_sell_limit%", prices.get("sell_limit"))
-                  .replace("%dynashop_current_buy_reset_time%", prices.get("buy_reset_time"))
-                  .replace("%dynashop_current_sell_reset_time%", prices.get("sell_reset_time"))
-                  .replace("%dynashop_current_buy_modifier%", prices.getOrDefault("buy_modifier", "100%"))
-                  .replace("%dynashop_current_sell_modifier%", prices.getOrDefault("sell_modifier", "100%"))
-                  .replace("%dynashop_current_buy_trend%", prices.getOrDefault("buy_trend", ""))
-                  .replace("%dynashop_current_sell_trend%", prices.getOrDefault("sell_trend", ""))
-                  .replace("%dynashop_current_buy_variation%", prices.getOrDefault("buy_variation", "N/A"))
-                  .replace("%dynashop_current_sell_variation%", prices.getOrDefault("sell_variation", "N/A"));
+                .replace("%dynashop_current_sellPrice%", prices.get("sell"))
+                .replace("%dynashop_current_buyMinPrice%", prices.get("buy_min"))
+                .replace("%dynashop_current_buyMaxPrice%", prices.get("buy_max"))
+                .replace("%dynashop_current_sellMinPrice%", prices.get("sell_min"))
+                .replace("%dynashop_current_sellMaxPrice%", prices.get("sell_max"))
+                .replace("%dynashop_current_buy%", prices.get("base_buy"))
+                .replace("%dynashop_current_sell%", prices.get("base_sell"))
+                .replace("%dynashop_current_stock%", prices.get("stock"))
+                .replace("%dynashop_current_maxstock%", prices.get("stock_max"))
+                .replace("%dynashop_current_stock_ratio%", prices.get("base_stock"))
+                .replace("%dynashop_current_colored_stock_ratio%", prices.get("colored_stock_ratio"))
+                .replace("%dynashop_current_buy_limit%", prices.get("buy_limit"))
+                .replace("%dynashop_current_sell_limit%", prices.get("sell_limit"))
+                .replace("%dynashop_current_buy_reset_time%", prices.get("buy_reset_time"))
+                .replace("%dynashop_current_sell_reset_time%", prices.get("sell_reset_time"))
+                .replace("%dynashop_current_buy_countdown%", prices.getOrDefault("buy_countdown", "N/A"))
+                .replace("%dynashop_current_sell_countdown%", prices.getOrDefault("sell_countdown", "N/A"))
+                .replace("%dynashop_current_buy_modifier%", prices.getOrDefault("buy_modifier", "100%"))
+                .replace("%dynashop_current_sell_modifier%", prices.getOrDefault("sell_modifier", "100%"))
+                .replace("%dynashop_current_buy_trend%", prices.getOrDefault("buy_trend", ""))
+                .replace("%dynashop_current_sell_trend%", prices.getOrDefault("sell_trend", ""))
+                .replace("%dynashop_current_buy_variation%", prices.getOrDefault("buy_variation", "N/A"))
+                .replace("%dynashop_current_sell_variation%", prices.getOrDefault("sell_variation", "N/A"));
         
         // Remplacements conditionnels pour les statuts de limite
         if (line.contains("%dynashop_current_buy_limit_status%")) {
@@ -1493,18 +1504,22 @@ public class ShopItemPlaceholderListener implements Listener {
                 
                 if (buyLimit.remaining <= 0) {
                     prices.put("buy_limit_reached", "true");
+                    prices.put("buy_countdown", formatCountdownTime(buyLimit.nextAvailable, buyLimit));
                 } else {
                     prices.put("buy_limit_reached", "false");
+                    prices.put("buy_countdown", String.valueOf(buyLimit.remaining));
                 }
             } catch (Exception e) {
                 prices.put("buy_limit", "N/A");
                 prices.put("buy_reset_time", "N/A");
                 prices.put("buy_limit_reached", "false");
+                prices.put("buy_countdown", "N/A");
             }
         } else {
             prices.put("buy_limit", "∞");
             prices.put("buy_reset_time", "∞");
             prices.put("buy_limit_reached", "false");
+            prices.put("buy_countdown", "∞");
         }
         
         // Récupérer les limites de vente avec le nouveau système
@@ -1517,19 +1532,99 @@ public class ShopItemPlaceholderListener implements Listener {
                 
                 if (sellLimit.remaining <= 0) {
                     prices.put("sell_limit_reached", "true");
+                    prices.put("sell_countdown", formatCountdownTime(sellLimit.nextAvailable, sellLimit));
                 } else {
                     prices.put("sell_limit_reached", "false");
+                    prices.put("sell_countdown", String.valueOf(sellLimit.remaining));
                 }
             } catch (Exception e) {
                 prices.put("sell_limit", "N/A");
                 prices.put("sell_reset_time", "N/A");
                 prices.put("sell_limit_reached", "false");
+                prices.put("sell_countdown", "N/A");
             }
         } else {
             prices.put("sell_limit", "∞");
             prices.put("sell_reset_time", "∞");
             prices.put("sell_limit_reached", "false");
+            prices.put("sell_countdown", "∞");
         }
+    }
+
+    /**
+     * Formate un temps de countdown en une chaîne lisible
+     * @param millisRemaining Temps restant en millisecondes  
+     * @param limit L'entrée de cache de la limite
+     * @return Chaîne formatée (ex: "Available in 9h and 25min" ou "Available in 47min")
+     */
+    private String formatCountdownTime(long millisRemaining, LimitCacheEntry limit) {
+        if (millisRemaining <= 0) {
+            return "∞";
+        }
+        
+        // Pour les périodes prédéfinies, calculer le temps jusqu'à la prochaine réinitialisation
+        LimitPeriod period = limit.getPeriodEquivalent();
+        if (period != LimitPeriod.NONE) {
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime nextReset = period.getNextReset();
+            millisRemaining = ChronoUnit.MILLIS.between(now, nextReset);
+        }
+        
+        long secondsRemaining = millisRemaining / 1000;
+        
+        // Calculer les unités de temps
+        long years = secondsRemaining / (365 * 24 * 3600);
+        secondsRemaining %= (365 * 24 * 3600);
+        
+        long months = secondsRemaining / (30 * 24 * 3600);
+        secondsRemaining %= (30 * 24 * 3600);
+        
+        long days = secondsRemaining / (24 * 3600);
+        secondsRemaining %= (24 * 3600);
+        
+        long hours = secondsRemaining / 3600;
+        secondsRemaining %= 3600;
+        
+        long minutes = secondsRemaining / 60;
+        long seconds = secondsRemaining % 60;
+        
+        // Construire le message de countdown
+        StringBuilder countdown = new StringBuilder();
+        countdown.append(plugin.getLangConfig().getPlaceholderLimitCountdownPrefix()); // "Available in "
+        
+        boolean hasValue = false;
+        
+        if (years > 0) {
+            countdown.append(years).append(years == 1 ? " year" : " years");
+            hasValue = true;
+        }
+        
+        if (months > 0) {
+            if (hasValue) countdown.append(" and ");
+            countdown.append(months).append(months == 1 ? " month" : " months");
+            hasValue = true;
+        } else if (days > 0) {
+            if (hasValue) countdown.append(" and ");
+            countdown.append(days).append(days == 1 ? " day" : " days");
+            hasValue = true;
+        } else if (hours > 0) {
+            if (hasValue) countdown.append(" and ");
+            countdown.append(hours).append("h");
+            hasValue = true;
+            
+            if (minutes > 0 && years == 0 && months == 0 && days == 0) {
+                countdown.append(" and ").append(minutes).append("min");
+            }
+        } else if (minutes > 0) {
+            if (hasValue) countdown.append(" and ");
+            countdown.append(minutes).append("min");
+            hasValue = true;
+        } else if (seconds > 0 || !hasValue) {
+            if (hasValue) countdown.append(" and ");
+            countdown.append(Math.max(1, seconds)).append("sec");
+        }
+
+        return ChatColor.translateAlternateColorCodes('&', countdown.toString());
     }
 
     // Récupérer les modificateurs ShopGUI+

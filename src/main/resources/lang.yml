@@ -24,3 +24,4 @@ limit:
     sell_reached: "&cLimit reached! Next sell in %time%"
     remaining: "&aRemaining: %limit%"
     dateTimeFormatter: "dd/MM/yyyy HH:mm:ss"
+    countdown_prefix: "&7Available in "

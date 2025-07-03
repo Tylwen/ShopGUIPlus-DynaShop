@@ -59,6 +59,7 @@ public class LangConfig {
     private final String placeholderLimitSellReached;
     private final String placeholderLimitRemaining;
     private final String placeholderLimitDateTimeFormatter;
+    private final String placeholderLimitCountdownPrefix;
 
     // private final String msgTaxBuy;
     // private final String msgTaxSell;
@@ -102,6 +103,7 @@ public class LangConfig {
         this.placeholderLimitSellReached = config.getString("limit.placeholder.sell_reached", "&cLimit reached! Next sell in %time%");
         this.placeholderLimitRemaining = config.getString("limit.placeholder.remaining", "&aRemaining: %limit%");
         this.placeholderLimitDateTimeFormatter = config.getString("limit.placeholder.dateTimeFormatter", "dd/MM/yyyy HH:mm:ss");
+        this.placeholderLimitCountdownPrefix = config.getString("limit.placeholder.countdown_prefix", "&7Available in ");
 
         // this.msgTaxBuy = config.getString("tax.buy", "&aYou paid &e%tax% &afor the tax on this purchase.");
         // // this.msgTaxSell = config.getString("tax.sell", "&aYou paid &e%tax% &afor the tax on this sale.");
@@ -159,6 +161,9 @@ public class LangConfig {
     }
     public String getMsgStockLimited() {
         return msgStockLimited;
+    }
+    public String getPlaceholderLimitCountdownPrefix() {
+        return placeholderLimitCountdownPrefix;
     }
 
     public String getMsgLimit() {
