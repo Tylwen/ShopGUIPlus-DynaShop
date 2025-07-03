@@ -231,12 +231,54 @@ public class TransactionLimiter {
      * Vérifie si une transaction peut être effectuée
      */
     public boolean canPerformTransactionSync(Player player, String shopId, String itemId, boolean isBuy, int amount) {
-        LimitCacheEntry entry = getTransactionLimit(player, shopId, itemId, isBuy);
-        if (entry == null || entry.baseLimit <= 0) {
-            return true; // Pas de limite
-        }
+        // ✅ NOUVEAU : Créer une clé de verrou par joueur/item/type
+        String lockKey = player.getUniqueId() + ":" + shopId + ":" + itemId + ":" + isBuy;
         
-        return entry.remaining >= amount;
+        synchronized (getLock(lockKey)) {
+            // Invalider le cache pour forcer un recalcul frais
+            String cacheKey = DynaShopPlugin.getLimitCacheKey(player.getUniqueId(), shopId, itemId, isBuy);
+            plugin.getLimitCache().invalidate(cacheKey);
+            
+            // Recalculer les limites avec les données les plus récentes
+            LimitCacheEntry entry = getTransactionLimit(player, shopId, itemId, isBuy);
+            if (entry == null || entry.baseLimit <= 0) {
+                return true; // Pas de limite
+            }
+            
+            // Vérifier la limite
+            if (entry.remaining >= amount) {
+                // ✅ RÉSERVER immédiatement la quantité en ajoutant la transaction
+                TransactionRecord record = new TransactionRecord(
+                    player.getUniqueId(), shopId, itemId, isBuy, amount, LocalDateTime.now());
+                
+                // Traitement immédiat au lieu de la queue
+                storageManager.saveTransactionsBatch(List.of(record));
+                
+                // Invalider le cache après la réservation
+                plugin.getLimitCache().invalidate(cacheKey);
+                
+                return true;
+            }
+            
+            return false;
+        }
+    }
+    // public boolean canPerformTransactionSync(Player player, String shopId, String itemId, boolean isBuy, int amount) {
+    //     // ✅ Invalider le cache avant chaque vérification
+    //     String cacheKey = DynaShopPlugin.getLimitCacheKey(player.getUniqueId(), shopId, itemId, isBuy);
+    //     plugin.getLimitCache().invalidate(cacheKey);
+
+    //     LimitCacheEntry entry = getTransactionLimit(player, shopId, itemId, isBuy);
+    //     if (entry == null || entry.baseLimit <= 0) {
+    //         return true; // Pas de limite
+    //     }
+        
+    //     return entry.remaining >= amount;
+    // }
+    
+    private final Map<String, Object> transactionLocks = new ConcurrentHashMap<>();
+    private Object getLock(String key) {
+        return transactionLocks.computeIfAbsent(key, k -> new Object());
     }
 
     /**

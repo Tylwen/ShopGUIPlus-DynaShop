@@ -550,10 +550,10 @@ public class DynaShopListener implements Listener {
             plugin.getStorageManager().savePrice(shopID, itemID, updatedPrice.getBuyPrice(), updatedPrice.getSellPrice(), updatedPrice.getStock());
         }
         
-        // Enregistrer la transaction si l'item a des limites
-        if (plugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
-            plugin.getTransactionLimiter().queueTransaction(player, shopID, itemID, isBuy, amount);
-        }
+        // // Enregistrer la transaction si l'item a des limites
+        // if (plugin.getShopConfigManager().hasSection(shopID, itemID, "limit")) {
+        //     plugin.getTransactionLimiter().queueTransaction(player, shopID, itemID, isBuy, amount);
+        // }
     }
     // private void updateStorageData(Player player, String shopID, String itemID, boolean isBuy, int amount) {
     //     // Mise à jour des prix
