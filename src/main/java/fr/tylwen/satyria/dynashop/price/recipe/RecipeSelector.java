@@ -220,11 +220,89 @@ public class RecipeSelector {
      * Trouve le prix d'un ingrédient dans les shops
      */
     private DynamicPrice findIngredientPrice(ItemStack ingredient) {
-        // Cette méthode devrait être connectée au système de prix du plugin
-        // Pour l'instant, on retourne null - sera implémenté lors de l'intégration
-        // TODO: Implémenter la recherche de prix via le système DynaShop
-        plugin.getLogger().fine("Recherche du prix pour l'ingrédient: " + ingredient.getType());
-        return null;
+        if (ingredient == null) {
+            return null;
+        }
+        
+        try {
+            // Rechercher l'ingrédient dans tous les shops en utilisant la logique du système existant
+            FoundItem foundItem = findItemInAllShops(ingredient);
+            
+            if (foundItem != null && foundItem.isFound()) {
+                // Utiliser getOrLoadPrice du DynaShopListener pour récupérer le prix complet
+                return plugin.getDynaShopListener().getOrLoadPrice(
+                    null, // Player (peut être null pour les calculs internes)
+                    foundItem.getShopID(), 
+                    foundItem.getItemID(), 
+                    ingredient, 
+                    new HashSet<>(), // Visited items (vide pour éviter les cycles)
+                    new HashMap<>()  // Last results (vide)
+                );
+            }
+            
+            plugin.getLogger().fine("Aucun prix trouvé pour l'ingrédient: " + ingredient.getType());
+            return null;
+            
+        } catch (Exception e) {
+            plugin.getLogger().warning("Erreur lors de la recherche de prix pour " + ingredient.getType() + ": " + e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Trouve un item dans tous les shops disponibles en utilisant la logique de PriceRecipe
+     */
+    private FoundItem findItemInAllShops(ItemStack targetItem) {
+        try {
+            // Utiliser l'API ShopGUI+ pour parcourir tous les shops
+            for (net.brcdev.shopgui.shop.Shop shop : net.brcdev.shopgui.ShopGuiPlusApi.getPlugin().getShopManager().getShops()) {
+                for (net.brcdev.shopgui.shop.item.ShopItem shopItem : shop.getShopItems()) {
+                    ItemStack shopItemStack = shopItem.getItem();
+                    
+                    // Vérifier si l'item correspond (même logique que dans PriceRecipe.findItemInShops)
+                    if (areItemsEquivalent(targetItem, shopItemStack)) {
+                        return new FoundItem(shop.getId(), shopItem.getId(), true);
+                    }
+                }
+            }
+            
+            return new FoundItem("", "", false);
+            
+        } catch (Exception e) {
+            plugin.getLogger().warning("Erreur lors de la recherche d'item dans les shops: " + e.getMessage());
+            return new FoundItem("", "", false);
+        }
+    }
+    
+    /**
+     * Vérifie si deux items sont équivalents pour le crafting (même logique que PriceRecipe)
+     */
+    private boolean areItemsEquivalent(ItemStack item1, ItemStack item2) {
+        if (item1 == null || item2 == null) {
+            return false;
+        }
+        
+        // Même type de matériau - pour les recettes, on peut être moins strict sur les métadonnées
+        return item1.getType() == item2.getType();
+    }
+    
+    /**
+     * Classe pour représenter un item trouvé dans les shops (similaire à PriceRecipe.FoundItem)
+     */
+    private static class FoundItem {
+        private final String shopID;
+        private final String itemID;
+        private final boolean found;
+        
+        public FoundItem(String shopID, String itemID, boolean found) {
+            this.shopID = shopID;
+            this.itemID = itemID;
+            this.found = found;
+        }
+        
+        public String getShopID() { return shopID; }
+        public String getItemID() { return itemID; }
+        public boolean isFound() { return found; }
     }
     
     /**
