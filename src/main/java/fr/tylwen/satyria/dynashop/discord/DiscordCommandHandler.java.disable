@@ -1,0 +1,308 @@
+package fr.tylwen.satyria.dynashop.discord;
+
+import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import fr.tylwen.satyria.dynashop.price.DynamicPrice;
+import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import org.bukkit.Bukkit;
+
+import java.awt.*;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+public class DiscordCommandHandler extends ListenerAdapter {
+    
+    private final DynaShopPlugin plugin;
+    
+    public DiscordCommandHandler(DynaShopPlugin plugin) {
+        this.plugin = plugin;
+    }
+    
+    @Override
+    public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
+        // Vérifier si on est dans le bon canal
+        String commandChannelId = plugin.getConfigMain().getString("discord.channels.commands", "");
+        if (!commandChannelId.isEmpty() && !event.getChannel().getId().equals(commandChannelId)) {
+            event.reply("❌ Cette commande doit être utilisée dans le canal dédié.").setEphemeral(true).queue();
+            return;
+        }
+        
+        // Traitement asynchrone pour éviter de bloquer Discord
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                switch (event.getName()) {
+                    case "prices" -> handlePricesCommand(event);
+                    case "stock" -> handleStockCommand(event);
+                    case "shops" -> handleShopsCommand(event);
+                    case "lowstock" -> handleLowStockCommand(event);
+                    case "trending" -> handleTrendingCommand(event);
+                    default -> event.reply("❌ Commande inconnue.").setEphemeral(true).queue();
+                }
+            } catch (Exception e) {
+                plugin.getLogger().warning("Error handling Discord command: " + e.getMessage());
+                event.reply("❌ Erreur lors de l'exécution de la commande.").setEphemeral(true).queue();
+            }
+        });
+    }
+    
+    private void handlePricesCommand(SlashCommandInteractionEvent event) {
+        String shopId = event.getOption("shop").getAsString();
+        String itemId = event.getOption("item").getAsString();
+        
+        // Rechercher les IDs exacts
+        String actualShopId = findShopId(shopId);
+        String actualItemId = findItemId(actualShopId, itemId);
+        
+        if (actualShopId == null) {
+            event.reply("❌ Shop non trouvé: " + shopId).setEphemeral(true).queue();
+            return;
+        }
+        
+        if (actualItemId == null) {
+            event.reply("❌ Item non trouvé: " + itemId + " dans le shop " + shopId).setEphemeral(true).queue();
+            return;
+        }
+        
+        // Récupérer les prix
+        // DynamicPrice price = plugin.getDynaShopListener().getOrLoadPrice(null, actualShopId, actualItemId, null);
+        DynamicPrice price = plugin.getDynaShopListener().getOrLoadPrice(null, actualShopId, actualItemId, null, new HashSet<>(), new HashMap<>());
+        if (price == null) {
+            event.reply("❌ Impossible de récupérer les prix pour cet item.").setEphemeral(true).queue();
+            return;
+        }
+        
+        String itemName = getItemDisplayName(actualShopId, actualItemId);
+        String shopName = getShopDisplayName(actualShopId);
+        
+        EmbedBuilder embed = new EmbedBuilder()
+            .setTitle("💰 Prix de " + itemName)
+            .setDescription("Shop: **" + shopName + "**")
+            .setColor(Color.BLUE)
+            .setTimestamp(LocalDateTime.now());
+        
+        // Prix d'achat
+        if (price.getBuyPrice() > 0) {
+            embed.addField("💳 Prix d'achat", 
+                plugin.getPriceFormatter().formatPrice(price.getBuyPrice()), true);
+        }
+        
+        // Prix de vente
+        if (price.getSellPrice() > 0) {
+            embed.addField("💰 Prix de vente", 
+                plugin.getPriceFormatter().formatPrice(price.getSellPrice()), true);
+        }
+        
+        // Type de shop
+        DynaShopType type = price.getDynaShopType();
+        embed.addField("🏪 Type", type.toString(), true);
+        
+        // Stock si applicable
+        if (type == DynaShopType.STOCK || type == DynaShopType.STATIC_STOCK) {
+            int stock = plugin.getStorageManager().getStock(actualShopId, actualItemId).orElse(0);
+            int maxStock = plugin.getShopConfigManager()
+                .getItemValue(actualShopId, actualItemId, "stock.max", Integer.class)
+                .orElse(plugin.getDataConfig().getStockMax());
+            
+            embed.addField("📦 Stock", String.format("%d/%d", stock, maxStock), true);
+        }
+        
+        event.replyEmbeds(embed.build()).queue();
+    }
+    
+    private void handleStockCommand(SlashCommandInteractionEvent event) {
+        String shopId = event.getOption("shop").getAsString();
+        String itemId = event.getOption("item").getAsString();
+        
+        String actualShopId = findShopId(shopId);
+        String actualItemId = findItemId(actualShopId, itemId);
+        
+        if (actualShopId == null || actualItemId == null) {
+            event.reply("❌ Shop ou item non trouvé.").setEphemeral(true).queue();
+            return;
+        }
+        
+        DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(actualShopId, actualItemId);
+        
+        if (type != DynaShopType.STOCK && type != DynaShopType.STATIC_STOCK && type != DynaShopType.RECIPE) {
+            event.reply("❌ Cet item n'a pas de système de stock.").setEphemeral(true).queue();
+            return;
+        }
+        
+        int stock = 0;
+        int maxStock = 0;
+        
+        if (type == DynaShopType.RECIPE) {
+            stock = plugin.getPriceRecipe().calculateStock(actualShopId, actualItemId, List.of());
+            maxStock = plugin.getPriceRecipe().calculateMaxStock(actualShopId, actualItemId, List.of());
+        } else {
+            stock = plugin.getStorageManager().getStock(actualShopId, actualItemId).orElse(0);
+            maxStock = plugin.getShopConfigManager()
+                .getItemValue(actualShopId, actualItemId, "stock.max", Integer.class)
+                .orElse(plugin.getDataConfig().getStockMax());
+        }
+        
+        String itemName = getItemDisplayName(actualShopId, actualItemId);
+        String shopName = getShopDisplayName(actualShopId);
+        
+        double percentage = maxStock > 0 ? (stock * 100.0 / maxStock) : 0;
+        Color embedColor = percentage < 25 ? Color.RED : percentage < 50 ? Color.ORANGE : Color.GREEN;
+        String emoji = percentage < 25 ? "🚨" : percentage < 50 ? "⚠️" : "✅";
+        
+        EmbedBuilder embed = new EmbedBuilder()
+            .setTitle(emoji + " Stock de " + itemName)
+            .setDescription("Shop: **" + shopName + "**")
+            .addField("📦 Stock Actuel", String.valueOf(stock), true)
+            .addField("📊 Stock Maximum", String.valueOf(maxStock), true)
+            .addField("📈 Pourcentage", String.format("%.1f%%", percentage), true)
+            .setColor(embedColor)
+            .setTimestamp(LocalDateTime.now());
+        
+        event.replyEmbeds(embed.build()).queue();
+    }
+    
+    private void handleShopsCommand(SlashCommandInteractionEvent event) {
+        Set<String> shopIds = plugin.getShopConfigManager().getShops();
+        
+        if (shopIds.isEmpty()) {
+            event.reply("❌ Aucun shop trouvé.").setEphemeral(true).queue();
+            return;
+        }
+        
+        StringBuilder description = new StringBuilder();
+        int count = 0;
+        
+        for (String shopId : shopIds) {
+            if (count >= 20) { // Limiter à 20 shops pour éviter que l'embed soit trop long
+                description.append("\n... et ").append(shopIds.size() - count).append(" autres shops");
+                break;
+            }
+            
+            String shopName = getShopDisplayName(shopId);
+            description.append("🏪 **").append(shopName).append("** (`").append(shopId).append("`)\n");
+            count++;
+        }
+        
+        EmbedBuilder embed = new EmbedBuilder()
+            .setTitle("🏪 Liste des Shops")
+            .setDescription(description.toString())
+            .setColor(Color.CYAN)
+            .setTimestamp(LocalDateTime.now())
+            .setFooter("Total: " + shopIds.size() + " shops");
+        
+        event.replyEmbeds(embed.build()).queue();
+    }
+    
+    private void handleLowStockCommand(SlashCommandInteractionEvent event) {
+        int threshold = plugin.getConfigMain().getInt("discord.low-stock-threshold", 10);
+        
+        StringBuilder lowStockItems = new StringBuilder();
+        int count = 0;
+        
+        for (String shopId : plugin.getShopConfigManager().getShops()) {
+            for (String itemId : plugin.getShopConfigManager().getShopItems(shopId)) {
+                DynaShopType type = plugin.getShopConfigManager().getTypeDynaShop(shopId, itemId);
+                
+                if (type == DynaShopType.STOCK || type == DynaShopType.STATIC_STOCK) {
+                    int stock = plugin.getStorageManager().getStock(shopId, itemId).orElse(0);
+                    
+                    if (stock <= threshold && stock >= 0) {
+                        String itemName = getItemDisplayName(shopId, itemId);
+                        String shopName = getShopDisplayName(shopId);
+                        
+                        lowStockItems.append(String.format("⚠️ **%s** dans %s: %d\n", 
+                            itemName, shopName, stock));
+                        count++;
+                        
+                        if (count >= 15) break; // Limiter l'affichage
+                    }
+                }
+            }
+            if (count >= 15) break;
+        }
+        
+        if (lowStockItems.length() == 0) {
+            event.reply("✅ Aucun item avec un stock faible trouvé !").queue();
+            return;
+        }
+        
+        EmbedBuilder embed = new EmbedBuilder()
+            .setTitle("⚠️ Items avec Stock Faible")
+            .setDescription(lowStockItems.toString())
+            .setColor(Color.ORANGE)
+            .setTimestamp(LocalDateTime.now())
+            .setFooter("Seuil: " + threshold);
+        
+        event.replyEmbeds(embed.build()).queue();
+    }
+    
+    private void handleTrendingCommand(SlashCommandInteractionEvent event) {
+        // Cette commande pourrait afficher les tendances du marché
+        // Pour l'instant, on affiche un message simple
+        event.reply("📈 Fonctionnalité de tendances à venir !").setEphemeral(true).queue();
+    }
+    
+    // Méthodes utilitaires
+    private String findShopId(String searchTerm) {
+        // Recherche exacte d'abord
+        if (plugin.getShopConfigManager().getShops().contains(searchTerm)) {
+            return searchTerm;
+        }
+        
+        // Recherche par nom
+        for (String shopId : plugin.getShopConfigManager().getShops()) {
+            String shopName = getShopDisplayName(shopId);
+            if (shopName.toLowerCase().contains(searchTerm.toLowerCase())) {
+                return shopId;
+            }
+        }
+        
+        return null;
+    }
+    
+    private String findItemId(String shopId, String searchTerm) {
+        if (shopId == null) return null;
+        
+        Set<String> itemIds = plugin.getShopConfigManager().getShopItems(shopId);
+        
+        // Recherche exacte d'abord
+        if (itemIds.contains(searchTerm)) {
+            return searchTerm;
+        }
+        
+        // Recherche par nom
+        for (String itemId : itemIds) {
+            String itemName = getItemDisplayName(shopId, itemId);
+            if (itemName.toLowerCase().contains(searchTerm.toLowerCase())) {
+                return itemId;
+            }
+        }
+        
+        return null;
+    }
+    
+    private String getItemDisplayName(String shopId, String itemId) {
+        try {
+            return plugin.getShopConfigManager().getItemName(null, shopId, itemId);
+        } catch (Exception e) {
+            return itemId;
+        }
+    }
+    
+    private String getShopDisplayName(String shopId) {
+        try {
+            // return plugin.getShopConfigManager().getShopName(shopId);
+            return plugin.getShopConfigManager().getShops().stream()
+                .filter(s -> s.equalsIgnoreCase(shopId))
+                .findFirst()
+                .orElse(shopId);
+        } catch (Exception e) {
+            return shopId;
+        }
+    }
+}

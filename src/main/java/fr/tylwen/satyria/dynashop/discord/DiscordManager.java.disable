@@ -1,0 +1,269 @@
+package fr.tylwen.satyria.dynashop.discord;
+
+import fr.tylwen.satyria.dynashop.DynaShopPlugin;
+import fr.tylwen.satyria.dynashop.price.DynamicPrice;
+import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
+import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
+import net.dv8tion.jda.api.interactions.commands.build.Commands;
+import net.dv8tion.jda.api.interactions.commands.build.OptionData;
+import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.utils.MemberCachePolicy;
+import org.bukkit.Bukkit;
+
+import java.awt.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+
+public class DiscordManager extends ListenerAdapter {
+    
+    private final DynaShopPlugin plugin;
+    private JDA jda;
+    private boolean enabled = false;
+    private String botToken;
+    private String guildId;
+    private String announcementChannelId;
+    private String commandChannelId;
+    private int lowStockThreshold;
+    
+    public DiscordManager(DynaShopPlugin plugin) {
+        this.plugin = plugin;
+        loadConfig();
+    }
+    
+    private void loadConfig() {
+        this.enabled = plugin.getConfigMain().getBoolean("discord.enabled", false);
+        this.botToken = plugin.getConfigMain().getString("discord.bot-token", "");
+        this.guildId = plugin.getConfigMain().getString("discord.guild-id", "");
+        this.announcementChannelId = plugin.getConfigMain().getString("discord.channels.announcements", "");
+        this.commandChannelId = plugin.getConfigMain().getString("discord.channels.commands", "");
+        this.lowStockThreshold = plugin.getConfigMain().getInt("discord.low-stock-threshold", 10);
+    }
+    
+    public void initialize() {
+        if (!enabled || botToken.isEmpty()) {
+            plugin.getLogger().info("Discord integration disabled or no bot token provided");
+            return;
+        }
+        
+        try {
+            // Construire le bot Discord
+            jda = JDABuilder.createDefault(botToken)
+                .setMemberCachePolicy(MemberCachePolicy.VOICE)
+                .enableIntents(GatewayIntent.MESSAGE_CONTENT, GatewayIntent.GUILD_MESSAGES)
+                .addEventListeners(this)
+                .build();
+            
+            // Attendre que le bot soit prêt
+            jda.awaitReady();
+            
+            // Enregistrer les commandes slash
+            registerSlashCommands();
+            
+            plugin.getLogger().info("Discord bot connected successfully!");
+            
+        } catch (Exception e) {
+            plugin.getLogger().severe("Failed to initialize Discord bot: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    private void registerSlashCommands() {
+        if (jda == null || guildId.isEmpty()) return;
+        
+        Guild guild = jda.getGuildById(guildId);
+        if (guild == null) {
+            plugin.getLogger().warning("Guild not found: " + guildId);
+            return;
+        }
+        
+        // Commande pour voir les prix
+        guild.updateCommands().addCommands(
+            Commands.slash("prices", "Voir les prix d'un item dans un shop")
+                .addOptions(
+                    new OptionData(OptionType.STRING, "shop", "Nom du shop", true),
+                    new OptionData(OptionType.STRING, "item", "Nom de l'item", true)
+                ),
+            
+            Commands.slash("stock", "Voir le stock d'un item")
+                .addOptions(
+                    new OptionData(OptionType.STRING, "shop", "Nom du shop", true),
+                    new OptionData(OptionType.STRING, "item", "Nom de l'item", true)
+                ),
+            
+            Commands.slash("shops", "Lister tous les shops disponibles"),
+            
+            Commands.slash("lowstock", "Voir tous les items avec un stock faible"),
+            
+            Commands.slash("trending", "Voir les tendances du marché")
+                .addOptions(
+                    new OptionData(OptionType.STRING, "shop", "Nom du shop", false),
+                    new OptionData(OptionType.STRING, "item", "Nom de l'item", false)
+                )
+        ).queue();
+        
+        plugin.getLogger().info("Discord slash commands registered!");
+    }
+    
+    public void shutdown() {
+        if (jda != null) {
+            jda.shutdown();
+            try {
+                if (!jda.awaitShutdown(10, TimeUnit.SECONDS)) {
+                    jda.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                jda.shutdownNow();
+            }
+        }
+    }
+    
+    // =================== MÉTHODES D'ANNONCE ===================
+    
+    /**
+     * Annonce le restockage d'un shop
+     */
+    public void announceRestock(String shopId, String itemId, int newStock, int maxStock) {
+        if (!enabled || announcementChannelId.isEmpty()) return;
+        
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                TextChannel channel = jda.getTextChannelById(announcementChannelId);
+                if (channel == null) return;
+                
+                String itemName = getItemDisplayName(shopId, itemId);
+                String shopName = getShopDisplayName(shopId);
+                
+                EmbedBuilder embed = new EmbedBuilder()
+                    .setTitle("🔄 Shop Restocké !")
+                    .setDescription(String.format("**%s** a été restocké dans **%s**", itemName, shopName))
+                    .addField("Nouveau Stock", String.format("%d/%d", newStock, maxStock), true)
+                    .addField("Pourcentage", String.format("%.1f%%", (newStock * 100.0 / maxStock)), true)
+                    .setColor(Color.GREEN)
+                    .setTimestamp(LocalDateTime.now())
+                    .setFooter("DynaShop", null);
+                
+                channel.sendMessageEmbeds(embed.build()).queue();
+                
+            } catch (Exception e) {
+                plugin.getLogger().warning("Failed to send restock announcement: " + e.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * Annonce un stock faible
+     */
+    public void announceLowStock(String shopId, String itemId, int currentStock, int maxStock) {
+        if (!enabled || announcementChannelId.isEmpty()) return;
+        
+        // Ne pas spammer - vérifier si on a déjà annoncé récemment
+        if (currentStock > lowStockThreshold) return;
+        
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                TextChannel channel = jda.getTextChannelById(announcementChannelId);
+                if (channel == null) return;
+                
+                String itemName = getItemDisplayName(shopId, itemId);
+                String shopName = getShopDisplayName(shopId);
+                
+                double percentage = (currentStock * 100.0 / maxStock);
+                Color embedColor = percentage < 5 ? Color.RED : Color.ORANGE;
+                String emoji = percentage < 5 ? "🚨" : "⚠️";
+                
+                EmbedBuilder embed = new EmbedBuilder()
+                    .setTitle(emoji + " Stock Faible !")
+                    .setDescription(String.format("**%s** dans **%s** a un stock faible", itemName, shopName))
+                    .addField("Stock Actuel", String.format("%d/%d", currentStock, maxStock), true)
+                    .addField("Pourcentage", String.format("%.1f%%", percentage), true)
+                    .setColor(embedColor)
+                    .setTimestamp(LocalDateTime.now())
+                    .setFooter("DynaShop", null);
+                
+                channel.sendMessageEmbeds(embed.build()).queue();
+                
+            } catch (Exception e) {
+                plugin.getLogger().warning("Failed to send low stock announcement: " + e.getMessage());
+            }
+        });
+    }
+    
+    /**
+     * Annonce un changement de prix significatif
+     */
+    public void announcePriceChange(String shopId, String itemId, double oldPrice, double newPrice, boolean isBuy) {
+        if (!enabled || announcementChannelId.isEmpty()) return;
+        
+        // Seulement annoncer les changements significatifs (>5%)
+        double changePercent = Math.abs((newPrice - oldPrice) / oldPrice * 100);
+        if (changePercent < 5.0) return;
+        
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                TextChannel channel = jda.getTextChannelById(announcementChannelId);
+                if (channel == null) return;
+                
+                String itemName = getItemDisplayName(shopId, itemId);
+                String shopName = getShopDisplayName(shopId);
+                String priceType = isBuy ? "achat" : "vente";
+                
+                boolean isIncrease = newPrice > oldPrice;
+                String emoji = isIncrease ? "📈" : "📉";
+                Color embedColor = isIncrease ? Color.GREEN : Color.RED;
+                String changeText = isIncrease ? "augmenté" : "diminué";
+                
+                EmbedBuilder embed = new EmbedBuilder()
+                    .setTitle(emoji + " Changement de Prix !")
+                    .setDescription(String.format("Le prix de **%s** de **%s** dans **%s** a %s", 
+                        priceType, itemName, shopName, changeText))
+                    .addField("Ancien Prix", plugin.getPriceFormatter().formatPrice(oldPrice), true)
+                    .addField("Nouveau Prix", plugin.getPriceFormatter().formatPrice(newPrice), true)
+                    .addField("Changement", String.format("%.1f%%", changePercent), true)
+                    .setColor(embedColor)
+                    .setTimestamp(LocalDateTime.now())
+                    .setFooter("DynaShop", null);
+                
+                channel.sendMessageEmbeds(embed.build()).queue();
+                
+            } catch (Exception e) {
+                plugin.getLogger().warning("Failed to send price change announcement: " + e.getMessage());
+            }
+        });
+    }
+    
+    // =================== MÉTHODES UTILITAIRES ===================
+    
+    private String getItemDisplayName(String shopId, String itemId) {
+        try {
+            return plugin.getShopConfigManager().getItemName(null, shopId, itemId);
+        } catch (Exception e) {
+            return itemId;
+        }
+    }
+    
+    private String getShopDisplayName(String shopId) {
+        try {
+            // return plugin.getShopConfigManager().getShopName(shopId);
+            return plugin.getShopConfigManager().getShops().stream()
+                .filter(s -> s.equalsIgnoreCase(shopId))
+                .findFirst()
+                .orElse(shopId);
+        } catch (Exception e) {
+            return shopId;
+        }
+    }
+    
+    public boolean isEnabled() {
+        return enabled && jda != null;
+    }
+}

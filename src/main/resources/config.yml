@@ -15,6 +15,24 @@ web-dashboard:
   enabled: false  # Enable or disable the web interface
   port: 7070      # Port for the web interface
 
+# Configuration Discord
+discord:
+  enabled: false
+  
+  channels:
+    announcements: "CHANNEL_ID_FOR_ANNOUNCEMENTS"
+    commands: "CHANNEL_ID_FOR_COMMANDS"
+  
+  # Seuil pour considérer un stock comme faible
+  low-stock-threshold: 10
+  
+  # Notifications automatiques
+  notifications:
+    restock: true
+    low-stock: true
+    price-changes: true
+    price-change-threshold: 5.0  # Pourcentage minimum pour annoncer
+
 history:
   retention-days: 90     # Number of days to keep historical data
   auto-purge: true       # Enable automatic purging of old data

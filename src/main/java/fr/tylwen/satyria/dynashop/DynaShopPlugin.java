@@ -69,6 +69,8 @@ import fr.tylwen.satyria.dynashop.data.storage.MySQLStorageManager;
 // import fr.tylwen.satyria.dynashop.data.storage.StockDataManager;
 import fr.tylwen.satyria.dynashop.data.storage.StorageManager;
 import fr.tylwen.satyria.dynashop.data.storage.database.BatchDatabaseUpdater;
+// import fr.tylwen.satyria.dynashop.discord.DiscordManager;
+import fr.tylwen.satyria.dynashop.discord.DiscordSRVManager;
 // import fr.tylwen.satyria.dynashop.database.DataManager;
 // import fr.tylwen.satyria.dynashop.database.ItemDataManager;
 // import fr.tylwen.satyria.dynashop.gui.ShopRefreshManager;
@@ -210,6 +212,9 @@ public class DynaShopPlugin extends JavaPlugin {
     private MarketWebServer webServer;
     private int webServerPort = 7070; // Port par défaut
     
+    // private DiscordManager discordManager;
+    private DiscordSRVManager discordManager;
+    
     private String cacheMode;
     private CacheManager<String, DynamicPrice> priceCache;
     private CacheManager<String, List<ItemStack>> recipeCache;
@@ -344,6 +349,13 @@ public class DynaShopPlugin extends JavaPlugin {
     public MarketWebServer getWebServer() {
         return webServer;
     }
+    
+    // public DiscordManager getDiscordManager() {
+    //     return discordManager;
+    // }
+    public DiscordSRVManager getDiscordManager() {
+        return discordManager;
+    }
 
     // FLATFILES
     // public FlatFileDataManager getFlatFileManager() {
@@ -445,6 +457,17 @@ public class DynaShopPlugin extends JavaPlugin {
             webServer = new MarketWebServer(this, webServerPort);
             webServer.start();
             info("Dashboard web démarré sur le port " + webServerPort);
+        }
+        
+        // // Initialiser Discord (après tout le reste)
+        // if (getConfigMain().getBoolean("discord.enabled", false)) {
+        //     this.discordManager = new DiscordManager(this);
+        //     this.discordManager.initialize();
+        // }
+        // Initialiser DiscordSRV (après tout le reste)
+        if (getConfigMain().getBoolean("discord.enabled", false)) {
+            this.discordManager = new DiscordSRVManager(this);
+            this.discordManager.initialize();
         }
 
         getCommand("dynashop").setExecutor(new DynaShopCommand(this));
@@ -929,6 +952,11 @@ public class DynaShopPlugin extends JavaPlugin {
         // Arrêter le serveur web si actif
         if (webServer != null) {
             webServer.stop();
+        }
+        
+        // Arrêter Discord
+        if (discordManager != null) {
+            discordManager.shutdown();
         }
         
         // Fermer proprement le système de stockage
