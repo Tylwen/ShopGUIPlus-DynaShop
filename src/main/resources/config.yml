@@ -20,18 +20,92 @@ discord:
   enabled: false
   
   channels:
-    announcements: "CHANNEL_ID_FOR_ANNOUNCEMENTS"
-    commands: "CHANNEL_ID_FOR_COMMANDS"
+    announcements: "CHANNEL_ID_FOR_ANNOUNCEMENTS"  # Canal pour les annonces automatiques
+    commands: "CHANNEL_ID_FOR_COMMANDS"            # Canal pour les commandes utilisateur
   
   # Seuil pour considérer un stock comme faible
   low-stock-threshold: 10
   
   # Notifications automatiques
   notifications:
-    restock: true
-    low-stock: true
-    price-changes: true
-    price-change-threshold: 5.0  # Pourcentage minimum pour annoncer
+    restock: true                    # Annoncer les restocks automatiques
+    low-stock: true                  # Annoncer les stocks faibles
+    price-changes: true              # Annoncer les changements de prix
+    price-change-threshold: 5.0      # Pourcentage minimum pour annoncer un changement de prix
+  
+  # Configuration des permissions
+  permissions:
+    # Rôles ayant accès aux commandes d'administration
+    admin-roles:
+      - "Admin"
+      - "Moderator"
+      - "Staff"
+    
+    # Rôles ayant accès aux commandes de consultation
+    user-roles:
+      - "Player"
+      - "Member"
+      - "@everyone"
+  
+  # Configuration des limites pour éviter le spam
+  limits:
+    max-search-results: 15           # Nombre maximum de résultats pour les recherches
+    max-top-items: 10                # Nombre maximum d'items dans le classement
+    command-cooldown: 3              # Cooldown entre les commandes (en secondes)
+    max-compare-shops: 20            # Nombre maximum de shops dans une comparaison
+  
+  # Configuration des embeds Discord
+  embeds:
+    default-color: "#3498db"         # Couleur par défaut (bleu)
+    success-color: "#2ecc71"         # Couleur succès (vert)
+    error-color: "#e74c3c"           # Couleur erreur (rouge)
+    warning-color: "#f39c12"         # Couleur avertissement (orange)
+    info-color: "#9b59b6"            # Couleur information (violet)
+    
+    # Footer personnalisé
+    footer:
+      text: "DynaShop v1.6.0"        # Texte du footer
+      icon: ""                       # URL de l'icône (optionnel)
+  
+  # Configuration des fonctionnalités avancées
+  features:
+    search-suggestions: true         # Activer les suggestions de commandes
+    fuzzy-search: true              # Recherche floue pour les corrections
+    trend-analysis: true            # Analyse des tendances de prix
+    statistics-tracking: true       # Suivi des statistiques d'utilisation
+    admin-logging: true             # Logs des actions d'administration
+  
+  # Messages de debug et logs
+  debug:
+    enabled: false                  # Activer les messages de debug
+    log-commands: true              # Logger les commandes utilisées
+    log-errors: true                # Logger les erreurs Discord
+  
+  # Alias pour les commandes Discord (optionnel)
+  aliases:
+    enabled: true                   # Activer les alias de commandes
+    commands:
+      "!ds": "!dynashop"           # Alias court pour !dynashop
+      "!shop": "!dynashop"         # Alias alternatif
+      "!prix": "!dynashop prix"    # Alias français pour prix
+      "!stock": "!dynashop stock"  # Alias français pour stock
+      "!recherche": "!dynashop search"  # Alias français pour search
+      "!boutiques": "!dynashop shops"   # Alias français pour shops
+  
+  # Configuration des filtres et modération
+  moderation:
+    rate-limiting: true             # Limitation du taux de commandes
+    max-commands-per-minute: 10     # Nombre max de commandes par minute par utilisateur
+    blacklisted-users: []          # Liste des utilisateurs bannis (IDs Discord)
+    whitelist-mode: false          # Mode liste blanche (seuls les utilisateurs autorisés)
+    whitelisted-users: []          # Liste des utilisateurs autorisés (si whitelist-mode: true)
+  
+  # Configuration des réponses automatiques
+  auto-responses:
+    enabled: true                   # Activer les réponses automatiques
+    welcome-message: true           # Message de bienvenue pour les nouveaux utilisateurs
+    help-on-error: true            # Proposer l'aide en cas d'erreur de commande
+    command-suggestions: true       # Suggestions de commandes similaires
 
 history:
   retention-days: 90     # Number of days to keep historical data

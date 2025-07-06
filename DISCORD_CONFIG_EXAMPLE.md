@@ -1,31 +1,76 @@
-prices:
-  placeholder:
-    trend:
-      increase: "&a↑"
-      decrease: "&c↓"
-      stable: "&7→"
+# Configuration Discord Exemple pour DynaShop
 
-stock:
-  out-of-stock: "This item is out of stock!"
-  full-stock: "This item is in full stock, we cannot sell more!"
-  limited: "You were only able to sell %available% on %requested%."
-  placeholder:
-    out-of-stock: "&cOut of stock"
-    full-stock: "&cFull stock"
+## config.yml - Section Discord
+```yaml
+discord:
+  # Active ou désactive l'intégration Discord
+  enabled: true
+  
+  # Configuration des canaux Discord
+  channels:
+    # Canal où les utilisateurs peuvent utiliser les commandes
+    commands: "123456789012345678"
+    
+    # Canal pour les annonces automatiques (restock, prix, etc.)
+    announcements: "987654321098765432"
+  
+  # Seuil de stock faible pour les alertes
+  low-stock-threshold: 10
+  
+  # Configuration des annonces automatiques
+  announcements:
+    # Annonce les restocks automatiques
+    auto-restock: true
+    
+    # Annonce les changements de prix significatifs (>5%)
+    price-changes: true
+    
+    # Annonce les stocks faibles
+    low-stock: true
+  
+  # Configuration des permissions
+  permissions:
+    # Rôles ayant accès aux commandes d'administration
+    admin-roles:
+      - "Admin"
+      - "Moderator"
+      - "Staff"
+    
+    # Rôles ayant accès à toutes les commandes (pas d'admin)
+    user-roles:
+      - "Player"
+      - "Member"
+      - "@everyone"
+  
+  # Configuration des limites
+  limits:
+    # Nombre maximum de résultats pour les commandes de recherche
+    max-search-results: 15
+    
+    # Nombre maximum d'items dans le top
+    max-top-items: 10
+    
+    # Cooldown entre les commandes (en secondes)
+    command-cooldown: 3
+  
+  # Configuration des embeds
+  embeds:
+    # Couleur par défaut des embeds (format hex)
+    default-color: "#3498db"
+    
+    # Couleurs spéciales
+    success-color: "#2ecc71"
+    error-color: "#e74c3c"
+    warning-color: "#f39c12"
+    
+    # Footer personnalisé
+    footer:
+      text: "DynaShop v1.6.0"
+      icon: "https://your-server.com/icon.png"
+```
 
-limit:
-  cannotbuy: "&cLimit reached! You can only buy %limit% more of this item at this time."
-  cannotSell: "&cLimit reached! You can only sell %limit% more of this item at this time."
-  reached: "&cYou have reached your limit. Try again in %time%"
-  limit:  "&cYou have reached your limit for this item."
-  placeholders:
-    no_limit: "∞"
-    buy_reached: "&cLimit reached! Next buy in %time%"
-    sell_reached: "&cLimit reached! Next sell in %time%"
-    remaining: "&aRemaining: %limit%"
-    dateTimeFormatter: "dd/MM/yyyy HH:mm:ss"
-    countdown_prefix: "&7Available in "
-
+## lang.yml - Section Discord Complète
+```yaml
 discord:
   commands:
     help:
@@ -149,34 +194,6 @@ discord:
       total_value: "💰 Valeur Stock Total"
       avg_price: "💰 Prix Moyen"
       footer: "DynaShop Stats"
-  
-  announcements:
-    restock:
-      title: "🔄 Shop Restocké !"
-      description: "**%item%** a été restocké dans **%shop%**"
-      field_new_stock: "Nouveau Stock"
-      field_percentage: "Pourcentage"
-      footer: "DynaShop"
-    
-    lowstock:
-      title_warning: "⚠️ Stock Faible !"
-      title_critical: "🚨 Stock Faible !"
-      description: "**%item%** dans **%shop%** a un stock faible"
-      field_current: "Stock Actuel"
-      field_percentage: "Pourcentage"
-      footer: "DynaShop"
-    
-    price_change:
-      title_increase: "📈 Changement de Prix !"
-      title_decrease: "📉 Changement de Prix !"
-      description_increase: "Le prix de **%type%** de **%item%** dans **%shop%** a augmenté"
-      description_decrease: "Le prix de **%type%** de **%item%** dans **%shop%** a diminué"
-      field_old_price: "Ancien Prix"
-      field_new_price: "Nouveau Prix"
-      field_change: "Changement"
-      footer: "DynaShop"
-      type_buy: "achat"
-      type_sell: "vente"
     
     reload:
       title: "🔄 Configuration Rechargée"
@@ -212,3 +229,101 @@ discord:
       clear_description: "**%shop%** a été vidé. %count% items ont été remis à zéro."
       reset_confirm: "⚠️ Confirmation Reset"
       reset_description: "Cette action va remettre à zéro TOUS les stocks de TOUS les shops.\n**Cette action est irréversible !**\n\nPour confirmer, utilisez: `!dynashop admin reset CONFIRM`"
+  
+  announcements:
+    restock:
+      title: "🔄 Shop Restocké !"
+      description: "**%item%** a été restocké dans **%shop%**"
+      field_new_stock: "Nouveau Stock"
+      field_percentage: "Pourcentage"
+      footer: "DynaShop"
+    
+    lowstock:
+      title_warning: "⚠️ Stock Faible !"
+      title_critical: "🚨 Stock Faible !"
+      description: "**%item%** dans **%shop%** a un stock faible"
+      field_current: "Stock Actuel"
+      field_percentage: "Pourcentage"
+      footer: "DynaShop"
+    
+    price_change:
+      title_increase: "📈 Changement de Prix !"
+      title_decrease: "📉 Changement de Prix !"
+      description_increase: "Le prix de **%type%** de **%item%** dans **%shop%** a augmenté"
+      description_decrease: "Le prix de **%type%** de **%item%** dans **%shop%** a diminué"
+      field_old_price: "Ancien Prix"
+      field_new_price: "Nouveau Prix"
+      field_change: "Changement"
+      footer: "DynaShop"
+      type_buy: "achat"
+      type_sell: "vente"
+```
+
+## DiscordSRV - Config.yml
+```yaml
+# Configuration de DiscordSRV pour DynaShop
+BotToken: "YOUR_BOT_TOKEN_HERE"
+
+# Canaux Discord
+Channels:
+  global: "123456789012345678"  # Canal général
+  dynashop-commands: "123456789012345678"  # Canal pour les commandes DynaShop
+  dynashop-announcements: "987654321098765432"  # Canal pour les annonces
+
+# Configuration des commandes
+DiscordChatChannelMinecraftToDiscord: true
+DiscordChatChannelDiscordToMinecraft: true
+
+# Permissions
+DiscordChatChannelRolesRequiredToUseMinecraftChatInDiscord: []
+DiscordChatChannelBroadcastDiscordMessagesToMinecraft: true
+
+# Gestion des erreurs
+DiscordChatChannelTranslateMentions: true
+DiscordChatChannelEmojiBehavior: name
+```
+
+## Exemples d'usage avancés
+
+### Commandes avec alias
+```yaml
+# Dans votre plugin, vous pouvez ajouter des alias :
+discord:
+  aliases:
+    "!ds": "!dynashop"
+    "!shop": "!dynashop"
+    "!prix": "!dynashop prix"
+    "!stock": "!dynashop stock"
+    "!recherche": "!dynashop search"
+```
+
+### Configuration des rôles
+```yaml
+discord:
+  roles:
+    admin:
+      - "Admin"
+      - "Moderator"
+      - "Staff"
+    user:
+      - "Player"
+      - "Member"
+      - "@everyone"
+    vip:
+      - "VIP"
+      - "Premium"
+      - "Donator"
+```
+
+### Messages personnalisés par serveur
+```yaml
+discord:
+  server-specific:
+    "123456789012345678":  # ID du serveur
+      commands:
+        help:
+          title: "🏪 Serveur Aventure - Shops"
+          description: "Commandes spéciales pour notre serveur !"
+```
+
+Cette configuration vous permet de personnaliser entièrement l'expérience Discord de votre serveur DynaShop !
