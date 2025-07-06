@@ -25,3 +25,87 @@ limit:
     remaining: "&aRemaining: %limit%"
     dateTimeFormatter: "dd/MM/yyyy HH:mm:ss"
     countdown_prefix: "&7Available in "
+
+discord:
+  commands:
+    help:
+      title: "🏪 DynaShop - Commandes Discord"
+      description: "Voici les commandes disponibles :"
+      field_prices: "📊 Prix"
+      field_prices_desc: "`!dynashop prix <shop> <item>` - Voir les prix d'un item"
+      field_stock: "📦 Stock"
+      field_stock_desc: "`!dynashop stock <shop> <item>` - Voir le stock d'un item"
+      field_shops: "🏪 Shops"
+      field_shops_desc: "`!dynashop shops` - Lister tous les shops"
+      field_lowstock: "⚠️ Stock faible"
+      field_lowstock_desc: "`!dynashop lowstock` - Voir les items avec stock faible"
+      footer: "DynaShop"
+    
+    errors:
+      usage_prices: "❌ Usage: `!dynashop prix <shop> <item>`"
+      usage_stock: "❌ Usage: `!dynashop stock <shop> <item>`"
+      unknown_command: "❌ Commande inconnue. Utilisez `!dynashop help`"
+      shop_not_found: "❌ Shop non trouvé: %shop%"
+      item_not_found: "❌ Item non trouvé: %item% dans le shop %shop%"
+      shop_or_item_not_found: "❌ Shop ou item non trouvé."
+      no_shops: "❌ Aucun shop trouvé."
+      no_stock_system: "❌ Cet item n'a pas de système de stock."
+      price_error: "❌ Impossible de récupérer les prix pour cet item."
+      stock_error: "❌ Erreur lors de la récupération du stock."
+      shops_error: "❌ Erreur lors de la récupération des shops."
+      lowstock_error: "❌ Erreur lors de la récupération du stock faible."
+    
+    prices:
+      title: "💰 Prix de %item%"
+      description: "Shop: **%shop%**"
+      field_buy: "💳 Prix d'achat"
+      field_sell: "💰 Prix de vente"
+      field_type: "🏪 Type"
+    
+    stock:
+      title_good: "✅ Stock de %item%"
+      title_warning: "⚠️ Stock de %item%"
+      title_critical: "🚨 Stock de %item%"
+      description: "Shop: **%shop%**"
+      field_current: "📦 Stock Actuel"
+      field_max: "📊 Stock Maximum"
+      field_percentage: "📈 Pourcentage"
+    
+    shops:
+      title: "🏪 Liste des Shops"
+      footer: "Total: %total% shops"
+      more_shops: "... et %count% autres shops"
+    
+    lowstock:
+      title: "⚠️ Items avec Stock Faible"
+      no_items: "✅ Aucun item avec un stock faible trouvé !"
+      footer: "Seuil: %threshold%"
+      item_format: "⚠️ **%item%** dans %shop%: %stock%"
+  
+  announcements:
+    restock:
+      title: "🔄 Shop Restocké !"
+      description: "**%item%** a été restocké dans **%shop%**"
+      field_new_stock: "Nouveau Stock"
+      field_percentage: "Pourcentage"
+      footer: "DynaShop"
+    
+    lowstock:
+      title_warning: "⚠️ Stock Faible !"
+      title_critical: "🚨 Stock Faible !"
+      description: "**%item%** dans **%shop%** a un stock faible"
+      field_current: "Stock Actuel"
+      field_percentage: "Pourcentage"
+      footer: "DynaShop"
+    
+    price_change:
+      title_increase: "📈 Changement de Prix !"
+      title_decrease: "📉 Changement de Prix !"
+      description_increase: "Le prix de **%type%** de **%item%** dans **%shop%** a augmenté"
+      description_decrease: "Le prix de **%type%** de **%item%** dans **%shop%** a diminué"
+      field_old_price: "Ancien Prix"
+      field_new_price: "Nouveau Prix"
+      field_change: "Changement"
+      footer: "DynaShop"
+      type_buy: "achat"
+      type_sell: "vente"

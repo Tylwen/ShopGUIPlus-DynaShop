@@ -8,7 +8,6 @@ import github.scarsz.discordsrv.api.Subscribe;
 import github.scarsz.discordsrv.api.events.DiscordGuildMessageReceivedEvent;
 import github.scarsz.discordsrv.dependencies.jda.api.EmbedBuilder;
 import github.scarsz.discordsrv.dependencies.jda.api.entities.Guild;
-import github.scarsz.discordsrv.dependencies.jda.api.entities.MessageEmbed;
 import github.scarsz.discordsrv.dependencies.jda.api.entities.TextChannel;
 import github.scarsz.discordsrv.util.DiscordUtil;
 import net.brcdev.shopgui.ShopGuiPlusApi;
@@ -20,7 +19,6 @@ import org.bukkit.ChatColor;
 
 import java.awt.*;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
@@ -104,14 +102,14 @@ public class DiscordSRVManager {
         switch (subcommand) {
             case "prix", "prices" -> {
                 if (args.length < 4) {
-                    event.getChannel().sendMessage("❌ Usage: `!dynashop prix <shop> <item>`").queue();
+                    event.getChannel().sendMessage(plugin.getLangConfig().getDiscordMessage("discord.commands.errors.usage_prices", "❌ Usage: `!dynashop prix <shop> <item>`")).queue();
                     return;
                 }
                 handlePricesCommand(event, args[2], args[3]);
             }
             case "stock" -> {
                 if (args.length < 4) {
-                    event.getChannel().sendMessage("❌ Usage: `!dynashop stock <shop> <item>`").queue();
+                    event.getChannel().sendMessage(plugin.getLangConfig().getDiscordMessage("discord.commands.errors.usage_stock", "❌ Usage: `!dynashop stock <shop> <item>`")).queue();
                     return;
                 }
                 handleStockCommand(event, args[2], args[3]);
@@ -119,21 +117,25 @@ public class DiscordSRVManager {
             case "shops", "boutiques" -> handleShopsCommand(event);
             case "lowstock", "stockfaible" -> handleLowStockCommand(event);
             case "help", "aide" -> sendHelpMessage(event.getChannel());
-            default -> event.getChannel().sendMessage("❌ Commande inconnue. Utilisez `!dynashop help`").queue();
+            default -> event.getChannel().sendMessage(plugin.getLangConfig().getDiscordMessage("discord.commands.errors.unknown_command", "❌ Commande inconnue. Utilisez `!dynashop help`")).queue();
         }
     }
     
     private void sendHelpMessage(TextChannel channel) {
         EmbedBuilder embed = new EmbedBuilder()
-            .setTitle("🏪 DynaShop - Commandes Discord")
-            .setDescription("Voici les commandes disponibles :")
-            .addField("📊 Prix", "`!dynashop prix <shop> <item>` - Voir les prix d'un item", false)
-            .addField("📦 Stock", "`!dynashop stock <shop> <item>` - Voir le stock d'un item", false)
-            .addField("🏪 Shops", "`!dynashop shops` - Lister tous les shops", false)
-            .addField("⚠️ Stock faible", "`!dynashop lowstock` - Voir les items avec stock faible", false)
+            .setTitle(plugin.getLangConfig().getDiscordMessage("discord.commands.help.title", "🏪 DynaShop - Commandes Discord"))
+            .setDescription(plugin.getLangConfig().getDiscordMessage("discord.commands.help.description", "Voici les commandes disponibles :"))
+            .addField(plugin.getLangConfig().getDiscordMessage("discord.commands.help.field_prices", "📊 Prix"), 
+                     plugin.getLangConfig().getDiscordMessage("discord.commands.help.field_prices_desc", "`!dynashop prix <shop> <item>` - Voir les prix d'un item"), false)
+            .addField(plugin.getLangConfig().getDiscordMessage("discord.commands.help.field_stock", "📦 Stock"), 
+                     plugin.getLangConfig().getDiscordMessage("discord.commands.help.field_stock_desc", "`!dynashop stock <shop> <item>` - Voir le stock d'un item"), false)
+            .addField(plugin.getLangConfig().getDiscordMessage("discord.commands.help.field_shops", "🏪 Shops"), 
+                     plugin.getLangConfig().getDiscordMessage("discord.commands.help.field_shops_desc", "`!dynashop shops` - Lister tous les shops"), false)
+            .addField(plugin.getLangConfig().getDiscordMessage("discord.commands.help.field_lowstock", "⚠️ Stock faible"), 
+                     plugin.getLangConfig().getDiscordMessage("discord.commands.help.field_lowstock_desc", "`!dynashop lowstock` - Voir les items avec stock faible"), false)
             .setColor(Color.BLUE)
             .setTimestamp(LocalDateTime.now())
-            .setFooter("DynaShop", null);
+            .setFooter(plugin.getLangConfig().getDiscordMessage("discord.commands.help.footer", "DynaShop"), null);
         
         channel.sendMessage(embed.build()).queue();
     }
@@ -146,12 +148,12 @@ public class DiscordSRVManager {
             String actualItemId = findItemId(actualShopId, itemId);
             
             if (actualShopId == null) {
-                event.getChannel().sendMessage("❌ Shop non trouvé: " + shopId).queue();
+                event.getChannel().sendMessage(plugin.getLangConfig().getDiscordMessage("discord.commands.errors.shop_not_found", "❌ Shop non trouvé: %shop%", new String[]{"%shop%", shopId})).queue();
                 return;
             }
             
             if (actualItemId == null) {
-                event.getChannel().sendMessage("❌ Item non trouvé: " + itemId + " dans le shop " + shopId).queue();
+                event.getChannel().sendMessage(plugin.getLangConfig().getDiscordMessage("discord.commands.errors.item_not_found", "❌ Item non trouvé: %item% dans le shop %shop%", new String[]{"%item%", itemId}, new String[]{"%shop%", shopId})).queue();
                 return;
             }
             
@@ -160,7 +162,7 @@ public class DiscordSRVManager {
                 // DynamicPrice price = plugin.getDynaShopListener().getOrLoadPrice(null, actualShopId, actualItemId, null);
                 DynamicPrice price = plugin.getDynaShopListener().getOrLoadPrice(null, actualShopId, actualItemId, null, new HashSet<>(), new HashMap<>());
                 if (price == null) {
-                    event.getChannel().sendMessage("❌ Impossible de récupérer les prix pour cet item.").queue();
+                    event.getChannel().sendMessage(plugin.getLangConfig().getDiscordMessage("discord.commands.errors.price_error", "❌ Impossible de récupérer les prix pour cet item.")).queue();
                     return;
                 }
                 
@@ -168,32 +170,32 @@ public class DiscordSRVManager {
                 String shopName = getShopDisplayName(actualShopId);
                 
                 EmbedBuilder embed = new EmbedBuilder()
-                    .setTitle("💰 Prix de " + itemName)
-                    .setDescription("Shop: **" + shopName + "**")
+                    .setTitle(plugin.getLangConfig().getDiscordMessage("discord.commands.prices.title", "💰 Prix de %item%", new String[]{"%item%", itemName}))
+                    .setDescription(plugin.getLangConfig().getDiscordMessage("discord.commands.prices.description", "Shop: **%shop%**", new String[]{"%shop%", shopName}))
                     .setColor(Color.BLUE)
                     .setTimestamp(LocalDateTime.now());
                 
                 // Prix d'achat
                 if (price.getBuyPrice() > 0) {
-                    embed.addField("💳 Prix d'achat", 
+                    embed.addField(plugin.getLangConfig().getDiscordMessage("discord.commands.prices.field_buy", "💳 Prix d'achat"), 
                         plugin.getPriceFormatter().formatPrice(price.getBuyPrice()), true);
                 }
                 
                 // Prix de vente
                 if (price.getSellPrice() > 0) {
-                    embed.addField("💰 Prix de vente", 
+                    embed.addField(plugin.getLangConfig().getDiscordMessage("discord.commands.prices.field_sell", "💰 Prix de vente"), 
                         plugin.getPriceFormatter().formatPrice(price.getSellPrice()), true);
                 }
                 
                 // Type de shop
                 var type = price.getDynaShopType();
-                embed.addField("🏪 Type", type.toString(), true);
+                embed.addField(plugin.getLangConfig().getDiscordMessage("discord.commands.prices.field_type", "🏪 Type"), type.toString(), true);
                 
                 event.getChannel().sendMessage(embed.build()).queue();
                 
             } catch (Exception e) {
                 plugin.getLogger().warning("Erreur lors de la récupération des prix: " + e.getMessage());
-                event.getChannel().sendMessage("❌ Erreur lors de la récupération des prix.").queue();
+                event.getChannel().sendMessage(plugin.getLangConfig().getDiscordMessage("discord.commands.errors.price_error", "❌ Erreur lors de la récupération des prix.")).queue();
             }
         });
     }
@@ -204,7 +206,7 @@ public class DiscordSRVManager {
             String actualItemId = findItemId(actualShopId, itemId);
             
             if (actualShopId == null || actualItemId == null) {
-                event.getChannel().sendMessage("❌ Shop ou item non trouvé.").queue();
+                event.getChannel().sendMessage(plugin.getLangConfig().getDiscordMessage("discord.commands.errors.shop_or_item_not_found", "❌ Shop ou item non trouvé.")).queue();
                 return;
             }
             
@@ -212,7 +214,7 @@ public class DiscordSRVManager {
                 var type = plugin.getShopConfigManager().getTypeDynaShop(actualShopId, actualItemId);
                 
                 if (!type.name().contains("STOCK") && !type.name().contains("RECIPE")) {
-                    event.getChannel().sendMessage("❌ Cet item n'a pas de système de stock.").queue();
+                    event.getChannel().sendMessage(plugin.getLangConfig().getDiscordMessage("discord.commands.errors.no_stock_system", "❌ Cet item n'a pas de système de stock.")).queue();
                     return;
                 }
                 
@@ -225,15 +227,26 @@ public class DiscordSRVManager {
                 String shopName = getShopDisplayName(actualShopId);
                 
                 double percentage = maxStock > 0 ? (stock * 100.0 / maxStock) : 0;
-                Color embedColor = percentage < 25 ? Color.RED : percentage < 50 ? Color.ORANGE : Color.GREEN;
-                String emoji = percentage < 25 ? "🚨" : percentage < 50 ? "⚠️" : "✅";
+                Color embedColor;
+                String titleKey;
+                
+                if (percentage < 25) {
+                    embedColor = Color.RED;
+                    titleKey = "discord.commands.stock.title_critical";
+                } else if (percentage < 50) {
+                    embedColor = Color.ORANGE;
+                    titleKey = "discord.commands.stock.title_warning";
+                } else {
+                    embedColor = Color.GREEN;
+                    titleKey = "discord.commands.stock.title_good";
+                }
                 
                 EmbedBuilder embed = new EmbedBuilder()
-                    .setTitle(emoji + " Stock de " + itemName)
-                    .setDescription("Shop: **" + shopName + "**")
-                    .addField("📦 Stock Actuel", String.valueOf(stock), true)
-                    .addField("📊 Stock Maximum", String.valueOf(maxStock), true)
-                    .addField("📈 Pourcentage", String.format("%.1f%%", percentage), true)
+                    .setTitle(plugin.getLangConfig().getDiscordMessage(titleKey, "✅ Stock de %item%", new String[]{"%item%", itemName}))
+                    .setDescription(plugin.getLangConfig().getDiscordMessage("discord.commands.stock.description", "Shop: **%shop%**", new String[]{"%shop%", shopName}))
+                    .addField(plugin.getLangConfig().getDiscordMessage("discord.commands.stock.field_current", "📦 Stock Actuel"), String.valueOf(stock), true)
+                    .addField(plugin.getLangConfig().getDiscordMessage("discord.commands.stock.field_max", "📊 Stock Maximum"), String.valueOf(maxStock), true)
+                    .addField(plugin.getLangConfig().getDiscordMessage("discord.commands.stock.field_percentage", "📈 Pourcentage"), String.format("%.1f%%", percentage), true)
                     .setColor(embedColor)
                     .setTimestamp(LocalDateTime.now());
                 
@@ -241,7 +254,7 @@ public class DiscordSRVManager {
                 
             } catch (Exception e) {
                 plugin.getLogger().warning("Erreur lors de la récupération du stock: " + e.getMessage());
-                event.getChannel().sendMessage("❌ Erreur lors de la récupération du stock.").queue();
+                event.getChannel().sendMessage(plugin.getLangConfig().getDiscordMessage("discord.commands.errors.stock_error", "❌ Erreur lors de la récupération du stock.")).queue();
             }
         });
     }
@@ -252,7 +265,7 @@ public class DiscordSRVManager {
                 Set<String> shopIds = plugin.getShopConfigManager().getShops();
                 
                 if (shopIds.isEmpty()) {
-                    event.getChannel().sendMessage("❌ Aucun shop trouvé.").queue();
+                    event.getChannel().sendMessage(plugin.getLangConfig().getDiscordMessage("discord.commands.errors.no_shops", "❌ Aucun shop trouvé.")).queue();
                     return;
                 }
                 
@@ -261,7 +274,7 @@ public class DiscordSRVManager {
                 
                 for (String shopId : shopIds) {
                     if (count >= 20) { // Limiter à 20 shops
-                        description.append("\n... et ").append(shopIds.size() - count).append(" autres shops");
+                        description.append("\n").append(plugin.getLangConfig().getDiscordMessage("discord.commands.shops.more_shops", "... et %count% autres shops", new String[]{"%count%", String.valueOf(shopIds.size() - count)}));
                         break;
                     }
                     
@@ -271,17 +284,17 @@ public class DiscordSRVManager {
                 }
                 
                 EmbedBuilder embed = new EmbedBuilder()
-                    .setTitle("🏪 Liste des Shops")
+                    .setTitle(plugin.getLangConfig().getDiscordMessage("discord.commands.shops.title", "🏪 Liste des Shops"))
                     .setDescription(description.toString())
                     .setColor(Color.CYAN)
                     .setTimestamp(LocalDateTime.now())
-                    .setFooter("Total: " + shopIds.size() + " shops");
+                    .setFooter(plugin.getLangConfig().getDiscordMessage("discord.commands.shops.footer", "Total: %total% shops", new String[]{"%total%", String.valueOf(shopIds.size())}));
                 
                 event.getChannel().sendMessage(embed.build()).queue();
                 
             } catch (Exception e) {
                 plugin.getLogger().warning("Erreur lors de la récupération des shops: " + e.getMessage());
-                event.getChannel().sendMessage("❌ Erreur lors de la récupération des shops.").queue();
+                event.getChannel().sendMessage(plugin.getLangConfig().getDiscordMessage("discord.commands.errors.shops_error", "❌ Erreur lors de la récupération des shops.")).queue();
             }
         });
     }
@@ -303,8 +316,8 @@ public class DiscordSRVManager {
                                 String itemName = getItemDisplayName(shopId, itemId);
                                 String shopName = getShopDisplayName(shopId);
                                 
-                                lowStockItems.append(String.format("⚠️ **%s** dans %s: %d\n", 
-                                    itemName, shopName, stock));
+                                lowStockItems.append(plugin.getLangConfig().getDiscordMessage("discord.commands.lowstock.item_format", "⚠️ **%item%** dans %shop%: %stock%",
+                                    new String[]{"%item%", itemName}, new String[]{"%shop%", shopName}, new String[]{"%stock%", String.valueOf(stock)})).append("\n");
                                 count++;
                                 
                                 if (count >= 15) break; // Limiter l'affichage
@@ -315,22 +328,22 @@ public class DiscordSRVManager {
                 }
                 
                 if (lowStockItems.length() == 0) {
-                    event.getChannel().sendMessage("✅ Aucun item avec un stock faible trouvé !").queue();
+                    event.getChannel().sendMessage(plugin.getLangConfig().getDiscordMessage("discord.commands.lowstock.no_items", "✅ Aucun item avec un stock faible trouvé !")).queue();
                     return;
                 }
                 
                 EmbedBuilder embed = new EmbedBuilder()
-                    .setTitle("⚠️ Items avec Stock Faible")
+                    .setTitle(plugin.getLangConfig().getDiscordMessage("discord.commands.lowstock.title", "⚠️ Items avec Stock Faible"))
                     .setDescription(lowStockItems.toString())
                     .setColor(Color.ORANGE)
                     .setTimestamp(LocalDateTime.now())
-                    .setFooter("Seuil: " + lowStockThreshold);
+                    .setFooter(plugin.getLangConfig().getDiscordMessage("discord.commands.lowstock.footer", "Seuil: %threshold%", new String[]{"%threshold%", String.valueOf(lowStockThreshold)}));
                 
                 event.getChannel().sendMessage(embed.build()).queue();
                 
             } catch (Exception e) {
                 plugin.getLogger().warning("Erreur lors de la récupération du stock faible: " + e.getMessage());
-                event.getChannel().sendMessage("❌ Erreur lors de la récupération du stock faible.").queue();
+                event.getChannel().sendMessage(plugin.getLangConfig().getDiscordMessage("discord.commands.errors.lowstock_error", "❌ Erreur lors de la récupération du stock faible.")).queue();
             }
         });
     }
@@ -352,13 +365,13 @@ public class DiscordSRVManager {
                 String shopName = getShopDisplayName(shopId);
                 
                 EmbedBuilder embed = new EmbedBuilder()
-                    .setTitle("🔄 Shop Restocké !")
-                    .setDescription(String.format("**%s** a été restocké dans **%s**", itemName, shopName))
-                    .addField("Nouveau Stock", String.format("%d/%d", newStock, maxStock), true)
-                    .addField("Pourcentage", String.format("%.1f%%", (newStock * 100.0 / maxStock)), true)
+                    .setTitle(plugin.getLangConfig().getDiscordMessage("discord.announcements.restock.title", "🔄 Shop Restocké !"))
+                    .setDescription(plugin.getLangConfig().getDiscordMessage("discord.announcements.restock.description", "**%item%** a été restocké dans **%shop%**", new String[]{"%item%", itemName}, new String[]{"%shop%", shopName}))
+                    .addField(plugin.getLangConfig().getDiscordMessage("discord.announcements.restock.field_new_stock", "Nouveau Stock"), String.format("%d/%d", newStock, maxStock), true)
+                    .addField(plugin.getLangConfig().getDiscordMessage("discord.announcements.restock.field_percentage", "Pourcentage"), String.format("%.1f%%", (newStock * 100.0 / maxStock)), true)
                     .setColor(Color.GREEN)
                     .setTimestamp(LocalDateTime.now())
-                    .setFooter("DynaShop", null);
+                    .setFooter(plugin.getLangConfig().getDiscordMessage("discord.announcements.restock.footer", "DynaShop"), null);
                 
                 channel.sendMessage(embed.build()).queue();
                 
@@ -387,16 +400,16 @@ public class DiscordSRVManager {
                 
                 double percentage = (currentStock * 100.0 / maxStock);
                 Color embedColor = percentage < 5 ? Color.RED : Color.ORANGE;
-                String emoji = percentage < 5 ? "🚨" : "⚠️";
+                String titleKey = percentage < 5 ? "discord.announcements.lowstock.title_critical" : "discord.announcements.lowstock.title_warning";
                 
                 EmbedBuilder embed = new EmbedBuilder()
-                    .setTitle(emoji + " Stock Faible !")
-                    .setDescription(String.format("**%s** dans **%s** a un stock faible", itemName, shopName))
-                    .addField("Stock Actuel", String.format("%d/%d", currentStock, maxStock), true)
-                    .addField("Pourcentage", String.format("%.1f%%", percentage), true)
+                    .setTitle(plugin.getLangConfig().getDiscordMessage(titleKey, "⚠️ Stock Faible !"))
+                    .setDescription(plugin.getLangConfig().getDiscordMessage("discord.announcements.lowstock.description", "**%item%** dans **%shop%** a un stock faible", new String[]{"%item%", itemName}, new String[]{"%shop%", shopName}))
+                    .addField(plugin.getLangConfig().getDiscordMessage("discord.announcements.lowstock.field_current", "Stock Actuel"), String.format("%d/%d", currentStock, maxStock), true)
+                    .addField(plugin.getLangConfig().getDiscordMessage("discord.announcements.lowstock.field_percentage", "Pourcentage"), String.format("%.1f%%", percentage), true)
                     .setColor(embedColor)
                     .setTimestamp(LocalDateTime.now())
-                    .setFooter("DynaShop", null);
+                    .setFooter(plugin.getLangConfig().getDiscordMessage("discord.announcements.lowstock.footer", "DynaShop"), null);
                 
                 channel.sendMessage(embed.build()).queue();
                 
@@ -423,23 +436,23 @@ public class DiscordSRVManager {
                 
                 String itemName = getItemDisplayName(shopId, itemId);
                 String shopName = getShopDisplayName(shopId);
-                String priceType = isBuy ? "achat" : "vente";
+                String priceType = isBuy ? plugin.getLangConfig().getDiscordMessage("discord.announcements.price_change.type_buy", "achat") : plugin.getLangConfig().getDiscordMessage("discord.announcements.price_change.type_sell", "vente");
                 
                 boolean isIncrease = newPrice > oldPrice;
-                String emoji = isIncrease ? "📈" : "📉";
+                String titleKey = isIncrease ? "discord.announcements.price_change.title_increase" : "discord.announcements.price_change.title_decrease";
+                String descriptionKey = isIncrease ? "discord.announcements.price_change.description_increase" : "discord.announcements.price_change.description_decrease";
                 Color embedColor = isIncrease ? Color.GREEN : Color.RED;
-                String changeText = isIncrease ? "augmenté" : "diminué";
                 
                 EmbedBuilder embed = new EmbedBuilder()
-                    .setTitle(emoji + " Changement de Prix !")
-                    .setDescription(String.format("Le prix de **%s** de **%s** dans **%s** a %s", 
-                        priceType, itemName, shopName, changeText))
-                    .addField("Ancien Prix", plugin.getPriceFormatter().formatPrice(oldPrice), true)
-                    .addField("Nouveau Prix", plugin.getPriceFormatter().formatPrice(newPrice), true)
-                    .addField("Changement", String.format("%.1f%%", changePercent), true)
+                    .setTitle(plugin.getLangConfig().getDiscordMessage(titleKey, "📈 Changement de Prix !"))
+                    .setDescription(plugin.getLangConfig().getDiscordMessage(descriptionKey, "Le prix de **%type%** de **%item%** dans **%shop%** a augmenté", 
+                        new String[]{"%type%", priceType}, new String[]{"%item%", itemName}, new String[]{"%shop%", shopName}))
+                    .addField(plugin.getLangConfig().getDiscordMessage("discord.announcements.price_change.field_old_price", "Ancien Prix"), plugin.getPriceFormatter().formatPrice(oldPrice), true)
+                    .addField(plugin.getLangConfig().getDiscordMessage("discord.announcements.price_change.field_new_price", "Nouveau Prix"), plugin.getPriceFormatter().formatPrice(newPrice), true)
+                    .addField(plugin.getLangConfig().getDiscordMessage("discord.announcements.price_change.field_change", "Changement"), String.format("%.1f%%", changePercent), true)
                     .setColor(embedColor)
                     .setTimestamp(LocalDateTime.now())
-                    .setFooter("DynaShop", null);
+                    .setFooter(plugin.getLangConfig().getDiscordMessage("discord.announcements.price_change.footer", "DynaShop"), null);
                 
                 channel.sendMessage(embed.build()).queue();
                 

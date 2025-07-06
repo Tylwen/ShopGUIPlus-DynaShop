@@ -64,10 +64,10 @@ public class LangConfig {
     // private final String msgTaxBuy;
     // private final String msgTaxSell;
 
+    private final FileConfiguration config;
+
     public LangConfig(FileConfiguration config) {
-        // // Load the language configuration
-        // this.lang = config.getString("lang", "en");
-        // this.langFile = config.getString("lang-file", "en.yml");
+        this.config = config;
 
         this.placeholderPricesIncrease = config.getString("prices.placeholder.trend.increase", "&a↑");
         this.placeholderPricesDecrease = config.getString("prices.placeholder.trend.decrease", "&c↓");
@@ -201,4 +201,34 @@ public class LangConfig {
     // public String getMsgTaxSell() {
     //     return msgTaxSell;
     // }
+    
+    /**
+     * Récupère un message Discord depuis le fichier de langue
+     * @param key La clé du message (ex: "discord.commands.help.title")
+     * @param defaultValue La valeur par défaut si la clé n'existe pas
+     * @return Le message traduit
+     */
+    public String getDiscordMessage(String key, String defaultValue) {
+        return config.getString(key, defaultValue);
+    }
+    
+    /**
+     * Récupère un message Discord depuis le fichier de langue avec remplacement de variables
+     * @param key La clé du message (ex: "discord.commands.help.title")
+     * @param defaultValue La valeur par défaut si la clé n'existe pas
+     * @param replacements Tableau de paires [variable, valeur] à remplacer
+     * @return Le message traduit avec variables remplacées
+     */
+    public String getDiscordMessage(String key, String defaultValue, String[]... replacements) {
+        String message = config.getString(key, defaultValue);
+        
+        // Effectuer les remplacements
+        for (String[] replacement : replacements) {
+            if (replacement.length >= 2) {
+                message = message.replace(replacement[0], replacement[1]);
+            }
+        }
+        
+        return message;
+    }
 }
