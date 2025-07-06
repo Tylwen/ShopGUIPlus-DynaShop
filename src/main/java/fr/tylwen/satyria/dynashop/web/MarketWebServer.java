@@ -50,6 +50,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 // import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -280,6 +281,157 @@ public class MarketWebServer {
      * @param exchange L'échange HTTP
      * @throws IOException Si une erreur d'E/S se produit
      */
+    // private void handleItemsList(HttpExchange exchange) throws IOException {
+    //     if (!exchange.getRequestMethod().equals("GET")) {
+    //         exchange.sendResponseHeaders(405, 0);
+    //         exchange.getResponseBody().close();
+    //         return;
+    //     }
+        
+    //     Map<String, String[]> queryParams = parseQueryParams(exchange.getRequestURI().getQuery());
+    //     String shopId = queryParams.containsKey("shop") ? queryParams.get("shop")[0] : null;
+    //     if (shopId == null) {
+    //         exchange.sendResponseHeaders(400, 0);
+    //         exchange.getResponseBody().close();
+    //         return;
+    //     }
+
+    //     Shop shop = ShopGuiPlusApi.getPlugin().getShopManager().getShopById(shopId);
+    //     if (shop == null) {
+    //         exchange.sendResponseHeaders(404, 0);
+    //         exchange.getResponseBody().close();
+    //         return;
+    //     }
+        
+    //     // Player player = (Player) new OfflinePlayer() {
+    //     //     @Override
+    //     //     public String getName() {
+    //     //         return exchange.getPrincipal().getName();
+    //     //     }
+    //     // };
+
+    //     // Player player = Bukkit.getPlayer(exchange.getPrincipal().getName());
+    //     // if (player == null) {
+    //     //     // Si le joueur n'est pas connecté, on peut soit renvoyer une erreur, soit utiliser un joueur offline
+    //     //     // exchange.sendResponseHeaders(403, 0);
+    //     //     // exchange.getResponseBody().close();
+    //     //     // return;
+    //     // }
+        
+    //     // Extraire la langue du navigateur
+    //     String locale = "en"; // Langue par défaut
+        
+    //     // Récupérer l'en-tête Accept-Language
+    //     String acceptLanguage = exchange.getRequestHeaders().getFirst("Accept-Language");
+    //     if (acceptLanguage != null && !acceptLanguage.isEmpty()) {
+    //         // Exemple: fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7
+    //         // Extraire le code de langue principale
+    //         String[] langs = acceptLanguage.split(",");
+    //         if (langs.length > 0) {
+    //             String primaryLang = langs[0].split(";")[0].split("-")[0];
+    //             locale = primaryLang; // fr, en, de, etc.
+    //         }
+    //     }
+    //     // plugin.getLogger().info("Langue du navigateur détectée: " + locale);
+
+    //     final String finalLocale = locale;
+
+    //     Map<String, Map<String, Object>> uniqueItemsMap = new HashMap<>();
+        
+    //     plugin.getShopConfigManager().getShopItems(shopId).stream()
+    //         .filter(itemId -> {
+    //             // Vérifier si l'item existe et n'est pas un DUMMY
+    //             ShopItem shopItem = shop.getShopItem(itemId);
+    //             return shopItem != null && shopItem.getType() != ShopItemType.DUMMY && shopItem.getType() != ShopItemType.SPECIAL;
+    //         })
+    //         .forEach(itemId -> {
+    //             String itemName = plugin.getShopConfigManager().getItemNameWithLocale(shopId, itemId, finalLocale);
+                
+    //             // Créer un identifiant unique basé sur le nom normalisé
+    //             String normalizedName = itemName.toLowerCase().trim();
+                
+    //             // Utiliser l'identifiant normalisé comme clé de map pour éliminer les doublons
+    //             Map<String, Object> itemData = new HashMap<>();
+    //             itemData.put("id", itemId);
+    //             itemData.put("name", itemName);
+                
+    //             // Ne remplacer que si l'item n'existe pas déjà ou si l'ID est plus court (généralement plus lisible)
+    //             if (!uniqueItemsMap.containsKey(normalizedName) || 
+    //                 ((String)uniqueItemsMap.get(normalizedName).get("id")).length() > itemId.length()) {
+    //                 uniqueItemsMap.put(normalizedName, itemData);
+    //             }
+    //         });
+        
+    //     // Étape 2: Convertir la Map en List pour le résultat final
+    //     List<Map<String, Object>> items = new ArrayList<>(uniqueItemsMap.values());
+
+    //     // List<Map<String, Object>> items = plugin.getShopConfigManager().getShopItems(shopId).stream()
+    //     //     .filter(itemId -> {
+    //     //         // Vérifier si l'item existe et n'est pas un DUMMY
+    //     //         ShopItem shopItem = shop.getShopItem(itemId);
+    //     //         return shopItem != null && shopItem.getType() != ShopItemType.DUMMY && shopItem.getType() != ShopItemType.SPECIAL;
+    //     //     })
+    //     //     .map(itemId -> {
+    //     //         Map<String, Object> itemData = new HashMap<>();
+    //     //         itemData.put("id", itemId);
+    //     //         // itemData.put("name", plugin.getShopConfigManager().getItemName(null, shopId, itemId));
+    //     //         itemData.put("name", plugin.getShopConfigManager().getItemNameWithLocale(shopId, itemId, finalLocale));
+    //     //         return itemData;
+    //     //     })
+    //     //     .collect(Collectors.toList());
+
+    //     // Trier les items par nom
+    //     items.sort(Comparator.comparing(map -> (String) map.get("name")));
+
+    //     // List<Map<String, Object>> items = new ArrayList<>();
+    //     // Set<String> processedIds = new HashSet<>(); // Pour éviter les vrais doublons
+        
+    //     // try {
+    //     //     Set<String> itemIds = plugin.getShopConfigManager().getShopItems(shopId);
+    //     //     plugin.getLogger().info("Items trouvés pour le shop " + shopId + ": " + itemIds.size());
+            
+    //     //     for (String itemId : itemIds) {
+    //     //         // Éviter les doublons exacts
+    //     //         if (processedIds.contains(itemId)) {
+    //     //             continue;
+    //     //         }
+                
+    //     //         // Vérifier si l'item existe et n'est pas un DUMMY
+    //     //         ShopItem shopItem = shop.getShopItem(itemId);
+    //     //         if (shopItem == null || shopItem.getType() == ShopItemType.DUMMY || shopItem.getType() == ShopItemType.SPECIAL) {
+    //     //             continue;
+    //     //         }
+                
+    //     //         String itemName = plugin.getShopConfigManager().getItemNameWithLocale(shopId, itemId, finalLocale);
+    //     //         if (itemName == null || itemName.trim().isEmpty()) {
+    //     //             itemName = itemId; // Fallback sur l'ID
+    //     //         }
+                
+    //     //         Map<String, Object> itemData = new HashMap<>();
+    //     //         itemData.put("id", itemId);
+    //     //         itemData.put("name", itemName);
+    //     //         items.add(itemData);
+                
+    //     //         processedIds.add(itemId);
+    //     //     }
+            
+    //     //     // Trier les items par nom
+    //     //     items.sort(Comparator.comparing(map -> (String) map.get("name")));
+            
+    //     //     plugin.getLogger().info("Items finaux pour le shop " + shopId + ": " + items.size());
+            
+    //     // } catch (Exception e) {
+    //     //     plugin.getLogger().severe("Erreur lors de la récupération des items pour " + shopId + ": " + e.getMessage());
+    //     //     e.printStackTrace();
+            
+    //     //     // Retourner une liste vide en cas d'erreur
+    //     //     items = new ArrayList<>();
+    //     // }
+
+    //     String jsonResponse = gson.toJson(items);
+    //     sendJsonResponse(exchange, jsonResponse);
+    // }
+
     private void handleItemsList(HttpExchange exchange) throws IOException {
         if (!exchange.getRequestMethod().equals("GET")) {
             exchange.sendResponseHeaders(405, 0);
@@ -302,86 +454,200 @@ public class MarketWebServer {
             return;
         }
         
-        // Player player = (Player) new OfflinePlayer() {
-        //     @Override
-        //     public String getName() {
-        //         return exchange.getPrincipal().getName();
-        //     }
-        // };
-
-        // Player player = Bukkit.getPlayer(exchange.getPrincipal().getName());
-        // if (player == null) {
-        //     // Si le joueur n'est pas connecté, on peut soit renvoyer une erreur, soit utiliser un joueur offline
-        //     // exchange.sendResponseHeaders(403, 0);
-        //     // exchange.getResponseBody().close();
-        //     // return;
-        // }
-        
-        // Extraire la langue du navigateur
+        // ✅ CORRECTION : Simplifier la détection de la langue
         String locale = "en"; // Langue par défaut
-        
-        // Récupérer l'en-tête Accept-Language
         String acceptLanguage = exchange.getRequestHeaders().getFirst("Accept-Language");
         if (acceptLanguage != null && !acceptLanguage.isEmpty()) {
-            // Exemple: fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7
-            // Extraire le code de langue principale
-            String[] langs = acceptLanguage.split(",");
-            if (langs.length > 0) {
-                String primaryLang = langs[0].split(";")[0].split("-")[0];
-                locale = primaryLang; // fr, en, de, etc.
+            try {
+                String[] langs = acceptLanguage.split(",");
+                if (langs.length > 0) {
+                    String primaryLang = langs[0].split(";")[0].split("-")[0].trim();
+                    if (!primaryLang.isEmpty()) {
+                        locale = primaryLang; // fr, en, de, etc.
+                    }
+                }
+            } catch (Exception e) {
+                plugin.getLogger().fine("Erreur lors de la détection de la langue: " + e.getMessage());
+                // Garder la langue par défaut
             }
         }
-        // plugin.getLogger().info("Langue du navigateur détectée: " + locale);
 
         final String finalLocale = locale;
+        plugin.getLogger().fine("Langue détectée pour les items: " + finalLocale);
 
-        Map<String, Map<String, Object>> uniqueItemsMap = new HashMap<>();
+        // ✅ CORRECTION : Logique simplifiée et robuste
+        List<Map<String, Object>> items = new ArrayList<>();
+        Set<String> processedIds = new HashSet<>();
         
-        plugin.getShopConfigManager().getShopItems(shopId).stream()
-            .filter(itemId -> {
-                // Vérifier si l'item existe et n'est pas un DUMMY
-                ShopItem shopItem = shop.getShopItem(itemId);
-                return shopItem != null && shopItem.getType() != ShopItemType.DUMMY && shopItem.getType() != ShopItemType.SPECIAL;
-            })
-            .forEach(itemId -> {
-                String itemName = plugin.getShopConfigManager().getItemNameWithLocale(shopId, itemId, finalLocale);
-                
-                // Créer un identifiant unique basé sur le nom normalisé
-                String normalizedName = itemName.toLowerCase().trim();
-                
-                // Utiliser l'identifiant normalisé comme clé de map pour éliminer les doublons
-                Map<String, Object> itemData = new HashMap<>();
-                itemData.put("id", itemId);
-                itemData.put("name", itemName);
-                
-                // Ne remplacer que si l'item n'existe pas déjà ou si l'ID est plus court (généralement plus lisible)
-                if (!uniqueItemsMap.containsKey(normalizedName) || 
-                    ((String)uniqueItemsMap.get(normalizedName).get("id")).length() > itemId.length()) {
-                    uniqueItemsMap.put(normalizedName, itemData);
+        try {
+            Set<String> itemIds = plugin.getShopConfigManager().getShopItems(shopId);
+            plugin.getLogger().fine("Items trouvés pour le shop " + shopId + ": " + itemIds.size());
+            
+            if (itemIds.isEmpty()) {
+                plugin.getLogger().warning("Aucun item trouvé pour le shop: " + shopId);
+                String jsonResponse = gson.toJson(items);
+                sendJsonResponse(exchange, jsonResponse);
+                return;
+            }
+            
+            // ✅ CORRECTION : Compteur pour débugger
+            int processed = 0;
+            int errors = 0;
+            int filtered = 0;
+            int added = 0;
+            
+            for (String itemId : itemIds) {
+                try {
+                    processed++;
+                    // plugin.getLogger().info("Traitement item " + processed + "/" + itemIds.size() + ": " + itemId);
+                    
+                    // ✅ Éviter les doublons exacts
+                    if (processedIds.contains(itemId)) {
+                        plugin.getLogger().fine("Item déjà traité (doublon): " + itemId);
+                        continue;
+                    }
+                    
+                    // ✅ CORRECTION : Vérification plus robuste de l'existence de l'item
+                    ShopItem shopItem = null;
+                    try {
+                        shopItem = shop.getShopItem(itemId);
+                    } catch (Exception e) {
+                        plugin.getLogger().fine("Erreur lors de la récupération de l'item " + itemId + ": " + e.getMessage());
+                        errors++;
+                        continue;
+                    }
+                    
+                    if (shopItem == null) {
+                        plugin.getLogger().fine("Item non trouvé dans ShopGUI+: " + shopId + ":" + itemId);
+                        errors++;
+                        continue;
+                    }
+                    
+                    // ✅ CORRECTION : Vérification plus sûre du type
+                    ShopItemType itemType = null;
+                    try {
+                        itemType = shopItem.getType();
+                    } catch (Exception e) {
+                        plugin.getLogger().fine("Erreur lors de la récupération du type pour " + itemId + ": " + e.getMessage());
+                        errors++;
+                        continue;
+                    }
+                    
+                    // ✅ Filtrer les items DUMMY et SPECIAL
+                    if (itemType == ShopItemType.DUMMY || itemType == ShopItemType.SPECIAL) {
+                        plugin.getLogger().fine("Item ignoré (DUMMY/SPECIAL): " + shopId + ":" + itemId);
+                        filtered++;
+                        continue;
+                    }
+                    
+                    // ✅ CORRECTION : Stratégie simplifiée pour récupérer le nom (SANS NBT API)
+                    String itemName = null;
+                    
+                    // 1. Essayer le displayName d'abord (plus rapide)
+                    try {
+                        if (shopItem.getItem().hasItemMeta() && shopItem.getItem().getItemMeta() != null) {
+                            String displayName = shopItem.getItem().getItemMeta().getDisplayName();
+                            if (displayName != null && !displayName.isEmpty()) {
+                                itemName = ChatColor.stripColor(displayName).trim();
+                            }
+                        }
+                    } catch (Exception e) {
+                        plugin.getLogger().fine("Erreur displayName pour " + itemId + ": " + e.getMessage());
+                    }
+                    
+                    // 2. Si pas de displayName, essayer la traduction (SANS API NBT lente)
+                    if (itemName == null || itemName.isEmpty()) {
+                        try {
+                            String translated = plugin.getShopConfigManager().getTranslatedMaterialName(
+                                shopItem.getItem().getType().name(), finalLocale);
+                            if (translated != null && !translated.isEmpty()) {
+                                itemName = translated;
+                            }
+                        } catch (Exception e) {
+                            plugin.getLogger().fine("Erreur traduction pour " + itemId + ": " + e.getMessage());
+                        }
+                    }
+                    
+                    // 3. Fallback sur formatage du nom de matériau
+                    if (itemName == null || itemName.isEmpty()) {
+                        try {
+                            String materialName = shopItem.getItem().getType().name();
+                            // Formatage simple : DIAMOND_SWORD -> Diamond Sword
+                            String[] words = materialName.toLowerCase().split("_");
+                            StringBuilder formatted = new StringBuilder();
+                            for (String word : words) {
+                                if (!word.isEmpty()) {
+                                    formatted.append(Character.toUpperCase(word.charAt(0)))
+                                            .append(word.substring(1))
+                                            .append(" ");
+                                }
+                            }
+                            itemName = formatted.toString().trim();
+                        } catch (Exception e) {
+                            plugin.getLogger().fine("Erreur formatage pour " + itemId + ": " + e.getMessage());
+                        }
+                    }
+                    
+                    // 4. Dernier fallback sur l'ID
+                    if (itemName == null || itemName.isEmpty()) {
+                        itemName = itemId;
+                    }
+                    
+                    // ✅ Nettoyer le nom
+                    itemName = itemName.trim();
+                    
+                    // ✅ Créer l'objet item
+                    Map<String, Object> itemData = new HashMap<>();
+                    itemData.put("id", itemId);
+                    itemData.put("name", itemName);
+                    items.add(itemData);
+                    
+                    processedIds.add(itemId);
+                    added++;
+                    
+                    plugin.getLogger().fine("Item ajouté: " + itemId + " -> " + itemName);
+                    
+                    // ✅ CORRECTION : Afficher un log de progression tous les 20 items
+                    if (processed % 20 == 0) {
+                        plugin.getLogger().fine("Progression: " + processed + "/" + itemIds.size() + " (" + added + " ajoutés)");
+                    }
+                    
+                } catch (Exception e) {
+                    plugin.getLogger().warning("Erreur lors du traitement de l'item " + itemId + ": " + e.getMessage());
+                    e.printStackTrace(); // ✅ Afficher la stack trace pour débugger
+                    errors++;
+                    // Continuer avec les autres items
                 }
-            });
-        
-        // Étape 2: Convertir la Map en List pour le résultat final
-        List<Map<String, Object>> items = new ArrayList<>(uniqueItemsMap.values());
+            }
+            
+            // ✅ Afficher les statistiques de traitement
+            plugin.getLogger().fine("Statistiques de traitement pour " + shopId + ":");
+            plugin.getLogger().fine("- Items traités: " + processed + "/" + itemIds.size());
+            plugin.getLogger().fine("- Items ajoutés: " + items.size());
+            plugin.getLogger().fine("- Items filtrés (DUMMY/SPECIAL): " + filtered);
+            plugin.getLogger().fine("- Erreurs: " + errors);
+            
+            // ✅ Trier les items par nom
+            items.sort(Comparator.comparing(map -> {
+                String name = (String) map.get("name");
+                return name != null ? name.toLowerCase() : "";
+            }));
+            
+            plugin.getLogger().fine("Items finaux pour le shop " + shopId + ": " + items.size());
+            
+        } catch (Exception e) {
+            plugin.getLogger().severe("Erreur lors de la récupération des items pour " + shopId + ": " + e.getMessage());
+            e.printStackTrace();
+            
+            // ✅ En cas d'erreur, retourner une liste vide avec un message d'erreur
+            items = new ArrayList<>();
+            Map<String, Object> errorItem = new HashMap<>();
+            errorItem.put("id", "error");
+            errorItem.put("name", "Erreur lors du chargement des items");
+            items.add(errorItem);
+        }
 
-        // List<Map<String, Object>> items = plugin.getShopConfigManager().getShopItems(shopId).stream()
-        //     .filter(itemId -> {
-        //         // Vérifier si l'item existe et n'est pas un DUMMY
-        //         ShopItem shopItem = shop.getShopItem(itemId);
-        //         return shopItem != null && shopItem.getType() != ShopItemType.DUMMY && shopItem.getType() != ShopItemType.SPECIAL;
-        //     })
-        //     .map(itemId -> {
-        //         Map<String, Object> itemData = new HashMap<>();
-        //         itemData.put("id", itemId);
-        //         // itemData.put("name", plugin.getShopConfigManager().getItemName(null, shopId, itemId));
-        //         itemData.put("name", plugin.getShopConfigManager().getItemNameWithLocale(shopId, itemId, finalLocale));
-        //         return itemData;
-        //     })
-        //     .collect(Collectors.toList());
-
-        // Trier les items par nom
-        items.sort(Comparator.comparing(map -> (String) map.get("name")));
-
+        // ✅ Toujours retourner une réponse JSON valide
         String jsonResponse = gson.toJson(items);
         sendJsonResponse(exchange, jsonResponse);
     }
@@ -933,7 +1199,8 @@ public class MarketWebServer {
             Map<String, Object> response = new HashMap<>();
             response.put("shopId", shopId);
             response.put("itemId", itemId);
-            response.put("itemName", plugin.getShopConfigManager().getItemName(null, shopId, itemId));
+            // response.put("itemName", plugin.getShopConfigManager().getItemName(null, shopId, itemId));
+            // response.put("itemName", itemId);
             response.put("period", days + "d");
             response.put("trend", trend.getTrendType().name());
             response.put("strength", trend.getStrength());
