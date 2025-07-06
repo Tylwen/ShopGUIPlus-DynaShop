@@ -121,11 +121,23 @@ limit:
 
 # Dynamic store configuration
 recipe:
+  # Recipe type multipliers
   shaped: 1.25      # Multiplier for shaped crafting recipes
   shapeless: 1.25   # Multiplier for shapeless crafting recipes
   furnace: 1.1      # Multiplier for furnace recipes
   stonecutter: 1.5  # Multiplier for stonecutter recipes
   smithing: 1.5     # Multiplier for smithing table recipes
+  
+  # Enhanced recipe validation
+  use-minecraft-validation: true       # Use Minecraft recipe validation
+  enforce-minecraft-compliance: false  # Force use of Minecraft recipes over config
+  prefer-vanilla: true                 # Prefer vanilla recipes when multiple options exist
+  allow-custom: true                   # Allow custom recipes not found in Minecraft
+  vanilla-bonus: 1.0                   # Bonus multiplier for vanilla-compliant recipes
+  min-profit-margin: 0.1               # Minimum profit margin for recipe selection
+  
+  # Recipe selection criteria
+  optimization-criteria: "balanced"    # "minimum_cost", "maximum_availability", "balanced", "profit_maximization"
 
 time-period: 15 # Duration of dynamic pricing period (in minutes)
 

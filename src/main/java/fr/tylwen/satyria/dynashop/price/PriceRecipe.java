@@ -67,6 +67,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.Comparator;
+import fr.tylwen.satyria.dynashop.price.recipe.EnhancedRecipeCalculator;
+import fr.tylwen.satyria.dynashop.price.recipe.MinecraftRecipeValidator;
+import fr.tylwen.satyria.dynashop.price.recipe.RecipeSelector;
 
 public class PriceRecipe {
     private final DynaShopPlugin plugin;
@@ -91,6 +94,8 @@ public class PriceRecipe {
     private final CacheManager<String, List<ItemStack>> recipeCache;
     
     private final Map<String, Map<Integer, Double>> enchantMultipliers = new HashMap<>();
+
+    private final EnhancedRecipeCalculator enhancedCalculator;
 
     // public PriceRecipe(FileConfiguration config) {
     //     this.config = config;
@@ -161,6 +166,9 @@ public class PriceRecipe {
         
         // Charger les items populaires depuis la configuration
         this.loadPopularItems();
+        
+        // Initialiser le calculateur amélioré
+        this.enhancedCalculator = new EnhancedRecipeCalculator(plugin);
     }
 
     /**
@@ -961,7 +969,7 @@ public class PriceRecipe {
     //     return ingredients;
     // }
 
-    // public List<ItemStack> getIngredients(String shopID, String itemID, ItemStack item) {
+    // public List<ItemStack> getIngredients(String shopID, String itemID) {
     //     List<ItemStack> ingredients = new ArrayList<>();
     //     String cacheKey = shopID + ":" + itemID;
 
@@ -1023,6 +1031,8 @@ public class PriceRecipe {
     //                             plugin.getLogger().warning("Erreur lors du chargement de l'ingrédient " + key + ": " + e.getMessage());
     //                         }
     //                     }
+    //                 } else {
+    //                     plugin.getLogger().warning("Aucune section d'ingrédients trouvée dans la recette " + shopID + ":" + itemID);
     //                 }
     //             } else if (type.equals("FURNACE")) {
     //                 ConfigurationSection inputSection = recipeSection.getConfigurationSection("input");
@@ -1054,192 +1064,8 @@ public class PriceRecipe {
     //                             ingredients.add(inputItem);
     //                         }
     //                     }
-    //                 }
-    //             }
-    //         }
-    //     } else {
-    //         plugin.getLogger().warning("Aucune recette définie dans la configuration pour " + shopID + ":" + itemID);
-    //     }
-
-    //     // Mettre en cache les résultats
-    //     ingredientsCache.put(cacheKey, new ArrayList<>(ingredients));
-    //     cacheTimestamps.put(cacheKey, System.currentTimeMillis());
-
-    //     return ingredients;
-    // }
-
-    // public List<ItemStack> getIngredients(String shopID, String itemID, ItemStack item) {
-    //     List<ItemStack> ingredients = new ArrayList<>();
-    //     String cacheKey = shopID + ":" + itemID;
-
-    //     // Vérifier le cache
-    //     if (ingredientsCache.containsKey(cacheKey) && 
-    //         System.currentTimeMillis() - cacheTimestamps.getOrDefault(cacheKey, 0L) < CACHE_DURATION) {
-    //         return new ArrayList<>(ingredientsCache.get(cacheKey));
-    //     }
-
-    //     // Vérifier si la recette est définie
-    //     if (plugin.getShopConfigManager().hasRecipePattern(shopID, itemID)) {
-    //         plugin.getLogger().info("Recette trouvée pour " + shopID + ":" + itemID);
-            
-    //         // Lire directement les ingrédients depuis la configuration
-    //         ConfigurationSection recipeSection = plugin.getShopConfigManager().getSection(shopID, itemID, "recipe");
-    //         if (recipeSection != null) {
-    //             // String type = recipeSection.getString("type", "NONE").toUpperCase();
-    //             RecipeType typeRecipe = RecipeType.fromString(recipeSection.getString("type", "NONE").toUpperCase());
-    //             plugin.getLogger().info("Type de recette: " + typeRecipe);
-
-    //             if (typeRecipe == RecipeType.SHAPED) {
-    //                 // Charger le pattern et compter les occurrences de chaque symbole
-    //                 List<String> pattern = recipeSection.getStringList("pattern");
-    //                 Map<Character, Integer> symbolCounts = new HashMap<>();
-                    
-    //                 // Compter les occurrences de chaque symbole dans le pattern
-    //                 for (String row : pattern) {
-    //                     for (char c : row.toCharArray()) {
-    //                         if (c != ' ') {
-    //                             symbolCounts.put(c, symbolCounts.getOrDefault(c, 0) + 1);
-    //                         }
-    //                     }
-    //                 }
-                    
-    //                 plugin.getLogger().info("Occurrences de symboles: " + symbolCounts);
-                    
-    //                 // Charger les ingrédients avec leurs quantités ajustées
-    //                 ConfigurationSection ingredientsSection = recipeSection.getConfigurationSection("ingredients");
-    //                 if (ingredientsSection != null) {
-    //                     for (String key : ingredientsSection.getKeys(false)) {
-    //                         try {
-    //                             if (key.length() != 1) {
-    //                                 plugin.getLogger().warning("Clé d'ingrédient invalide: " + key);
-    //                                 continue;
-    //                             }
-                                
-    //                             char symbol = key.charAt(0);
-    //                             int occurrences = symbolCounts.getOrDefault(symbol, 0);
-                                
-    //                             if (occurrences == 0) {
-    //                                 plugin.getLogger().warning("Symbole " + symbol + " non utilisé dans le pattern");
-    //                                 continue;
-    //                             }
-                                
-    //                             ConfigurationSection ingredientSection = ingredientsSection.getConfigurationSection(key);
-    //                             if (ingredientSection != null) {
-    //                                 String itemRef = ingredientSection.getString("item");
-    //                                 if (itemRef != null && itemRef.contains(":")) {
-    //                                     String[] parts = itemRef.split(":");
-    //                                     if (parts.length == 2) {
-    //                                         String ingredientShopID = parts[0];
-    //                                         String ingredientItemID = parts[1];
-                                            
-    //                                         // Obtenir l'item via l'API ShopGUI+
-    //                                         try {
-    //                                             ItemStack ingredientItem = ShopGuiPlusApi.getShop(ingredientShopID).getShopItem(ingredientItemID).getItem();
-    //                                             if (ingredientItem != null) {
-    //                                                 // Multiplier la quantité de base par le nombre d'occurrences
-    //                                                 int baseQuantity = ingredientSection.getInt("quantity", 1);
-    //                                                 int totalQuantity = baseQuantity * occurrences;
-                                                    
-    //                                                 ingredientItem.setAmount(totalQuantity);
-    //                                                 plugin.getLogger().info("Ingrédient " + symbol + " trouvé: " + ingredientItem + 
-    //                                                                                             " (x" + occurrences + " = " + totalQuantity + ")");
-    //                                                 ingredients.add(ingredientItem);
-    //                                             }
-    //                                         } catch (Exception e) {
-    //                                             plugin.getLogger().warning("Erreur lors de la récupération de l'ingrédient " + itemRef + ": " + e.getMessage());
-    //                                         }
-    //                                     }
-    //                                 } else {
-    //                                     // Fallback sur le type simple
-    //                                     Material material = Material.matchMaterial(ingredientSection.getString("material", "AIR"));
-    //                                     if (material != null && material != Material.AIR) {
-    //                                         int baseQuantity = ingredientSection.getInt("quantity", 1);
-    //                                         int totalQuantity = baseQuantity * occurrences;
-                                            
-    //                                         ItemStack ingredientItem = new ItemStack(material, totalQuantity);
-    //                                         plugin.getLogger().info("Ingrédient matériau " + symbol + " trouvé: " + ingredientItem + 
-    //                                                                                     " (x" + occurrences + " = " + totalQuantity + ")");
-    //                                         ingredients.add(ingredientItem);
-    //                                     }
-    //                                 }
-    //                             }
-    //                         } catch (Exception e) {
-    //                             plugin.getLogger().warning("Erreur lors du chargement de l'ingrédient " + key + ": " + e.getMessage());
-    //                         }
-    //                     }
-    //                 }
-    //             } else if (typeRecipe == RecipeType.SHAPELESS) {
-    //                 // Pour les recettes shapeless, on ne change pas la logique actuelle
-    //                 ConfigurationSection ingredientsSection = recipeSection.getConfigurationSection("ingredients");
-    //                 if (ingredientsSection != null) {
-    //                     for (String key : ingredientsSection.getKeys(false)) {
-    //                         try {
-    //                             ConfigurationSection ingredientSection = ingredientsSection.getConfigurationSection(key);
-    //                             if (ingredientSection != null) {
-    //                                 String itemRef = ingredientSection.getString("item");
-    //                                 if (itemRef != null && itemRef.contains(":")) {
-    //                                     String[] parts = itemRef.split(":");
-    //                                     if (parts.length == 2) {
-    //                                         String ingredientShopID = parts[0];
-    //                                         String ingredientItemID = parts[1];
-                                            
-    //                                         // Obtenir l'item via l'API ShopGUI+
-    //                                         try {
-    //                                             ItemStack ingredientItem = ShopGuiPlusApi.getShop(ingredientShopID).getShopItem(ingredientItemID).getItem();
-    //                                             if (ingredientItem != null) {
-    //                                                 ingredientItem.setAmount(ingredientSection.getInt("quantity", 1));
-    //                                                 plugin.getLogger().info("Ingrédient trouvé: " + ingredientItem);
-    //                                                 ingredients.add(ingredientItem);
-    //                                             }
-    //                                         } catch (Exception e) {
-    //                                             plugin.getLogger().warning("Erreur lors de la récupération de l'ingrédient " + itemRef + ": " + e.getMessage());
-    //                                         }
-    //                                     }
-    //                                 } else {
-    //                                     // Fallback sur le type simple
-    //                                     Material material = Material.matchMaterial(ingredientSection.getString("material", "AIR"));
-    //                                     if (material != null && material != Material.AIR) {
-    //                                         ItemStack ingredientItem = new ItemStack(material, ingredientSection.getInt("quantity", 1));
-    //                                         plugin.getLogger().info("Ingrédient matériau trouvé: " + ingredientItem);
-    //                                         ingredients.add(ingredientItem);
-    //                                     }
-    //                                 }
-    //                             }
-    //                         } catch (Exception e) {
-    //                             plugin.getLogger().warning("Erreur lors du chargement de l'ingrédient " + key + ": " + e.getMessage());
-    //                         }
-    //                     }
-    //                 }
-    //             } else if (typeRecipe == RecipeType.FURNACE) {
-    //                 ConfigurationSection inputSection = recipeSection.getConfigurationSection("input");
-    //                 if (inputSection != null) {
-    //                     String itemRef = inputSection.getString("item");
-    //                     if (itemRef != null && itemRef.contains(":")) {
-    //                         String[] parts = itemRef.split(":");
-    //                         if (parts.length == 2) {
-    //                             String inputShopID = parts[0];
-    //                             String inputItemID = parts[1];
-                                
-    //                             try {
-    //                                 // ItemStack inputItem = ShopGuiPlusApi.getItemStackInShop(inputShopID, inputItemID);
-    //                                 ItemStack inputItem = ShopGuiPlusApi.getShop(inputShopID).getShopItem(inputItemID).getItem();
-    //                                 if (inputItem != null) {
-    //                                     plugin.getLogger().info("Ingrédient four trouvé: " + inputItem);
-    //                                     inputItem.setAmount(inputSection.getInt("quantity", 1));
-    //                                     ingredients.add(inputItem);
-    //                                 }
-    //                             } catch (Exception e) {
-    //                                 plugin.getLogger().warning("Erreur lors de la récupération de l'ingrédient " + itemRef + ": " + e.getMessage());
-    //                             }
-    //                         }
-    //                     } else {
-    //                         Material material = Material.matchMaterial(inputSection.getString("material", "AIR"));
-    //                         if (material != null && material != Material.AIR) {
-    //                             ItemStack inputItem = new ItemStack(material, inputSection.getInt("quantity", 1));
-    //                             plugin.getLogger().info("Ingrédient four matériau trouvé: " + inputItem);
-    //                             ingredients.add(inputItem);
-    //                         }
-    //                     }
+    //                 } else {
+    //                     plugin.getLogger().warning("Aucune section d'entrée trouvée dans la recette " + shopID + ":" + itemID);
     //                 }
     //             }
     //         }
@@ -1788,7 +1614,7 @@ public class PriceRecipe {
     //     //     return price.getSellPrice();
     //     // } else if (typePrice.equals("buyDynamic.min")) {
     //     //     return price.getMinBuyPrice();
-    //     // } else if (typePrice.equals("buyDynamic.max")) {
+    //     // } else if ( typePrice.equals("buyDynamic.max")) {
     //     //     return price.getMaxBuyPrice();
     //     // } else if (typePrice.equals("sellDynamic.min")) {
     //     //     return price.getMinSellPrice();
@@ -1880,29 +1706,6 @@ public class PriceRecipe {
     //     List<ItemStack> consolidated = new ArrayList<>();
     //     for (Map.Entry<Material, Integer> entry : ingredientCounts.entrySet()) {
     //         ItemStack itemStack = new ItemStack(entry.getKey());
-    //         itemStack.setAmount(entry.getValue());
-    //         consolidated.add(itemStack);
-    //     }
-
-    //     return consolidated;
-    // }
-    // public List<ItemStack> consolidateIngredients(List<ItemStack> ingredients) {
-    //     // Map<Material, Integer> ingredientCounts = new HashMap<>();
-    //     Map<ItemStack, Integer> ingredientCounts = new HashMap<>();
-    //     for (ItemStack ingredient : ingredients) {
-    //         if (ingredient == null || ingredient.getType() == Material.AIR) {
-    //             continue; // Ignorer les ingrédients invalides
-    //         }
-    //         // // Utiliser un ItemStack comme clé pour conserver le nom et les enchantements
-    //         // ingredientCounts.merge(ingredient, ingredient.getAmount(), Integer::sum);
-    //         int amount = ingredientCounts.getOrDefault(ingredient, 0) + ingredient.getAmount();
-    //         ingredientCounts.put(ingredient, amount);
-    //         // plugin.getLogger().info("Consolidating ingredient: " + ingredient + " with amount: " + amount);
-    //     }
-
-    //     List<ItemStack> consolidated = new ArrayList<>();
-    //     for (Map.Entry<ItemStack, Integer> entry : ingredientCounts.entrySet()) {
-    //         ItemStack itemStack = entry.getKey().clone();
     //         itemStack.setAmount(entry.getValue());
     //         consolidated.add(itemStack);
     //     }
@@ -2333,6 +2136,29 @@ public class PriceRecipe {
             }
         }
         return multiplier;
+    }
+    
+    /**
+     * Calcule les valeurs de recette avec validation Minecraft (nouvelle méthode améliorée)
+     */
+    public RecipeCalculationResult calculateRecipeValuesEnhanced(String shopID, String itemID) {
+        // Utiliser le calculateur amélioré avec validation Minecraft
+        boolean useEnhancedCalculator = plugin.getConfig().getBoolean("recipe.use-minecraft-validation", true);
+        
+        if (useEnhancedCalculator) {
+            plugin.debug("Utilisation du calculateur amélioré avec validation Minecraft pour " + shopID + ":" + itemID);
+            return enhancedCalculator.calculateWithMinecraftValidation(shopID, itemID);
+        } else {
+            plugin.debug("Utilisation du calculateur traditionnel pour " + shopID + ":" + itemID);
+            return calculateRecipeValues(shopID, itemID, new HashSet<>(), new HashMap<>());
+        }
+    }
+    
+    /**
+     * Obtient le calculateur amélioré pour accès externe
+     */
+    public EnhancedRecipeCalculator getEnhancedCalculator() {
+        return enhancedCalculator;
     }
     
 }
