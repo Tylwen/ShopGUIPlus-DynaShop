@@ -40,7 +40,7 @@ public class DiscordSRVManager {
         this.enabled = plugin.getConfigMain().getBoolean("discord.enabled", false);
         this.announcementChannelId = plugin.getConfigMain().getString("discord.channels.announcements", "");
         this.commandChannelId = plugin.getConfigMain().getString("discord.channels.commands", "");
-        this.lowStockThreshold = plugin.getConfigMain().getInt("discord.low-stock-threshold", 10);
+        this.lowStockThreshold = plugin.getConfigMain().getInt("discord.notifications.low-stock-threshold", 10);
     }
     
     public void initialize() {
@@ -881,7 +881,8 @@ public class DiscordSRVManager {
         if (!enabled || announcementChannelId.isEmpty()) return;
         
         // Ne pas spammer - vérifier si on a déjà annoncé récemment
-        if (currentStock > lowStockThreshold) return;
+        // if (currentStock > lowStockThreshold) return;
+        if (currentStock > lowStockThreshold * maxStock / 100) return; // Utiliser le seuil configuré
         
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
@@ -920,7 +921,8 @@ public class DiscordSRVManager {
         
         // Seulement annoncer les changements significatifs (>5%)
         double changePercent = Math.abs((newPrice - oldPrice) / oldPrice * 100);
-        if (changePercent < 5.0) return;
+        // if (changePercent < 5.0) return;
+        if (changePercent < plugin.getConfigMain().getDouble("discord.notifications.price-change-threshold", 5.0)) return;
         
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {

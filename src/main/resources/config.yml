@@ -23,13 +23,12 @@ discord:
     announcements: "CHANNEL_ID_FOR_ANNOUNCEMENTS"  # Canal pour les annonces automatiques
     commands: "CHANNEL_ID_FOR_COMMANDS"            # Canal pour les commandes utilisateur
   
-  # Seuil pour considérer un stock comme faible
-  low-stock-threshold: 10
-  
   # Notifications automatiques
   notifications:
     restock: true                    # Annoncer les restocks automatiques
+    restock-threshold: 5.0           # Pourcentage minimum pour annoncer un restock
     low-stock: true                  # Annoncer les stocks faibles
+    low-stock-threshold: 10.0        # Pourcentage minimum pour annoncer un stock faible
     price-changes: true              # Annoncer les changements de prix
     price-change-threshold: 5.0      # Pourcentage minimum pour annoncer un changement de prix
   

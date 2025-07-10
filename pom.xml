@@ -7,7 +7,7 @@
 
 	<groupId>fr.tylwen.satyria.dynashop</groupId>
 	<artifactId>ShopGUIPlus-DynaShop</artifactId>
-	<version>1.6.0</version>
+	<version>1.6.1</version>
 
 	<properties>
         <dynashop.version>${project.version}</dynashop.version>

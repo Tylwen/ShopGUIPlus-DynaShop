@@ -593,6 +593,11 @@ public class DynaShopListener implements Listener {
         
         if (buyTypeDynaShop == DynaShopType.NONE || buyTypeDynaShop == DynaShopType.UNKNOWN) buyTypeDynaShop = typeDynaShop;
         if (sellTypeDynaShop == DynaShopType.NONE || sellTypeDynaShop == DynaShopType.UNKNOWN) sellTypeDynaShop = typeDynaShop;
+        
+        // ✅ NOUVEAU : Stocker les prix avant modification pour détecter les changements
+        double oldBuyPrice = price.getBuyPrice();
+        double oldSellPrice = price.getSellPrice();
+        int oldStock = price.getStock();
 
         // // Traiter les prix selon le type de transaction
         // handlePriceChanges(action, shopID, itemID, price, typeDynaShop, buyTypeDynaShop, sellTypeDynaShop, amount, itemStack);
@@ -618,6 +623,56 @@ public class DynaShopListener implements Listener {
             // Sauvegarder seulement si ce n'est pas une recette
             if (sellTypeDynaShop != DynaShopType.RECIPE) {
                 plugin.getBatchDatabaseUpdater().queueUpdate(shopID, itemID, price, true);
+            }
+        }
+        
+        // ✅ NOUVEAU : Annonces Discord après traitement de la transaction
+        if (plugin.getDiscordManager() != null && plugin.getDiscordManager().isEnabled()) {
+            
+            // 1. Annonce des changements de prix significatifs
+            if (Math.abs(price.getBuyPrice() - oldBuyPrice) > 0.01) {
+                plugin.getDiscordManager().announcePriceChange(shopID, itemID, oldBuyPrice, price.getBuyPrice(), true);
+            }
+            if (Math.abs(price.getSellPrice() - oldSellPrice) > 0.01) {
+                plugin.getDiscordManager().announcePriceChange(shopID, itemID, oldSellPrice, price.getSellPrice(), false);
+            }
+
+            // 2. Annonce de stock faible (pour les types STOCK et STATIC_STOCK)
+            if (buyTypeDynaShop == DynaShopType.STOCK || buyTypeDynaShop == DynaShopType.STATIC_STOCK ||
+                sellTypeDynaShop == DynaShopType.STOCK || sellTypeDynaShop == DynaShopType.STATIC_STOCK) {
+                
+                int currentStock = plugin.getStorageManager().getStock(shopID, itemID).orElse(price.getStock());
+                int maxStock = shopConfigManager.getItemValue(shopID, itemID, "stock.max", Integer.class)
+                        .orElse(plugin.getDataConfig().getStockMax());
+                
+                // Vérifier si le stock est maintenant faible
+                int lowStockThreshold = (int)(plugin.getConfigMain().getDouble("discord.notifications.low-stock-threshold", 10.0) * maxStock / 100.0);
+                if (currentStock <= lowStockThreshold && currentStock > 0) {
+                    plugin.getDiscordManager().announceLowStock(shopID, itemID, currentStock, maxStock);
+                }
+                
+                // 3. Annonce de restock (si le stock a augmenté significativement)
+                if (currentStock > oldStock && (currentStock - oldStock) >= amount) {
+                    // Seulement annoncer si c'est un restock significatif (pas juste une petite vente)
+                    double restockPercentage = (double)(currentStock - oldStock) / maxStock * 100;
+                    // if (restockPercentage >= 5.0) { // Au moins 5% du stock max
+                    if (restockPercentage >= plugin.getConfigMain().getDouble("discord.notifications.restock-threshold", 5.0)) {
+                        plugin.getDiscordManager().announceRestock(shopID, itemID, currentStock, maxStock);
+                    }
+                }
+            }
+            
+            // 4. Gestion spéciale pour les items RECIPE
+            if (buyTypeDynaShop == DynaShopType.RECIPE || sellTypeDynaShop == DynaShopType.RECIPE) {
+                int recipeStock = plugin.getPriceRecipe().calculateStock(shopID, itemID, new ArrayList<>());
+                int recipeMaxStock = plugin.getPriceRecipe().calculateMaxStock(shopID, itemID, new ArrayList<>());
+                
+                if (recipeMaxStock > 0) {
+                    int lowStockThreshold = (int)(plugin.getConfigMain().getDouble("discord.notifications.low-stock-threshold", 10.0) * recipeMaxStock / 100.0);
+                    if (recipeStock <= lowStockThreshold && recipeStock > 0) {
+                        plugin.getDiscordManager().announceLowStock(shopID, itemID, recipeStock, recipeMaxStock);
+                    }
+                }
             }
         }
     }
