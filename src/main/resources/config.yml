@@ -140,6 +140,12 @@ recipe:
 
 time-period: 15 # Duration of dynamic pricing period (in minutes)
 
+pricing:
+  # Mode de calcul des prix pour les grandes quantités
+  # "simple": prix unitaire × quantité (recommandé)
+  # "progressive": calcul progressif avec moyenne (ancien système)
+  calculation-mode: "simple"
+
 default:
   price-min-multiply: 0.5 # Minimum multiplier for dynamic pricing
   price-max-multiply: 2.0 # Maximum multiplier for dynamic pricing
