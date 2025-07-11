@@ -730,7 +730,7 @@ public class DynaShopListener implements Listener {
         String priceMode = plugin.getConfigMain().getString("pricing.calculation-mode", "simple");
         
         if (priceMode.equals("progressive")) {
-            // Mode progressif (ancien système)
+            // Mode progressif
             int amount = event.getAmount();
             
             if (event.getShopAction() == ShopAction.BUY) {
@@ -745,7 +745,7 @@ public class DynaShopListener implements Listener {
                 event.setPrice(totalPrice * playerSellModifier);
             }
         } else {
-            // Mode simple (nouveau système par défaut)
+            // Mode simple
             double basePrice;
             if (event.getShopAction() == ShopAction.BUY) {
                 basePrice = price.getBuyPriceForAmount(event.getAmount());
