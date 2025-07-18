@@ -705,6 +705,28 @@ public class ShopItemPlaceholderListener implements Listener {
         return findShopIdFromTitle(title);
     }
     
+    // /**
+    //  * Vérifie si c'est un menu de sélection standard
+    //  */
+    // private boolean isAmountSelectionMenu(String title) {
+    //     String buyName = ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BUY.NAME");
+    //     String sellName = ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.SELL.NAME");
+        
+    //     return title.contains(ChatColor.translateAlternateColorCodes('&', buyName.replace("%item%", ""))) ||
+    //            title.contains(ChatColor.translateAlternateColorCodes('&', sellName.replace("%item%", "")));
+    // }
+    
+    // /**
+    //  * Vérifie si c'est un menu de sélection bulk
+    //  */
+    // private boolean isBulkSelectionMenu(String title) {
+    //     String bulkBuyName = ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BULKBUY.NAME");
+    //     String bulkSellName = ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BULKSELL.NAME");
+        
+    //     return title.contains(ChatColor.translateAlternateColorCodes('&', bulkBuyName.replace("%item%", ""))) ||
+    //            title.contains(ChatColor.translateAlternateColorCodes('&', bulkSellName.replace("%item%", "")));
+    // }
+
     /**
      * Vérifie si c'est un menu de sélection standard
      */
@@ -712,10 +734,9 @@ public class ShopItemPlaceholderListener implements Listener {
         String buyName = ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BUY.NAME");
         String sellName = ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.SELL.NAME");
         
-        return title.contains(ChatColor.translateAlternateColorCodes('&', buyName.replace("%item%", ""))) ||
-               title.contains(ChatColor.translateAlternateColorCodes('&', sellName.replace("%item%", "")));
+        return matchesMenuPattern(title, buyName) || matchesMenuPattern(title, sellName);
     }
-    
+
     /**
      * Vérifie si c'est un menu de sélection bulk
      */
@@ -723,8 +744,49 @@ public class ShopItemPlaceholderListener implements Listener {
         String bulkBuyName = ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BULKBUY.NAME");
         String bulkSellName = ShopGuiPlusApi.getPlugin().getConfigLang().getConfig().getString("DIALOG.AMOUNTSELECTION.BULKSELL.NAME");
         
-        return title.contains(ChatColor.translateAlternateColorCodes('&', bulkBuyName.replace("%item%", ""))) ||
-               title.contains(ChatColor.translateAlternateColorCodes('&', bulkSellName.replace("%item%", "")));
+        return matchesMenuPattern(title, bulkBuyName) || matchesMenuPattern(title, bulkSellName);
+    }
+
+    /**
+     * Vérifie si un titre correspond à un pattern de menu avec gestion des placeholders
+     */
+    private boolean matchesMenuPattern(String title, String pattern) {
+        if (pattern == null || title == null) return false;
+        
+        // Traduire les codes couleur du pattern
+        String translatedPattern = ChatColor.translateAlternateColorCodes('&', pattern);
+        
+        // Diviser le pattern sur %item% pour créer une regex
+        String[] parts = translatedPattern.split("%item%", -1);
+        
+        // Si pas de %item%, faire une comparaison directe
+        if (parts.length == 1) {
+            return ChatColor.stripColor(title).trim().equals(ChatColor.stripColor(translatedPattern).trim());
+        }
+        
+        // Construire une regex pour matcher le pattern
+        StringBuilder regexBuilder = new StringBuilder();
+        
+        for (int i = 0; i < parts.length; i++) {
+            // Échapper les caractères spéciaux de regex
+            regexBuilder.append(Pattern.quote(ChatColor.stripColor(parts[i])));
+            
+            // Ajouter un groupe de capture pour %item% (sauf pour la dernière partie)
+            if (i < parts.length - 1) {
+                regexBuilder.append("(.+?)"); // Capture non-greedy pour le nom de l'item
+            }
+        }
+        
+        // Compiler et tester la regex
+        try {
+            Pattern pattern_regex = Pattern.compile(regexBuilder.toString(), Pattern.CASE_INSENSITIVE);
+            String cleanTitle = ChatColor.stripColor(title).trim();
+            return pattern_regex.matcher(cleanTitle).matches();
+        } catch (Exception e) {
+            // Fallback sur la méthode contains en cas d'erreur
+            plugin.getLogger().warning("Error matching menu pattern: " + e.getMessage());
+            return title.contains(parts[0]) && (parts.length == 1 || title.contains(parts[parts.length - 1]));
+        }
     }
 
     /**
@@ -1134,8 +1196,7 @@ public class ShopItemPlaceholderListener implements Listener {
         //     ", stock: " + price.getStock() +
         //     ", minStock: " + price.getMinStock() +
         //     ", maxStock: " + price.getMaxStock() +
-        //     ", stockBuyModifier: " + price.getStockBuyModifier() +
-        //     ", stockSellModifier: " + price.getStockSellModifier());
+        //     ", stockBuyModifier: " + price.getStockModifier());
 
         // Remplir les prix de base
         if (price != null) {
@@ -1221,21 +1282,31 @@ public class ShopItemPlaceholderListener implements Listener {
      * Remplit les prix de base dans la map
      */
     private void fillBasicPrices(Map<String, String> prices, DynamicPrice price, int quantity) {
+        String priceMode = plugin.getConfigMain().getString("pricing.calculation-mode", "simple");
+        
         if (price.getBuyPrice() < 0) {
             prices.put("buy", "N/A");
         } else {
-            // prices.put("buy", plugin.getPriceFormatter().formatPrice(price.getBuyPrice() * quantity));
-            double averageBuyPrice = price.calculateProgressiveAveragePrice(quantity, price.getGrowthBuy(), true);
-            double totalBuyPrice = averageBuyPrice * quantity;
+            double totalBuyPrice;
+            if (priceMode.equals("progressive")) {
+                double averageBuyPrice = price.calculateProgressiveAveragePrice(quantity, price.getGrowthBuy(), true);
+                totalBuyPrice = averageBuyPrice * quantity;
+            } else {
+                totalBuyPrice = price.getBuyPriceForAmount(quantity);
+            }
             prices.put("buy", plugin.getPriceFormatter().formatPrice(totalBuyPrice));
         }
         
         if (price.getSellPrice() < 0) {
             prices.put("sell", "N/A");
         } else {
-            // prices.put("sell", plugin.getPriceFormatter().formatPrice(price.getSellPrice() * quantity));
-            double averageSellPrice = price.calculateProgressiveAveragePrice(quantity, price.getDecaySell(), false);
-            double totalSellPrice = averageSellPrice * quantity;
+            double totalSellPrice;
+            if (priceMode.equals("progressive")) {
+                double averageSellPrice = price.calculateProgressiveAveragePrice(quantity, price.getDecaySell(), false);
+                totalSellPrice = averageSellPrice * quantity;
+            } else {
+                totalSellPrice = price.getSellPriceForAmount(quantity);
+            }
             prices.put("sell", plugin.getPriceFormatter().formatPrice(totalSellPrice));
         }
         
