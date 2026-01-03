@@ -17,6 +17,7 @@
  */
 package fr.tylwen.satyria.dynashop.price.recipe;
 
+import fr.tylwen.satyria.dynashop.price.PriceRecipe;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
@@ -80,7 +81,7 @@ public class EnhancedRecipeCalculator {
     /**
      * Calcule le prix d'une recette avec validation Minecraft
      */
-    public RecipeCalculationResult calculateWithMinecraftValidation(String shopID, String itemID) {
+    public RecipeCalculationResult calculateWithMinecraftValidation(String shopID, String itemID, Set<String> visitedItems, Map<String, DynamicPrice> lastResults) {
         try {
             // Récupérer l'item du shop
             ShopItem shopItem = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID);
@@ -104,14 +105,11 @@ public class EnhancedRecipeCalculator {
                     plugin.getLogger().warning("  - " + warning);
                 }
                 // Fallback vers le calcul traditionnel
-                return plugin.getPriceRecipe().calculateRecipeValues(shopID, itemID, new HashSet<>(), new HashMap<>());
+                return plugin.getPriceRecipe().calculateRecipeValues(shopID, itemID, visitedItems, lastResults);
             }
             
-            // Utiliser les ingrédients validés
-            List<ItemStack> validatedIngredients = validationResult.getValidatedIngredients();
-            
             // Calculer le prix avec les ingrédients validés
-            return calculatePriceWithValidatedIngredients(shopID, itemID, validatedIngredients, validationResult.isVanillaCompliant());
+            return calculatePriceWithValidatedIngredients(shopID, itemID, validationResult, validationResult.isVanillaCompliant(), visitedItems, lastResults);
             
         } catch (Exception e) {
             plugin.getLogger().severe("Erreur lors du calcul de recette pour " + shopID + ":" + itemID + ": " + e.getMessage());
@@ -203,9 +201,9 @@ public class EnhancedRecipeCalculator {
     /**
      * Calcule le prix avec les ingrédients validés
      */
-    private RecipeCalculationResult calculatePriceWithValidatedIngredients(String shopID, String itemID, 
-                                                                          List<ItemStack> validatedIngredients, 
-                                                                          boolean isVanillaCompliant) {
+    private RecipeCalculationResult calculatePriceWithValidatedIngredients(String shopID, String itemID,
+                                                                           RecipeValidationResult validationResult,
+                                                                          boolean isVanillaCompliant, Set<String> visitedItems, Map<String, DynamicPrice> lastResults) {
         // Variables pour le calcul
         double totalBuyPrice = 0.0;
         double totalSellPrice = 0.0;
@@ -221,13 +219,13 @@ public class EnhancedRecipeCalculator {
         boolean allSellPricesValid = true;
         
         // Calculer les prix des ingrédients
-        for (ItemStack ingredient : validatedIngredients) {
+        for (ItemStack ingredient : validationResult.getValidatedIngredients()) {
             if (ingredient == null || ingredient.getType() == Material.AIR) {
                 continue;
             }
             
             // Trouver l'ingrédient dans les shops
-            DynamicPrice ingredientPrice = findIngredientPrice(shopID, ingredient);
+            DynamicPrice ingredientPrice = findIngredientPrice(shopID, ingredient, visitedItems, lastResults);
             
             if (ingredientPrice != null) {
                 // Calculer les prix
@@ -264,22 +262,35 @@ public class EnhancedRecipeCalculator {
                 allSellPricesValid = false;
             }
         }
-        
+
+        Recipe recipe = validationResult.getMatchedRecipe();
+        int outputCount = recipe != null ? recipe.getResult().getAmount() : plugin.getPriceRecipe().getRecipeOutputAmount(shopID, itemID);
+
         // Ajuster les prix si certains ingrédients n'ont pas de prix
         if (!allBuyPricesValid) {
             totalBuyPrice = -1.0;
             minBuyPrice = -1.0;
             maxBuyPrice = -1.0;
+        } else {
+            totalBuyPrice /=  outputCount;
+            minBuyPrice /= outputCount;
+            maxBuyPrice /= outputCount;
         }
         
         if (!allSellPricesValid) {
             totalSellPrice = -1.0;
             minSellPrice = -1.0;
             maxSellPrice = -1.0;
+        } else {
+            totalSellPrice /= outputCount;
+            minSellPrice /= outputCount;
+            maxSellPrice /= outputCount;
         }
         
         if (minAvailableStock == Integer.MAX_VALUE) {
             minAvailableStock = 0;
+        } else {
+            minAvailableStock *= outputCount;
         }
         
         // Appliquer les modificateurs selon le type de recette
@@ -290,10 +301,10 @@ public class EnhancedRecipeCalculator {
             if (totalSellPrice > 0) totalSellPrice *= vanillaBonus;
         }
         
-        plugin.getLogger().info("Calcul de recette " + (isVanillaCompliant ? "vanilla" : "custom") + 
+        /*plugin.getLogger().info("Calcul de recette " + (isVanillaCompliant ? "vanilla" : "custom") +
                                " pour " + shopID + ":" + itemID + 
                                " - Achat: " + totalBuyPrice + ", Vente: " + totalSellPrice + 
-                               ", Stock: " + minAvailableStock);
+                               ", Stock: " + minAvailableStock);*/
         
         return plugin.getPriceRecipe().new RecipeCalculationResult(
             totalBuyPrice, totalSellPrice,
@@ -306,12 +317,12 @@ public class EnhancedRecipeCalculator {
     /**
      * Trouve le prix d'un ingrédient dans les shops
      */
-    private DynamicPrice findIngredientPrice(String shopID, ItemStack ingredient) {
+    private DynamicPrice findIngredientPrice(String shopID, ItemStack ingredient, Set<String> visitedItems, Map<String, DynamicPrice> lastResults) {
         // Utiliser la méthode existante du système DynaShop
         try {
+            PriceRecipe.FoundItem foundItem = plugin.getPriceRecipe().findItemInShops(shopID, ingredient);
             return plugin.getDynaShopListener().getOrLoadPriceInternal(
-                null, shopID, ingredient.getType().name(), ingredient, 
-                new HashSet<>(), new HashMap<>(), true
+                null, foundItem.getShopID(), foundItem.getItemID(), ingredient, visitedItems, lastResults, true
             );
         } catch (Exception e) {
             plugin.getLogger().warning("Erreur lors de la recherche du prix pour " + ingredient.getType() + ": " + e.getMessage());
