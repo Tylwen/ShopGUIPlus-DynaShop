@@ -518,7 +518,7 @@ public class PriceRecipe {
         // RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, new HashSet<>());
         // RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, new HashSet<>(), new HashMap<>());
         // RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, new HashSet<>(), lastResults);
-        RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, visitedItems, lastResults);
+        RecipeCalculationResult result = calculateRecipeValuesEnhanced(shopID, itemID, visitedItems, lastResults);
 
         // Créer l'objet DynamicPrice avec les valeurs calculées
         DynamicPrice recipePrice = new DynamicPrice(
@@ -548,7 +548,7 @@ public class PriceRecipe {
         // Tâche de calcul avec mécanisme de retry
         Runnable calculationTask = () -> {
             try {
-                RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, new HashSet<>(), new HashMap<>());
+                RecipeCalculationResult result = calculateRecipeValuesEnhanced(shopID, itemID);
                 // RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, new HashSet<>());
                 
                 // Exécuter le callback sur le thread principal de Bukkit
@@ -636,7 +636,7 @@ public class PriceRecipe {
      */
     private void retryCalculation(String shopID, String itemID, ItemStack item, Consumer<RecipeCalculationResult> callback) {
         try {
-            RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, new HashSet<>(), new HashMap<>());
+            RecipeCalculationResult result = calculateRecipeValuesEnhanced(shopID, itemID);
             // RecipeCalculationResult result = calculateRecipeValues(shopID, itemID, new HashSet<>());
             Bukkit.getScheduler().runTask(plugin, () -> callback.accept(result));
         } catch (Exception e) {
@@ -1817,7 +1817,7 @@ public class PriceRecipe {
     }
 
     // Dans calculateRecipeValues et calculatePrice, utiliser une méthode commune:
-    private int getRecipeOutputAmount(String shopID, String itemID) {
+    public int getRecipeOutputAmount(String shopID, String itemID) {
         // Vérifier d'abord recipe.output (format courant)
         Optional<Integer> output = plugin.getShopConfigManager()
             .getItemValue(shopID, itemID, "recipe.output", Integer.class);
@@ -2142,15 +2142,19 @@ public class PriceRecipe {
      * Calcule les valeurs de recette avec validation Minecraft (nouvelle méthode améliorée)
      */
     public RecipeCalculationResult calculateRecipeValuesEnhanced(String shopID, String itemID) {
+        return this.calculateRecipeValuesEnhanced(shopID, itemID, new HashSet<>(), new HashMap<>());
+    }
+
+    public RecipeCalculationResult calculateRecipeValuesEnhanced(String shopID, String itemID, Set<String> visitedItems, Map<String, DynamicPrice> lastResults) {
         // Utiliser le calculateur amélioré avec validation Minecraft
         boolean useEnhancedCalculator = plugin.getConfig().getBoolean("recipe.use-minecraft-validation", true);
         
         if (useEnhancedCalculator) {
             plugin.debug("Utilisation du calculateur amélioré avec validation Minecraft pour " + shopID + ":" + itemID);
-            return enhancedCalculator.calculateWithMinecraftValidation(shopID, itemID);
+            return enhancedCalculator.calculateWithMinecraftValidation(shopID, itemID, visitedItems, lastResults);
         } else {
             plugin.debug("Utilisation du calculateur traditionnel pour " + shopID + ":" + itemID);
-            return calculateRecipeValues(shopID, itemID, new HashSet<>(), new HashMap<>());
+            return calculateRecipeValues(shopID, itemID, visitedItems, lastResults);
         }
     }
     
