@@ -447,7 +447,20 @@ public class ShopConfigManager {
         //     ") | BuyModifier: " + buyModifier + ", SellModifier: " + sellModifier);
     
         // return new DynamicPrice(baseBuy, baseSell, minBuy, maxBuy, minSell, maxSell, growthBuy, decayBuy, growthSell, decaySell);
-        return new DynamicPrice(baseBuy, baseSell, minBuy, maxBuy, minSell, maxSell, growthBuy, decayBuy, growthSell, decaySell, stock, minStock, maxStock, stockModifier);
+        DynamicPrice dp = new DynamicPrice(baseBuy, baseSell, minBuy, maxBuy, minSell, maxSell, growthBuy, decayBuy, growthSell, decaySell, stock, minStock, maxStock, stockModifier);
+
+        // linked: true (défaut) → les deux prix bougent ensemble
+        // linked: false → chaque prix évolue indépendamment (buy lors d'un achat, sell lors d'une vente)
+        boolean linked = true;
+        ConfigurationSection dynaShopSec = findSectionIgnoreCase(itemSec, "dynaShop");
+        if (dynaShopSec != null && dynaShopSec.contains("linked")) {
+            linked = dynaShopSec.getBoolean("linked", true);
+        } else if (itemSec.contains("linked")) {
+            linked = itemSec.getBoolean("linked", true);
+        }
+        dp.setLinked(linked);
+
+        return dp;
     }
 
     /**

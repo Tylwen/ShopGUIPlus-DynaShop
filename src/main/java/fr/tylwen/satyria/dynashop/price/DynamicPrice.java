@@ -52,6 +52,9 @@ public class DynamicPrice implements Cloneable {
     private DynaShopType typeDynaShop; // Type de DynamicPrice (RECIPE, STOCK, etc.)
     private DynaShopType buyTypeDynaShop; // Type spécifique pour l'achat
     private DynaShopType sellTypeDynaShop; // Type spécifique pour la vente
+
+    /** Si true (défaut), un achat fait monter les deux prix ; si false, chaque côté évolue indépendamment. */
+    private boolean linked = true;
     // private DynaShopType buyTypeDynaShop = DynaShopType.UNKNOWN;
     // private DynaShopType sellTypeDynaShop = DynaShopType.UNKNOWN;
 
@@ -239,7 +242,9 @@ public class DynamicPrice implements Cloneable {
             double finalBuyPrice = calculateProgressiveFinalPrice(amount, growthBuy, true);
             this.buyPrice = Math.min(maxBuy, Math.max(finalBuyPrice, minBuy));
         }
-        if (sellPrice > 0) {
+        // linked=true : les deux prix montent (comportement couplé)
+        // linked=false : seul buyPrice monte lors d'un achat
+        if (linked && sellPrice > 0) {
             double finalSellPrice = calculateProgressiveFinalPrice(amount, growthSell, false);
             this.sellPrice = Math.max(minSell, Math.min(finalSellPrice, maxSell));
         }
@@ -259,7 +264,9 @@ public class DynamicPrice implements Cloneable {
      * Applique un decay progressif pendant la vente
      */
     public void applyProgressiveDecay(int amount) {
-        if (buyPrice > 0) {
+        // linked=true : les deux prix descendent (comportement couplé)
+        // linked=false : seul sellPrice descend lors d'une vente
+        if (linked && buyPrice > 0) {
             double finalBuyPrice = calculateProgressiveFinalPrice(amount, decayBuy, true);
             this.buyPrice = Math.max(minBuy, Math.min(finalBuyPrice, maxBuy));
         }
@@ -737,6 +744,14 @@ public class DynamicPrice implements Cloneable {
 
     public void setSellTypeDynaShop(DynaShopType type) {
         this.sellTypeDynaShop = type;
+    }
+
+    public boolean isLinked() {
+        return linked;
+    }
+
+    public void setLinked(boolean linked) {
+        this.linked = linked;
     }
 
     // public double getPrice(String typePrice) {
