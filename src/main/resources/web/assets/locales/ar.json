@@ -33,7 +33,9 @@
   },
   "charts": {
     "priceEvolution": "تطور الأسعار",
-    "transactionVolume": "حجم المعاملات"
+    "transactionVolume": "حجم المعاملات",
+    "buyVsSell": "شراء / بيع",
+    "perPeriod": "لكل فترة"
   },
   "stats": {
     "currentPrice": "السعر الحالي",
@@ -58,7 +60,8 @@
     "price": "السعر"
   },
   "trend": {
-    "title": "الاتجاه العام",
+    "title": "تحليل السوق",
+    "subtitle": "المؤشرات الفنية والإشارات",
     "analyzeTrends": "تحليل الاتجاهات",
     "selectItem": "اختر عنصرًا وانقر على \"تحليل الاتجاهات\" لرؤية التحليل",
     "technicalIndicators": "المؤشرات الفنية",

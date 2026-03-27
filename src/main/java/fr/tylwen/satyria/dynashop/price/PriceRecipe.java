@@ -74,21 +74,13 @@ import fr.tylwen.satyria.dynashop.price.recipe.RecipeSelector;
 public class PriceRecipe {
     private final DynaShopPlugin plugin;
     private final FileConfiguration config;
-    
-    // // Ajouter ces champs à la classe PriceRecipe
-    // private final Map<String, List<ItemStack>> ingredientsCache = new HashMap<>();
-    // private final long CACHE_DURATION = 20L * 60L * 5L; // 5 minutes
-    // // private final long CACHE_DURATION = 20L; // 1 seconde
-    // private final Map<String, Long> cacheTimestamps = new HashMap<>();
 
     private final ExecutorService highPriorityExecutor;
     private final Map<String, Integer> itemAccessCounter = new ConcurrentHashMap<>();
     private final List<String> popularItems = new ArrayList<>();
     private static final int POPULAR_THRESHOLD = 10;
-    
-    // Limiter la profondeur de récursion pour éviter les boucles infinies
-    // private static final int MAX_RECURSION_DEPTH = 5;
-    // Pool de threads limité pour les calculs asynchrones
+    private static final int MAX_RECURSION_DEPTH = 10;
+
     private final ExecutorService recipeExecutor;
     
     private final CacheManager<String, List<ItemStack>> recipeCache;
@@ -97,29 +89,6 @@ public class PriceRecipe {
 
     private final EnhancedRecipeCalculator enhancedCalculator;
 
-    // public PriceRecipe(FileConfiguration config) {
-    //     this.config = config;
-        
-    //     // Créer un pool de threads dédié et limité pour les calculs de recettes
-    //     this.recipeExecutor = Executors.newFixedThreadPool(2, r -> {
-    //         Thread thread = new Thread(r, "Recipe-Calculator");
-    //         thread.setDaemon(true);
-    //         return thread;
-    //     });
-        
-    //     // Créer un pool de threads prioritaire pour les items populaires
-    //     this.highPriorityExecutor = Executors.newFixedThreadPool(1, r -> {
-    //         Thread thread = new Thread(r, "High-Priority-Calculator");
-    //         thread.setDaemon(true);
-    //         thread.setPriority(Thread.MAX_PRIORITY);
-    //         return thread;
-    //     });
-        
-    //     // Charger les items populaires depuis la configuration
-    //     this.loadPopularItems();
-    // }
-    // public PriceRecipe(FileConfiguration config) {
-    //     this.config = config;
     public PriceRecipe(DynaShopPlugin plugin) {
         this.plugin = plugin;
         this.config = plugin.getConfig();

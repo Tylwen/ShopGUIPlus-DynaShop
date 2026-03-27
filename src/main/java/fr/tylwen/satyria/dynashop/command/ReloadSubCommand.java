@@ -43,6 +43,11 @@ public class ReloadSubCommand implements SubCommand {
         plugin.getCalculatedPriceCache().clear();
         plugin.getStockCache().clear();
         
+        // Reconstruire les patterns de titres (les shops ShopGUI+ peuvent avoir changé)
+        if (plugin.getShopItemPlaceholderListener() != null) {
+            plugin.getShopItemPlaceholderListener().buildShopTitlePatterns();
+        }
+        
         sender.sendMessage("§aConfiguration DynaShop rechargée avec succès!");
         return true;
     }

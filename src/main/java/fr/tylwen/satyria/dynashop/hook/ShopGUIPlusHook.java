@@ -41,5 +41,10 @@ public class ShopGUIPlusHook implements Listener {
 
         // // Register the DynaShopItemProvider
         // ShopGuiPlusApi.registerItemProvider(new DynaShopItemProvider(mainPlugin, null));
+
+        // Pré-compiler les patterns de titres de shops pour accélérer la détection des menus
+        if (mainPlugin.getShopItemPlaceholderListener() != null) {
+            mainPlugin.getShopItemPlaceholderListener().buildShopTitlePatterns();
+        }
     }
 }

@@ -470,7 +470,12 @@ public class DynaShopPlugin extends JavaPlugin {
             this.discordManager.initialize();
         }
 
-        getCommand("dynashop").setExecutor(new DynaShopCommand(this));
+        org.bukkit.command.PluginCommand dynaShopCmd = getCommand("dynashop");
+        if (dynaShopCmd != null) {
+            dynaShopCmd.setExecutor(new DynaShopCommand(this));
+        } else {
+            getLogger().severe("Commande 'dynashop' introuvable dans plugin.yml — le plugin risque de ne pas fonctionner correctement.");
+        }
 
         // Utiliser un executor service commun avec un nombre limité de threads
         // ExecutorService sharedExecutor = Executors.newFixedThreadPool(3);

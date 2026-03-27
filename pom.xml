@@ -7,7 +7,7 @@
 
 	<groupId>fr.tylwen.satyria.dynashop</groupId>
 	<artifactId>ShopGUIPlus-DynaShop</artifactId>
-	<version>1.7.0</version>
+	<version>1.8.0</version>
 
 	<properties>
         <dynashop.version>${project.version}</dynashop.version>
@@ -256,7 +256,7 @@
         <dependency>
             <groupId>com.zaxxer</groupId>
             <artifactId>HikariCP</artifactId>
-            <version>4.0.3</version>
+            <version>5.1.0</version>
             <scope>compile</scope>
         </dependency>
         <dependency>

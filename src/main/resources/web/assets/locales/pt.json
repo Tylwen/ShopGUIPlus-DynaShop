@@ -33,7 +33,9 @@
   },
   "charts": {
     "priceEvolution": "Evolução de preços",
-    "transactionVolume": "Volume de transações"
+    "transactionVolume": "Volume de transações",
+    "buyVsSell": "Compra / Venda",
+    "perPeriod": "por período"
   },
   "stats": {
     "currentPrice": "Preço atual",
@@ -58,7 +60,8 @@
     "price": "Preço"
   },
   "trend": {
-    "title": "Tendência geral",
+    "title": "Análise de mercado",
+    "subtitle": "Indicadores técnicos e sinais",
     "analyzeTrends": "Analisar tendências",
     "selectItem": "Selecione um item e clique em \"Analisar tendências\" para ver a análise",
     "technicalIndicators": "Indicadores técnicos",

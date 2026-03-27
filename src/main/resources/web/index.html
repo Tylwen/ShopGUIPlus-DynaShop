@@ -1,213 +1,329 @@
-<!DOCTYPE html>
-<!-- <html lang="fr"> -->
-<html>
+﻿<!DOCTYPE html>
+<html data-theme="dark" lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title data-i18n="title">DynaShop Market Dashboard</title>
-    <link rel="stylesheet" href="assets/style.css">
+    <title data-i18n="title">DynaShop Market | Satyria</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- Utilisation de CDN pour éviter les problèmes de compatibilité -->
+    <link rel="stylesheet" href="assets/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.1/dist/chartjs-chart-financial.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/luxon@3.0.1/build/global/luxon.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.0/dist/chartjs-adapter-luxon.min.js"></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.0/dist/chartjs-adapter-luxon.umd.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1 data-i18n="title">DynaShop Market Dashboard</h1>
-            <div class="select-group">
-                <!-- <label for="refresh-interval">Actualisation:</label> -->
-                <select id="refresh-interval">
-                    <option value="disabled" data-i18n="refresh.disabled">Désactivée</option>
-                    <!-- <option value="1">1 minute</option> -->
-                    <option value="5" data-i18n="refresh.minutes">5 minutes</option>
-                    <option value="15" data-i18n="refresh.minutes">15 minutes</option>
-                    <option value="30" data-i18n="refresh.minutes">30 minutes</option>
-                    <option value="60" data-i18n="refresh.minutes">60 minutes</option>
-                </select>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  PAGE LOADER (hidden after JS init)                            -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="page-loader" class="page-loader">
+    <div class="loader-ring"></div>
+    <span class="loader-text">DynaShop</span>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  HEADER                                                        -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<header class="site-header">
+    <div class="header-inner">
+
+        <!-- Brand -->
+        <a class="header-brand" href="#">
+            <div class="brand-icon">
+                <i class="fas fa-chart-line"></i>
             </div>
-            <div class="server-info">
+            <div class="brand-text">
+                <span class="brand-name">DynaShop</span>
+                <span class="brand-sub">Market</span>
+            </div>
+        </a>
+
+        <!-- Server info -->
+        <div class="header-meta">
+            <div class="meta-pill">
+                <i class="fas fa-server meta-icon"></i>
                 <span id="server-name">Satyria</span>
-                <span id="current-time"></span>
             </div>
-            <div class="controls-wrapper">
-                <!-- <div class="language-selector">
-                    <select id="language-select">
-                        <option value="fr" data-flag="fr">Français</option>
-                        <option value="en" data-flag="en">English</option>
-                    </select>
-                </div> -->
-                <div class="language-selector">
-                    <div class="custom-select-container">
-                        <div class="custom-select-selected fr">FR</div>
-                        <div class="custom-select-dropdown">
-                            <div class="custom-select-option fr" data-value="fr">FR</div>
-                            <div class="custom-select-option en" data-value="en">EN</div>
-                            <div class="custom-select-option es" data-value="es">ES</div>
-                            <div class="custom-select-option pt" data-value="pt">PT</div>
-                            <div class="custom-select-option it" data-value="it">IT</div>
-                            <div class="custom-select-option de" data-value="de">DE</div>
-                            <div class="custom-select-option hi" data-value="hi">HI</div>
-                            <div class="custom-select-option zh" data-value="zh">ZH</div>
-                            <div class="custom-select-option ar" data-value="ar">AR</div>
-                        </div>
-                    </div>
-                    <select id="language-select" style="display: none;">
-                        <!-- <option value="fr">Français</option>
-                        <option value="en">English</option>
-                        <option value="es">Español</option>
-                        <option value="hi">हिन्दी</option>
-                        <option value="zh">中文</option>
-                        <option value="ar">العربية</option>
-                        <option value="pt">Português</option> -->
-                        <option value="fr">FR</option>
-                        <option value="en">EN</option>
-                        <option value="es">ES</option>
-                        <option value="it">IT</option>
-                        <option value="de">DE</option>
-                        <option value="hi">HI</option>
-                        <option value="zh">ZH</option>
-                        <option value="ar">AR</option>
-                        <option value="pt">PT</option>
-                    </select>
-                </div>
-                <div class="theme-toggle">
-                    <button id="theme-switch">
-                        <i class="fas fa-moon"></i>
-                        <span data-i18n="theme.dark">Mode sombre</span>
-                    </button>
-                </div>
-            </div>
-        </header>
-
-        <div class="selectors">
-            <div class="select-group">
-                <label for="shop-select" data-i18n="selectors.shop">Boutique:</label>
-                <select id="shop-select">
-                    <option value="" data-i18n="selectors.chooseShop">Choisir une boutique</option>
-                </select>
-            </div>
-
-            <div class="select-group">
-                <label for="item-select" data-i18n="selectors.item">Item:</label>
-                <select id="item-select" disabled>
-                    <option value="" data-i18n="selectors.chooseItem">Choisir un item</option>
-                </select>
-            </div>
-
-            <div class="select-group">
-                <label for="period-select" data-i18n="selectors.period">Période:</label>
-                <select id="period-select">
-                    <option value="1h" data-i18n="periods.1h">1 heure</option>
-                    <option value="6h" data-i18n="periods.6h">6 heures</option>
-                    <option value="12h" data-i18n="periods.12h">12 heures</option>
-                    <option value="1d" selected data-i18n="periods.1d">1 jour</option>
-                    <option value="1w" data-i18n="periods.1w">1 semaine</option>
-                    <option value="1m" data-i18n="periods.1m">1 mois</option>
-                </select>
+            <div class="meta-pill">
+                <i class="fas fa-clock meta-icon"></i>
+                <span id="current-time">--:--:--</span>
             </div>
         </div>
 
-        <div class="charts-container">
-            <div class="chart-wrapper" id="price-chart-wrapper">
-                <h2 data-i18n="charts.priceEvolution">Évolution des prix</h2>
-                <canvas id="price-chart"></canvas>
+        <!-- Controls -->
+        <div class="header-controls">
+
+            <!-- Auto-refresh — keep .select-group for JS toggleRefreshingIndicator -->
+            <div class="select-group ctrl-refresh">
+                <i class="fas fa-sync-alt ctrl-icon"></i>
+                <select id="refresh-interval" class="ctrl-select">
+                    <option value="disabled" data-i18n="refresh.disabled">Auto-refresh</option>
+                    <option value="5">5 min</option>
+                    <option value="15">15 min</option>
+                    <option value="30">30 min</option>
+                    <option value="60">60 min</option>
+                </select>
             </div>
 
-            <div class="chart-wrapper" id="volume-chart-wrapper">
-                <h2 data-i18n="charts.transactionVolume">Volume des transactions</h2>
+            <!-- Language — structure required by script.js -->
+            <div class="custom-select-container lang-picker">
+                <div class="custom-select-selected fr">🇫🇷 FR</div>
+                <div class="custom-select-dropdown">
+                    <div class="custom-select-option" data-value="fr">🇫🇷 Français</div>
+                    <div class="custom-select-option" data-value="en">🇬🇧 English</div>
+                    <div class="custom-select-option" data-value="es">🇪🇸 Español</div>
+                    <div class="custom-select-option" data-value="pt">🇧🇷 Português</div>
+                    <div class="custom-select-option" data-value="de">🇩🇪 Deutsch</div>
+                    <div class="custom-select-option" data-value="it">🇮🇹 Italiano</div>
+                    <div class="custom-select-option" data-value="hi">🇮🇳 हिन्दी</div>
+                    <div class="custom-select-option" data-value="zh">🇨🇳 中文</div>
+                    <div class="custom-select-option" data-value="ar">🇸🇦 العربية</div>
+                </div>
+                <select id="language-select" style="display:none;">
+                    <option value="fr">FR</option>
+                    <option value="en">EN</option>
+                    <option value="es">ES</option>
+                    <option value="pt">PT</option>
+                    <option value="de">DE</option>
+                    <option value="it">IT</option>
+                    <option value="hi">HI</option>
+                    <option value="zh">ZH</option>
+                    <option value="ar">AR</option>
+                </select>
+            </div>
+
+            <!-- Theme toggle — innerHTML replaced by JS -->
+            <button id="theme-switch" class="theme-btn" title="Toggle theme">
+                <i class="fas fa-sun"></i>
+                <span data-i18n="theme.light">Clair</span>
+            </button>
+
+        </div>
+    </div>
+
+    <!-- Animated progress bar under header -->
+    <div class="header-progress" id="header-progress"></div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  MAIN CONTENT                                                  -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<main class="site-main">
+
+    <!-- ── Selector Bar ───────────────────────────────────────────────────── -->
+    <section class="selector-bar glass-card animate-in">
+        <div class="selector-grid">
+
+            <div class="selector-field">
+                <label class="selector-label">
+                    <i class="fas fa-store"></i>
+                    <span data-i18n="selectors.shop">Boutique</span>
+                </label>
+                <div class="selector-input-wrap">
+                    <select id="shop-select" disabled>
+                        <option value=""></option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="selector-field">
+                <label class="selector-label">
+                    <i class="fas fa-cube"></i>
+                    <span data-i18n="selectors.item">Item</span>
+                </label>
+                <div class="selector-input-wrap">
+                    <select id="item-select" disabled>
+                        <option value=""></option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="selector-field selector-field--sm">
+                <label class="selector-label">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span data-i18n="selectors.period">Période</span>
+                </label>
+                <div class="selector-input-wrap">
+                    <select id="period-select">
+                        <option value="1h"  data-i18n="periods.1h">1 heure</option>
+                        <option value="6h"  data-i18n="periods.6h">6 heures</option>
+                        <option value="12h" data-i18n="periods.12h">12 heures</option>
+                        <option value="1d"  data-i18n="periods.1d" selected>1 jour</option>
+                        <option value="1w"  data-i18n="periods.1w">1 semaine</option>
+                        <option value="1m"  data-i18n="periods.1m">1 mois</option>
+                    </select>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ── Stats Grid ────────────────────────────────────────────────────── -->
+    <section class="stats-grid">
+
+        <div class="stat-card glass-card animate-in" style="--i:1">
+            <div class="stat-accent stat-accent--amber"></div>
+            <div class="stat-icon"><i class="fas fa-coins"></i></div>
+            <div class="stat-content">
+                <span class="stat-label" data-i18n="stats.currentPrice">Prix actuel</span>
+                <span class="stat-value" id="current-price">--</span>
+            </div>
+        </div>
+
+        <div class="stat-card glass-card animate-in" style="--i:2">
+            <div class="stat-accent stat-accent--indigo"></div>
+            <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+            <div class="stat-content">
+                <span class="stat-label" data-i18n="stats.variation">Variation</span>
+                <span class="stat-value" id="price-change">--</span>
+            </div>
+        </div>
+
+        <div class="stat-card glass-card animate-in" style="--i:3">
+            <div class="stat-accent stat-accent--cyan"></div>
+            <div class="stat-icon"><i class="fas fa-exchange-alt"></i></div>
+            <div class="stat-content">
+                <span class="stat-label" data-i18n="stats.volume">Volume</span>
+                <span class="stat-value" id="volume-24h">--</span>
+            </div>
+        </div>
+
+        <div class="stat-card glass-card animate-in" style="--i:4">
+            <div class="stat-accent stat-accent--violet"></div>
+            <div class="stat-icon"><i class="fas fa-history"></i></div>
+            <div class="stat-content">
+                <span class="stat-label" data-i18n="stats.lastTransaction">Dernière transaction</span>
+                <span class="stat-value stat-value--sm" id="last-transaction">--</span>
+            </div>
+        </div>
+
+        <div class="stat-card glass-card animate-in" style="--i:5">
+            <div class="stat-accent stat-accent--emerald"></div>
+            <div class="stat-icon"><i class="fas fa-tag"></i></div>
+            <div class="stat-content">
+                <span class="stat-label" data-i18n="stats.shopType.title">Type DynaShop</span>
+                <span class="stat-value stat-value--sm" id="shop-type">--</span>
+            </div>
+        </div>
+
+        <!-- stock-container: shown/hidden by JS -->
+        <div class="stat-card glass-card animate-in" id="stock-container" style="display:none; --i:6">
+            <div class="stat-accent stat-accent--orange"></div>
+            <div class="stat-icon"><i class="fas fa-boxes"></i></div>
+            <div class="stat-content">
+                <span class="stat-label" data-i18n="stats.stock">Stock</span>
+                <span class="stat-value" id="stock-info">--/--</span>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- ── Charts ──────────────────────────────────────────────────────────── -->
+    <section class="charts-grid">
+
+        <div class="chart-card glass-card animate-in" style="--i:7">
+            <div class="chart-header">
+                <div class="chart-title">
+                    <span class="chart-title-dot chart-title-dot--buy"></span>
+                    <i class="fas fa-chart-area"></i>
+                    <span data-i18n="charts.priceEvolution">Évolution des prix</span>
+                </div>
+                <div class="chart-badge" data-i18n="charts.buyVsSell">Achat / Vente</div>
+            </div>
+            <div class="chart-body">
+                <canvas id="price-chart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-card glass-card animate-in" style="--i:8">
+            <div class="chart-header">
+                <div class="chart-title">
+                    <span class="chart-title-dot chart-title-dot--volume"></span>
+                    <i class="fas fa-chart-bar"></i>
+                    <span data-i18n="charts.transactionVolume">Volume des transactions</span>
+                </div>
+                <div class="chart-badge chart-badge--cyan" data-i18n="charts.perPeriod">par période</div>
+            </div>
+            <div class="chart-body">
                 <canvas id="volume-chart"></canvas>
             </div>
         </div>
 
-        <div class="stats-container">
-            <div class="stat-box">
-                <h3 data-i18n="stats.currentPrice">Prix actuel</h3>
-                <div class="stat-value" id="current-price">--</div>
+    </section>
+
+    <!-- ── Trend Analysis ─────────────────────────────────────────────────── -->
+    <section class="trend-section animate-in" style="--i:9">
+
+        <div class="trend-toggle glass-card">
+            <div class="trend-toggle-left">
+                <div class="trend-toggle-icon">
+                    <i class="fas fa-microscope"></i>
+                </div>
+                <div>
+                    <div class="trend-toggle-title" data-i18n="trend.title">Analyse de marché</div>
+                    <div class="trend-toggle-sub" data-i18n="trend.subtitle">Indicateurs techniques & signaux</div>
+                </div>
+                <div id="trend-container" class="trend-container"></div>
             </div>
-
-            <div class="stat-box">
-                <h3 data-i18n="stats.variation">Variation</h3>
-                <div class="stat-value" id="price-change">--</div>
-            </div>
-
-            <div class="stat-box">
-                <h3 data-i18n="stats.volume">Volume</h3>
-                <div class="stat-value" id="volume-24h">--</div>
-            </div>
-
-            <div class="stat-box">
-                <h3 data-i18n="stats.lastTransaction">Dernière transaction</h3>
-                <div class="stat-value" id="last-transaction">--</div>
-            </div>
-
-            <div class="stat-box">
-                <h3 data-i18n="stats.shopType.title">Type de DynaShop</h3>
-                <div class="stat-value" id="shop-type">--</div>
-            </div>
-
-            <div class="stat-box" id="stock-container" style="display: none;">
-                <h3 data-i18n="stats.stock">Stock</h3>
-                <div class="stat-value" id="stock-info">--/--</div>
-            </div>
-        </div>
-
-        <!-- <div class="candlestick-container">
-            <h2>Graphique en chandelier</h2>
-            <canvas id="candlestick-chart"></canvas>
-        </div> -->
-
-        <div class="container">
-            <div class="controls">
-                <select id="trend-period-select">
-                    <option value="7" data-i18n="periods.7d">7 jours</option>
+            <div class="trend-toggle-right">
+                <select id="trend-period-select" class="ctrl-select">
+                    <option value="7"  data-i18n="periods.7d">7 jours</option>
                     <option value="14" data-i18n="periods.14d">14 jours</option>
-                    <option value="30" data-i18n="periods.30d">30 jours</option>
+                    <option value="30" data-i18n="periods.30d" selected>30 jours</option>
                 </select>
                 <button id="analyze-trends-btn" class="analyze-btn">
-                    <i class="fas fa-chart-line"></i>
-                    <span data-i18n="trend.analyzeTrends">Analyser les tendances</span>
+                    <i class="fas fa-search-plus"></i>
+                    <span data-i18n="trend.analyzeTrends">Analyser</span>
                 </button>
-            </div>
-            
-            <div id="trend-container" class="trend-container">
-                <div class="placeholder-message">
-                    <span data-i18n="trend.selectItem">Sélectionnez un item et cliquez sur "Analyser les tendances" pour voir l'analyse</span>
-                </div>
             </div>
         </div>
 
+        <!-- market-analysis-container: shown/hidden by JS -->
         <div id="market-analysis-container" class="market-analysis-container">
-            <div id="trend-summary" class="market-analysis-section"></div>
-            
-            <div class="market-analysis-section">
-                <h3 data-i18n="trend.technicalIndicators">Indicateurs techniques</h3>
+
+            <div id="trend-summary" class="market-analysis-section glass-card"></div>
+
+            <div class="market-analysis-section glass-card">
+                <h3 class="section-title" data-i18n="trend.technicalIndicators">Indicateurs techniques</h3>
                 <div class="indicators-container">
-                    <div id="sma-chart-container" class="indicator-section"></div>
-                    <div id="rsi-chart-container" class="indicator-section"></div>
-                    <div id="macd-chart-container" class="indicator-section"></div>
+                    <div id="sma-chart-container"       class="indicator-section"></div>
+                    <div id="rsi-chart-container"       class="indicator-section"></div>
+                    <div id="macd-chart-container"      class="indicator-section"></div>
                     <div id="bollinger-chart-container" class="indicator-section"></div>
                 </div>
             </div>
-            
-            <div id="forecast-container" class="market-analysis-section"></div>
-            
-            <div id="signals-container" class="market-analysis-section"></div>
-            
-            <div id="support-resistance-container" class="market-analysis-section"></div>
+
+            <div id="forecast-container"           class="market-analysis-section glass-card"></div>
+            <div id="signals-container"            class="market-analysis-section glass-card"></div>
+            <div id="support-resistance-container" class="market-analysis-section glass-card"></div>
+
         </div>
 
-        <footer>
-            <p data-i18n="footer">DynaShop Market Dashboard - Plugin par Tylwen</p>
-        </footer>
-    </div>
+    </section>
 
-    <script src="assets/script.js"></script>
-    <!-- <script src="/assets/market-trends.js"></script> -->
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  FOOTER                                                        -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<footer class="site-footer">
+    <div class="footer-inner">
+        <span class="footer-brand"><i class="fas fa-chart-line"></i> DynaShop Market</span>
+        <span class="footer-sep">•</span>
+        <span class="footer-credit" data-i18n="footer">Plugin par Tylwen</span>
+    </div>
+</footer>
+
+<script src="assets/script.js"></script>
+<script>
+  // Hide page loader after all scripts are ready
+  window.addEventListener('load', function () {
+    var loader = document.getElementById('page-loader');
+    if (loader) loader.classList.add('hidden');
+  });
+</script>
 </body>
 </html>

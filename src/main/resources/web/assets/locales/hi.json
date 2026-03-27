@@ -33,7 +33,9 @@
   },
   "charts": {
     "priceEvolution": "मूल्य विकास",
-    "transactionVolume": "लेन-देन की मात्रा"
+    "transactionVolume": "लेन-देन की मात्रा",
+    "buyVsSell": "खरीद / बिक्री",
+    "perPeriod": "प्रति अवधि"
   },
   "stats": {
     "currentPrice": "वर्तमान मूल्य",
@@ -58,7 +60,8 @@
     "price": "मूल्य"
   },
   "trend": {
-    "title": "सामान्य प्रवृत्ति",
+    "title": "बाज़ार विश्लेषण",
+    "subtitle": "तकनीकी संकेतक और संकेत",
     "analyzeTrends": "प्रवृत्तियों का विश्लेषण करें",
     "selectItem": "एक वस्तु चुनें और विश्लेषण देखने के लिए \"प्रवृत्तियों का विश्लेषण करें\" पर क्लिक करें",
     "technicalIndicators": "तकनीकी संकेतक",

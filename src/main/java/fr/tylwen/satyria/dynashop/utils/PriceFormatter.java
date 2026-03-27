@@ -19,12 +19,13 @@ package fr.tylwen.satyria.dynashop.utils;
 
 import fr.tylwen.satyria.dynashop.DynaShopPlugin;
 import fr.tylwen.satyria.dynashop.data.param.DynaShopType;
-
+import fr.tylwen.satyria.dynashop.price.DynamicPrice;
 import net.brcdev.shopgui.ShopGuiPlusApi;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 // import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Optional;
 
@@ -82,6 +83,23 @@ public class PriceFormatter {
             return String.format("%.2f", price);
         }
     }
+
+    /**
+     * Charge un DynamicPrice via le même pipeline que les vraies transactions,
+     * pour garantir que le prix affiché (PAPI) = le prix réellement payé.
+     */
+    private DynamicPrice loadDynamicPrice(String shopID, String itemID) {
+        try {
+            ItemStack itemStack = null;
+            try {
+                itemStack = ShopGuiPlusApi.getShop(shopID).getShopItem(itemID).getItem();
+            } catch (Exception ignored) {}
+            return plugin.getDynaShopListener().getOrLoadPrice(
+                null, shopID, itemID, itemStack, new HashSet<>(), new HashMap<>());
+        } catch (Exception e) {
+            return null;
+        }
+    }
     
     /**
      * Formate un nombre d'items en stock
@@ -137,12 +155,12 @@ public class PriceFormatter {
                     }
                 }
 
-                // Priorité à la base de données
-                Optional<Double> buyPrice = plugin.getStorageManager().getBuyPrice(shopID, itemID);
-                if (buyPrice.isPresent()) {
-                    return formatPrice(buyPrice.get());
+                // Pipeline complet (inflation, min/max, modificateurs de groupe)
+                DynamicPrice dpBuy = loadDynamicPrice(shopID, itemID);
+                if (dpBuy != null && dpBuy.getBuyPrice() >= 0) {
+                    return formatPrice(dpBuy.getBuyPrice());
                 }
-                
+
                 // Fallback sur les fichiers de configuration
                 Optional<Double> configBuyPrice = plugin.getShopConfigManager().getItemValue(shopID, itemID, "buyPrice", Double.class);
                 if (configBuyPrice.isPresent()) {
@@ -164,12 +182,12 @@ public class PriceFormatter {
                     }
                 }
 
-                // Priorité à la base de données
-                Optional<Double> sellPrice = plugin.getStorageManager().getSellPrice(shopID, itemID);
-                if (sellPrice.isPresent()) {
-                    return formatPrice(sellPrice.get());
+                // Pipeline complet (inflation, min/max, modificateurs de groupe)
+                DynamicPrice dpSell = loadDynamicPrice(shopID, itemID);
+                if (dpSell != null && dpSell.getSellPrice() >= 0) {
+                    return formatPrice(dpSell.getSellPrice());
                 }
-                
+
                 // Fallback sur les fichiers de configuration
                 Optional<Double> configSellPrice = plugin.getShopConfigManager().getItemValue(shopID, itemID, "sellPrice", Double.class);
                 if (configSellPrice.isPresent()) {
@@ -190,7 +208,13 @@ public class PriceFormatter {
                         return formatPrice(recipePrice);
                     }
                 }
-                
+
+                // Pipeline (résout les minLink dynamiques)
+                DynamicPrice dpBuyMin = loadDynamicPrice(shopID, itemID);
+                if (dpBuyMin != null && dpBuyMin.getMinBuyPrice() >= 0) {
+                    return formatPrice(dpBuyMin.getMinBuyPrice());
+                }
+
                 // Fallback sur les fichiers de configuration
                 Optional<Double> configBuyMinPrice = plugin.getShopConfigManager().getItemValue(shopID, itemID, "buyMinPrice", Double.class);
                 if (configBuyMinPrice.isPresent()) {
@@ -211,7 +235,13 @@ public class PriceFormatter {
                         return formatPrice(recipePrice);
                     }
                 }
-                
+
+                // Pipeline (résout les minLink dynamiques)
+                DynamicPrice dpSellMin = loadDynamicPrice(shopID, itemID);
+                if (dpSellMin != null && dpSellMin.getMinSellPrice() >= 0) {
+                    return formatPrice(dpSellMin.getMinSellPrice());
+                }
+
                 // Fallback sur les fichiers de configuration
                 Optional<Double> configSellMinPrice = plugin.getShopConfigManager().getItemValue(shopID, itemID, "sellMinPrice", Double.class);
                 if (configSellMinPrice.isPresent()) {
@@ -232,7 +262,13 @@ public class PriceFormatter {
                         return formatPrice(recipePrice);
                     }
                 }
-                
+
+                // Pipeline (résout les maxLink dynamiques)
+                DynamicPrice dpBuyMax = loadDynamicPrice(shopID, itemID);
+                if (dpBuyMax != null && dpBuyMax.getMaxBuyPrice() >= 0) {
+                    return formatPrice(dpBuyMax.getMaxBuyPrice());
+                }
+
                 // Fallback sur les fichiers de configuration
                 Optional<Double> configBuyMaxPrice = plugin.getShopConfigManager().getItemValue(shopID, itemID, "buyMaxPrice", Double.class);
                 if (configBuyMaxPrice.isPresent()) {
@@ -253,7 +289,13 @@ public class PriceFormatter {
                         return formatPrice(recipePrice);
                     }
                 }
-                
+
+                // Pipeline (résout les maxLink dynamiques)
+                DynamicPrice dpSellMax = loadDynamicPrice(shopID, itemID);
+                if (dpSellMax != null && dpSellMax.getMaxSellPrice() >= 0) {
+                    return formatPrice(dpSellMax.getMaxSellPrice());
+                }
+
                 // Fallback sur les fichiers de configuration
                 Optional<Double> configSellMaxPrice = plugin.getShopConfigManager().getItemValue(shopID, itemID, "sellMaxPrice", Double.class);
                 if (configSellMaxPrice.isPresent()) {

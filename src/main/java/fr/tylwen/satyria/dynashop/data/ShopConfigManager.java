@@ -864,8 +864,39 @@ public class ShopConfigManager {
         itemPriceData.buyPrice = getOptionalDouble(itemSection, "buyPrice");
         itemPriceData.sellPrice = getOptionalDouble(itemSection, "sellPrice");
         
-        // Section buyDynamic
-        ConfigurationSection buyDynamic = findSectionIgnoreCase(itemSection, "buyDynamic");
+        // // Section buyDynamic
+        // ConfigurationSection buyDynamic = findSectionIgnoreCase(itemSection, "buyDynamic");
+        // if (buyDynamic != null) {
+        //     itemPriceData.defaultBuy = getOptionalBoolean(buyDynamic, "default");
+        //     itemPriceData.minBuy = getOptionalDouble(buyDynamic, "min");
+        //     itemPriceData.maxBuy = getOptionalDouble(buyDynamic, "max");
+        //     itemPriceData.growthBuy = getOptionalDouble(buyDynamic, "growth");
+        //     itemPriceData.decayBuy = getOptionalDouble(buyDynamic, "decay");
+        //     itemPriceData.minBuyLink = getOptionalString(buyDynamic, "minLink");
+        //     itemPriceData.maxBuyLink = getOptionalString(buyDynamic, "maxLink");
+        // }
+        
+        // // Section sellDynamic
+        // ConfigurationSection sellDynamic = findSectionIgnoreCase(itemSection, "sellDynamic");
+        // if (sellDynamic != null) {
+        //     itemPriceData.defaultSell = getOptionalBoolean(sellDynamic, "default");
+        //     itemPriceData.minSell = getOptionalDouble(sellDynamic, "min");
+        //     itemPriceData.maxSell = getOptionalDouble(sellDynamic, "max");
+        //     itemPriceData.growthSell = getOptionalDouble(sellDynamic, "growth");
+        //     itemPriceData.decaySell = getOptionalDouble(sellDynamic, "decay");
+        //     itemPriceData.minSellLink = getOptionalString(sellDynamic, "minLink");
+        //     itemPriceData.maxSellLink = getOptionalString(sellDynamic, "maxLink");
+        // }
+        
+        // Section buyDynamic - vérifie d'abord sous dynaShop:, puis directement
+        ConfigurationSection dynaShopSection = findSectionIgnoreCase(itemSection, "dynaShop");
+        ConfigurationSection buyDynamic = null;
+        if (dynaShopSection != null) {
+            buyDynamic = findSectionIgnoreCase(dynaShopSection, "buyDynamic");
+        }
+        if (buyDynamic == null) {
+            buyDynamic = findSectionIgnoreCase(itemSection, "buyDynamic");
+        }
         if (buyDynamic != null) {
             itemPriceData.defaultBuy = getOptionalBoolean(buyDynamic, "default");
             itemPriceData.minBuy = getOptionalDouble(buyDynamic, "min");
@@ -876,8 +907,14 @@ public class ShopConfigManager {
             itemPriceData.maxBuyLink = getOptionalString(buyDynamic, "maxLink");
         }
         
-        // Section sellDynamic
-        ConfigurationSection sellDynamic = findSectionIgnoreCase(itemSection, "sellDynamic");
+        // Section sellDynamic - vérifie d'abord sous dynaShop:, puis directement
+        ConfigurationSection sellDynamic = null;
+        if (dynaShopSection != null) {
+            sellDynamic = findSectionIgnoreCase(dynaShopSection, "sellDynamic");
+        }
+        if (sellDynamic == null) {
+            sellDynamic = findSectionIgnoreCase(itemSection, "sellDynamic");
+        }
         if (sellDynamic != null) {
             itemPriceData.defaultSell = getOptionalBoolean(sellDynamic, "default");
             itemPriceData.minSell = getOptionalDouble(sellDynamic, "min");
@@ -1151,7 +1188,6 @@ public class ShopConfigManager {
                 //             effects.append(effect.getType().getName()).append(" ");
                 //         });
                 //         translated += " (" + effects.toString().trim() + ")";
-                //     }
                 // }
                 return translated;
             }
@@ -1237,8 +1273,8 @@ public class ShopConfigManager {
                     //     });
                     //     nbtName += " (" + effects.toString().trim() + ")";
                     // }
+                    return nbtName; // Retourne le nom extrait des NBT data
                 }
-                return nbtName; // Retourne le nom extrait des NBT data
             }
         } catch (Exception e) {
             plugin.getLogger().warning("Erreur lors de l'accès aux NBT data avec NBTAPI: " + e.getMessage());

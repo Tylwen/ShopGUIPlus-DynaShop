@@ -42,6 +42,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.util.logging.Level;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -107,8 +108,7 @@ public class MarketWebServer {
             extractWebFiles();
         } catch (IOException e) {
             // plugin.getLogger().severe("§cErreur lors du démarrage du serveur web: " + e.getMessage());
-            plugin.getLogger().severe("Error starting web server: " + e.getMessage());
-            e.printStackTrace();
+            plugin.getLogger().log(Level.SEVERE, "Error starting web server", e);
         }
     }
     
@@ -542,11 +542,13 @@ public class MarketWebServer {
                     
                     // ✅ CORRECTION : Stratégie simplifiée pour récupérer le nom (SANS NBT API)
                     String itemName = null;
+                    org.bukkit.inventory.ItemStack cachedItem = shopItem.getItem();
                     
                     // 1. Essayer le displayName d'abord (plus rapide)
                     try {
-                        if (shopItem.getItem().hasItemMeta() && shopItem.getItem().getItemMeta() != null) {
-                            String displayName = shopItem.getItem().getItemMeta().getDisplayName();
+                        org.bukkit.inventory.meta.ItemMeta cachedMeta = cachedItem.getItemMeta();
+                        if (cachedItem.hasItemMeta() && cachedMeta != null) {
+                            String displayName = cachedMeta.getDisplayName();
                             if (displayName != null && !displayName.isEmpty()) {
                                 itemName = ChatColor.stripColor(displayName).trim();
                             }
@@ -559,7 +561,7 @@ public class MarketWebServer {
                     if (itemName == null || itemName.isEmpty()) {
                         try {
                             String translated = plugin.getShopConfigManager().getTranslatedMaterialName(
-                                shopItem.getItem().getType().name(), finalLocale);
+                                cachedItem.getType().name(), finalLocale);
                             if (translated != null && !translated.isEmpty()) {
                                 itemName = translated;
                             }
@@ -571,7 +573,7 @@ public class MarketWebServer {
                     // 3. Fallback sur formatage du nom de matériau
                     if (itemName == null || itemName.isEmpty()) {
                         try {
-                            String materialName = shopItem.getItem().getType().name();
+                            String materialName = cachedItem.getType().name();
                             // Formatage simple : DIAMOND_SWORD -> Diamond Sword
                             String[] words = materialName.toLowerCase().split("_");
                             StringBuilder formatted = new StringBuilder();
@@ -614,7 +616,7 @@ public class MarketWebServer {
                     
                 } catch (Exception e) {
                     plugin.getLogger().warning("Erreur lors du traitement de l'item " + itemId + ": " + e.getMessage());
-                    e.printStackTrace(); // ✅ Afficher la stack trace pour débugger
+                    plugin.getLogger().log(Level.WARNING, "Erreur lors du traitement de l'item " + itemId, e);
                     errors++;
                     // Continuer avec les autres items
                 }
@@ -636,8 +638,7 @@ public class MarketWebServer {
             plugin.getLogger().fine("Items finaux pour le shop " + shopId + ": " + items.size());
             
         } catch (Exception e) {
-            plugin.getLogger().severe("Erreur lors de la récupération des items pour " + shopId + ": " + e.getMessage());
-            e.printStackTrace();
+            plugin.getLogger().log(Level.SEVERE, "Erreur lors de la récupération des items pour " + shopId, e);
             
             // ✅ En cas d'erreur, retourner une liste vide avec un message d'erreur
             items = new ArrayList<>();
@@ -737,7 +738,7 @@ public class MarketWebServer {
             List<PriceDataPoint> dataPoints;
             if (plugin.getDataConfig().getDatabaseType().equalsIgnoreCase("sqlite")) {
                 PriceHistory history = plugin.getStorageManager().getPriceHistory(shopId, itemId);
-                dataPoints = history.getDataPoints();
+                dataPoints = (history != null) ? history.getDataPoints() : new ArrayList<>();
             } else {
                 dataPoints = plugin.getStorageManager().getAggregatedPriceHistory(shopId, itemId, interval, startTime, maxPoints);
             }
@@ -774,10 +775,9 @@ public class MarketWebServer {
             String jsonResponse = gson.toJson(chartData);
             sendJsonResponse(exchange, jsonResponse);
         } catch (Exception ex) {
-            plugin.getLogger().severe("Erreur dans /api/prices : " + ex.getMessage());
-            ex.printStackTrace();
+            plugin.getLogger().log(Level.SEVERE, "Erreur dans /api/prices", ex);
             // Réponse JSON d'erreur
-            String errorJson = "{\"error\": \"Internal server error: " + ex.getMessage() + "\"}";
+            String errorJson = "{\"error\": " + gson.toJson("Internal server error: " + ex.getMessage()) + "}";
             exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(500, errorJson.length());
             exchange.getResponseBody().write(errorJson.getBytes());
@@ -803,6 +803,10 @@ public class MarketWebServer {
         }
         
         PriceHistory history = plugin.getStorageManager().getPriceHistory(shopId, itemId);
+        if (history == null) {
+            sendJsonResponse(exchange, gson.toJson(new HashMap<>()));
+            return;
+        }
         List<PriceDataPoint> dataPoints = history.getDataPoints();
         
         Map<String, Object> stats = new HashMap<>();
@@ -1229,9 +1233,8 @@ public class MarketWebServer {
             String jsonResponse = gson.toJson(response);
             sendJsonResponse(exchange, jsonResponse);
         } catch (Exception e) {
-            plugin.getLogger().severe("Erreur lors de l'analyse des tendances: " + e.getMessage());
-            e.printStackTrace();
-            String errorJson = "{\"error\": \"Failed to analyze market trends: " + e.getMessage() + "\"}";
+            plugin.getLogger().log(Level.SEVERE, "Erreur lors de l'analyse des tendances", e);
+            String errorJson = "{\"error\": " + gson.toJson("Failed to analyze market trends: " + e.getMessage()) + "}";
             exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(500, errorJson.length());
             exchange.getResponseBody().write(errorJson.getBytes());

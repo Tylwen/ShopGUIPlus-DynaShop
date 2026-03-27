@@ -58,6 +58,8 @@ public class DynaShopListener implements Listener {
     
     // ============= CHAMPS PRIVÉS =============
     
+    private static final int MAX_INGREDIENT_DEPTH = 10;
+
     private final DynaShopPlugin plugin;
     private final PriceRecipe priceRecipe;
     private final DataConfig dataConfig;
@@ -197,99 +199,6 @@ public class DynaShopListener implements Listener {
         }
         return false; // Pas de limite dépassée
     }
-    
-    /**
-     * Vérifie les limites de stock pour les items en mode STOCK
-     */
-    // private boolean checkStockLimits(ShopPreTransactionEvent event, DynaShopType typeDynaShop, DynamicPrice price, String shopID, String itemID, int amount) {
-    //     if (typeDynaShop == DynaShopType.STOCK || typeDynaShop == DynaShopType.STATIC_STOCK) {
-    //         // Vérifier si l'achat est possible (stock suffisant)
-    //         if (event.getShopAction() == ShopAction.BUY && !plugin.getPriceStock().canBuy(shopID, itemID, amount)) {
-    //             event.setCancelled(true);
-    //             if (event.getPlayer() != null) {
-    //                 event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgOutOfStock()));
-    //             }
-    //             return true;
-    //         }
-            
-    //         // Vérifier si la vente est possible (stock pas plein)
-    //         if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && 
-    //             !plugin.getPriceStock().canSell(shopID, itemID, amount)) {
-    //             event.setCancelled(true);
-    //             if (event.getPlayer() != null) {
-    //                 event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgFullStock()));
-    //             }
-    //             return true;
-    //         }
-    //     }
-    //     return false;
-    // }
-
-    // private boolean checkStockLimits(ShopPreTransactionEvent event, DynaShopType typeDynaShop, DynamicPrice price, String shopID, String itemID, int amount) {
-    //     // Résoudre le type réel en tenant compte des LINK
-    //     DynaShopType realType = typeDynaShop;
-        
-    //     // Si c'est un LINK, résoudre le type de l'item cible
-    //     if (typeDynaShop == DynaShopType.LINK) {
-    //         String linkedItemRef = shopConfigManager.getItemValue(shopID, itemID, "link", String.class).orElse(null);
-    //         if (linkedItemRef != null && linkedItemRef.contains(":")) {
-    //             String[] parts = linkedItemRef.split(":");
-    //             if (parts.length == 2) {
-    //                 // Obtenir le type réel de l'item lié
-    //                 DynaShopType linkedType = shopConfigManager.getTypeDynaShop(parts[0], parts[1]);
-    //                 if (linkedType == DynaShopType.STOCK || linkedType == DynaShopType.STATIC_STOCK) {
-    //                     realType = linkedType;
-                        
-    //                     // Vérifier le stock pour l'item lié
-    //                     if (event.getShopAction() == ShopAction.BUY && !plugin.getPriceStock().canBuy(parts[0], parts[1], amount)) {
-    //                         event.setCancelled(true);
-    //                         if (event.getPlayer() != null) {
-    //                             event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgOutOfStock()));
-    //                         }
-    //                         return true;
-    //                     }
-                        
-    //                     // Vérifier si la vente est possible (stock pas plein)
-    //                     if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && 
-    //                         !plugin.getPriceStock().canSell(parts[0], parts[1], amount)) {
-    //                         event.setCancelled(true);
-    //                         if (event.getPlayer() != null) {
-    //                             event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgFullStock()));
-    //                         }
-    //                         return true;
-    //                     }
-                        
-    //                     // On a déjà vérifié, pas besoin de continuer
-    //                     return false;
-    //                 }
-    //             }
-    //         }
-    //     }
-        
-    //     // Comportement normal pour les types STOCK et STATIC_STOCK
-    //     if (realType == DynaShopType.STOCK || realType == DynaShopType.STATIC_STOCK) {
-    //         // Le code existant...
-    //         // Vérifier si l'achat est possible (stock suffisant)
-    //         if (event.getShopAction() == ShopAction.BUY && !plugin.getPriceStock().canBuy(shopID, itemID, amount)) {
-    //             event.setCancelled(true);
-    //             if (event.getPlayer() != null) {
-    //                 event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgOutOfStock()));
-    //             }
-    //             return true;
-    //         }
-            
-    //         // Vérifier si la vente est possible (stock pas plein)
-    //         if ((event.getShopAction() == ShopAction.SELL || event.getShopAction() == ShopAction.SELL_ALL) && 
-    //             !plugin.getPriceStock().canSell(shopID, itemID, amount)) {
-    //             event.setCancelled(true);
-    //             if (event.getPlayer() != null) {
-    //                 event.getPlayer().sendMessage(ChatColor.translateAlternateColorCodes('&', this.plugin.getLangConfig().getMsgFullStock()));
-    //             }
-    //             return true;
-    //         }
-    //     }
-    //     return false;
-    // }
 
     private boolean checkStockLimits(ShopPreTransactionEvent event, DynaShopType typeDynaShop, DynamicPrice price, String shopID, String itemID, int amount) {
         ShopAction action = event.getShopAction();
@@ -627,14 +536,15 @@ public class DynaShopListener implements Listener {
         }
         
         // ✅ NOUVEAU : Annonces Discord après traitement de la transaction
-        if (plugin.getDiscordManager() != null && plugin.getDiscordManager().isEnabled()) {
+        fr.tylwen.satyria.dynashop.discord.DiscordSRVManager discordMgr = plugin.getDiscordManager();
+        if (discordMgr != null && discordMgr.isEnabled()) {
             
             // 1. Annonce des changements de prix significatifs
             if (Math.abs(price.getBuyPrice() - oldBuyPrice) > 0.01) {
-                plugin.getDiscordManager().announcePriceChange(shopID, itemID, oldBuyPrice, price.getBuyPrice(), true);
+                discordMgr.announcePriceChange(shopID, itemID, oldBuyPrice, price.getBuyPrice(), true);
             }
             if (Math.abs(price.getSellPrice() - oldSellPrice) > 0.01) {
-                plugin.getDiscordManager().announcePriceChange(shopID, itemID, oldSellPrice, price.getSellPrice(), false);
+                discordMgr.announcePriceChange(shopID, itemID, oldSellPrice, price.getSellPrice(), false);
             }
 
             // 2. Annonce de stock faible (pour les types STOCK et STATIC_STOCK)
@@ -648,16 +558,15 @@ public class DynaShopListener implements Listener {
                 // Vérifier si le stock est maintenant faible
                 int lowStockThreshold = (int)(plugin.getConfigMain().getDouble("discord.notifications.low-stock-threshold", 10.0) * maxStock / 100.0);
                 if (currentStock <= lowStockThreshold && currentStock > 0) {
-                    plugin.getDiscordManager().announceLowStock(shopID, itemID, currentStock, maxStock);
+                    discordMgr.announceLowStock(shopID, itemID, currentStock, maxStock);
                 }
                 
                 // 3. Annonce de restock (si le stock a augmenté significativement)
                 if (currentStock > oldStock && (currentStock - oldStock) >= amount) {
                     // Seulement annoncer si c'est un restock significatif (pas juste une petite vente)
                     double restockPercentage = (double)(currentStock - oldStock) / maxStock * 100;
-                    // if (restockPercentage >= 5.0) { // Au moins 5% du stock max
                     if (restockPercentage >= plugin.getConfigMain().getDouble("discord.notifications.restock-threshold", 5.0)) {
-                        plugin.getDiscordManager().announceRestock(shopID, itemID, currentStock, maxStock);
+                        discordMgr.announceRestock(shopID, itemID, currentStock, maxStock);
                     }
                 }
             }
@@ -670,7 +579,7 @@ public class DynaShopListener implements Listener {
                 if (recipeMaxStock > 0) {
                     int lowStockThreshold = (int)(plugin.getConfigMain().getDouble("discord.notifications.low-stock-threshold", 10.0) * recipeMaxStock / 100.0);
                     if (recipeStock <= lowStockThreshold && recipeStock > 0) {
-                        plugin.getDiscordManager().announceLowStock(shopID, itemID, recipeStock, recipeMaxStock);
+                        discordMgr.announceLowStock(shopID, itemID, recipeStock, recipeMaxStock);
                     }
                 }
             }
@@ -999,7 +908,7 @@ public class DynaShopListener implements Listener {
      */
     private void applyGrowthOrDecayToIngredients(String shopID, String itemID, int amount, boolean isGrowth, Set<String> visitedItems, Map<String, DynamicPrice> lastResults, int depth) {
         // Limiter la profondeur de récursion
-        if (depth > 10) return;
+        if (depth > MAX_INGREDIENT_DEPTH) return;
 
         // Éviter les boucles infinies
         String itemKey = shopID + ":" + itemID;
@@ -1011,12 +920,8 @@ public class DynaShopListener implements Listener {
         }
         visitedItems.add(itemKey);
         
-        // plugin.getLogger().info("DEBUG: applyGrowthOrDecayToIngredients - " + shopID + ":" + itemID + " amount=" + amount + " isGrowth=" + isGrowth + " depth=" + depth);
-
         // Récupérer les ingrédients
         List<ItemStack> ingredients = plugin.getPriceRecipe().getIngredients(shopID, itemID);
-        
-        // plugin.getLogger().info("DEBUG: Found " + ingredients.size() + " ingredients for " + shopID + ":" + itemID);
         
         if (ingredients.isEmpty()) return;
 
